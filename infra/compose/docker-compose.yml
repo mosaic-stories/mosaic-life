@@ -1,0 +1,64 @@
+services:
+  core-api:
+    build:
+      context: ../../services/core-api
+      dockerfile: Dockerfile
+    environment:
+      ENV: dev
+      LOG_LEVEL: info
+      DB_URL: postgresql+psycopg://postgres:postgres@postgres:5432/core
+      OPENSEARCH_URL: http://opensearch:9200
+      OIDC_ISSUER: http://localhost/oidc # placeholder
+      OIDC_CLIENT_ID: dummy
+      OIDC_CLIENT_SECRET: dummy
+      SNS_TOPIC_ARN_EVENTS: arn:aws:sns:us-east-1:000000000000:domain-events
+      SQS_QUEUE_URL_EVENTS: http://localstack:4566/000000000000/domain-events
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+      - opensearch
+      - localstack
+      - jaeger
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3001:80"
+    depends_on:
+      - core-api
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: core
+    ports:
+      - "15432:5432"
+  opensearch:
+    image: opensearchproject/opensearch:2.13.0
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - bootstrap.memory_lock=true
+      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+  localstack:
+    image: localstack/localstack:3.5
+    environment:
+      - SERVICES=sns,sqs,s3
+      - LS_LOG=info
+    ports:
+      - "4566:4566"
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    ports:
+      - "16686:16686"
+

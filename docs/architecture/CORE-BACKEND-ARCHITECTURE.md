@@ -6,6 +6,8 @@
 **Search:** OpenSearch/Elasticsearch, vector-ready (k-NN).
 **AI registry:** Centralized via LiteLLM (quota/proxy/spend), referenced by plugins/services.
 
+> **⚠️ Architecture Evolution:** This document describes the **target architecture** for Mosaic Life. For MVP development, we are currently implementing a consolidated "Core API" service that combines multiple services described here. See [ADR 0001](../adr/0001-mvp-option-b.md) for MVP implementation details.
+
 ---
 
 ## 1) Goals & Non‑Goals
@@ -344,7 +346,34 @@ interface AIAdapter {
 
 ---
 
-## 21) Author/Reviewer Checklist
+## 21) MVP vs Target Architecture
+
+### MVP Implementation (Current)
+For rapid development and validation, the MVP consolidates the services described in this document into a single **Core API** service:
+
+- **Single Service**: `core-api` combines BFF, Stories Service, Graph Service, and Media Service functionality
+- **Simplified Deployment**: One Docker container, reduced operational complexity
+- **Shared Database**: Single PostgreSQL database with logical separation
+- **Event Foundation**: Outbox pattern implemented but events consumed within the same service
+- **Plugin Ready**: Plugin contracts defined but plugins deploy as separate services
+
+### Target Architecture (Future)
+The target architecture described in this document provides:
+
+- **Service Separation**: Independent scaling and deployment of each service
+- **Event-Driven**: True asynchronous processing between services
+- **Operational Excellence**: Individual service observability and monitoring
+- **Team Scaling**: Different teams can own different services
+
+### Migration Path
+1. **MVP Phase**: Validate core functionality with consolidated service
+2. **Service Extraction**: Extract services based on scaling needs and team structure
+3. **Event Evolution**: Move from in-process to cross-service event handling
+4. **Plugin Maturity**: Evolve from Helm-based to operator-based plugin deployment
+
+---
+
+## 22) Author/Reviewer Checklist
 
 * [ ] OIDC/BFF flow documented and implemented (cookies, CSRF, CORS).
 * [ ] Postgres schemas with RLS + Alembic migrations.

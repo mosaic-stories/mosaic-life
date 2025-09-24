@@ -5,6 +5,8 @@
 **Integration style:** Frontend Module Federation (Pattern A).
 **Execution model:** Out‑of‑process backend plugin microservices (Python), decoupled UI bundles (TypeScript).
 
+> **⚠️ Architecture Evolution:** This document describes the **target plugin architecture** for Mosaic Life. For MVP development, plugin functionality is currently integrated into the Core API service. The plugin contracts and SDK are being designed to enable future extraction into independent microservices.
+
 ---
 
 ## 1) Goals & Non‑Goals
@@ -32,8 +34,8 @@
 * **Core**: The host application that loads UI remotes and talks to plugin services through a stable SDK/contract.
 * **Plugin SDK**: Minimal, stable surfaces to interact with the core.
 
-  * `yourapp-plugin-sdk` (Python) for backend.
-  * `@yourorg/plugin-sdk` (TypeScript) for frontend.
+  * `mosaiclife-plugin-sdk` (Python) for backend.
+  * `@mosaiclife/plugin-sdk` (TypeScript) for frontend.
 * **Manifest (`plugin.yaml`)**: Machine‑readable description of capabilities, config schema, endpoints, and compatibility.
 * **Capabilities**: Least‑privilege permissions a plugin requests (e.g., `http:outbound`, `events:publish`, `db:read`).
 
@@ -140,7 +142,7 @@ plugin-<name>/
 
   ```ts
   // core/runtime-register.ts
-  import { registerRemote } from "@yourorg/plugin-sdk";
+  import { registerRemote } from "@mosaiclife/plugin-sdk";
 
   await registerRemote({
     id: "analytics",
@@ -380,7 +382,7 @@ services:
   ui:
     working_dir: /app
     build: ./ui
-    command: ["npm","run","start"]
+    command: ["pnpm","run","start"]
     ports: ["7002:7002"]
     volumes:
       - ./ui:/app
@@ -429,7 +431,7 @@ class PluginApp:
     def on_stop(self) -> None: ...
 ```
 
-### 15.2 Frontend (TypeScript) — `@yourorg/plugin-sdk`
+### 15.2 Frontend (TypeScript) — `@mosaiclife/plugin-sdk`
 
 ```ts
 export type Panel = {

@@ -6,6 +6,8 @@
 **Design system:** Token-driven, themeable, accessible.
 **Deploy:** Kubernetes (Helm-only). CDN optional later.
 
+> **⚠️ Architecture Evolution:** This document describes the **target architecture** for the Mosaic Life frontend. For MVP development, we are currently implementing a simplified version without Module Federation plugins and with basic auth integration. The current MVP focuses on core user flows and story management features.
+
 ---
 
 ## 1) Objectives & Principles
@@ -172,7 +174,7 @@
 
 ## 13) Dev Experience & Repo Layout
 
-* **Monorepo** (pnpm + Turbo/Nx) for: `app/`, `design-system/`, `@org/plugin-sdk`, `shared-types/`.
+* **Monorepo** (pnpm + Turbo/Nx) for: `app/`, `design-system/`, `@mosaiclife/plugin-sdk`, `shared-types/`.
 * **CI:** type-check, lint, unit + E2E, bundle size check, sourcemap upload.
 * **Storybook:** colocated with `design-system/` and app; plugins can add stories too.
 * **Local env:** `.env.local` for endpoints; mock servers for key APIs.
@@ -284,7 +286,7 @@ packages/
 * **Editor:** Implement **TipTap** editor wrapper with Markdown sync, autosave, revision badges, and a preview toggle (off by default). Sanitize on render using a central sanitizer.
 * **Streaming:** Use **SSE** for AI/chat streaming. Provide a reusable `useSSE(url, body)` hook that yields tokens, supports abort, and reconnects with backoff.
 * **State & data:** Use **TanStack Query** for server cache and **Zustand** for local UI state. Do not build a global Redux store.
-* **Design system:** Consume tokens from `@org/design-system`. No hard-coded colors. Ensure WCAG 2.1 AA and keyboard navigation.
+* **Design system:** Consume tokens from `@mosaiclife/design-system`. No hard-coded colors. Ensure WCAG 2.1 AA and keyboard navigation.
 * **Security:** Never store tokens in localStorage/sessionStorage. Sanitize all user-rendered content. Avoid `dangerouslySetInnerHTML` outside the sanctioned renderer.
 * **Observability:** Instrument important actions with OpenTelemetry web spans (`story.save`, `media.upload`, `search.query`, `ai.stream`).
 
@@ -333,7 +335,34 @@ apps/web/
 * **Plugin loader** (`plugins/registry.ts`): `registerRemote`, `loadRemoteModule`, and contribution registration helpers.
 * **Design tokens** (`design-system/tokens.css`): CSS variables loaded app-wide.
 
-### 22.5 Acceptance checklist for PRs
+### 22.5 MVP vs Target Architecture
+
+#### MVP Implementation (Current)
+The MVP frontend focuses on core functionality with simplified architecture:
+
+- **Single Application**: Monolithic React app without Module Federation
+- **Basic Auth**: Simple session handling with Core API, basic user flows
+- **Core Features**: Story creation, browsing, and basic AI chat functionality
+- **Simple State**: Zustand for core state management, TanStack Query for server state
+- **Foundation**: Design system foundation and accessibility basics
+
+#### Target Architecture (Future)
+The target architecture provides advanced extensibility and user experience:
+
+- **Plugin System**: Module Federation for runtime-loaded plugin UIs
+- **Advanced Auth**: Full BFF pattern with OIDC integration
+- **Rich Interactions**: Advanced AI personas, complex story relationships
+- **Performance**: Advanced caching, lazy loading, and optimization
+- **Enterprise Features**: Multi-tenancy UI, advanced admin capabilities
+
+#### Migration Path
+1. **MVP Phase**: Core user flows and story management
+2. **Auth Enhancement**: Implement full BFF and OIDC integration
+3. **Plugin Foundation**: Add Module Federation infrastructure
+4. **Advanced Features**: Rich AI interactions and plugin ecosystem
+5. **Enterprise Ready**: Multi-tenancy and advanced administration
+
+### 22.6 Acceptance checklist for PRs
 
 * [ ] Type-safe, linted, formatted; bundle size within budget.
 * [ ] Accessible (axe passes, keyboard nav); Storybook stories added.

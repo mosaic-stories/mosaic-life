@@ -223,5 +223,5 @@ If you find another inconsistency, **open an issue** and propose a short patch t
 
 ## 14) Contacts
 
-* **Owners:** @you and @your‑brother (update with GitHub handles)
+* **Owners:** @hewjoe and @drunkie-tech
 * **Where to ask:** Open a GitHub Discussion or Issue tagged `question`.

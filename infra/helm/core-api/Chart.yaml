@@ -1,0 +1,7 @@
+apiVersion: v2
+name: core-api
+description: Core API (BFF + Stories + Media minimal)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+

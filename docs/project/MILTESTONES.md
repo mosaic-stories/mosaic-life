@@ -7,7 +7,7 @@ This roadmap captures the key milestones from first working MVP to a hardened, e
 * `/docs/architecture/PLUGIN-ARCHITECTURE.md`
 * `/docs/ops/SHARED-SERVICES.md`
 * `/docs/standards/CODING-STANDARDS.md`
-* `/docs/AGENT.md`
+* `/AGENTS.md`
 
 > **Stack anchors:** Single‑tenant, Vite + React Router, TipTap editor, SSE streaming, FastAPI services, Postgres + Neo4j (self‑hosted), OpenSearch, SNS/SQS, LiteLLM proxy, Helm‑only, GitHub Actions → ArgoCD, ALB + WAF, Jaeger/Loki/Prometheus+Thanos/Grafana.
 
@@ -162,4 +162,4 @@ This roadmap captures the key milestones from first working MVP to a hardened, e
 
 * The order of M6–M9 can be adjusted based on integrator demand (plugins) vs. AI features vs. scale needs.
 * Throughout, keep **single‑tenant** assumptions in UI/UX, but keep APIs forward‑compatible for a future `tenant_id`.
-* Any change to contracts/schemas must follow the **plan‑first** approval flow in `/docs/AGENT.md`.
+* Any change to contracts/schemas must follow the **plan‑first** approval flow in `/docs/AGENTS.md`.
