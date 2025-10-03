@@ -1,4 +1,4 @@
-# Execution Plan — MVP (Option B)
+# Execution Plan — MVP
 
 Owner: Core Team (2 devs + DevOps)
 Scope: Core API + Web app with OpenSearch, SNS/SQS, LiteLLM; Graph/Plugins deferred

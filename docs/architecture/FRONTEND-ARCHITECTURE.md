@@ -27,7 +27,7 @@
 * **Build:** **Vite** for rapid iterations and Module Federation. If SEO for the public landing becomes critical later, spin up a separate **Next.js** marketing site; the app shell remains Vite.
 * **Routing:** React Router; authenticated routes gated by BFF cookies.
 * **State:** TanStack Query for server-cache + a light local store (Zustand) for UI state. Avoid global stores for everything.
-* **Data contracts:** OpenAPI/JSON Schema → codegen TS types & clients. One shared types package for cross-app primitives (IDs, enums, ACLs).
+* **Data contracts:** OpenAPI/JSON Schema → codegen TS types & clients (see API-DESIGN.md). One shared types package for cross-app primitives (IDs, enums, ACLs).
 * **Streaming:** **SSE** first for incremental outputs; use WebSocket later for bidirectional chat/presence.
 * **Ingress (SSE hints):** For NGINX Ingress, set `nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"`, `nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"`, and `nginx.ingress.kubernetes.io/proxy-buffering: "off"` on SSE endpoints.
 
@@ -36,7 +36,7 @@
 ## 3) AuthN/AuthZ UX (via BFF)
 
 * **OIDC code + PKCE**: frontend redirects to IdP; BFF exchanges code, issues **httpOnly** cookies (SameSite=Lax).
-* **Session refresh:** handled by BFF; UI reads auth state via a `/me` endpoint.
+* **Session refresh:** handled by BFF; UI reads auth state via a `/me` endpoint (see API-DESIGN.md for auth flow).
 * **Route guards:** unauthenticated users see landing/marketing; authenticated get app shell.
 * **CSRF protection:** Origin checks + double-submit token for unsafe methods.
 * **Single-tenant context:** no tenant switcher; requests carry only user/session context. Keep internal APIs ready to accept a `tenant_id` later without breaking clients.
@@ -146,7 +146,7 @@
 
 ## 10) Collaboration with Backend & Plugins
 
-* **Contracts:** API clients generated from OpenAPI; strict type checks in CI.
+* **Contracts:** API clients generated from OpenAPI (see API-DESIGN.md); strict type checks in CI.
 * **Events:** browser subscribes to server-sent events (or WebSocket later) for live updates (e.g., media pipeline status).
 * **Plugin UI registry:** core lists installed plugins and their contributions; users can enable/disable panels where allowed.
 * **Permissions UI:** surfaces plugin capability requests clearly.
@@ -174,10 +174,11 @@
 
 ## 13) Dev Experience & Repo Layout
 
+See **[Local Development Setup](/docs/developer/LOCAL.md)** for complete setup instructions including environment configuration, development servers, and testing setup.
+
 * **Monorepo** (pnpm + Turbo/Nx) for: `app/`, `design-system/`, `@mosaiclife/plugin-sdk`, `shared-types/`.
 * **CI:** type-check, lint, unit + E2E, bundle size check, sourcemap upload.
 * **Storybook:** colocated with `design-system/` and app; plugins can add stories too.
-* **Local env:** `.env.local` for endpoints; mock servers for key APIs.
 
 ```
 apps/

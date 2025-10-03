@@ -85,7 +85,7 @@ Negative/Risks:
 
 ## Decision Owner & Review
 
-Owner: @you
-Reviewers: @your-brother
+Owner: @hewjoe
+Reviewers: @drunkie-tech
 Next Review: After MVP acceptance to decide on search indexer extraction.
 

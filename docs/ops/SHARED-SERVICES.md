@@ -3,10 +3,10 @@
 **Platform:** Kubernetes (EKS or equivalent) on AWS.
 **Networking:** AWS ALB → Ingress Controller (NGINX/Gateway API) with AWS WAF in front.
 **Auth:** AWS Cognito (OIDC).
-**CI/CD:** GitHub Actions → ArgoCD (GitOps).
-**Observability:** Prometheus + Thanos, Grafana OSS, Grafana Loki, Jaeger (OTel).
+**CI/CD:** See [CI/CD Requirements](https://github.com/mosaic-stories/infrastructure/blob/main/docs/CICD.md) - GitHub Actions → ArgoCD (GitOps).
+**Observability:** See [Observability & Monitoring](https://github.com/mosaic-stories/infrastructure/blob/main/docs/OBSERVABILITY.md) - Prometheus + Thanos, Grafana OSS, Grafana Loki, Jaeger (OTel).
 **Messaging:** SNS/SQS.
-**Search:** OpenSearch/Elasticsearch (vector‑ready).
+**Search:** OpenSearch (vector‑ready).
 **AI Registry:** LiteLLM (central proxy/quota/spend).
 **Team:** 2 devs (expandable).
 **Tracker:** Prefer Notion + GitHub; keep option for GitHub Projects or Linear.
@@ -36,69 +36,20 @@
 * **External Secrets Operator** to sync into Kubernetes Secrets.
 * **Key management:** AWS KMS CMKs; rotation policies.
 * **Config:** ConfigMaps + Helm values; separate overlays per env.
-* **Local dev:** `.env` via `direnv`; never commit secrets.
+* **Local dev:** See [Local Development Setup](/docs/developer/LOCAL.md) for environment configuration; never commit secrets.
 
 **Acceptance:** Secrets never in Git; rotations do not require app rebuilds.
 
 ---
 
-## 3) Container & Artifact Management
+## 3) CI/CD & Observability
 
-* **Container registry:** ECR (primary) or GHCR (secondary).
-* **Charts/Manifests:** Helm charts pushed as **OCI artifacts** (ECR or GHCR).
-* **Provenance:** cosign keyless signing (GitHub OIDC) for images and charts; store SBOMs (syft) and run vulnerability scans (grype/Trivy).
-* **Policy:** Kyverno/Gatekeeper admission checks to verify signatures and block critical CVEs.
-
-**Acceptance:** Only signed images/charts deploy; SBOM and scan reports kept for each release.
+* **CI/CD:** See [CI/CD Requirements](https://github.com/mosaic-stories/infrastructure/blob/main/docs/CICD.md) for complete pipeline architecture, security scanning, and deployment workflows.
+* **Observability:** See [Observability & Monitoring](https://github.com/mosaic-stories/infrastructure/blob/main/docs/OBSERVABILITY.md) for comprehensive monitoring, logging, and tracing requirements.
 
 ---
 
-## 4) CI/CD (GitHub Actions → ArgoCD)
-
-* **Pipelines:**
-
-  1. **Verify:** lint, test, type‑check, build, unit/e2e
-  2. **Build:** container image, SBOM, scan, **sign** → push to registry
-  3. **Package:** Helm chart (OCI) with version pin → **sign** → push
-  4. **Integrate:** spin up **kind** or preview namespace; smoke tests
-  5. **Promote:** update GitOps repo (values/images) → ArgoCD sync to `staging`
-  6. **Release:** manual approval → sync to `prod` (optional Argo Rollouts canary)
-* **ArgoCD:** App‑of‑Apps or ApplicationSets per env; SSO enabled; RBAC for admin vs read‑only.
-* **Notifications:** ArgoCD → Google Chat/Email for sync status, health, and rollbacks.
-
-**Acceptance:** Every deploy is reproducible from Git; prod changes require PR + approval.
-
----
-
-## 5) Observability (Metrics, Logs, Traces, Dashboards)
-
-### 5.1 Metrics
-
-* **Prometheus Operator** with ServiceMonitors/PodMonitors; scrape app + system metrics.
-* **Thanos** for long‑term storage and cross‑env querying.
-* **SLOs:** define per service; error budget dashboards.
-
-### 5.2 Logs
-
-* **Loki** with Promtail/Fluent Bit; JSON logs only.
-* **Retention:** hot (7–14 days) then archive (S3).
-
-### 5.3 Traces
-
-* **OpenTelemetry Collector** sidecar/daemonset → **Jaeger** as backend.
-* Propagate W3C `traceparent` across BFF ↔ services ↔ plugins ↔ SQS/SNS (attributes carry correlation).
-
-### 5.4 Dashboards & Alerts
-
-* **Grafana OSS**: version‑controlled dashboards (JSON in Git).
-* **Alerting:** Prometheus/Alertmanager or Grafana Alerting → Google Chat/Email.
-* **Runbooks:** Link every alert to a Notion page.
-
-**Acceptance:** A single broken dependency surfaces within 5 minutes with clear, actionable alerts and a runbook link.
-
----
-
-## 6) Networking, Ingress, and Security Edge
+## 4) Networking, Ingress, and Security Edge
 
 * **ALB Ingress Controller** with AWS **WAF** in front (managed rules + allowlist for plugin origins).
 * **TLS:** ACM certificates; TLS 1.2+; HSTS.
@@ -113,18 +64,18 @@
 
 ---
 
-## 7) Data Services & Reliability
+## 5) Data Services & Reliability
 
 * **Relational DB:** Postgres (RDS). **Backups:** automated snapshots; point‑in‑time recovery.
 * **Graph DB:** Neo4j (self‑hosted) or Neptune. Scheduled backups/export.
-* **Search:** OpenSearch/Elasticsearch managed or self‑hosted; k‑NN enabled for vectors.
+* **Search:** OpenSearch managed or self‑hosted; k‑NN enabled for vectors.
 * **Object store:** S3 buckets for media + artifacts; lifecycle policies (hot → warm → archive); **WAF logs** and **ALB logs** to S3.
 
 **Acceptance:** Documented RPO/RTO per service; restore drills at least twice/year.
 
 ---
 
-## 8) Messaging, Jobs & Autoscaling
+## 6) Messaging, Jobs & Autoscaling
 
 * **SNS/SQS** for domain events and work queues.
 * **KEDA** for event‑driven scaling from SQS queue depth.
@@ -134,20 +85,18 @@
 
 ---
 
-## 9) Security, Compliance & Supply Chain
+## 7) Security, Compliance & Supply Chain
 
-* **Image scanning:** Trivy/Grype in CI; block critical CVEs unless exceptions are recorded.
-* **Secret scanning:** Gitleaks pre‑commit + CI.
-* **Dependency updates:** Dependabot (npm/pip).
 * **WAF logging:** to S3 with Athena queries + alerts on anomalies.
 * **IAM hygiene:** monthly review of roles/policies.
 * **Backups encryption:** KMS; cross‑region copies for critical data.
+* **Supply chain security:** See [CI/CD Requirements](https://github.com/mosaic-stories/infrastructure/blob/main/docs/CICD.md) for image scanning, secret scanning, SBOM generation, and artifact signing.
 
-**Acceptance:** SBOMs for all images; signed artifacts; zero plaintext secrets; periodic audits logged.
+**Acceptance:** Zero plaintext secrets; periodic audits logged; all security policies automated.
 
 ---
 
-## 10) Issue Tracking & Project Management
+## 8) Issue Tracking & Project Management
 
 ### Option A — **Notion‑centric** (preferred to use existing)
 
@@ -170,17 +119,17 @@
 
 ---
 
-## 11) Documentation & Knowledge Base
+## 9) Documentation & Knowledge Base
 
 * **Developer handbook** (Notion): architecture docs, onboarding, coding standards, PR checklist, release process.
 * **Runbooks** per alert/service with Grafana/Loki/Jaeger links.
 * **Changelogs** automated from Conventional Commits (release‑please) and published to Notion + GitHub Releases.
 
-**Acceptance:** A new contributor can set up local dev and ship a small change within one day using the docs alone.
+**Acceptance:** A new contributor can set up local dev and ship a small change within one day using the [Local Development Setup](/docs/developer/LOCAL.md) docs alone.
 
 ---
 
-## 12) Backups, DR & Business Continuity
+## 10) Backups, DR & Business Continuity
 
 * **Velero** for Kubernetes resources (include CSI snapshots for PVCs where needed).
 * **DB backups:** RDS automated + logical dumps; Neo4j/Neptune scheduled dumps.
@@ -191,7 +140,7 @@
 
 ---
 
-## 13) Cost & Tagging
+## 11) Cost & Tagging
 
 * **AWS Budgets** with alerts; **Cost Explorer** dashboards.
 * **Tagging standard:** `Project=LegacyPlatform`, `Env=dev|staging|prod`, `Owner`, `Component`.
@@ -201,18 +150,19 @@
 
 ---
 
-## 14) Developer Experience
+## 12) Developer Experience
 
-* **Local dev:** Docker Compose stack (BFF, services, Localstack SNS/SQS, MinIO, Neo4j, OpenSearch, Jaeger, Prometheus, Grafana, Loki).
+See **[Local Development Setup](/docs/developer/LOCAL.md)** for complete local development environment setup including Docker Compose stack and development workflow.
+
 * **Preview envs:** PR‑scoped namespaces via ArgoCD ApplicationSets; preview URLs posted to PR.
 * **Conventions:** Conventional Commits, Prettier/ESLint/Black, pre‑commit hooks.
 * **Testing:** unit/integration/E2E; contract tests for APIs and plugin UI contracts.
 
-**Acceptance:** `just dev` (or `make dev`) launches local stack; PRs automatically get a preview link.
+**Acceptance:** `just dev` (or `make dev`) launches local stack; PRs automatically get a preview link. (Target: see current setup in [Local Development Setup](/docs/developer/LOCAL.md))
 
 ---
 
-## 15) Optional Shared Services (Phase 2+)
+## 13) Optional Shared Services (Phase 2+)
 
 * **Feature flags:** Unleash/Flagsmith (self‑hosted) if runtime toggles become frequent.
 * **Incident management:** lightweight status page (Instatus) + rotation schedule (Google Calendar).
@@ -220,23 +170,21 @@
 
 ---
 
-## 16) MVP Checklist (Ops Readiness)
+## 14) MVP Checklist (Ops Readiness)
 
-* [ ] EKS cluster with RBAC + IRSA; ArgoCD installed & secured
-* [ ] ECR + OCI Helm registry; cosign + SBOM pipeline in GitHub Actions
-* [ ] Prometheus/Thanos, Loki, Jaeger, Grafana deployed with base dashboards
-* [ ] ALB Ingress + WAF + SSE settings verified
-* [ ] SNS/SQS + KEDA wired; DLQs and alerts configured
+* [ ] EKS cluster with RBAC + IRSA configured
+* [ ] ALB Ingress + WAF + SSE settings verified  
 * [ ] External Secrets Operator; Secrets Manager populated
-* [ ] RDS + backups; Neo4j/Neptune + backups; OpenSearch + snapshots
+* [ ] RDS + backups; Neo4j + backups; OpenSearch + snapshots
+* [ ] SNS/SQS + KEDA wired; DLQs configured
 * [ ] Notion (or GitHub Projects) boards set with MVP milestones
-* [ ] Runbooks created for top 5 failure modes
-* [ ] Preview envs via ArgoCD ApplicationSets
 * [ ] Cost tags applied across resources
+* [ ] CI/CD pipeline configured (see [CI/CD checklist](https://github.com/mosaic-stories/infrastructure/blob/main/docs/CICD.md))
+* [ ] Observability stack deployed (see [Observability checklist](https://github.com/mosaic-stories/infrastructure/blob/main/docs/OBSERVABILITY.md))
 
 ---
 
-## 17) Runbook Template (Notion)
+## 15) Runbook Template (Notion)
 
 **Service:** <name>
 **Alert:** <rule name>
@@ -250,16 +198,16 @@
 
 ---
 
-## 18) Integrations Matrix
+## 16) Integrations Matrix
 
-| Domain  | Tool                                   | Integration                                      |
-| ------- | -------------------------------------- | ------------------------------------------------ |
-| CI → CD | GitHub Actions → ArgoCD                | GitOps repo update; ArgoCD notifications to Chat |
-| Alerts  | Prometheus/Grafana → Google Chat/Email | Webhooks with severity routing                   |
-| Traces  | OTel SDK → OTel Collector → Jaeger     | W3C tracecontext across HTTP/SQS                 |
-| Logs    | Promtail → Loki                        | Labels: `app`, `component`, `env`, `version`     |
-| Metrics | Prometheus → Thanos → Grafana          | SLO dashboards, error budgets                    |
-| Search  | Indexer → OpenSearch                   | Hybrid and vector indices                        |
-| AI      | Services/Plugins → LiteLLM             | Central model routing, budgets, audit            |
-| Secrets | Secrets Manager → External Secrets     | Sync to K8s Secrets                              |
-| Issues  | GitHub ↔ Notion                        | Links on PRs; Notion roadmap to issues           |
+| Domain  | Tool                                   | Integration                                      | Details |
+| ------- | -------------------------------------- | ------------------------------------------------ | ------- |
+| CI → CD | GitHub Actions → ArgoCD                | GitOps repo update; ArgoCD notifications to Chat | [CI/CD](https://github.com/mosaic-stories/infrastructure/blob/main/docs/CICD.md) |
+| Alerts  | Prometheus/Grafana → Google Chat/Email | Webhooks with severity routing                   | [Observability](https://github.com/mosaic-stories/infrastructure/blob/main/docs/OBSERVABILITY.md) |
+| Traces  | OTel SDK → OTel Collector → Jaeger     | W3C tracecontext across HTTP/SQS                 | [Observability](https://github.com/mosaic-stories/infrastructure/blob/main/docs/OBSERVABILITY.md) |
+| Logs    | Promtail → Loki                        | Labels: `app`, `component`, `env`, `version`     | [Observability](https://github.com/mosaic-stories/infrastructure/blob/main/docs/OBSERVABILITY.md) |
+| Metrics | Prometheus → Thanos → Grafana          | SLO dashboards, error budgets                    | [Observability](https://github.com/mosaic-stories/infrastructure/blob/main/docs/OBSERVABILITY.md) |
+| Search  | Indexer → OpenSearch                   | Hybrid and vector indices                        | - |
+| AI      | Services/Plugins → LiteLLM             | Central model routing, budgets, audit            | - |
+| Secrets | Secrets Manager → External Secrets     | Sync to K8s Secrets                              | - |
+| Issues  | GitHub ↔ Notion                        | Links on PRs; Notion roadmap to issues           | - |

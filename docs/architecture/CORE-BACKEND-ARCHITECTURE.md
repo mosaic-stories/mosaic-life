@@ -189,12 +189,14 @@
 
 ---
 
-## 9) API Design (External & Internal)
+## 9) API Design
 
-* **External (BFF)**: REST for CRUD; optional GraphQL for aggregation across stories/graph/search.
-* **Internal**: REST/gRPC with JSON/protobuf; consistent error model; idempotency keys for mutation endpoints.
-* **Pagination**: cursor-based, stable ordering (ULID).
-* **Caching**: ETag/If-None-Match on read endpoints; CDN for public assets.
+**See `/docs/architecture/API-DESIGN.md` for comprehensive API architecture.**
+
+* **External (BFF)**: REST for CRUD with optional GraphQL for complex aggregations
+* **Internal**: REST/HTTP for service-to-service communication (gRPC optional for high-volume)
+* **Standards**: OpenAPI/JSON Schema contracts, cursor-based pagination, consistent error handling
+* **Caching**: ETag/If-None-Match on read endpoints; HTTP caching strategy per resource type
 
 ---
 
@@ -252,10 +254,9 @@
 
 ## 16) Dev Experience & Environments
 
-### 16.1 Local (Docker Compose)
+### 16.1 Local Development
 
-* Core services + Localstack (SNS/SQS) + MinIO (S3) + Neo4j + OpenSearch + Mock OIDC (Keycloak/Authentik dev).
-* Seed data and fake tenants; one command (`make dev`/`just dev`).
+See **[Local Development Setup](/docs/developer/LOCAL.md)** for complete setup instructions including Docker Compose configuration, prerequisites, and development workflow.
 
 ### 16.2 CI
 
@@ -383,5 +384,5 @@ The target architecture described in this document provides:
 * [ ] LiteLLM endpoint configured; adapters for `generate`/`embed` ready.
 * [ ] Observability (OTel traces, logs, metrics) across all services.
 * [ ] Helm values & NetworkPolicies per service; secrets externalized.
-* [ ] Local Compose with Localstack/MinIO/OpenSearch/Neo4j + seed data.
+* [ ] Local Compose with Localstack/MinIO/OpenSearch/Neo4j + seed data. (Currently: Localstack/OpenSearch in MVP)
 * [ ] CI contract tests green; smoke tests on ephemeral k8s.

@@ -1,7 +1,7 @@
 # Plugin Architecture (Backend Microservice + Frontend UI)
 
 **Primary target:** Kubernetes (Helm-only deployments).
-**Local dev:** Docker Compose.
+**Local dev:** See [Local Development Setup](/docs/developer/LOCAL.md).
 **Integration style:** Frontend Module Federation (Pattern A).
 **Execution model:** Out‑of‑process backend plugin microservices (Python), decoupled UI bundles (TypeScript).
 
@@ -169,6 +169,8 @@ plugin-<name>/
 * **Timeouts**: Core sets client timeouts; plugin must complete within SLA or return 504‑style errors.
 
 ### 8.2 Required endpoints
+
+**See `/docs/architecture/API-DESIGN.md` for complete plugin API specifications.**
 
 ```
 GET  /healthz          # liveness (200 OK)
@@ -358,10 +360,9 @@ spec:
 
 ---
 
-## 12) Local Development (Docker Compose)
+## 12) Local Development 
 
-* Provide `docker-compose.plugin.yml` that runs: core, plugin backend, and UI dev server.
-* Core loads the remote from `http://ui:7002/remoteEntry.js` (hot reload).
+See **[Local Development Setup](/docs/developer/LOCAL.md)** for complete setup instructions. Plugin development will use `docker-compose.plugin.yml` that runs core, plugin backend, and UI dev server with hot reload from `http://ui:7002/remoteEntry.js`.
 
 ```yaml
 services:

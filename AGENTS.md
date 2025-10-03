@@ -225,3 +225,5 @@ If you find another inconsistency, **open an issue** and propose a short patch t
 
 * **Owners:** @hewjoe and @drunkie-tech
 * **Where to ask:** Open a GitHub Discussion or Issue tagged `question`.
+* **GitHub Project:** https://github.com/orgs/mosaic-stories/projects/1
+* **Primary GitHub Repo:** https://github.com/mosaic-stories/mosaic-life

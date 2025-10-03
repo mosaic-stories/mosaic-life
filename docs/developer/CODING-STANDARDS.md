@@ -122,7 +122,7 @@
   * Plugin UI contracts validated with a host harness.
 * **Integration tests**
 
-  * Spin up service + dependencies (Localstack for SNS/SQS, MinIO, Neo4j, OpenSearch) via Compose.
+  * Spin up service + dependencies (see [Local Development Setup](/docs/developer/LOCAL.md) for Docker Compose configuration).
 * **End‑to‑End (E2E)**
 
   * Playwright flows for login, story create/edit, media upload, search, AI chat streaming.
@@ -224,8 +224,9 @@
 
 ## 14) Developer Environment
 
+See **[Local Development Setup](/docs/developer/LOCAL.md)** for complete setup instructions including prerequisites, Docker Compose stack, and development workflow.
+
 * **Devcontainers** (`.devcontainer`) for consistent local setup (Node, Python, pnpm, uv, Docker, make/just).
-* **Docker Compose** for local stack (Localstack SNS/SQS, MinIO, Neo4j, OpenSearch, Jaeger, Prometheus, Grafana, Loki).
 * **Make/just** commands (`just dev`, `just test`, `just fmt`, `just lint`, `just e2e`).
 * **Pre‑commit** configured repo‑wide.
 
