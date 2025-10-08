@@ -1,0 +1,36 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200": {
+      "displayName": "MosaicLifeStack/Custom::VpcRestrictDefaultSGCustomResourceProvider Code",
+      "source": {
+        "path": "asset.7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "033691785857-us-east-1-f2b3768d": {
+          "bucketName": "cdk-hnb659fds-assets-033691785857-us-east-1",
+          "objectKey": "7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-file-publishing-role-033691785857-us-east-1"
+        }
+      }
+    },
+    "cc292d656f4af82b0fcb4001714710e3d50c63cbf591f66979863593e9ee1cd8": {
+      "displayName": "MosaicLifeStack Template",
+      "source": {
+        "path": "MosaicLifeStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "033691785857-us-east-1-2d1aacab": {
+          "bucketName": "cdk-hnb659fds-assets-033691785857-us-east-1",
+          "objectKey": "cc292d656f4af82b0fcb4001714710e3d50c63cbf591f66979863593e9ee1cd8.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-file-publishing-role-033691785857-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

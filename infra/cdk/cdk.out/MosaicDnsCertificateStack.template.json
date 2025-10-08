@@ -1,0 +1,164 @@
+{
+ "Description": "Route53 DNS and ACM Certificate for Mosaic Life (uses existing infrastructure)",
+ "Resources": {
+  "HostedZoneDB99F866": {
+   "Type": "AWS::Route53::HostedZone",
+   "Properties": {
+    "HostedZoneConfig": {
+     "Comment": "Hosted zone for mosaiclife.me"
+    },
+    "Name": "mosaiclife.me."
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDnsCertificateStack/HostedZone/Resource"
+   }
+  },
+  "Certificate4E7ABB08": {
+   "Type": "AWS::CertificateManager::Certificate",
+   "Properties": {
+    "DomainName": "mosaiclife.me",
+    "DomainValidationOptions": [
+     {
+      "DomainName": "mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     },
+     {
+      "DomainName": "frontend.mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     },
+     {
+      "DomainName": "backend.mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     },
+     {
+      "DomainName": "api.mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     },
+     {
+      "DomainName": "graph.mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     },
+     {
+      "DomainName": "chat.mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     }
+    ],
+    "SubjectAlternativeNames": [
+     "*.mosaiclife.me",
+     "frontend.mosaiclife.me",
+     "backend.mosaiclife.me",
+     "api.mosaiclife.me",
+     "graph.mosaiclife.me",
+     "chat.mosaiclife.me"
+    ],
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "MosaicDnsCertificateStack/Certificate"
+     }
+    ],
+    "ValidationMethod": "DNS"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDnsCertificateStack/Certificate/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02KPQ/CIBQAf0t3+qQYB+cubpq6uRgKr+b1Aww87ED476ZxqNPlLqdANWeQlV5jbexUz9RDvrM2k9BrfObgE+PpCPmW+pnMxUdG+/AORTu43YowGJgGMppx0U6/MEBu97btf1rKFq6J34mLcN4ijPHwURKaBmQ1RqI6JMe0IHQ/fgFA1EzqqgAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDnsCertificateStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "NameServers": {
+   "Description": "Update your domain registrar with these name servers",
+   "Value": {
+    "Fn::Join": [
+     ", ",
+     {
+      "Fn::GetAtt": [
+       "HostedZoneDB99F866",
+       "NameServers"
+      ]
+     }
+    ]
+   }
+  },
+  "HostedZoneId": {
+   "Description": "Route53 Hosted Zone ID",
+   "Value": {
+    "Ref": "HostedZoneDB99F866"
+   },
+   "Export": {
+    "Name": "mosaic-hosted-zone-id"
+   }
+  },
+  "CertificateArn": {
+   "Description": "ACM Certificate ARN for ALB",
+   "Value": {
+    "Ref": "Certificate4E7ABB08"
+   },
+   "Export": {
+    "Name": "mosaic-certificate-arn"
+   }
+  },
+  "Domain": {
+   "Description": "Primary domain name",
+   "Value": "mosaiclife.me"
+  },
+  "SubjectAlternativeNames": {
+   "Description": "Certificate SANs",
+   "Value": "*.mosaiclife.me, frontend.mosaiclife.me, backend.mosaiclife.me, api.mosaiclife.me, graph.mosaiclife.me, chat.mosaiclife.me"
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

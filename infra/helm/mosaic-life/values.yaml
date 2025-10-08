@@ -1,0 +1,277 @@
+# Mosaic Life Helm Chart Values
+# Uses existing infrastructure from https://github.com/mosaic-stories/infrastructure
+
+global:
+  # ECR registry (from existing infrastructure)
+  registry: "033691785857.dkr.ecr.us-east-1.amazonaws.com"
+  imageTag: "latest"
+  domain: "mosaiclife.me"
+  environment: "prod"
+
+  # AWS Configuration (existing resources)
+  aws:
+    region: "us-east-1"
+    accountId: "033691785857"
+    # Certificate ARN from infrastructure
+    certificateArn: "arn:aws:acm:us-east-1:033691785857:certificate/2988e3f2-676b-4401-b59f-34149da4a051"
+  
+  # Route53 Configuration
+  route53:
+    hostedZoneId: "Z039487930F6987CJO4W9"
+    domain: "mosaiclife.me"
+
+  # Existing Cognito configuration
+  cognito:
+    userPoolId: "us-east-1_JLppKC09m"
+    # Client ID and secret managed via External Secrets
+
+  # Common labels
+  labels:
+    app.kubernetes.io/part-of: mosaic-life
+    app.kubernetes.io/managed-by: helm
+
+# Frontend Web Application
+web:
+  enabled: true
+  name: web
+  replicaCount: 2
+
+  image:
+    repository: mosaic-life/web
+    pullPolicy: Always  # Force pull for latest tag
+
+  service:
+    type: ClusterIP
+    port: 80
+    targetPort: 8080
+
+  ingress:
+    enabled: true
+    className: alb
+    annotations:
+      # Shared ALB configuration - all services use same load balancer
+      alb.ingress.kubernetes.io/group.name: mosaic-life-main
+      alb.ingress.kubernetes.io/group.order: "10"
+      
+      # AWS Load Balancer Controller annotations
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/healthcheck-path: /
+      alb.ingress.kubernetes.io/healthcheck-interval-seconds: "30"
+      alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+      alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+      alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
+      alb.ingress.kubernetes.io/tags: "Environment=prod,Project=MosaicLife,Component=web"
+      
+      # External DNS annotations for automatic Route53 record creation
+      external-dns.alpha.kubernetes.io/hostname: "mosaiclife.me,frontend.mosaiclife.me"
+      external-dns.alpha.kubernetes.io/ttl: "300"
+    hosts:
+      - host: mosaiclife.me
+        paths:
+          - path: /
+            pathType: Prefix
+      - host: frontend.mosaiclife.me
+        paths:
+          - path: /
+            pathType: Prefix
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+
+# Core API Backend
+coreApi:
+  enabled: true
+  name: core-api
+  replicaCount: 3
+
+  image:
+    repository: mosaic-life/core-api
+    pullPolicy: Always  # Force pull for latest tag
+
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+
+  ingress:
+    enabled: true
+    className: alb
+    annotations:
+      # Shared ALB configuration - same load balancer as web
+      alb.ingress.kubernetes.io/group.name: mosaic-life-main
+      alb.ingress.kubernetes.io/group.order: "20"
+      
+      # AWS Load Balancer Controller annotations
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/healthcheck-path: /healthz
+      alb.ingress.kubernetes.io/healthcheck-interval-seconds: "15"
+      alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+      alb.ingress.kubernetes.io/success-codes: "200"
+      alb.ingress.kubernetes.io/backend-protocol-version: HTTP1
+      # SSE/Streaming support - increased timeout per SHARED-SERVICES §4
+      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600
+      alb.ingress.kubernetes.io/tags: "Environment=prod,Project=MosaicLife,Component=backend"
+      
+      # External DNS annotations for automatic Route53 record creation
+      external-dns.alpha.kubernetes.io/hostname: "api.mosaiclife.me,backend.mosaiclife.me"
+      external-dns.alpha.kubernetes.io/ttl: "300"
+    hosts:
+      - host: backend.mosaiclife.me
+        paths:
+          - path: /
+            pathType: Prefix
+      - host: api.mosaiclife.me
+        paths:
+          - path: /
+            pathType: Prefix
+
+  # Environment variables
+  env:
+    - name: PORT
+      value: "8080"
+    - name: ENVIRONMENT
+      value: "production"
+    - name: LOG_LEVEL
+      value: "info"
+    - name: AWS_REGION
+      value: "us-east-1"
+    - name: COGNITO_USER_POOL_ID
+      value: "us-east-1_JLppKC09m"
+    - name: S3_MEDIA_BUCKET
+      value: "mosaic-prod-media-033691785857"
+    - name: S3_BACKUP_BUCKET
+      value: "mosaic-prod-backups-033691785857"
+    # TODO: Replace with actual database URL from secrets
+    - name: DATABASE_URL
+      value: "postgresql://user:pass@localhost:5432/mosaiclife"
+
+  # Environment from secrets (managed by infrastructure repo)
+  # Comment out until secrets are created
+  envFrom: null
+    # - secretRef:
+    #     name: cognito-config  # Created by External Secrets or manually
+    # - secretRef:
+    #     name: database-config  # Database credentials
+
+  # Service Account for IRSA (if needed)
+  serviceAccount:
+    create: true
+    annotations: {}
+      # eks.amazonaws.com/role-arn: arn:aws:iam::033691785857:role/mosaic-core-api-role
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: 8080
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+# ConfigMap for shared configuration
+config:
+  aws:
+    region: "us-east-1"
+    accountId: "033691785857"
+  cognito:
+    userPoolId: "us-east-1_JLppKC09m"
+  s3:
+    mediaBucket: "mosaic-prod-media-033691785857"
+    backupBucket: "mosaic-prod-backups-033691785857"
+  features:
+    enablePlugins: false
+    enableAIChat: true
+    enableSearch: true
+
+# Network Policies
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: mosaic-life
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53 # DNS
+        - protocol: UDP
+          port: 53 # DNS
+    - to: # Allow AWS services
+        - podSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443
+
+# Pod Security Standards
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true

@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mosaic-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mosaic-life.labels" . | nindent 4 }}
+data:
+  aws.region: {{ .Values.global.aws.region | quote }}
+  domain: {{ .Values.global.domain | quote }}
+  environment: {{ .Values.global.environment | quote }}
+  {{- if .Values.config.cognito.issuerUrl }}
+  cognito.issuerUrl: {{ .Values.config.cognito.issuerUrl | quote }}
+  {{- end }}
+  features.enablePlugins: {{ .Values.config.features.enablePlugins | quote }}
+  features.enableAIChat: {{ .Values.config.features.enableAIChat | quote }}
+  features.enableSearch: {{ .Values.config.features.enableSearch | quote }}

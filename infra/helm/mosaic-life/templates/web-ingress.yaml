@@ -1,0 +1,33 @@
+{{- if and .Values.web.enabled .Values.web.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.web.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mosaic-life.labels" . | nindent 4 }}
+    {{- include "mosaic-life.web.selectorLabels" . | nindent 4 }}
+  annotations:
+    # Certificate ARN for HTTPS
+    alb.ingress.kubernetes.io/certificate-arn: {{ .Values.global.aws.certificateArn }}
+    {{- with .Values.web.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.web.ingress.className }}
+  rules:
+  {{- range .Values.web.ingress.hosts }}
+  - host: {{ .host }}
+    http:
+      paths:
+      {{- range .paths }}
+      - path: {{ .path }}
+        pathType: {{ .pathType }}
+        backend:
+          service:
+            name: {{ $.Values.web.name }}
+            port:
+              number: {{ $.Values.web.service.port }}
+      {{- end }}
+  {{- end }}
+{{- end }}

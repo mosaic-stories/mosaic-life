@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "87792ccf30120445b4d8104bef9f7dd6f9757ebd3b135b6a009b4463051f6a4a": {
+      "displayName": "MosaicDnsCertificateStack Template",
+      "source": {
+        "path": "MosaicDnsCertificateStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "033691785857-us-east-1-fa697b4e": {
+          "bucketName": "cdk-hnb659fds-assets-033691785857-us-east-1",
+          "objectKey": "87792ccf30120445b4d8104bef9f7dd6f9757ebd3b135b6a009b4463051f6a4a.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-file-publishing-role-033691785857-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

@@ -1,0 +1,31 @@
+{{- if and .Values.coreApi.enabled .Values.coreApi.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.coreApi.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mosaic-life.labels" . | nindent 4 }}
+    {{- include "mosaic-life.coreApi.selectorLabels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.coreApi.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "mosaic-life.coreApi.selectorLabels" . | nindent 6 }}
+---
+{{- end }}
+{{- if and .Values.web.enabled .Values.web.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.web.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mosaic-life.labels" . | nindent 4 }}
+    {{- include "mosaic-life.web.selectorLabels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.web.podDisruptionBudget.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "mosaic-life.web.selectorLabels" . | nindent 6 }}
+{{- end }}

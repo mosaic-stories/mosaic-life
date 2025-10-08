@@ -1,0 +1,19 @@
+{{- if .Values.coreApi.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.coreApi.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mosaic-life.labels" . | nindent 4 }}
+    {{- include "mosaic-life.coreApi.selectorLabels" . | nindent 4 }}
+spec:
+  type: {{ .Values.coreApi.service.type }}
+  ports:
+  - port: {{ .Values.coreApi.service.port }}
+    targetPort: {{ .Values.coreApi.service.targetPort }}
+    protocol: TCP
+    name: http
+  selector:
+    {{- include "mosaic-life.coreApi.selectorLabels" . | nindent 4 }}
+{{- end }}

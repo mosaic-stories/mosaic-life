@@ -1,0 +1,55 @@
+{{- if .Values.coreApi.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.coreApi.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mosaic-life.labels" . | nindent 4 }}
+    {{- include "mosaic-life.coreApi.selectorLabels" . | nindent 4 }}
+spec:
+  {{- if not .Values.coreApi.autoscaling.enabled }}
+  replicas: {{ .Values.coreApi.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "mosaic-life.coreApi.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+      labels:
+        {{- include "mosaic-life.coreApi.selectorLabels" . | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.coreApi.name }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: core-api
+        image: "{{ .Values.global.registry }}/{{ .Values.coreApi.image.repository }}:{{ .Values.global.imageTag }}"
+        imagePullPolicy: {{ .Values.coreApi.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.coreApi.service.targetPort }}
+          protocol: TCP
+        env:
+        {{- toYaml .Values.coreApi.env | nindent 8 }}
+        {{- if .Values.coreApi.envFrom }}
+        envFrom:
+        {{- toYaml .Values.coreApi.envFrom | nindent 8 }}
+        {{- end }}
+        livenessProbe:
+          {{- toYaml .Values.coreApi.livenessProbe | nindent 10 }}
+        readinessProbe:
+          {{- toYaml .Values.coreApi.readinessProbe | nindent 10 }}
+        resources:
+          {{- toYaml .Values.coreApi.resources | nindent 10 }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
+{{- end }}

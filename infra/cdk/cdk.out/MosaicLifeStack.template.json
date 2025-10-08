@@ -1,0 +1,2151 @@
+{
+ "Description": "Mosaic Life AWS infrastructure including VPC, EKS prerequisites, Cognito, S3, Route53, and ACM",
+ "Resources": {
+  "MosaicVPC4A58B780": {
+   "Type": "AWS::EC2::VPC",
+   "Properties": {
+    "CidrBlock": "10.0.0.0/16",
+    "EnableDnsHostnames": true,
+    "EnableDnsSupport": true,
+    "InstanceTenancy": "default",
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-vpc"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/Resource"
+   }
+  },
+  "MosaicVPCPublicSubnet1SubnetC2E78F25": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.0.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-public-1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet1/Subnet"
+   }
+  },
+  "MosaicVPCPublicSubnet1RouteTable9EF1CE6B": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-public-1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet1/RouteTable"
+   }
+  },
+  "MosaicVPCPublicSubnet1RouteTableAssociation6DA1979B": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "MosaicVPCPublicSubnet1RouteTable9EF1CE6B"
+    },
+    "SubnetId": {
+     "Ref": "MosaicVPCPublicSubnet1SubnetC2E78F25"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet1/RouteTableAssociation"
+   }
+  },
+  "MosaicVPCPublicSubnet1DefaultRoute1D3CD885": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "MosaicVPCIGW75B7A974"
+    },
+    "RouteTableId": {
+     "Ref": "MosaicVPCPublicSubnet1RouteTable9EF1CE6B"
+    }
+   },
+   "DependsOn": [
+    "MosaicVPCVPCGW802C935C"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet1/DefaultRoute"
+   }
+  },
+  "MosaicVPCPublicSubnet1EIPAB22941F": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-public-1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet1/EIP"
+   }
+  },
+  "MosaicVPCPublicSubnet1NATGateway1E205DBD": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "MosaicVPCPublicSubnet1EIPAB22941F",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "MosaicVPCPublicSubnet1SubnetC2E78F25"
+    },
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-public-1"
+     }
+    ]
+   },
+   "DependsOn": [
+    "MosaicVPCPublicSubnet1DefaultRoute1D3CD885",
+    "MosaicVPCPublicSubnet1RouteTableAssociation6DA1979B"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet1/NATGateway"
+   }
+  },
+  "MosaicVPCPublicSubnet2Subnet6F67FE37": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.1.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-public-2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet2/Subnet"
+   }
+  },
+  "MosaicVPCPublicSubnet2RouteTable9FCC8E2F": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-public-2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet2/RouteTable"
+   }
+  },
+  "MosaicVPCPublicSubnet2RouteTableAssociation888F4670": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "MosaicVPCPublicSubnet2RouteTable9FCC8E2F"
+    },
+    "SubnetId": {
+     "Ref": "MosaicVPCPublicSubnet2Subnet6F67FE37"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet2/RouteTableAssociation"
+   }
+  },
+  "MosaicVPCPublicSubnet2DefaultRoute033C1E32": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "MosaicVPCIGW75B7A974"
+    },
+    "RouteTableId": {
+     "Ref": "MosaicVPCPublicSubnet2RouteTable9FCC8E2F"
+    }
+   },
+   "DependsOn": [
+    "MosaicVPCVPCGW802C935C"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet2/DefaultRoute"
+   }
+  },
+  "MosaicVPCPublicSubnet2EIP1E6DF0E5": {
+   "Type": "AWS::EC2::EIP",
+   "Properties": {
+    "Domain": "vpc",
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-public-2"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet2/EIP"
+   }
+  },
+  "MosaicVPCPublicSubnet2NATGateway03991371": {
+   "Type": "AWS::EC2::NatGateway",
+   "Properties": {
+    "AllocationId": {
+     "Fn::GetAtt": [
+      "MosaicVPCPublicSubnet2EIP1E6DF0E5",
+      "AllocationId"
+     ]
+    },
+    "SubnetId": {
+     "Ref": "MosaicVPCPublicSubnet2Subnet6F67FE37"
+    },
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-public-2"
+     }
+    ]
+   },
+   "DependsOn": [
+    "MosaicVPCPublicSubnet2DefaultRoute033C1E32",
+    "MosaicVPCPublicSubnet2RouteTableAssociation888F4670"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet2/NATGateway"
+   }
+  },
+  "MosaicVPCPublicSubnet3Subnet26121D78": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1c",
+    "CidrBlock": "10.0.2.0/24",
+    "MapPublicIpOnLaunch": true,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Public"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Public"
+     },
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-public-3"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet3/Subnet"
+   }
+  },
+  "MosaicVPCPublicSubnet3RouteTableA4AA791C": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-public-3"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet3/RouteTable"
+   }
+  },
+  "MosaicVPCPublicSubnet3RouteTableAssociation8D6EBC21": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "MosaicVPCPublicSubnet3RouteTableA4AA791C"
+    },
+    "SubnetId": {
+     "Ref": "MosaicVPCPublicSubnet3Subnet26121D78"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet3/RouteTableAssociation"
+   }
+  },
+  "MosaicVPCPublicSubnet3DefaultRouteA44B76BD": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "GatewayId": {
+     "Ref": "MosaicVPCIGW75B7A974"
+    },
+    "RouteTableId": {
+     "Ref": "MosaicVPCPublicSubnet3RouteTableA4AA791C"
+    }
+   },
+   "DependsOn": [
+    "MosaicVPCVPCGW802C935C"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PublicSubnet3/DefaultRoute"
+   }
+  },
+  "MosaicVPCPrivateSubnet1Subnet4CFA090D": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1a",
+    "CidrBlock": "10.0.16.0/20",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/internal-elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-private-1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet1/Subnet"
+   }
+  },
+  "MosaicVPCPrivateSubnet1RouteTable8288D9D4": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/internal-elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-private-1"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet1/RouteTable"
+   }
+  },
+  "MosaicVPCPrivateSubnet1RouteTableAssociation7050705D": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "MosaicVPCPrivateSubnet1RouteTable8288D9D4"
+    },
+    "SubnetId": {
+     "Ref": "MosaicVPCPrivateSubnet1Subnet4CFA090D"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet1/RouteTableAssociation"
+   }
+  },
+  "MosaicVPCPrivateSubnet1DefaultRouteD84DBE16": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "MosaicVPCPublicSubnet1NATGateway1E205DBD"
+    },
+    "RouteTableId": {
+     "Ref": "MosaicVPCPrivateSubnet1RouteTable8288D9D4"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet1/DefaultRoute"
+   }
+  },
+  "MosaicVPCPrivateSubnet2SubnetB94752D3": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1b",
+    "CidrBlock": "10.0.32.0/20",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/internal-elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-private-2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet2/Subnet"
+   }
+  },
+  "MosaicVPCPrivateSubnet2RouteTable2F2E56C2": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/internal-elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-private-2"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet2/RouteTable"
+   }
+  },
+  "MosaicVPCPrivateSubnet2RouteTableAssociation493AD2A9": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "MosaicVPCPrivateSubnet2RouteTable2F2E56C2"
+    },
+    "SubnetId": {
+     "Ref": "MosaicVPCPrivateSubnet2SubnetB94752D3"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet2/RouteTableAssociation"
+   }
+  },
+  "MosaicVPCPrivateSubnet2DefaultRouteF85E8CEC": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "MosaicVPCPublicSubnet2NATGateway03991371"
+    },
+    "RouteTableId": {
+     "Ref": "MosaicVPCPrivateSubnet2RouteTable2F2E56C2"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet2/DefaultRoute"
+   }
+  },
+  "MosaicVPCPrivateSubnet3Subnet1BAC819F": {
+   "Type": "AWS::EC2::Subnet",
+   "Properties": {
+    "AvailabilityZone": "us-east-1c",
+    "CidrBlock": "10.0.48.0/20",
+    "MapPublicIpOnLaunch": false,
+    "Tags": [
+     {
+      "Key": "aws-cdk:subnet-name",
+      "Value": "Private"
+     },
+     {
+      "Key": "aws-cdk:subnet-type",
+      "Value": "Private"
+     },
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/internal-elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-private-3"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet3/Subnet"
+   }
+  },
+  "MosaicVPCPrivateSubnet3RouteTable21A9EE44": {
+   "Type": "AWS::EC2::RouteTable",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "kubernetes.io/role/internal-elb",
+      "Value": "1"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-private-3"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet3/RouteTable"
+   }
+  },
+  "MosaicVPCPrivateSubnet3RouteTableAssociationCA4C66D0": {
+   "Type": "AWS::EC2::SubnetRouteTableAssociation",
+   "Properties": {
+    "RouteTableId": {
+     "Ref": "MosaicVPCPrivateSubnet3RouteTable21A9EE44"
+    },
+    "SubnetId": {
+     "Ref": "MosaicVPCPrivateSubnet3Subnet1BAC819F"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet3/RouteTableAssociation"
+   }
+  },
+  "MosaicVPCPrivateSubnet3DefaultRouteC9B9FD02": {
+   "Type": "AWS::EC2::Route",
+   "Properties": {
+    "DestinationCidrBlock": "0.0.0.0/0",
+    "NatGatewayId": {
+     "Ref": "MosaicVPCPublicSubnet1NATGateway1E205DBD"
+    },
+    "RouteTableId": {
+     "Ref": "MosaicVPCPrivateSubnet3RouteTable21A9EE44"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/PrivateSubnet3/DefaultRoute"
+   }
+  },
+  "MosaicVPCIGW75B7A974": {
+   "Type": "AWS::EC2::InternetGateway",
+   "Properties": {
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-vpc"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/IGW"
+   }
+  },
+  "MosaicVPCVPCGW802C935C": {
+   "Type": "AWS::EC2::VPCGatewayAttachment",
+   "Properties": {
+    "InternetGatewayId": {
+     "Ref": "MosaicVPCIGW75B7A974"
+    },
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/VPCGW"
+   }
+  },
+  "MosaicVPCRestrictDefaultSecurityGroupCustomResource4462807D": {
+   "Type": "Custom::VpcRestrictDefaultSG",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E",
+      "Arn"
+     ]
+    },
+    "DefaultSecurityGroupId": {
+     "Fn::GetAtt": [
+      "MosaicVPC4A58B780",
+      "DefaultSecurityGroup"
+     ]
+    },
+    "Account": "033691785857"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/RestrictDefaultSecurityGroupCustomResource/Default"
+   }
+  },
+  "MosaicVPCSecretsManagerEndpointSecurityGroupEABFB6D2": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "MosaicLifeStack/MosaicVPC/SecretsManagerEndpoint/SecurityGroup",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": {
+       "Fn::GetAtt": [
+        "MosaicVPC4A58B780",
+        "CidrBlock"
+       ]
+      },
+      "Description": {
+       "Fn::Join": [
+        "",
+        [
+         "from ",
+         {
+          "Fn::GetAtt": [
+           "MosaicVPC4A58B780",
+           "CidrBlock"
+          ]
+         },
+         ":443"
+        ]
+       ]
+      },
+      "FromPort": 443,
+      "IpProtocol": "tcp",
+      "ToPort": 443
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-vpc"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/SecretsManagerEndpoint/SecurityGroup/Resource"
+   }
+  },
+  "MosaicVPCSecretsManagerEndpoint1AC754BF": {
+   "Type": "AWS::EC2::VPCEndpoint",
+   "Properties": {
+    "PrivateDnsEnabled": true,
+    "SecurityGroupIds": [
+     {
+      "Fn::GetAtt": [
+       "MosaicVPCSecretsManagerEndpointSecurityGroupEABFB6D2",
+       "GroupId"
+      ]
+     }
+    ],
+    "ServiceName": "com.amazonaws.us-east-1.secretsmanager",
+    "SubnetIds": [
+     {
+      "Ref": "MosaicVPCPrivateSubnet1Subnet4CFA090D"
+     },
+     {
+      "Ref": "MosaicVPCPrivateSubnet2SubnetB94752D3"
+     },
+     {
+      "Ref": "MosaicVPCPrivateSubnet3Subnet1BAC819F"
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-vpc"
+     }
+    ],
+    "VpcEndpointType": "Interface",
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/SecretsManagerEndpoint/Resource"
+   }
+  },
+  "MosaicVPCECRApiEndpointSecurityGroup006A6899": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "MosaicLifeStack/MosaicVPC/ECRApiEndpoint/SecurityGroup",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": {
+       "Fn::GetAtt": [
+        "MosaicVPC4A58B780",
+        "CidrBlock"
+       ]
+      },
+      "Description": {
+       "Fn::Join": [
+        "",
+        [
+         "from ",
+         {
+          "Fn::GetAtt": [
+           "MosaicVPC4A58B780",
+           "CidrBlock"
+          ]
+         },
+         ":443"
+        ]
+       ]
+      },
+      "FromPort": 443,
+      "IpProtocol": "tcp",
+      "ToPort": 443
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-vpc"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/ECRApiEndpoint/SecurityGroup/Resource"
+   }
+  },
+  "MosaicVPCECRApiEndpoint37C5E459": {
+   "Type": "AWS::EC2::VPCEndpoint",
+   "Properties": {
+    "PrivateDnsEnabled": true,
+    "SecurityGroupIds": [
+     {
+      "Fn::GetAtt": [
+       "MosaicVPCECRApiEndpointSecurityGroup006A6899",
+       "GroupId"
+      ]
+     }
+    ],
+    "ServiceName": "com.amazonaws.us-east-1.ecr.api",
+    "SubnetIds": [
+     {
+      "Ref": "MosaicVPCPrivateSubnet1Subnet4CFA090D"
+     },
+     {
+      "Ref": "MosaicVPCPrivateSubnet2SubnetB94752D3"
+     },
+     {
+      "Ref": "MosaicVPCPrivateSubnet3Subnet1BAC819F"
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-vpc"
+     }
+    ],
+    "VpcEndpointType": "Interface",
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/ECRApiEndpoint/Resource"
+   }
+  },
+  "MosaicVPCECRDockerEndpointSecurityGroupDD1EBED6": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "MosaicLifeStack/MosaicVPC/ECRDockerEndpoint/SecurityGroup",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "0.0.0.0/0",
+      "Description": "Allow all outbound traffic by default",
+      "IpProtocol": "-1"
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": {
+       "Fn::GetAtt": [
+        "MosaicVPC4A58B780",
+        "CidrBlock"
+       ]
+      },
+      "Description": {
+       "Fn::Join": [
+        "",
+        [
+         "from ",
+         {
+          "Fn::GetAtt": [
+           "MosaicVPC4A58B780",
+           "CidrBlock"
+          ]
+         },
+         ":443"
+        ]
+       ]
+      },
+      "FromPort": 443,
+      "IpProtocol": "tcp",
+      "ToPort": 443
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-vpc"
+     }
+    ],
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/ECRDockerEndpoint/SecurityGroup/Resource"
+   }
+  },
+  "MosaicVPCECRDockerEndpointA07B2FC1": {
+   "Type": "AWS::EC2::VPCEndpoint",
+   "Properties": {
+    "PrivateDnsEnabled": true,
+    "SecurityGroupIds": [
+     {
+      "Fn::GetAtt": [
+       "MosaicVPCECRDockerEndpointSecurityGroupDD1EBED6",
+       "GroupId"
+      ]
+     }
+    ],
+    "ServiceName": "com.amazonaws.us-east-1.ecr.dkr",
+    "SubnetIds": [
+     {
+      "Ref": "MosaicVPCPrivateSubnet1Subnet4CFA090D"
+     },
+     {
+      "Ref": "MosaicVPCPrivateSubnet2SubnetB94752D3"
+     },
+     {
+      "Ref": "MosaicVPCPrivateSubnet3Subnet1BAC819F"
+     }
+    ],
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-vpc"
+     }
+    ],
+    "VpcEndpointType": "Interface",
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/ECRDockerEndpoint/Resource"
+   }
+  },
+  "MosaicVPCS3EndpointE4845008": {
+   "Type": "AWS::EC2::VPCEndpoint",
+   "Properties": {
+    "RouteTableIds": [
+     {
+      "Ref": "MosaicVPCPrivateSubnet1RouteTable8288D9D4"
+     },
+     {
+      "Ref": "MosaicVPCPrivateSubnet2RouteTable2F2E56C2"
+     },
+     {
+      "Ref": "MosaicVPCPrivateSubnet3RouteTable21A9EE44"
+     },
+     {
+      "Ref": "MosaicVPCPublicSubnet1RouteTable9EF1CE6B"
+     },
+     {
+      "Ref": "MosaicVPCPublicSubnet2RouteTable9FCC8E2F"
+     },
+     {
+      "Ref": "MosaicVPCPublicSubnet3RouteTableA4AA791C"
+     }
+    ],
+    "ServiceName": {
+     "Fn::Join": [
+      "",
+      [
+       "com.amazonaws.",
+       {
+        "Ref": "AWS::Region"
+       },
+       ".s3"
+      ]
+     ]
+    },
+    "Tags": [
+     {
+      "Key": "kubernetes.io/cluster/mosaic-life",
+      "Value": "shared"
+     },
+     {
+      "Key": "Name",
+      "Value": "mosaic-prod-vpc"
+     }
+    ],
+    "VpcEndpointType": "Gateway",
+    "VpcId": {
+     "Ref": "MosaicVPC4A58B780"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MosaicVPC/S3Endpoint/Resource"
+   }
+  },
+  "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Version": "2012-10-17",
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ]
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+     }
+    ],
+    "Policies": [
+     {
+      "PolicyName": "Inline",
+      "PolicyDocument": {
+       "Version": "2012-10-17",
+       "Statement": [
+        {
+         "Effect": "Allow",
+         "Action": [
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:AuthorizeSecurityGroupEgress",
+          "ec2:RevokeSecurityGroupIngress",
+          "ec2:RevokeSecurityGroupEgress"
+         ],
+         "Resource": [
+          {
+           "Fn::Join": [
+            "",
+            [
+             "arn:aws:ec2:us-east-1:033691785857:security-group/",
+             {
+              "Fn::GetAtt": [
+               "MosaicVPC4A58B780",
+               "DefaultSecurityGroup"
+              ]
+             }
+            ]
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/Custom::VpcRestrictDefaultSGCustomResourceProvider/Role"
+   }
+  },
+  "CustomVpcRestrictDefaultSGCustomResourceProviderHandlerDC833E5E": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-033691785857-us-east-1",
+     "S3Key": "7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200.zip"
+    },
+    "Timeout": 900,
+    "MemorySize": 128,
+    "Handler": "__entrypoint__.handler",
+    "Role": {
+     "Fn::GetAtt": [
+      "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs22.x",
+    "Description": "Lambda function for removing all inbound/outbound rules from the VPC default security group"
+   },
+   "DependsOn": [
+    "CustomVpcRestrictDefaultSGCustomResourceProviderRole26592FE0"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/Custom::VpcRestrictDefaultSGCustomResourceProvider/Handler",
+    "aws:asset:path": "asset.7fa1e366ee8a9ded01fc355f704cff92bfd179574e6f9cfee800a3541df1b200",
+    "aws:asset:property": "Code"
+   }
+  },
+  "HostedZoneDB99F866": {
+   "Type": "AWS::Route53::HostedZone",
+   "Properties": {
+    "HostedZoneConfig": {
+     "Comment": "Hosted zone for mosaiclife.me"
+    },
+    "Name": "mosaiclife.me."
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/HostedZone/Resource"
+   }
+  },
+  "Certificate4E7ABB08": {
+   "Type": "AWS::CertificateManager::Certificate",
+   "Properties": {
+    "DomainName": "mosaiclife.me",
+    "DomainValidationOptions": [
+     {
+      "DomainName": "mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     },
+     {
+      "DomainName": "frontend.mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     },
+     {
+      "DomainName": "backend.mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     },
+     {
+      "DomainName": "graph.mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     },
+     {
+      "DomainName": "chat.mosaiclife.me",
+      "HostedZoneId": {
+       "Ref": "HostedZoneDB99F866"
+      }
+     }
+    ],
+    "SubjectAlternativeNames": [
+     "*.mosaiclife.me",
+     "frontend.mosaiclife.me",
+     "backend.mosaiclife.me",
+     "graph.mosaiclife.me",
+     "chat.mosaiclife.me"
+    ],
+    "Tags": [
+     {
+      "Key": "Name",
+      "Value": "MosaicLifeStack/Certificate"
+     }
+    ],
+    "ValidationMethod": "DNS"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/Certificate/Resource"
+   }
+  },
+  "UserPoolsmsRole4EA729DD": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Condition": {
+        "StringEquals": {
+         "sts:ExternalId": "MosaicLifeStackUserPoolED75A45F"
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "cognito-idp.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": "sns:Publish",
+         "Effect": "Allow",
+         "Resource": "*"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "sns-publish"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/UserPool/smsRole/Resource"
+   }
+  },
+  "UserPool6BA7E5F2": {
+   "Type": "AWS::Cognito::UserPool",
+   "Properties": {
+    "AccountRecoverySetting": {
+     "RecoveryMechanisms": [
+      {
+       "Name": "verified_email",
+       "Priority": 1
+      }
+     ]
+    },
+    "AdminCreateUserConfig": {
+     "AllowAdminCreateUserOnly": false
+    },
+    "AutoVerifiedAttributes": [
+     "email"
+    ],
+    "EmailVerificationMessage": "The verification code to your new account is {####}",
+    "EmailVerificationSubject": "Verify your new account",
+    "EnabledMfas": [
+     "SMS_MFA",
+     "SOFTWARE_TOKEN_MFA"
+    ],
+    "MfaConfiguration": "OPTIONAL",
+    "Policies": {
+     "PasswordPolicy": {
+      "MinimumLength": 12,
+      "RequireLowercase": true,
+      "RequireNumbers": true,
+      "RequireSymbols": true,
+      "RequireUppercase": true,
+      "TemporaryPasswordValidityDays": 3
+     }
+    },
+    "Schema": [
+     {
+      "Mutable": true,
+      "Name": "email",
+      "Required": true
+     },
+     {
+      "Mutable": true,
+      "Name": "given_name",
+      "Required": false
+     },
+     {
+      "Mutable": true,
+      "Name": "family_name",
+      "Required": false
+     },
+     {
+      "AttributeDataType": "String",
+      "Mutable": true,
+      "Name": "relationship"
+     }
+    ],
+    "SmsConfiguration": {
+     "ExternalId": "MosaicLifeStackUserPoolED75A45F",
+     "SnsCallerArn": {
+      "Fn::GetAtt": [
+       "UserPoolsmsRole4EA729DD",
+       "Arn"
+      ]
+     }
+    },
+    "SmsVerificationMessage": "The verification code to your new account is {####}",
+    "UserPoolName": "mosaic-prod-users",
+    "UsernameAttributes": [
+     "email"
+    ],
+    "VerificationMessageTemplate": {
+     "DefaultEmailOption": "CONFIRM_WITH_CODE",
+     "EmailMessage": "The verification code to your new account is {####}",
+     "EmailSubject": "Verify your new account",
+     "SmsMessage": "The verification code to your new account is {####}"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/UserPool/Resource"
+   }
+  },
+  "UserPoolCognitoDomainD6C7F9FA": {
+   "Type": "AWS::Cognito::UserPoolDomain",
+   "Properties": {
+    "Domain": "mosaic-prod-033691785857",
+    "UserPoolId": {
+     "Ref": "UserPool6BA7E5F2"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/UserPool/CognitoDomain/Resource"
+   }
+  },
+  "UserPoolWebAppClientCD2D5CB1": {
+   "Type": "AWS::Cognito::UserPoolClient",
+   "Properties": {
+    "AccessTokenValidity": 60,
+    "AllowedOAuthFlows": [
+     "code"
+    ],
+    "AllowedOAuthFlowsUserPoolClient": true,
+    "AllowedOAuthScopes": [
+     "email",
+     "openid",
+     "profile"
+    ],
+    "CallbackURLs": [
+     "https://mosaiclife.me/auth/callback",
+     "https://frontend.mosaiclife.me/auth/callback",
+     "http://localhost:5173/auth/callback"
+    ],
+    "ClientName": "mosaic-web-client",
+    "EnableTokenRevocation": true,
+    "ExplicitAuthFlows": [
+     "ALLOW_USER_PASSWORD_AUTH",
+     "ALLOW_CUSTOM_AUTH",
+     "ALLOW_USER_SRP_AUTH",
+     "ALLOW_REFRESH_TOKEN_AUTH"
+    ],
+    "GenerateSecret": true,
+    "IdTokenValidity": 60,
+    "LogoutURLs": [
+     "https://mosaiclife.me",
+     "https://frontend.mosaiclife.me",
+     "http://localhost:5173"
+    ],
+    "PreventUserExistenceErrors": "ENABLED",
+    "RefreshTokenValidity": 43200,
+    "SupportedIdentityProviders": [
+     "COGNITO"
+    ],
+    "TokenValidityUnits": {
+     "AccessToken": "minutes",
+     "IdToken": "minutes",
+     "RefreshToken": "minutes"
+    },
+    "UserPoolId": {
+     "Ref": "UserPool6BA7E5F2"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/UserPool/WebAppClient/Resource"
+   }
+  },
+  "GoogleProvider566D8493": {
+   "Type": "AWS::Cognito::UserPoolIdentityProvider",
+   "Properties": {
+    "AttributeMapping": {
+     "email": "email",
+     "given_name": "given_name",
+     "family_name": "family_name"
+    },
+    "ProviderDetails": {
+     "client_id": "REPLACE_WITH_GOOGLE_CLIENT_ID",
+     "client_secret": "REPLACE_WITH_GOOGLE_CLIENT_SECRET",
+     "authorize_scopes": "profile email openid"
+    },
+    "ProviderName": "Google",
+    "ProviderType": "Google",
+    "UserPoolId": {
+     "Ref": "UserPool6BA7E5F2"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/GoogleProvider/Resource"
+   }
+  },
+  "GitHubProviderDD1D07DF": {
+   "Type": "AWS::Cognito::UserPoolIdentityProvider",
+   "Properties": {
+    "AttributeMapping": {
+     "email": "email",
+     "given_name": "name"
+    },
+    "ProviderDetails": {
+     "client_id": "REPLACE_WITH_GITHUB_CLIENT_ID",
+     "client_secret": "REPLACE_WITH_GITHUB_CLIENT_SECRET",
+     "authorize_scopes": "openid email profile",
+     "attributes_request_method": "GET",
+     "oidc_issuer": "https://token.actions.githubusercontent.com"
+    },
+    "ProviderName": "GitHub",
+    "ProviderType": "OIDC",
+    "UserPoolId": {
+     "Ref": "UserPool6BA7E5F2"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/GitHubProvider/Resource"
+   }
+  },
+  "CognitoConfig0041A066": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Cognito configuration for Mosaic Life",
+    "Name": "mosaic/prod/cognito-config",
+    "SecretString": {
+     "Fn::Join": [
+      "",
+      [
+       "{\"userPoolId\":\"",
+       {
+        "Ref": "UserPool6BA7E5F2"
+       },
+       "\",\"userPoolClientId\":\"",
+       {
+        "Ref": "UserPoolWebAppClientCD2D5CB1"
+       },
+       "\",\"userPoolDomain\":\"",
+       {
+        "Ref": "UserPoolCognitoDomainD6C7F9FA"
+       },
+       "\",\"region\":\"us-east-1\"}"
+      ]
+     ]
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/CognitoConfig/Resource"
+   }
+  },
+  "MediaBucketBCBB02BA": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "BucketName": "mosaic-prod-media-033691785857",
+    "CorsConfiguration": {
+     "CorsRules": [
+      {
+       "AllowedHeaders": [
+        "*"
+       ],
+       "AllowedMethods": [
+        "GET",
+        "PUT",
+        "POST",
+        "DELETE"
+       ],
+       "AllowedOrigins": [
+        "https://mosaiclife.me",
+        "https://*.mosaiclife.me",
+        "http://localhost:5173"
+       ],
+       "ExposedHeaders": [
+        "ETag"
+       ],
+       "MaxAge": 3000
+      }
+     ]
+    },
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "Id": "TransitionToIA",
+       "Status": "Enabled",
+       "Transitions": [
+        {
+         "StorageClass": "STANDARD_IA",
+         "TransitionInDays": 90
+        },
+        {
+         "StorageClass": "GLACIER_IR",
+         "TransitionInDays": 180
+        }
+       ]
+      },
+      {
+       "Id": "DeleteOldVersions",
+       "NoncurrentVersionExpiration": {
+        "NoncurrentDays": 90
+       },
+       "Status": "Enabled"
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/MediaBucket/Resource"
+   }
+  },
+  "BackupBucket26B8E51C": {
+   "Type": "AWS::S3::Bucket",
+   "Properties": {
+    "BucketEncryption": {
+     "ServerSideEncryptionConfiguration": [
+      {
+       "ServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+       }
+      }
+     ]
+    },
+    "BucketName": "mosaic-prod-backups-033691785857",
+    "LifecycleConfiguration": {
+     "Rules": [
+      {
+       "ExpirationInDays": 365,
+       "Id": "ArchiveOldBackups",
+       "Status": "Enabled",
+       "Transitions": [
+        {
+         "StorageClass": "GLACIER",
+         "TransitionInDays": 30
+        }
+       ]
+      }
+     ]
+    },
+    "PublicAccessBlockConfiguration": {
+     "BlockPublicAcls": true,
+     "BlockPublicPolicy": true,
+     "IgnorePublicAcls": true,
+     "RestrictPublicBuckets": true
+    },
+    "VersioningConfiguration": {
+     "Status": "Enabled"
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/BackupBucket/Resource"
+   }
+  },
+  "webRepository3064893B": {
+   "Type": "AWS::ECR::Repository",
+   "Properties": {
+    "ImageScanningConfiguration": {
+     "ScanOnPush": true
+    },
+    "ImageTagMutability": "MUTABLE",
+    "LifecyclePolicy": {
+     "LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"description\":\"Keep last 10 images\",\"selection\":{\"tagStatus\":\"any\",\"countType\":\"imageCountMoreThan\",\"countNumber\":10},\"action\":{\"type\":\"expire\"}}]}"
+    },
+    "RepositoryName": "mosaic-life/web"
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/webRepository/Resource"
+   }
+  },
+  "coreapiRepository07F63354": {
+   "Type": "AWS::ECR::Repository",
+   "Properties": {
+    "ImageScanningConfiguration": {
+     "ScanOnPush": true
+    },
+    "ImageTagMutability": "MUTABLE",
+    "LifecyclePolicy": {
+     "LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"description\":\"Keep last 10 images\",\"selection\":{\"tagStatus\":\"any\",\"countType\":\"imageCountMoreThan\",\"countNumber\":10},\"action\":{\"type\":\"expire\"}}]}"
+    },
+    "RepositoryName": "mosaic-life/core-api"
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/core-apiRepository/Resource"
+   }
+  },
+  "DomainEventsTopic9EECFB64": {
+   "Type": "AWS::SNS::Topic",
+   "Properties": {
+    "DisplayName": "Mosaic Life Domain Events",
+    "TopicName": "mosaic-prod-domain-events"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/DomainEventsTopic/Resource"
+   }
+  },
+  "EventsDLQ3D9C0575": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "MessageRetentionPeriod": 1209600,
+    "QueueName": "mosaic-prod-events-dlq"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/EventsDLQ/Resource"
+   }
+  },
+  "EventsQueueB96EB0D2": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "QueueName": "mosaic-prod-events",
+    "RedrivePolicy": {
+     "deadLetterTargetArn": {
+      "Fn::GetAtt": [
+       "EventsDLQ3D9C0575",
+       "Arn"
+      ]
+     },
+     "maxReceiveCount": 3
+    },
+    "VisibilityTimeout": 300
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/EventsQueue/Resource"
+   }
+  },
+  "EventsQueuePolicyF3E925EC": {
+   "Type": "AWS::SQS::QueuePolicy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sqs:SendMessage",
+       "Condition": {
+        "ArnEquals": {
+         "aws:SourceArn": {
+          "Ref": "DomainEventsTopic9EECFB64"
+         }
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "sns.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::GetAtt": [
+         "EventsQueueB96EB0D2",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Queues": [
+     {
+      "Ref": "EventsQueueB96EB0D2"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/EventsQueue/Policy/Resource"
+   }
+  },
+  "EventsQueueMosaicLifeStackDomainEventsTopic693AF0EA69322FFB": {
+   "Type": "AWS::SNS::Subscription",
+   "Properties": {
+    "Endpoint": {
+     "Fn::GetAtt": [
+      "EventsQueueB96EB0D2",
+      "Arn"
+     ]
+    },
+    "Protocol": "sqs",
+    "TopicArn": {
+     "Ref": "DomainEventsTopic9EECFB64"
+    }
+   },
+   "DependsOn": [
+    "EventsQueuePolicyF3E925EC"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/EventsQueue/MosaicLifeStackDomainEventsTopic693AF0EA/Resource"
+   }
+  },
+  "CoreApiRoleFD696CAE": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRoleWithWebIdentity",
+       "Condition": {
+        "StringEquals": {
+         "oidc.eks.${this.region}.amazonaws.com/id/CLUSTER_ID:sub": "system:serviceaccount:mosaiclife:core-api",
+         "oidc.eks.${this.region}.amazonaws.com/id/CLUSTER_ID:aud": "sts.amazonaws.com"
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Federated": "arn:aws:iam::033691785857:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/CLUSTER_ID"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "IAM role for core-api service in EKS",
+    "RoleName": "mosaic-prod-core-api-role"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/CoreApiRole/Resource"
+   }
+  },
+  "CoreApiRoleDefaultPolicy532B5FA2": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "s3:Abort*",
+        "s3:DeleteObject*",
+        "s3:GetBucket*",
+        "s3:GetObject*",
+        "s3:List*",
+        "s3:PutObject",
+        "s3:PutObjectLegalHold",
+        "s3:PutObjectRetention",
+        "s3:PutObjectTagging",
+        "s3:PutObjectVersionTagging"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "BackupBucket26B8E51C",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::GetAtt": [
+          "MediaBucketBCBB02BA",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "BackupBucket26B8E51C",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "MediaBucketBCBB02BA",
+             "Arn"
+            ]
+           },
+           "/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "CognitoConfig0041A066"
+       }
+      },
+      {
+       "Action": "sns:Publish",
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "DomainEventsTopic9EECFB64"
+       }
+      },
+      {
+       "Action": [
+        "sqs:ChangeMessageVisibility",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:ReceiveMessage"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "EventsQueueB96EB0D2",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "CoreApiRoleDefaultPolicy532B5FA2",
+    "Roles": [
+     {
+      "Ref": "CoreApiRoleFD696CAE"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/CoreApiRole/DefaultPolicy/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/3VSwY7aMBD9lr0bF1j10CObriiXbkq2HHqpHGegsySe1DMGIcv/XiUBEq26F897z8+jZ4+Xern4oucP5swzWx1nNZY6FmLsUZkz/45glzruWquyvdvlmcpDWaMtQulAOm1EWwoCr6asYdRHbcVMFo0gubu5A8+bvCvfjayNwNlcVO7xZATGxhsn4B3cDUOSK1uJGPunASeq9+2NhV1rn13VEjpRBdjgUS5rT6Htg70Xdnl2d1+bThok5buonx91HK7+jVig+kWujz+ypCx4wT1aI9AYZw7gdcxGrbNPaFKWDg6FdPzJ4HOiunPc8Q18pcagm25dlRvNauxuPzFclRvdVOAE5ZJ7OmEFfk10GIb0kePDoy9Y2aTQNDpuaejR15xqtP1kBpQUg/UgfH+IoufXAXiQpPhRx6dgj4M6oKTAeh230BKjkO9bjiwpdqzjK7XYf8gBFKFk67G9/a0pT4r/so4/AoQ+7QD6dcw8oSmpLTAFb0FlgYWakXZJ/rt1e50nw6BWzCCFmAO6Q3fmJUgbJClHFeg3/nRazvVioecPb4w488EJNqC3Q/0HI/syaI4DAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "NameServers": {
+   "Description": "Update your domain registrar with these name servers",
+   "Value": {
+    "Fn::Join": [
+     ", ",
+     {
+      "Fn::GetAtt": [
+       "HostedZoneDB99F866",
+       "NameServers"
+      ]
+     }
+    ]
+   }
+  },
+  "VpcId": {
+   "Description": "VPC ID for EKS cluster",
+   "Value": {
+    "Ref": "MosaicVPC4A58B780"
+   },
+   "Export": {
+    "Name": "mosaic-prod-vpc-id"
+   }
+  },
+  "CertificateArn": {
+   "Description": "ACM Certificate ARN for ALB",
+   "Value": {
+    "Ref": "Certificate4E7ABB08"
+   },
+   "Export": {
+    "Name": "mosaic-prod-certificate-arn"
+   }
+  },
+  "UserPoolId": {
+   "Description": "Cognito User Pool ID",
+   "Value": {
+    "Ref": "UserPool6BA7E5F2"
+   },
+   "Export": {
+    "Name": "mosaic-prod-user-pool-id"
+   }
+  },
+  "UserPoolClientId": {
+   "Description": "Cognito User Pool Client ID",
+   "Value": {
+    "Ref": "UserPoolWebAppClientCD2D5CB1"
+   },
+   "Export": {
+    "Name": "mosaic-prod-user-pool-client-id"
+   }
+  },
+  "UserPoolDomain": {
+   "Description": "Cognito User Pool Domain",
+   "Value": {
+    "Ref": "UserPoolCognitoDomainD6C7F9FA"
+   }
+  },
+  "MediaBucketName": {
+   "Description": "S3 bucket for media storage",
+   "Value": {
+    "Ref": "MediaBucketBCBB02BA"
+   },
+   "Export": {
+    "Name": "mosaic-prod-media-bucket"
+   }
+  },
+  "DomainEventsTopicArn": {
+   "Description": "SNS topic for domain events",
+   "Value": {
+    "Ref": "DomainEventsTopic9EECFB64"
+   },
+   "Export": {
+    "Name": "mosaic-prod-domain-events-topic"
+   }
+  },
+  "HostedZoneId": {
+   "Description": "Route53 Hosted Zone ID",
+   "Value": {
+    "Ref": "HostedZoneDB99F866"
+   }
+  },
+  "webRepositoryUri": {
+   "Description": "ECR repository URI for web",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      {
+       "Fn::Select": [
+        4,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "webRepository3064893B",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".dkr.ecr.",
+      {
+       "Fn::Select": [
+        3,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "webRepository3064893B",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "webRepository3064893B"
+      }
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "mosaic-prod-ecr-web"
+   }
+  },
+  "coreApiRepositoryUri": {
+   "Description": "ECR repository URI for coreApi",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      {
+       "Fn::Select": [
+        4,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "coreapiRepository07F63354",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".dkr.ecr.",
+      {
+       "Fn::Select": [
+        3,
+        {
+         "Fn::Split": [
+          ":",
+          {
+           "Fn::GetAtt": [
+            "coreapiRepository07F63354",
+            "Arn"
+           ]
+          }
+         ]
+        }
+       ]
+      },
+      ".",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/",
+      {
+       "Ref": "coreapiRepository07F63354"
+      }
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "mosaic-prod-ecr-coreApi"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

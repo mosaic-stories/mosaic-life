@@ -1,0 +1,16 @@
+apiVersion: v2
+name: mosaic-life
+description: Mosaic Life - Digital Legacy Preservation Platform
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+keywords:
+  - mosaic-life
+  - legacy
+  - storytelling
+home: https://github.com/mosaic-stories/mosaic-life
+sources:
+  - https://github.com/mosaic-stories/mosaic-life
+maintainers:
+  - name: Mosaic Life Team
+    email: team@mosaiclife.me

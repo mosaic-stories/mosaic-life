@@ -1,0 +1,53 @@
+# Mosaic Life - Existing AWS Resources Configuration
+# These resources were created in the infrastructure repository:
+# https://github.com/mosaic-stories/infrastructure
+
+aws:
+  region: us-east-1
+  accountId: "033691785857"
+
+# EKS Cluster (existing)
+eks:
+  clusterName: mosaiclife-eks
+  vpcId: vpc-0cda4cc7432deca33
+  subnets:
+    - subnet-0e4ec4b042daa6718
+    - subnet-0d1d24670c22d0a24
+    - subnet-0828639a62b580936
+    - subnet-07a61c97e2e16d91b
+    - subnet-079dd0d7be41e96a5
+    - subnet-01e6823eddd4a9a94
+  clusterSecurityGroupId: sg-0306b51c3dcb2234a
+
+# Cognito (existing)
+cognito:
+  userPoolId: us-east-1_JLppKC09m
+  userPoolName: mosaic-prod-users
+  # Client ID and secrets to be retrieved from AWS
+
+# S3 Buckets (existing)
+s3:
+  mediaBucket: mosaic-prod-media-033691785857
+  backupBucket: mosaic-prod-backups-033691785857
+
+# ECR Repositories (existing)
+ecr:
+  registry: 033691785857.dkr.ecr.us-east-1.amazonaws.com
+  repositories:
+    web: mosaic-life/web
+    coreApi: mosaic-life/core-api
+
+# Domain Configuration
+# Note: Route53 hosted zone and ACM certificate need to be created
+# if not already present in the infrastructure repo
+domain:
+  name: mosaiclife.me
+  # These will need to be configured:
+  hostedZoneId: "" # To be created or retrieved
+  certificateArn: "" # To be created or retrieved
+
+# Application URLs
+urls:
+  frontend: https://mosaiclife.me
+  backend: https://backend.mosaiclife.me
+  api: https://api.mosaiclife.me
