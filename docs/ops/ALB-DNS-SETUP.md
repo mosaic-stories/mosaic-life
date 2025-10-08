@@ -117,6 +117,8 @@ alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
 # External DNS
 external-dns.alpha.kubernetes.io/hostname: "mosaiclife.me,frontend.mosaiclife.me"
 external-dns.alpha.kubernetes.io/ttl: "300"
+# Use ALIAS record for apex domain (required for zone apex)
+external-dns.alpha.kubernetes.io/alias: "true"
 ```
 
 ### Core API Service (`core-api-ingress.yaml`)
@@ -148,6 +150,15 @@ external-dns.alpha.kubernetes.io/ttl: "300"
 ```
 
 ## Deployment Process
+
+### Important: Apex Domain ALIAS Records
+
+⚠️ **Note:** The apex domain (`mosaiclife.me`) requires an ALIAS record instead of a CNAME record. AWS Route53 does not permit CNAME records at the zone apex per DNS standards. The `external-dns.alpha.kubernetes.io/alias: "true"` annotation tells external-dns to create an ALIAS record (which resolves to A records) instead of a CNAME.
+
+**Why ALIAS over CNAME for apex domains:**
+- DNS standards prohibit CNAME records at the zone apex
+- ALIAS records are Route53-specific and resolve to A records
+- ALIAS records support zone apex and have no additional cost
 
 ### 1. Deploy Application
 
