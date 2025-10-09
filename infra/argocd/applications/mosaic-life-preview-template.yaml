@@ -1,0 +1,96 @@
+# Template for creating preview environment applications
+# This should be generated dynamically by the GitHub Actions workflow
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mosaic-life-preview-pr-{{PR_NUMBER}}
+  namespace: argocd
+  labels:
+    type: preview
+    pr: "{{PR_NUMBER}}"
+    branch: "{{BRANCH_NAME}}"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: mosaic-life
+
+  source:
+    repoURL: https://github.com/mosaic-stories/mosaic-life
+    targetRevision: "{{BRANCH_NAME}}"
+    path: infra/helm/mosaic-life
+    helm:
+      values: |
+        global:
+          registry: 033691785857.dkr.ecr.us-east-1.amazonaws.com
+          imageTag: {{IMAGE_TAG}}
+          domain: mosaiclife.me
+          environment: preview
+
+        web:
+          enabled: true
+          replicaCount: 1
+          autoscaling:
+            enabled: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          ingress:
+            enabled: true
+            hosts:
+              - host: pr-{{PR_NUMBER}}.mosaiclife.me
+                paths:
+                  - path: /
+                    pathType: Prefix
+
+        coreApi:
+          enabled: true
+          replicaCount: 1
+          autoscaling:
+            enabled: false
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          ingress:
+            enabled: true
+            hosts:
+              - host: pr-{{PR_NUMBER}}-api.mosaiclife.me
+                paths:
+                  - path: /
+                    pathType: Prefix
+          env:
+            - name: ENVIRONMENT
+              value: preview
+            - name: PR_NUMBER
+              value: "{{PR_NUMBER}}"
+            - name: LOG_LEVEL
+              value: debug
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: preview-pr-{{PR_NUMBER}}
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m
+
+  # Preview environments have a shorter retention
+  revisionHistoryLimit: 3

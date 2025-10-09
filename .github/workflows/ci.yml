@@ -1,0 +1,299 @@
+name: CI - Build, Test, Security
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '20.x'
+  PYTHON_VERSION: '3.12'
+  PNPM_VERSION: '9'
+
+jobs:
+  # Frontend CI Jobs
+  frontend-lint:
+    name: Frontend - Lint
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run ESLint
+        run: pnpm run lint
+
+      - name: Type check
+        run: pnpm exec tsc --noEmit
+
+  frontend-test:
+    name: Frontend - Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests
+        run: pnpm run test --coverage
+        if: always()
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./apps/web/coverage/coverage-final.json
+          flags: frontend
+          fail_ci_if_error: false
+
+  frontend-build:
+    name: Frontend - Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Check bundle size
+        run: |
+          SIZE=$(du -sb dist/ | cut -f1)
+          MAX_SIZE=$((250 * 1024))  # 250KB
+          if [ $SIZE -gt $MAX_SIZE ]; then
+            echo "Bundle size $SIZE exceeds maximum of $MAX_SIZE"
+            exit 1
+          fi
+
+  # Backend CI Jobs
+  backend-lint:
+    name: Backend - Lint & Type Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/core-api
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Run Ruff (lint + format check)
+        run: |
+          pip install ruff
+          ruff check .
+          ruff format --check .
+
+      - name: Run MyPy (type checking)
+        run: |
+          pip install mypy
+          mypy app/ --strict
+
+  backend-test:
+    name: Backend - Unit Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/core-api
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: test_core
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies
+        run: uv pip install --system -e ".[dev]"
+
+      - name: Run pytest
+        env:
+          DB_URL: postgresql://postgres:postgres@localhost:5432/test_core
+          ENVIRONMENT: test
+        run: |
+          pip install pytest pytest-asyncio pytest-cov
+          pytest --cov=app --cov-report=xml --cov-report=term
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        if: always()
+        with:
+          files: ./services/core-api/coverage.xml
+          flags: backend
+          fail_ci_if_error: false
+
+  # Security Scanning
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Frontend - npm audit
+        working-directory: apps/web
+        run: |
+          npm audit --audit-level=high
+        continue-on-error: true
+
+      - name: Backend - pip-audit
+        working-directory: services/core-api
+        run: |
+          pip install pip-audit
+          pip-audit
+        continue-on-error: true
+
+      - name: Run Bandit (Python security)
+        working-directory: services/core-api
+        run: |
+          pip install bandit
+          bandit -r app/ -f json -o bandit-report.json
+        continue-on-error: true
+
+      - name: Upload Bandit results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: bandit-report
+          path: services/core-api/bandit-report.json
+
+  # Dependency Check
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency Review
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  # Contract Testing (OpenAPI validation)
+  contract-tests:
+    name: API Contract Tests
+    runs-on: ubuntu-latest
+    needs: [backend-test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install schemathesis
+        run: pip install schemathesis
+
+      - name: Run contract tests
+        working-directory: services/core-api
+        run: |
+          # TODO: Add OpenAPI spec path when available
+          echo "Contract tests placeholder - add OpenAPI spec"
+        continue-on-error: true
+
+  # Status check - all must pass
+  ci-status:
+    name: CI Status Check
+    runs-on: ubuntu-latest
+    needs:
+      - frontend-lint
+      - frontend-test
+      - frontend-build
+      - backend-lint
+      - backend-test
+      - security-scan
+    if: always()
+    steps:
+      - name: Check CI status
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" ]]; then
+            echo "One or more CI jobs failed"
+            exit 1
+          fi
+          echo "All CI checks passed"

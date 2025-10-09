@@ -1,0 +1,242 @@
+name: Preview Environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, develop]
+  pull_request_review:
+    types: [submitted]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 033691785857.dkr.ecr.us-east-1.amazonaws.com
+  EKS_CLUSTER: mosaiclife-eks
+  BASE_DOMAIN: mosaiclife.me
+
+jobs:
+  deploy-preview:
+    name: Deploy Preview Environment
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-preview')
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: vars
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          BRANCH_NAME=${{ github.head_ref }}
+          SAFE_BRANCH=$(echo ${BRANCH_NAME} | sed 's/[^a-zA-Z0-9-]/-/g' | tr '[:upper:]' '[:lower:]')
+          NAMESPACE="preview-pr-${PR_NUMBER}"
+
+          echo "pr-number=${PR_NUMBER}" >> $GITHUB_OUTPUT
+          echo "branch-name=${SAFE_BRANCH}" >> $GITHUB_OUTPUT
+          echo "namespace=${NAMESPACE}" >> $GITHUB_OUTPUT
+          echo "web-hostname=pr-${PR_NUMBER}.${BASE_DOMAIN}" >> $GITHUB_OUTPUT
+          echo "api-hostname=pr-${PR_NUMBER}-api.${BASE_DOMAIN}" >> $GITHUB_OUTPUT
+          echo "image-tag=${SAFE_BRANCH}-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-eks-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push preview images
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.ECR_REGISTRY }}/mosaic-life/web:${{ steps.vars.outputs.image-tag }}
+            ${{ env.ECR_REGISTRY }}/mosaic-life/core-api:${{ steps.vars.outputs.image-tag }}
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+
+      - name: Create preview namespace
+        run: |
+          kubectl create namespace ${{ steps.vars.outputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl label namespace ${{ steps.vars.outputs.namespace }} \
+            type=preview \
+            pr=${{ steps.vars.outputs.pr-number }} \
+            branch=${{ steps.vars.outputs.branch-name }} \
+            --overwrite
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.13.0'
+
+      - name: Deploy preview environment
+        env:
+          NAMESPACE: ${{ steps.vars.outputs.namespace }}
+          IMAGE_TAG: ${{ steps.vars.outputs.image-tag }}
+          WEB_HOST: ${{ steps.vars.outputs.web-hostname }}
+          API_HOST: ${{ steps.vars.outputs.api-hostname }}
+        run: |
+          helm upgrade --install mosaic-life-pr-${{ steps.vars.outputs.pr-number }} \
+            ./infra/helm/mosaic-life \
+            --namespace ${NAMESPACE} \
+            --create-namespace \
+            --set global.imageTag=${IMAGE_TAG} \
+            --set global.environment=preview \
+            --set web.ingress.hosts[0].host=${WEB_HOST} \
+            --set coreApi.ingress.hosts[0].host=${API_HOST} \
+            --set web.replicaCount=1 \
+            --set coreApi.replicaCount=1 \
+            --set web.autoscaling.enabled=false \
+            --set coreApi.autoscaling.enabled=false \
+            --set web.resources.requests.cpu=100m \
+            --set web.resources.requests.memory=128Mi \
+            --set coreApi.resources.requests.cpu=200m \
+            --set coreApi.resources.requests.memory=256Mi \
+            --set coreApi.env[0].name=ENVIRONMENT \
+            --set coreApi.env[0].value=preview \
+            --set coreApi.env[1].name=PR_NUMBER \
+            --set coreApi.env[1].value=${{ steps.vars.outputs.pr-number }} \
+            --wait \
+            --timeout 5m
+
+      - name: Wait for deployment
+        run: |
+          kubectl wait --for=condition=available --timeout=300s \
+            deployment/mosaic-life-web \
+            deployment/mosaic-life-core-api \
+            -n ${{ steps.vars.outputs.namespace }}
+
+      - name: Get deployment status
+        id: status
+        run: |
+          WEB_STATUS=$(kubectl get deployment mosaic-life-web -n ${{ steps.vars.outputs.namespace }} -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
+          API_STATUS=$(kubectl get deployment mosaic-life-core-api -n ${{ steps.vars.outputs.namespace }} -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
+
+          echo "web-status=${WEB_STATUS}" >> $GITHUB_OUTPUT
+          echo "api-status=${API_STATUS}" >> $GITHUB_OUTPUT
+
+      - name: Comment PR with preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.vars.outputs.pr-number }};
+            const webUrl = 'https://${{ steps.vars.outputs.web-hostname }}';
+            const apiUrl = 'https://${{ steps.vars.outputs.api-hostname }}';
+            const namespace = '${{ steps.vars.outputs.namespace }}';
+
+            const comment = `## 🚀 Preview Environment Deployed
+
+            Your preview environment is ready!
+
+            **URLs:**
+            - 🌐 Frontend: [${webUrl}](${webUrl})
+            - 🔌 API: [${apiUrl}](${apiUrl})
+
+            **Kubernetes:**
+            - Namespace: \`${namespace}\`
+            - Image Tag: \`${{ steps.vars.outputs.image-tag }}\`
+
+            **Status:**
+            - Web: ${{ steps.status.outputs.web-status }}
+            - API: ${{ steps.status.outputs.api-status }}
+
+            The preview environment will be automatically destroyed when this PR is closed.
+
+            ---
+            <sub>Powered by GitHub Actions • [View Workflow Run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>
+            `;
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('Preview Environment Deployed')
+            );
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: comment
+              });
+            }
+
+  cleanup-preview:
+    name: Cleanup Preview Environment
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.state == 'closed'
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Set environment variables
+        id: vars
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          NAMESPACE="preview-pr-${PR_NUMBER}"
+
+          echo "pr-number=${PR_NUMBER}" >> $GITHUB_OUTPUT
+          echo "namespace=${NAMESPACE}" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-eks-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configure kubectl
+        run: |
+          aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+
+      - name: Delete preview namespace
+        run: |
+          if kubectl get namespace ${{ steps.vars.outputs.namespace }} 2>/dev/null; then
+            kubectl delete namespace ${{ steps.vars.outputs.namespace }} --wait=true --timeout=5m
+            echo "Preview environment deleted successfully"
+          else
+            echo "Namespace ${{ steps.vars.outputs.namespace }} does not exist"
+          fi
+
+      - name: Comment PR with cleanup status
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const prNumber = ${{ steps.vars.outputs.pr-number }};
+            const namespace = '${{ steps.vars.outputs.namespace }}';
+
+            const comment = `## 🧹 Preview Environment Cleaned Up
+
+            The preview environment for this PR has been deleted.
+
+            - Namespace: \`${namespace}\`
+            - All resources have been removed
+            `;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: comment
+            });

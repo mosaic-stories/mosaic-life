@@ -1,0 +1,231 @@
+name: Build and Push Docker Images
+
+on:
+  push:
+    branches: [main, develop]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Docker image tag (default: commit SHA)'
+        required: false
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: 033691785857.dkr.ecr.us-east-1.amazonaws.com
+
+jobs:
+  build-web:
+    name: Build and Push Web Image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # For OIDC
+      contents: read
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-ecr-push
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/mosaic-life/web
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.ECR_REGISTRY }}/mosaic-life/web:${{ steps.meta.outputs.version }}
+          format: spdx-json
+          output-file: sbom-web.spdx.json
+
+      - name: Scan image with Grype
+        uses: anchore/scan-action@v3
+        with:
+          image: ${{ env.ECR_REGISTRY }}/mosaic-life/web:${{ steps.meta.outputs.version }}
+          fail-build: false
+          severity-cutoff: high
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-web
+          path: sbom-web.spdx.json
+
+  build-core-api:
+    name: Build and Push Core API Image
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # For OIDC
+      contents: read
+    outputs:
+      image-tag: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-ecr-push
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_REGISTRY }}/mosaic-life/core-api
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Core API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/core-api
+          file: ./services/core-api/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.ECR_REGISTRY }}/mosaic-life/core-api:${{ steps.meta.outputs.version }}
+          format: spdx-json
+          output-file: sbom-core-api.spdx.json
+
+      - name: Scan image with Grype
+        uses: anchore/scan-action@v3
+        with:
+          image: ${{ env.ECR_REGISTRY }}/mosaic-life/core-api:${{ steps.meta.outputs.version }}
+          fail-build: false
+          severity-cutoff: high
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-core-api
+          path: sbom-core-api.spdx.json
+
+  sign-images:
+    name: Sign Images with Cosign
+    runs-on: ubuntu-latest
+    needs: [build-web, build-core-api]
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-ecr-push
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Sign Web image
+        env:
+          IMAGE: ${{ env.ECR_REGISTRY }}/mosaic-life/web:${{ needs.build-web.outputs.image-tag }}
+        run: |
+          cosign sign --yes ${IMAGE}
+
+      - name: Sign Core API image
+        env:
+          IMAGE: ${{ env.ECR_REGISTRY }}/mosaic-life/core-api:${{ needs.build-core-api.outputs.image-tag }}
+        run: |
+          cosign sign --yes ${IMAGE}
+
+  update-image-tags:
+    name: Update Image Tags in GitOps Repo
+    runs-on: ubuntu-latest
+    needs: [build-web, build-core-api, sign-images]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    steps:
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v4
+        with:
+          repository: mosaic-stories/mosaic-gitops
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops
+
+      - name: Update image tags
+        env:
+          WEB_TAG: ${{ needs.build-web.outputs.image-tag }}
+          API_TAG: ${{ needs.build-core-api.outputs.image-tag }}
+          ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+        run: |
+          cd gitops
+
+          # Update web image tag
+          yq eval ".global.web.imageTag = \"${WEB_TAG}\"" -i environments/${ENVIRONMENT}/values.yaml
+
+          # Update core-api image tag
+          yq eval ".global.coreApi.imageTag = \"${API_TAG}\"" -i environments/${ENVIRONMENT}/values.yaml
+
+      - name: Commit and push changes
+        working-directory: gitops
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: update image tags to ${{ needs.build-web.outputs.image-tag }}"
+          git push

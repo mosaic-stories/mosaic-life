@@ -1,0 +1,59 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: mosaic-life
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Mosaic Life Platform
+
+  # Source repositories
+  sourceRepos:
+    - 'https://github.com/mosaic-stories/mosaic-life'
+    - 'https://github.com/mosaic-stories/mosaic-gitops'
+
+  # Destination clusters and namespaces
+  destinations:
+    - namespace: 'mosaic-*'
+      server: https://kubernetes.default.svc
+    - namespace: 'preview-*'
+      server: https://kubernetes.default.svc
+    - namespace: argocd
+      server: https://kubernetes.default.svc
+
+  # Cluster resource allow list
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: networking.k8s.io
+      kind: Ingress
+    - group: cert-manager.io
+      kind: ClusterIssuer
+
+  # Namespace resource allow list (unrestricted)
+  namespaceResourceWhitelist:
+    - group: '*'
+      kind: '*'
+
+  # Roles for RBAC
+  roles:
+    - name: developer
+      description: Developer access to preview environments
+      policies:
+        - p, proj:mosaic-life:developer, applications, get, mosaic-life/*, allow
+        - p, proj:mosaic-life:developer, applications, sync, mosaic-life/preview-*, allow
+        - p, proj:mosaic-life:developer, applications, override, mosaic-life/preview-*, allow
+      groups:
+        - mosaic-developers
+
+    - name: admin
+      description: Full admin access
+      policies:
+        - p, proj:mosaic-life:admin, applications, *, mosaic-life/*, allow
+      groups:
+        - mosaic-admins

@@ -357,7 +357,7 @@ open "https://<domain>.auth.us-east-1.amazoncognito.com/login?client_id=<client-
 4. ⏳ Configure DNS at domain registrar
 5. ⏳ Test end-to-end flow
 6. ⏳ Set up monitoring (Prometheus/Grafana)
-7. ⏳ Configure CI/CD (GitHub Actions/ArgoCD)
+7. ✅ CI/CD configured (GitHub Actions OIDC and EKS RBAC managed in infrastructure repository - see `docs/cicd/QUICK-START.md`)
 8. ⏳ Enable WAF rules
 9. ⏳ Set up backup automation
 10. ⏳ Production readiness review
