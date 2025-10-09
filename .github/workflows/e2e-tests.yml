@@ -38,17 +38,28 @@ jobs:
         working-directory: apps/web
         run: pnpm exec playwright install --with-deps chromium
 
+      - name: Build frontend
+        working-directory: apps/web
+        run: pnpm run build
+
       - name: Start local services
         run: |
           docker compose -f infra/compose/docker-compose.yml up -d
-          # Wait for services to be healthy
+          # Wait for backend services to be healthy
           timeout 60 bash -c 'until curl -f http://localhost:8080/healthz; do sleep 2; done'
-          timeout 60 bash -c 'until curl -f http://localhost:3001; do sleep 2; done'
+
+      - name: Start frontend dev server
+        working-directory: apps/web
+        run: |
+          pnpm run preview &
+          # Wait for frontend to be ready
+          timeout 60 bash -c 'until curl -f http://localhost:4173; do sleep 2; done'
 
       - name: Run Playwright tests
         working-directory: apps/web
         env:
           VITE_API_BASE_URL: http://localhost:8080
+          BASE_URL: http://localhost:4173
         run: pnpm exec playwright test
 
       - name: Upload Playwright report
@@ -125,10 +136,36 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+          cache-dependency-path: apps/web/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: apps/web
+        run: pnpm install --frozen-lockfile
+
+      - name: Build frontend
+        working-directory: apps/web
+        run: pnpm run build
+
       - name: Start local services
         run: |
           docker compose -f infra/compose/docker-compose.yml up -d
           timeout 60 bash -c 'until curl -f http://localhost:8080/healthz; do sleep 2; done'
+
+      - name: Start frontend
+        working-directory: apps/web
+        run: |
+          pnpm run preview &
+          timeout 60 bash -c 'until curl -f http://localhost:4173; do sleep 2; done'
 
       - name: Run K6 load tests
         uses: grafana/k6-action@v0.3.1
@@ -142,7 +179,7 @@ jobs:
         uses: treosh/lighthouse-ci-action@v10
         with:
           urls: |
-            http://localhost:3001
+            http://localhost:4173
           uploadArtifacts: true
           temporaryPublicStorage: true
 
