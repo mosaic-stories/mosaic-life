@@ -6,7 +6,7 @@ try:
 except ImportError:
     from pythonjsonlogger import jsonlogger
 
-    JsonFormatter = jsonlogger.JsonFormatter  # type: ignore[assignment]
+    JsonFormatter = jsonlogger.JsonFormatter  # type: ignore[misc,attr-defined]
 
 
 def configure_logging(level: str = "info") -> None:
