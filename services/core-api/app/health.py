@@ -12,4 +12,3 @@ def healthz() -> dict:
 def readyz() -> dict:
     # TODO: implement dependency checks (DB, OpenSearch) in later sprints
     return {"ready": True}
-

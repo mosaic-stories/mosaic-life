@@ -19,4 +19,3 @@ class OpenSearchAdapter:
     def search_stories(self, query: dict) -> dict:
         # TODO: implement OpenSearch query
         return {"hits": []}
-

@@ -13,4 +13,3 @@ def configure_logging(level: str = "info") -> None:
     )
     handler.setFormatter(fmt)
     logger.handlers = [handler]
-

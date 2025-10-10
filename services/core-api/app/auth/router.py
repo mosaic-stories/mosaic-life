@@ -17,4 +17,3 @@ def me(req: Request) -> MeResponse:
     email = req.cookies.get("session_email", "dev@example.com")
     name = req.cookies.get("session_name", "Dev User")
     return MeResponse(id=user_id, email=email, name=name)
-

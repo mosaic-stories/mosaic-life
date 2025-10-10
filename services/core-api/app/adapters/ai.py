@@ -12,4 +12,3 @@ class LiteLLMAdapter:
     def generate(self, prompt: str, model: str | None = None) -> str:
         # TODO: call LiteLLM endpoint
         return ""
-

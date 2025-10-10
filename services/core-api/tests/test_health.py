@@ -1,4 +1,5 @@
 """Tests for health check endpoints."""
+
 import pytest
 from fastapi.testclient import TestClient
 from app.main import app
@@ -15,7 +16,7 @@ def test_health_check(client):
     response = client.get("/healthz")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "healthy"
+    assert data["ok"] is True
 
 
 def test_readiness_check(client):
@@ -23,4 +24,4 @@ def test_readiness_check(client):
     response = client.get("/readyz")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "ready"
+    assert data["ready"] is True

@@ -3,7 +3,12 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, generate_latest
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Counter,
+    generate_latest,
+)
 
 from .config import get_settings
 from .logging import configure_logging
@@ -45,7 +50,9 @@ app.add_middleware(
 async def metrics_middleware(request: Request, call_next):
     response: Response = await call_next(request)
     try:
-        REQUESTS.labels(request.method, request.url.path, str(response.status_code)).inc()
+        REQUESTS.labels(
+            request.method, request.url.path, str(response.status_code)
+        ).inc()
     except Exception:
         pass
     return response
@@ -58,4 +65,3 @@ def metrics():
 
 app.include_router(health_router)
 app.include_router(auth_router, prefix="/api")
-
