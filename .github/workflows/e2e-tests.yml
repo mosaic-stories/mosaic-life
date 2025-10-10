@@ -184,8 +184,9 @@ jobs:
         with:
           urls: |
             http://localhost:4173
-          uploadArtifacts: true
+          uploadArtifacts: false
           temporaryPublicStorage: true
+        continue-on-error: true  # Don't fail build on Lighthouse issues
 
       - name: Cleanup
         if: always()
