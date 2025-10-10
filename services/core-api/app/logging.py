@@ -1,6 +1,12 @@
 import logging
 import sys
-from pythonjsonlogger import jsonlogger
+
+try:
+    from pythonjsonlogger.json import JsonFormatter  # type: ignore[import-untyped]
+except ImportError:
+    from pythonjsonlogger import jsonlogger  # type: ignore[import-untyped]
+
+    JsonFormatter = jsonlogger.JsonFormatter  # type: ignore[attr-defined]
 
 
 def configure_logging(level: str = "info") -> None:
@@ -8,7 +14,7 @@ def configure_logging(level: str = "info") -> None:
     logger = logging.getLogger()
     logger.setLevel(lvl)
     handler = logging.StreamHandler(sys.stdout)
-    fmt = jsonlogger.JsonFormatter(
+    fmt = JsonFormatter(
         "%(asctime)s %(levelname)s %(name)s %(message)s",
     )
     handler.setFormatter(fmt)

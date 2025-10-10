@@ -1,4 +1,5 @@
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
@@ -26,7 +27,7 @@ REGISTRY = CollectorRegistry()
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings.log_level)
     configure_tracing("core-api", settings.otel_exporter_otlp_endpoint)
@@ -47,7 +48,9 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def metrics_middleware(request: Request, call_next):
+async def metrics_middleware(
+    request: Request, call_next: callable
+) -> Response:
     response: Response = await call_next(request)
     try:
         REQUESTS.labels(
@@ -59,7 +62,7 @@ async def metrics_middleware(request: Request, call_next):
 
 
 @app.get("/metrics")
-def metrics():
+def metrics() -> Response:
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
