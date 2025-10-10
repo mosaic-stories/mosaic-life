@@ -1,5 +1,4 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { PageLayout } from '../components/layout/PageLayout';
 import './AppShell.css';
 
 export function AppShell() {
