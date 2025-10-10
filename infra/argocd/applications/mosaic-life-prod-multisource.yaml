@@ -1,16 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: mosaic-life-staging
+  name: mosaic-life-prod
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
     notifications.argoproj.io/subscribe.on-deployed.slack: mosaic-deployments
+    notifications.argoproj.io/subscribe.on-health-degraded.slack: mosaic-alerts
 spec:
   project: mosaic-life
 
-  # Multi-source: Helm chart from app repo + values from gitops repo
+  # Multiple sources: Helm chart from app repo + values from gitops repo
   sources:
     # Source 1: Helm chart from application repository
     - repoURL: https://github.com/mosaic-stories/mosaic-life
@@ -18,7 +19,7 @@ spec:
       path: infra/helm/mosaic-life
       helm:
         valueFiles:
-          - $values/environments/staging/values.yaml
+          - $values/environments/prod/values.yaml
           - $values/base/values.yaml
     
     # Source 2: Values from GitOps repository  
@@ -28,7 +29,7 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: mosaic-staging
+    namespace: mosaic-prod
 
   syncPolicy:
     automated:
@@ -46,10 +47,12 @@ spec:
         factor: 2
         maxDuration: 3m
 
+  # Health assessment
   ignoreDifferences:
     - group: apps
       kind: Deployment
       jsonPointers:
-        - /spec/replicas
+        - /spec/replicas  # Ignore HPA-managed replicas
 
+  # Resource tracking
   revisionHistoryLimit: 10

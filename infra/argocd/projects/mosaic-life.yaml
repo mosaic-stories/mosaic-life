@@ -11,7 +11,7 @@ spec:
   # Source repositories
   sourceRepos:
     - 'https://github.com/mosaic-stories/mosaic-life'
-    - 'https://github.com/mosaic-stories/mosaic-gitops'
+    - 'https://github.com/mosaic-stories/gitops.git'
 
   # Destination clusters and namespaces
   destinations:

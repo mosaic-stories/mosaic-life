@@ -11,13 +11,21 @@ metadata:
 spec:
   project: mosaic-life
 
-  source:
-    repoURL: https://github.com/mosaic-stories/mosaic-gitops
-    targetRevision: main
-    path: environments/prod
-    helm:
-      valueFiles:
-        - values.yaml
+  # Multi-source: Helm chart from app repo + values from gitops repo
+  sources:
+    # Source 1: Helm chart from application repository
+    - repoURL: https://github.com/mosaic-stories/mosaic-life
+      targetRevision: main
+      path: infra/helm/mosaic-life
+      helm:
+        valueFiles:
+          - $values/environments/prod/values.yaml
+          - $values/base/values.yaml
+    
+    # Source 2: Values from GitOps repository  
+    - repoURL: https://github.com/mosaic-stories/gitops.git
+      targetRevision: main
+      ref: values
 
   destination:
     server: https://kubernetes.default.svc

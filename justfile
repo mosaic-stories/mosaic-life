@@ -451,6 +451,80 @@ port-forward service="core-api" local_port="8080" remote_port="8080":
     kubectl port-forward -n {{NAMESPACE}} svc/{{service}} {{local_port}}:{{remote_port}}
 
 # ============================================================
+# ArgoCD Management
+# ============================================================
+
+# Apply ArgoCD project configuration
+argocd-apply-project:
+    kubectl apply -f infra/argocd/projects/mosaic-life.yaml
+    @echo "✓ ArgoCD project configured"
+
+# Apply all ArgoCD application manifests
+argocd-apply:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Applying ArgoCD project and application manifests..."
+    kubectl apply -f infra/argocd/projects/mosaic-life.yaml
+    kubectl apply -f infra/argocd/applications/mosaic-life-prod.yaml
+    kubectl apply -f infra/argocd/applications/mosaic-life-staging.yaml
+    echo "✓ ArgoCD project and applications configured"
+    echo ""
+    echo "Note: Preview applications are created dynamically by CI/CD"
+
+# Apply production ArgoCD application
+argocd-apply-prod:
+    kubectl apply -f infra/argocd/applications/mosaic-life-prod.yaml
+    @echo "✓ Production application configured"
+
+# Apply staging ArgoCD application
+argocd-apply-staging:
+    kubectl apply -f infra/argocd/applications/mosaic-life-staging.yaml
+    @echo "✓ Staging application configured"
+
+# Get ArgoCD application status
+argocd-status app="mosaic-life-prod":
+    argocd app get {{app}}
+
+# List all mosaic-life ArgoCD applications
+argocd-list:
+    @echo "Mosaic Life ArgoCD Applications:"
+    @echo "════════════════════════════════════════════════"
+    argocd app list | grep mosaic-life || echo "No mosaic-life applications found"
+
+# Sync an ArgoCD application (trigger deployment)
+argocd-sync app="mosaic-life-prod":
+    argocd app sync {{app}}
+    @echo "✓ Syncing {{app}}"
+
+# Port-forward to ArgoCD UI
+argocd-ui port="8085":
+    @echo "ArgoCD UI will be available at: http://localhost:{{port}}"
+    @echo "Press Ctrl+C to stop"
+    kubectl port-forward -n argocd svc/argocd-server {{port}}:443
+
+# Get ArgoCD admin password
+argocd-password:
+    @echo "ArgoCD Admin Password:"
+    @kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+    @echo ""
+
+# Login to ArgoCD CLI (requires port-forward or ingress)
+argocd-login server="localhost:8085":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
+    argocd login {{server}} --username admin --password "$PASSWORD" --insecure
+    echo "✓ Logged into ArgoCD"
+
+# Watch ArgoCD application sync status
+argocd-watch app="mosaic-life-prod":
+    argocd app wait {{app}} --sync
+
+# Show ArgoCD application diff
+argocd-diff app="mosaic-life-prod":
+    argocd app diff {{app}}
+
+# ============================================================
 # AWS Resource Information
 # ============================================================
 
