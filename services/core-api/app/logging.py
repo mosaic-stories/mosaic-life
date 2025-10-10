@@ -2,11 +2,11 @@ import logging
 import sys
 
 try:
-    from pythonjsonlogger.json import JsonFormatter  # type: ignore[import-untyped]
+    from pythonjsonlogger.json import JsonFormatter  # type: ignore
 except ImportError:
-    from pythonjsonlogger import jsonlogger  # type: ignore[import-untyped]
+    from pythonjsonlogger import jsonlogger  # type: ignore
 
-    JsonFormatter = jsonlogger.JsonFormatter  # type: ignore[attr-defined]
+    JsonFormatter = jsonlogger.JsonFormatter  # type: ignore[misc,attr-defined]
 
 
 def configure_logging(level: str = "info") -> None:

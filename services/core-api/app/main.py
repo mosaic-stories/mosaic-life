@@ -1,5 +1,5 @@
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
@@ -48,7 +48,9 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def metrics_middleware(request: Request, call_next: callable) -> Response:
+async def metrics_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
     response: Response = await call_next(request)
     try:
         REQUESTS.labels(
