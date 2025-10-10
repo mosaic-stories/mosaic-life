@@ -524,6 +524,69 @@ argocd-watch app="mosaic-life-prod":
 argocd-diff app="mosaic-life-prod":
     argocd app diff {{app}}
 
+# Update GitOps repo with new image tag (manual deployment)
+gitops-update-tag environment="prod" tag="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    GITOPS_DIR="/apps/mosaic-life-gitops"
+    
+    # Get current git SHA if no tag provided
+    if [ -z "{{tag}}" ]; then
+      TAG=$(git rev-parse --short HEAD)
+      echo "No tag provided, using current commit SHA: $TAG"
+    else
+      TAG="{{tag}}"
+    fi
+    
+    echo "Updating {{environment}} environment to use image tag: $TAG"
+    echo ""
+    
+    # Check if gitops repo exists
+    if [ ! -d "$GITOPS_DIR" ]; then
+      echo "❌ GitOps repository not found at $GITOPS_DIR"
+      echo "Please clone it first:"
+      echo "  cd /apps && git clone https://github.com/mosaic-stories/gitops.git mosaic-life-gitops"
+      exit 1
+    fi
+    
+    cd "$GITOPS_DIR"
+    
+    # Pull latest changes
+    echo "Pulling latest changes from GitOps repo..."
+    git pull origin main
+    echo ""
+    
+    # Update the image tag
+    echo "Updating image tag in environments/{{environment}}/values.yaml..."
+    yq eval ".global.imageTag = \"$TAG\"" -i "environments/{{environment}}/values.yaml"
+    
+    echo ""
+    echo "Updated values:"
+    cat "environments/{{environment}}/values.yaml"
+    echo ""
+    
+    # Commit and push
+    read -p "Commit and push changes? (y/n): " confirm
+    if [ "$confirm" = "y" ]; then
+      git add "environments/{{environment}}/values.yaml"
+      git commit -m "deploy({{environment}}): manual update to image tag $TAG"
+      git push origin main
+      echo ""
+      echo "✅ GitOps repository updated"
+      echo "🚀 ArgoCD will automatically sync the {{environment}} environment"
+      echo ""
+      echo "Monitor deployment:"
+      echo "  just argocd-watch mosaic-life-{{environment}}"
+    else
+      git checkout "environments/{{environment}}/values.yaml"
+      echo "Aborted - changes reverted"
+    fi
+
+# Deploy specific git SHA to environment
+deploy-sha sha="" environment="prod": (gitops-update-tag environment sha)
+    @echo "Deployment initiated for SHA {{sha}} to {{environment}}"
+
 # ============================================================
 # AWS Resource Information
 # ============================================================

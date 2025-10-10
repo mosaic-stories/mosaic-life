@@ -49,11 +49,9 @@ jobs:
         with:
           images: ${{ env.ECR_REGISTRY }}/mosaic-life/web
           tags: |
+            type=sha,format=short,prefix=
             type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Web image
@@ -121,11 +119,9 @@ jobs:
         with:
           images: ${{ env.ECR_REGISTRY }}/mosaic-life/core-api
           tags: |
+            type=sha,format=short,prefix=
             type=ref,event=branch
-            type=ref,event=pr
             type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Core API image
@@ -203,29 +199,66 @@ jobs:
       - name: Checkout GitOps repo
         uses: actions/checkout@v4
         with:
-          repository: mosaic-stories/mosaic-gitops
+          repository: mosaic-stories/gitops
           token: ${{ secrets.GITOPS_PAT }}
-          path: gitops
+          ref: main
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
 
       - name: Update image tags
         env:
-          WEB_TAG: ${{ needs.build-web.outputs.image-tag }}
-          API_TAG: ${{ needs.build-core-api.outputs.image-tag }}
           ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          cd gitops
-
-          # Update web image tag
-          yq eval ".global.web.imageTag = \"${WEB_TAG}\"" -i environments/${ENVIRONMENT}/values.yaml
-
-          # Update core-api image tag
-          yq eval ".global.coreApi.imageTag = \"${API_TAG}\"" -i environments/${ENVIRONMENT}/values.yaml
+          # Extract short SHA (first 7 characters)
+          SHORT_SHA=${COMMIT_SHA:0:7}
+          
+          echo "Updating ${ENVIRONMENT} environment:"
+          echo "  Image tag (SHA): ${SHORT_SHA}"
+          echo "  Full commit: ${COMMIT_SHA}"
+          
+          # Update image tag in values file
+          yq eval ".global.imageTag = \"${SHORT_SHA}\"" -i "environments/${ENVIRONMENT}/values.yaml"
+          
+          # Show the changes
+          echo ""
+          echo "Updated values.yaml:"
+          cat "environments/${ENVIRONMENT}/values.yaml"
 
       - name: Commit and push changes
-        working-directory: gitops
+        env:
+          ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
+          SHORT_SHA=${COMMIT_SHA:0:7}
+          
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "chore: update image tags to ${{ needs.build-web.outputs.image-tag }}"
-          git push
+          
+          git add environments/${ENVIRONMENT}/values.yaml
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git commit -m "deploy(${ENVIRONMENT}): update image tag to ${SHORT_SHA}
+
+Triggered by: ${{ github.event_name }}
+Branch: ${{ github.ref_name }}
+Commit: ${{ github.sha }}
+Actor: ${{ github.actor }}
+
+This will deploy:
+- mosaic-life/web:${SHORT_SHA}
+- mosaic-life/core-api:${SHORT_SHA}"
+          
+          git push origin main
+          
+          echo ""
+          echo "✅ GitOps repository updated successfully"
+          echo "📦 Deployed SHA: ${SHORT_SHA}"
+          echo "🚀 ArgoCD will automatically sync the ${ENVIRONMENT} environment"
