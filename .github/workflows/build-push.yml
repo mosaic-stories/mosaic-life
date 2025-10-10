@@ -245,16 +245,15 @@ jobs:
             exit 0
           fi
           
-          git commit -m "deploy(${ENVIRONMENT}): update image tag to ${SHORT_SHA}
-
-Triggered by: ${{ github.event_name }}
-Branch: ${{ github.ref_name }}
-Commit: ${{ github.sha }}
-Actor: ${{ github.actor }}
-
-This will deploy:
-- mosaic-life/web:${SHORT_SHA}
-- mosaic-life/core-api:${SHORT_SHA}"
+          git commit -m "deploy(${ENVIRONMENT}): update image tag to ${SHORT_SHA}" \
+            -m "Triggered by: ${{ github.event_name }}" \
+            -m "Branch: ${{ github.ref_name }}" \
+            -m "Commit: ${{ github.sha }}" \
+            -m "Actor: ${{ github.actor }}" \
+            -m "" \
+            -m "This will deploy:" \
+            -m "- mosaic-life/web:${SHORT_SHA}" \
+            -m "- mosaic-life/core-api:${SHORT_SHA}"
           
           git push origin main
           
