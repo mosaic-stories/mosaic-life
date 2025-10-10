@@ -48,9 +48,7 @@ app.add_middleware(
 
 
 @app.middleware("http")
-async def metrics_middleware(
-    request: Request, call_next: callable
-) -> Response:
+async def metrics_middleware(request: Request, call_next: callable) -> Response:
     response: Response = await call_next(request)
     try:
         REQUESTS.labels(
