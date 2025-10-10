@@ -1,10 +1,10 @@
-from typing import Protocol
+from typing import Any, Protocol
 
 
 class SearchAdapter(Protocol):
-    def index_story(self, story: dict) -> None: ...
+    def index_story(self, story: dict[str, Any]) -> None: ...
 
-    def search_stories(self, query: dict) -> dict: ...
+    def search_stories(self, query: dict[str, Any]) -> dict[str, Any]: ...
 
 
 class OpenSearchAdapter:
@@ -12,10 +12,10 @@ class OpenSearchAdapter:
         self.base_url = base_url
         # real client wiring deferred to Sprint 2
 
-    def index_story(self, story: dict) -> None:
+    def index_story(self, story: dict[str, Any]) -> None:
         # TODO: implement OpenSearch client call
         return None
 
-    def search_stories(self, query: dict) -> dict:
+    def search_stories(self, query: dict[str, Any]) -> dict[str, Any]:
         # TODO: implement OpenSearch query
         return {"hits": []}
