@@ -4,6 +4,7 @@ from collections.abc import Awaitable, Callable
 from fastapi import Request, Response
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.types import ASGIApp
 
 from ..config import Settings, get_settings
 from .cognito import CognitoError, get_cognito_client
@@ -23,7 +24,7 @@ class SessionMiddleware(BaseHTTPMiddleware):
     5. Handles token refresh if needed
     """
 
-    def __init__(self, app, settings: Settings | None = None):
+    def __init__(self, app: ASGIApp, settings: Settings | None = None) -> None:
         super().__init__(app)
         self.settings = settings or get_settings()
         self.signer = TimestampSigner(self.settings.session_secret_key)

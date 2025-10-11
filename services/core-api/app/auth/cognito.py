@@ -255,6 +255,12 @@ class CognitoClient:
         if not self.settings.oidc_token_endpoint:
             raise CognitoError("Token endpoint not configured")
 
+        if not self.settings.cognito_client_id:
+            raise CognitoError("Client ID not configured")
+
+        if not self.settings.cognito_client_secret:
+            raise CognitoError("Client secret not configured")
+
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.post(
