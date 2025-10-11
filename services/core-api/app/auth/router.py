@@ -123,9 +123,7 @@ async def callback(
             "auth.callback.error",
             extra={"error": error},
         )
-        return RedirectResponse(
-            url=f"{settings.app_url}/login?error={error}"
-        )
+        return RedirectResponse(url=f"{settings.app_url}/login?error={error}")
 
     # Validate state (CSRF protection)
     if not state or state not in _state_store:
@@ -235,9 +233,7 @@ async def logout(request: Request) -> Response:
     logger.info(
         "auth.logout",
         extra={
-            "user_id": getattr(
-                get_current_user(request), "sub", "unknown"
-            ),
+            "user_id": getattr(get_current_user(request), "sub", "unknown"),
         },
     )
 
@@ -261,9 +257,7 @@ async def logout_redirect(request: Request) -> RedirectResponse:
         "logout_uri": settings.app_url,
     }
 
-    cognito_logout_url = (
-        f"{settings.oidc_logout_endpoint}?{urlencode(logout_params)}"
-    )
+    cognito_logout_url = f"{settings.oidc_logout_endpoint}?{urlencode(logout_params)}"
 
     # Clear session cookie before redirect
     response = RedirectResponse(url=cognito_logout_url)
@@ -278,9 +272,7 @@ async def logout_redirect(request: Request) -> RedirectResponse:
     logger.info(
         "auth.logout_redirect",
         extra={
-            "user_id": getattr(
-                get_current_user(request), "sub", "unknown"
-            ),
+            "user_id": getattr(get_current_user(request), "sub", "unknown"),
         },
     )
 

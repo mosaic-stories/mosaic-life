@@ -51,13 +51,17 @@ class Settings(BaseModel):
     api_url: str = os.getenv("API_URL", "http://localhost:8080")
 
     # Session Configuration
-    session_secret_key: str = os.getenv("SESSION_SECRET_KEY", "dev-secret-change-in-production")
+    session_secret_key: str = os.getenv(
+        "SESSION_SECRET_KEY", "dev-secret-change-in-production"
+    )
     session_cookie_name: str = "mosaic_session"
     session_cookie_secure: bool = os.getenv("ENV", "dev") != "dev"
     session_cookie_max_age: int = 3600  # 1 hour
 
     # Feature Flags
-    enable_cognito_auth: bool = os.getenv("ENABLE_COGNITO_AUTH", "false").lower() == "true"
+    enable_cognito_auth: bool = (
+        os.getenv("ENABLE_COGNITO_AUTH", "false").lower() == "true"
+    )
 
     # Database and Services
     db_url: str | None = os.getenv("DB_URL")

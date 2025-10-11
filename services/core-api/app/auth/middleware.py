@@ -1,13 +1,12 @@
 import logging
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
 
 from fastapi import Request, Response
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from ..config import Settings, get_settings
-from .cognito import CognitoClient, CognitoError, get_cognito_client
+from .cognito import CognitoError, get_cognito_client
 from .models import CognitoUser
 
 logger = logging.getLogger(__name__)

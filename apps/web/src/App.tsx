@@ -44,7 +44,6 @@ function Protected({ children }: { children: JSX.Element }) {
 }
 
 function Login() {
-  const nav = useNavigate();
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

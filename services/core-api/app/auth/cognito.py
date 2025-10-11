@@ -1,5 +1,4 @@
 import logging
-from datetime import datetime, timezone
 from functools import lru_cache
 from typing import Any
 
@@ -43,9 +42,7 @@ class CognitoClient:
 
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.get(
-                    self.settings.oidc_jwks_uri, timeout=10.0
-                )
+                response = await client.get(self.settings.oidc_jwks_uri, timeout=10.0)
                 response.raise_for_status()
                 self._jwks = response.json()
                 logger.info(
@@ -116,9 +113,7 @@ class CognitoClient:
             # Validate token_use claim
             token_use = claims.get("token_use")
             if token_use not in ("id", "access"):
-                raise CognitoError(
-                    f"Invalid token_use: {token_use}"
-                )
+                raise CognitoError(f"Invalid token_use: {token_use}")
 
             # Extract custom attributes (they come with custom: prefix)
             custom_attrs = {}
