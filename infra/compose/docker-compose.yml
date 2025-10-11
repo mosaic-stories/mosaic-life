@@ -4,61 +4,128 @@ services:
       context: ../../services/core-api
       dockerfile: Dockerfile
     environment:
-      ENV: dev
-      LOG_LEVEL: info
-      DB_URL: postgresql+psycopg://postgres:postgres@postgres:5432/core
-      OPENSEARCH_URL: http://opensearch:9200
-      OIDC_ISSUER: http://localhost/oidc # placeholder
-      OIDC_CLIENT_ID: dummy
-      OIDC_CLIENT_SECRET: dummy
-      SNS_TOPIC_ARN_EVENTS: arn:aws:sns:us-east-1:000000000000:domain-events
-      SQS_QUEUE_URL_EVENTS: http://localstack:4566/000000000000/domain-events
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318/v1/traces
+      ENV: ${ENV:-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DB_URL: ${DB_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/core}
+      OPENSEARCH_URL: ${OPENSEARCH_URL:-http://opensearch:9200}
+      OIDC_ISSUER: ${OIDC_ISSUER:-http://localhost/oidc}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-dummy}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-dummy}
+      SNS_TOPIC_ARN_EVENTS: ${SNS_TOPIC_ARN_EVENTS:-arn:aws:sns:us-east-1:000000000000:domain-events}
+      SQS_QUEUE_URL_EVENTS: ${SQS_QUEUE_URL_EVENTS:-http://localstack:4566/000000000000/domain-events}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-http://localstack:4566}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
     ports:
-      - "8080:8080"
+      - "${CORE_API_PORT:-8080}:8080"
+    volumes:
+      # Mount source code for development (optional - comment out for production builds)
+      - ../../services/core-api/app:/app/app:ro
+      - ../../services/core-api/alembic:/app/alembic:ro
     depends_on:
-      - postgres
-      - opensearch
-      - localstack
-      - jaeger
+      postgres:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+      localstack:
+        condition: service_started
+      jaeger:
+        condition: service_started
+    restart: unless-stopped
+
   web:
     build:
       context: ../../apps/web
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
+    environment:
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
     ports:
-      - "3001:80"
+      - "${WEB_PORT:-3001}:80"
     depends_on:
-      - core-api
+      core-api:
+        condition: service_started
+    restart: unless-stopped
+
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_DB: core
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-core}
+      PGDATA: /var/lib/postgresql/data/pgdata
     ports:
-      - "15432:5432"
+      - "${POSTGRES_PORT:-15432}:5432"
+    volumes:
+      - ../../.local/postgres-data:/var/lib/postgresql/data
+      # Optional: Initialize scripts
+      # - ../../infra/compose/init-scripts:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-core}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   opensearch:
     image: opensearchproject/opensearch:2.13.0
     environment:
       - discovery.type=single-node
       - plugins.security.disabled=true
       - bootstrap.memory_lock=true
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
+      - "OPENSEARCH_JAVA_OPTS=${OPENSEARCH_JAVA_OPTS:--Xms512m -Xmx512m}"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
     ulimits:
       memlock:
         soft: -1
         hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
     ports:
-      - "9200:9200"
+      - "${OPENSEARCH_PORT:-9200}:9200"
+      - "9600:9600"  # Performance analyzer
+    volumes:
+      - ../../.local/opensearch-data:/usr/share/opensearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
   localstack:
     image: localstack/localstack:3.5
     environment:
-      - SERVICES=sns,sqs,s3
-      - LS_LOG=info
+      - SERVICES=${LOCALSTACK_SERVICES:-sns,sqs,s3}
+      - LS_LOG=${LOCALSTACK_LOG_LEVEL:-info}
+      - DEBUG=${LOCALSTACK_DEBUG:-0}
+      - DATA_DIR=/var/lib/localstack/data
+      - LAMBDA_EXECUTOR=${LAMBDA_EXECUTOR:-local}
+      - DOCKER_HOST=unix:///var/run/docker.sock
     ports:
-      - "4566:4566"
+      - "${LOCALSTACK_PORT:-4566}:4566"
+    volumes:
+      - ../../.local/localstack-data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # Optional: Initialization scripts
+      # - ../../infra/compose/localstack-init:/etc/localstack/init:ro
+    restart: unless-stopped
+
   jaeger:
     image: jaegertracing/all-in-one:1.57
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=${JAEGER_STORAGE:-memory}
     ports:
-      - "16686:16686"
+      - "${JAEGER_UI_PORT:-16686}:16686"   # Jaeger UI
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+      - "14268:14268" # Jaeger collector
+    volumes:
+      - ../../.local/jaeger-data:/tmp
+    restart: unless-stopped
 

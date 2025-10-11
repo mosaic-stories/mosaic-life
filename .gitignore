@@ -97,6 +97,9 @@ Thumbs.db
 # Local development
 .local/
 
+# Docker Compose local environment
+infra/compose/.env
+
 # Helm charts
 *.tgz
 

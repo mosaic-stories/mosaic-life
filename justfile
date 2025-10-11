@@ -385,7 +385,36 @@ deploy-sha: release-sha
 # Development
 # ============================================================
 
-# Start local development environment
+# Run Vite dev server for frontend development (with hot reload)
+dev:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Starting Vite dev server..."
+    echo "Make sure backend is running: just dev-backend"
+    cd apps/web
+    npm install
+    npm run dev
+
+# Start backend services only (for use with Vite dev server)
+dev-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Starting backend services (without web container)..."
+    docker compose -f infra/compose/docker-compose.yml up -d core-api postgres opensearch localstack jaeger
+    @echo ""
+    @echo "✓ Backend services started"
+    @echo ""
+    @echo "Services:"
+    @echo "  - API:           http://localhost:8080"
+    @echo "  - API Docs:      http://localhost:8080/docs"
+    @echo "  - Jaeger UI:     http://localhost:16686"
+    @echo "  - OpenSearch:    http://localhost:9200"
+    @echo "  - PostgreSQL:    localhost:15432"
+    @echo ""
+    @echo "Run frontend with: just dev"
+    @echo "Or full stack:     just start"
+
+# Start local development environment (full Docker Compose stack)
 dev-up:
     docker-compose -f infra/compose/docker-compose.yml up -d
     @echo "✓ Development environment started"
@@ -399,6 +428,32 @@ dev-down:
 # View local logs
 dev-logs service="":
     docker-compose -f infra/compose/docker-compose.yml logs -f {{service}}
+
+# Start docker-compose stack
+start:
+    docker compose -f infra/compose/docker-compose.yml up -d
+    @echo "✓ Docker Compose stack started"
+    @echo ""
+    @echo "Services:"
+    @echo "  - Web App:       http://localhost:3001"
+    @echo "  - API:           http://localhost:8080"
+    @echo "  - API Docs:      http://localhost:8080/docs"
+    @echo "  - Jaeger UI:     http://localhost:16686"
+    @echo "  - OpenSearch:    http://localhost:9200"
+    @echo "  - PostgreSQL:    localhost:15432"
+    @echo ""
+    @echo "View logs with: just dev-logs [service]"
+    @echo "Stop with:      just stop"
+
+# Stop docker-compose stack
+stop:
+    docker compose -f infra/compose/docker-compose.yml stop
+    @echo "✓ Docker Compose stack stopped"
+
+# Restart docker-compose stack
+restart:
+    docker compose -f infra/compose/docker-compose.yml restart
+    @echo "✓ Docker Compose stack restarted"
 
 # ============================================================
 # Cluster Information
@@ -583,8 +638,8 @@ gitops-update-tag environment="prod" tag="":
       echo "Aborted - changes reverted"
     fi
 
-# Deploy specific git SHA to environment
-deploy-sha sha="" environment="prod": (gitops-update-tag environment sha)
+# Deploy specific git SHA to environment via GitOps
+gitops-deploy-sha sha="" environment="prod": (gitops-update-tag environment sha)
     @echo "Deployment initiated for SHA {{sha}} to {{environment}}"
 
 # ============================================================
