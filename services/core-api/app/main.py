@@ -16,6 +16,7 @@ from .logging import configure_logging
 from .observability.tracing import configure_tracing
 from .health import router as health_router
 from .auth.router import router as auth_router
+from .auth.middleware import SessionMiddleware
 
 
 REQUESTS = Counter(
@@ -45,6 +46,9 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
+
+# Session middleware for Cognito authentication
+app.add_middleware(SessionMiddleware)
 
 
 @app.middleware("http")

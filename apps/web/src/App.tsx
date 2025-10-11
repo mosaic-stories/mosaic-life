@@ -44,6 +44,23 @@ function Protected({ children }: { children: JSX.Element }) {
 }
 
 function Login() {
+  const nav = useNavigate();
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Check for error in query params (from failed callback)
+    const params = new URLSearchParams(window.location.search);
+    const errorParam = params.get('error');
+    if (errorParam) {
+      setError(errorParam);
+    }
+  }, []);
+
+  const handleLogin = () => {
+    // Redirect to backend login endpoint which initiates OIDC flow
+    window.location.href = '/api/auth/login';
+  };
+
   return (
     <div
       style={{
@@ -57,10 +74,42 @@ function Login() {
       <div style={{ textAlign: 'center', maxWidth: '28rem' }}>
         <h2 style={{ marginBottom: 'var(--space-4)' }}>Sign In</h2>
         <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--space-8)' }}>
-          OIDC authentication flow will be implemented here
+          Sign in with your Mosaic Life account
         </p>
-        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-          For development: Authentication is handled by the Core API
+
+        {error && (
+          <div
+            style={{
+              padding: 'var(--space-4)',
+              marginBottom: 'var(--space-6)',
+              backgroundColor: 'var(--color-error-light, #fee)',
+              color: 'var(--color-error, #c00)',
+              borderRadius: 'var(--border-radius-md, 8px)',
+            }}
+          >
+            Authentication failed: {error}
+          </div>
+        )}
+
+        <button
+          onClick={handleLogin}
+          style={{
+            padding: 'var(--space-3) var(--space-6)',
+            backgroundColor: 'var(--color-primary, #0066cc)',
+            color: 'white',
+            border: 'none',
+            borderRadius: 'var(--border-radius-md, 8px)',
+            fontSize: 'var(--font-size-md)',
+            fontWeight: '500',
+            cursor: 'pointer',
+            width: '100%',
+          }}
+        >
+          Sign In with Cognito
+        </button>
+
+        <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-6)' }}>
+          Secure authentication via AWS Cognito
         </p>
       </div>
     </div>

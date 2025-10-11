@@ -1,5 +1,14 @@
 # Mosaic Life - Build and Deployment Automation
 # Uses existing infrastructure from https://github.com/mosaic-stories/infrastructure
+#
+# DEPLOYMENT STRATEGY:
+# - Production & Staging: Managed by ArgoCD from GitOps repo (recommended)
+# - Local Development: Docker Compose or manual Helm deployments
+# - Emergency/Testing: Direct Helm deployments (bypasses GitOps)
+#
+# GitOps Repository: https://github.com/mosaic-stories/gitops (at /apps/mosaic-life-gitops)
+# Helm charts are in this repo (infra/helm/mosaic-life)
+# Values are in the GitOps repo (environments/prod, environments/staging)
 
 # Configuration from existing infrastructure
 AWS_REGION := env_var_or_default("AWS_REGION", "us-east-1")
@@ -19,7 +28,25 @@ S3_BACKUP_BUCKET := "mosaic-prod-backups-" + AWS_ACCOUNT
 
 # Default recipe - show available commands
 default:
+    @echo "════════════════════════════════════════════════════════════════"
+    @echo "Mosaic Life - Available Commands"
+    @echo "════════════════════════════════════════════════════════════════"
+    @echo ""
+    @echo "🚀 RECOMMENDED WORKFLOWS:"
+    @echo "  gitops-deploy [env]     - Deploy via GitOps (prod/staging)"
+    @echo "  bootstrap [version]     - Initial setup (DNS, ECR, ArgoCD)"
+    @echo "  dev                     - Start frontend dev server"
+    @echo "  dev-backend             - Start backend services only"
+    @echo ""
+    @echo "📋 ALL COMMANDS:"
     @just --list
+    @echo ""
+    @echo "════════════════════════════════════════════════════════════════"
+    @echo "💡 Quick Start:"
+    @echo "  First time:  just bootstrap"
+    @echo "  Deploy code: just gitops-deploy prod"
+    @echo "  Local dev:   just dev-backend && just dev"
+    @echo "════════════════════════════════════════════════════════════════"
 
 # ============================================================
 # DNS & Certificate (minimal CDK for DNS/ACM only)
@@ -148,7 +175,9 @@ release-sha:
 kubeconfig:
     aws eks update-kubeconfig --name {{CLUSTER_NAME}} --region {{AWS_REGION}}
 
-# Install/Upgrade Helm chart
+# Install/Upgrade Helm chart (manual deployment, bypasses ArgoCD)
+# NOTE: Only use this for local testing or emergency deployments
+# Normal deployments are managed by ArgoCD from the GitOps repository
 helm-deploy version="latest":
     #!/usr/bin/env bash
     set -euo pipefail
@@ -202,6 +231,36 @@ helm-values:
 # Complete Deployment Workflow
 # ============================================================
 
+# Note: Deployments are managed by ArgoCD. Use these recipes for local development
+# or when you need to manually deploy outside of the GitOps workflow.
+
+# Recommended: Deploy via GitOps (builds, pushes, updates gitops repo)
+gitops-deploy environment="prod":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    
+    echo "🚀 GitOps Deployment to {{environment}}"
+    echo "════════════════════════════════════════════════"
+    echo ""
+    
+    # Step 1: Build and push images with git SHA
+    echo "📦 Step 1/3: Building and pushing images..."
+    GIT_SHA=$(git rev-parse --short HEAD)
+    just release $GIT_SHA
+    echo "✓ Images pushed with tag: $GIT_SHA"
+    echo ""
+    
+    # Step 2: Update GitOps repo
+    echo "📝 Step 2/3: Updating GitOps repository..."
+    just gitops-update-tag {{environment}} $GIT_SHA
+    echo ""
+    
+    # Step 3: Watch deployment
+    echo "👀 Step 3/3: Monitoring ArgoCD deployment..."
+    echo "ArgoCD will automatically sync the changes."
+    echo ""
+    echo "Watch with: just argocd-watch mosaic-life-{{environment}}"
+
 # Bootstrap entire application from scratch (one-time full setup)
 bootstrap version="latest":
     #!/usr/bin/env bash
@@ -211,34 +270,46 @@ bootstrap version="latest":
     echo ""
     
     # Step 1: DNS and Certificates
-    echo "📋 Step 1/4: Deploying DNS and Certificate resources..."
+    echo "📋 Step 1/5: Deploying DNS and Certificate resources..."
     just dns-deploy
     echo "✓ DNS and certificates deployed"
     echo ""
     
     # Step 2: Build images
-    echo "🔨 Step 2/4: Building Docker images..."
+    echo "🔨 Step 2/5: Building Docker images..."
     just build-all
     echo "✓ Images built"
     echo ""
     
     # Step 3: Push to ECR
-    echo "📤 Step 3/4: Pushing images to ECR..."
+    echo "📤 Step 3/5: Pushing images to ECR..."
     just push-all {{version}}
     echo "✓ Images pushed"
     echo ""
     
-    # Step 4: Deploy to Kubernetes
-    echo "☸️  Step 4/4: Deploying to Kubernetes..."
-    just helm-deploy {{version}}
-    echo "✓ Deployed to cluster"
+    # Step 4: Configure ArgoCD
+    echo "⚙️  Step 4/5: Configuring ArgoCD applications..."
+    just argocd-apply
+    echo "✓ ArgoCD applications configured"
+    echo ""
+    
+    # Step 5: Trigger ArgoCD sync
+    echo "🔄 Step 5/5: Syncing ArgoCD applications..."
+    echo "Note: ArgoCD will automatically deploy to prod and staging environments"
+    echo "Monitor deployment status with: just argocd-watch mosaic-life-prod"
     echo ""
     
     echo "════════════════════════════════════════════════"
     echo "✨ Bootstrap Complete!"
     echo "════════════════════════════════════════════════"
     echo ""
-    just urls
+    echo "ArgoCD is now managing deployments from the GitOps repository."
+    echo ""
+    echo "Next steps:"
+    echo "  1. Watch prod deployment:    just argocd-watch mosaic-life-prod"
+    echo "  2. Watch staging deployment: just argocd-watch mosaic-life-staging"
+    echo "  3. View ArgoCD UI:           just argocd-ui"
+    echo "  4. Check service URLs:       just urls"
 
 # Teardown entire application (reverses bootstrap)
 teardown keep-images="false":
@@ -248,6 +319,7 @@ teardown keep-images="false":
     echo "🧹 Tearing down Mosaic Life..."
     echo ""
     echo "⚠️  WARNING: This will remove all deployed resources!"
+    echo "   - ArgoCD applications (if present)"
     echo "   - Kubernetes deployments and services"
     echo "   - ECR container images"
     echo "   - DNS records and certificates"
@@ -268,8 +340,28 @@ teardown keep-images="false":
     echo "════════════════════════════════════════════════"
     echo ""
     
-    # Step 1: Uninstall Helm release
-    echo "☸️  Step 1/4: Removing Kubernetes resources..."
+    # Step 0: Remove ArgoCD applications if they exist
+    echo "🔧 Step 0/5: Removing ArgoCD applications..."
+    if kubectl get application -n argocd mosaic-life-prod 2>/dev/null; then
+      echo "   Deleting mosaic-life-prod application..."
+      kubectl delete application -n argocd mosaic-life-prod || true
+    fi
+    if kubectl get application -n argocd mosaic-life-staging 2>/dev/null; then
+      echo "   Deleting mosaic-life-staging application..."
+      kubectl delete application -n argocd mosaic-life-staging || true
+    fi
+    # Delete any preview applications
+    kubectl get applications -n argocd -l app.kubernetes.io/part-of=mosaic-life -o name 2>/dev/null | xargs -r kubectl delete -n argocd || true
+    echo "✓ ArgoCD applications removed"
+    echo ""
+    
+    # Wait for ArgoCD to clean up resources
+    echo "   Waiting for ArgoCD to clean up resources..."
+    sleep 15
+    echo ""
+    
+    # Step 1: Uninstall Helm release (if any manual deployments exist)
+    echo "☸️  Step 1/5: Removing any manual Kubernetes deployments..."
     if helm list -n {{NAMESPACE}} | grep -q mosaic-life; then
       just helm-uninstall
       echo "✓ Helm release uninstalled"
@@ -290,7 +382,7 @@ teardown keep-images="false":
     echo ""
     
     # Step 2: Delete ECR images
-    echo "📦 Step 2/4: Deleting ECR images..."
+    echo "📦 Step 2/5: Deleting ECR images..."
     just ecr-login
     
     # Delete web images
@@ -345,15 +437,21 @@ teardown keep-images="false":
     
     # Step 4: Clean local Docker images (optional)
     if [ "{{keep-images}}" = "false" ]; then
-      echo "🐳 Step 4/4: Cleaning local Docker images..."
+      echo "🐳 Step 4/5: Cleaning local Docker images..."
       docker rmi mosaic-life/web:latest 2>/dev/null || true
       docker rmi mosaic-life/core-api:latest 2>/dev/null || true
       docker rmi {{ECR_WEB}}:latest 2>/dev/null || true
       docker rmi {{ECR_CORE_API}}:latest 2>/dev/null || true
       echo "✓ Local images cleaned"
     else
-      echo "🐳 Step 4/4: Keeping local Docker images (as requested)"
+      echo "🐳 Step 4/5: Keeping local Docker images (as requested)"
     fi
+    echo ""
+    
+    # Step 5: Clean up ArgoCD project (optional)
+    echo "🗑️  Step 5/5: ArgoCD project cleanup..."
+    echo "Note: ArgoCD project 'mosaic-life' is preserved"
+    echo "      Delete manually if needed: kubectl delete appproject -n argocd mosaic-life"
     echo ""
     
     echo "════════════════════════════════════════════════"
@@ -371,15 +469,24 @@ teardown keep-images="false":
     echo "To remove these, use the infrastructure repository:"
     echo "https://github.com/mosaic-stories/infrastructure"
 
-# Full deployment: build, push, and deploy
+# Full deployment: build, push, and deploy via Helm (manual, bypasses GitOps)
+# NOTE: Only use this for local testing or emergency deployments
+# Normal deployments should go through ArgoCD via the gitops-deploy-sha recipe
 deploy version="latest": (release version) (helm-deploy version)
     @echo "✓ Complete deployment finished"
+    @echo ""
+    @echo "⚠️  WARNING: This deployed directly via Helm, bypassing ArgoCD"
+    @echo "   For production deployments, use: just gitops-deploy-sha"
 
-# Deploy with git SHA
+# Deploy with git SHA via Helm (manual, bypasses GitOps)  
+# NOTE: Only use this for local testing or emergency deployments
 deploy-sha: release-sha
     #!/usr/bin/env bash
     GIT_SHA=$(git rev-parse --short HEAD)
     just helm-deploy $GIT_SHA
+    echo ""
+    echo "⚠️  WARNING: This deployed directly via Helm, bypassing ArgoCD"
+    echo "   For production deployments, use: just gitops-deploy-sha"
 
 # ============================================================
 # Development

@@ -8,9 +8,23 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       DB_URL: ${DB_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/core}
       OPENSEARCH_URL: ${OPENSEARCH_URL:-http://opensearch:9200}
-      OIDC_ISSUER: ${OIDC_ISSUER:-http://localhost/oidc}
-      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-dummy}
-      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-dummy}
+
+      # Cognito Configuration
+      ENABLE_COGNITO_AUTH: ${ENABLE_COGNITO_AUTH:-false}
+      COGNITO_REGION: ${COGNITO_REGION:-us-east-1}
+      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
+      COGNITO_CLIENT_SECRET: ${COGNITO_CLIENT_SECRET:-}
+      COGNITO_DOMAIN: ${COGNITO_DOMAIN:-}
+
+      # Application URLs
+      APP_URL: ${APP_URL:-http://localhost:5173}
+      API_URL: ${API_URL:-http://localhost:8080}
+
+      # Session Configuration
+      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:-dev-secret-change-in-production}
+
+      # AWS Services
       SNS_TOPIC_ARN_EVENTS: ${SNS_TOPIC_ARN_EVENTS:-arn:aws:sns:us-east-1:000000000000:domain-events}
       SQS_QUEUE_URL_EVENTS: ${SQS_QUEUE_URL_EVENTS:-http://localstack:4566/000000000000/domain-events}
       OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
