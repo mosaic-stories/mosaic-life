@@ -14,14 +14,20 @@ env:
   BASE_DOMAIN: mosaiclife.me
 
 jobs:
-  deploy-preview:
-    name: Deploy Preview Environment
+  build-preview-images:
+    name: Build Preview Images
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-preview')
     permissions:
       id-token: write
       contents: read
-      pull-requests: write
+    outputs:
+      image-tag: ${{ steps.vars.outputs.image-tag }}
+      pr-number: ${{ steps.vars.outputs.pr-number }}
+      branch-name: ${{ steps.vars.outputs.branch-name }}
+      namespace: ${{ steps.vars.outputs.namespace }}
+      web-hostname: ${{ steps.vars.outputs.web-hostname }}
+      api-hostname: ${{ steps.vars.outputs.api-hostname }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -41,23 +47,57 @@ jobs:
           echo "api-hostname=pr-${PR_NUMBER}-api.${BASE_DOMAIN}" >> $GITHUB_OUTPUT
           echo "image-tag=${SAFE_BRANCH}-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (ECR Push Role)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::033691785857:role/github-actions-eks-deploy
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-ecr-push
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push preview images
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Web preview image
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
           push: true
-          tags: |
-            ${{ env.ECR_REGISTRY }}/mosaic-life/web:${{ steps.vars.outputs.image-tag }}
-            ${{ env.ECR_REGISTRY }}/mosaic-life/core-api:${{ steps.vars.outputs.image-tag }}
+          tags: ${{ env.ECR_REGISTRY }}/mosaic-life/web:${{ steps.vars.outputs.image-tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Build and push Core API preview image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/core-api
+          file: ./services/core-api/Dockerfile
+          push: true
+          tags: ${{ env.ECR_REGISTRY }}/mosaic-life/core-api:${{ steps.vars.outputs.image-tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  deploy-preview:
+    name: Deploy Preview Environment
+    runs-on: ubuntu-latest
+    needs: build-preview-images
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (EKS Deploy Role)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-eks-deploy
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Configure kubectl
         run: |
@@ -65,11 +105,11 @@ jobs:
 
       - name: Create preview namespace
         run: |
-          kubectl create namespace ${{ steps.vars.outputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
-          kubectl label namespace ${{ steps.vars.outputs.namespace }} \
+          kubectl create namespace ${{ needs.build-preview-images.outputs.namespace }} --dry-run=client -o yaml | kubectl apply -f -
+          kubectl label namespace ${{ needs.build-preview-images.outputs.namespace }} \
             type=preview \
-            pr=${{ steps.vars.outputs.pr-number }} \
-            branch=${{ steps.vars.outputs.branch-name }} \
+            pr=${{ needs.build-preview-images.outputs.pr-number }} \
+            branch=${{ needs.build-preview-images.outputs.branch-name }} \
             --overwrite
 
       - name: Install Helm
@@ -79,12 +119,12 @@ jobs:
 
       - name: Deploy preview environment
         env:
-          NAMESPACE: ${{ steps.vars.outputs.namespace }}
-          IMAGE_TAG: ${{ steps.vars.outputs.image-tag }}
-          WEB_HOST: ${{ steps.vars.outputs.web-hostname }}
-          API_HOST: ${{ steps.vars.outputs.api-hostname }}
+          NAMESPACE: ${{ needs.build-preview-images.outputs.namespace }}
+          IMAGE_TAG: ${{ needs.build-preview-images.outputs.image-tag }}
+          WEB_HOST: ${{ needs.build-preview-images.outputs.web-hostname }}
+          API_HOST: ${{ needs.build-preview-images.outputs.api-hostname }}
         run: |
-          helm upgrade --install mosaic-life-pr-${{ steps.vars.outputs.pr-number }} \
+          helm upgrade --install mosaic-life-pr-${{ needs.build-preview-images.outputs.pr-number }} \
             ./infra/helm/mosaic-life \
             --namespace ${NAMESPACE} \
             --create-namespace \
@@ -103,7 +143,7 @@ jobs:
             --set coreApi.env[0].name=ENVIRONMENT \
             --set coreApi.env[0].value=preview \
             --set coreApi.env[1].name=PR_NUMBER \
-            --set coreApi.env[1].value=${{ steps.vars.outputs.pr-number }} \
+            --set coreApi.env[1].value=${{ needs.build-preview-images.outputs.pr-number }} \
             --wait \
             --timeout 5m
 
@@ -112,13 +152,13 @@ jobs:
           kubectl wait --for=condition=available --timeout=300s \
             deployment/mosaic-life-web \
             deployment/mosaic-life-core-api \
-            -n ${{ steps.vars.outputs.namespace }}
+            -n ${{ needs.build-preview-images.outputs.namespace }}
 
       - name: Get deployment status
         id: status
         run: |
-          WEB_STATUS=$(kubectl get deployment mosaic-life-web -n ${{ steps.vars.outputs.namespace }} -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
-          API_STATUS=$(kubectl get deployment mosaic-life-core-api -n ${{ steps.vars.outputs.namespace }} -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
+          WEB_STATUS=$(kubectl get deployment mosaic-life-web -n ${{ needs.build-preview-images.outputs.namespace }} -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
+          API_STATUS=$(kubectl get deployment mosaic-life-core-api -n ${{ needs.build-preview-images.outputs.namespace }} -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
 
           echo "web-status=${WEB_STATUS}" >> $GITHUB_OUTPUT
           echo "api-status=${API_STATUS}" >> $GITHUB_OUTPUT
@@ -127,10 +167,10 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = ${{ steps.vars.outputs.pr-number }};
-            const webUrl = 'https://${{ steps.vars.outputs.web-hostname }}';
-            const apiUrl = 'https://${{ steps.vars.outputs.api-hostname }}';
-            const namespace = '${{ steps.vars.outputs.namespace }}';
+            const prNumber = ${{ needs.build-preview-images.outputs.pr-number }};
+            const webUrl = 'https://${{ needs.build-preview-images.outputs.web-hostname }}';
+            const apiUrl = 'https://${{ needs.build-preview-images.outputs.api-hostname }}';
+            const namespace = '${{ needs.build-preview-images.outputs.namespace }}';
 
             const comment = `## 🚀 Preview Environment Deployed
 
@@ -142,7 +182,7 @@ jobs:
 
             **Kubernetes:**
             - Namespace: \`${namespace}\`
-            - Image Tag: \`${{ steps.vars.outputs.image-tag }}\`
+            - Image Tag: \`${{ needs.build-preview-images.outputs.image-tag }}\`
 
             **Status:**
             - Web: ${{ steps.status.outputs.web-status }}
