@@ -1,34 +1,28 @@
 {
   "version": "48.0.0",
   "artifacts": {
-    "MosaicDnsCertificateStack.assets": {
+    "MosaicLifeStack.assets": {
       "type": "cdk:asset-manifest",
       "properties": {
-        "file": "MosaicDnsCertificateStack.assets.json",
+        "file": "MosaicLifeStack.assets.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
       }
     },
-    "MosaicDnsCertificateStack": {
+    "MosaicLifeStack": {
       "type": "aws:cloudformation:stack",
       "environment": "aws://033691785857/us-east-1",
       "properties": {
-        "templateFile": "MosaicDnsCertificateStack.template.json",
+        "templateFile": "MosaicLifeStack.template.json",
         "terminationProtection": false,
-        "tags": {
-          "Component": "DNS",
-          "Environment": "prod",
-          "ManagedBy": "CDK",
-          "Project": "MosaicLife"
-        },
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-deploy-role-033691785857-us-east-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-cfn-exec-role-033691785857-us-east-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/87792ccf30120445b4d8104bef9f7dd6f9757ebd3b135b6a009b4463051f6a4a.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/a36e45445c6b71407bfb24ff042d7c588c306b95016b017a7f4144f605d76e44.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
-          "MosaicDnsCertificateStack.assets"
+          "MosaicLifeStack.assets"
         ],
         "lookupRole": {
           "arn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-lookup-role-033691785857-us-east-1",
@@ -37,94 +31,431 @@
         }
       },
       "dependencies": [
-        "MosaicDnsCertificateStack.assets"
+        "MosaicLifeStack.assets"
       ],
       "metadata": {
-        "/MosaicDnsCertificateStack": [
+        "/MosaicLifeStack/MosaicVPC/PublicSubnet1": [
           {
-            "type": "aws:cdk:stack-tags",
-            "data": [
-              {
-                "Key": "Component",
-                "Value": "DNS"
-              },
-              {
-                "Key": "Environment",
-                "Value": "prod"
-              },
-              {
-                "Key": "ManagedBy",
-                "Value": "CDK"
-              },
-              {
-                "Key": "Project",
-                "Value": "MosaicLife"
-              }
+            "type": "aws:cdk:warning",
+            "data": "No routeTableId was provided to the subnet 'subnet-0d1d24670c22d0a24'. Attempting to read its .routeTable.routeTableId will return null/undefined. (More info: https://github.com/aws/aws-cdk/pull/3171) [ack: @aws-cdk/aws-ec2:noSubnetRouteTableId]",
+            "trace": [
+              "Annotations.addMessage (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1978)",
+              "Annotations.addWarningV2 (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:38699)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromSubnetAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:24554)",
+              "/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2307",
+              "Array.map (<anonymous>)",
+              "ImportSubnetGroup.import (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2225)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35297)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
+              "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Object.require.extensions.<computed> [as .ts] (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "phase4 (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Object.Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "node:internal/main/run_main_module:28:49"
             ]
           }
         ],
-        "/MosaicDnsCertificateStack/HostedZone/Resource": [
+        "/MosaicLifeStack/MosaicVPC/PublicSubnet2": [
           {
-            "type": "aws:cdk:logicalId",
-            "data": "HostedZoneDB99F866"
+            "type": "aws:cdk:warning",
+            "data": "No routeTableId was provided to the subnet 'subnet-0828639a62b580936'. Attempting to read its .routeTable.routeTableId will return null/undefined. (More info: https://github.com/aws/aws-cdk/pull/3171) [ack: @aws-cdk/aws-ec2:noSubnetRouteTableId]",
+            "trace": [
+              "Annotations.addMessage (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1978)",
+              "Annotations.addWarningV2 (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:38699)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromSubnetAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:24554)",
+              "/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2307",
+              "Array.map (<anonymous>)",
+              "ImportSubnetGroup.import (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2225)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35297)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
+              "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Object.require.extensions.<computed> [as .ts] (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "phase4 (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Object.Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "node:internal/main/run_main_module:28:49"
+            ]
           }
         ],
-        "/MosaicDnsCertificateStack/NameServers": [
+        "/MosaicLifeStack/MosaicVPC/PublicSubnet3": [
           {
-            "type": "aws:cdk:logicalId",
-            "data": "NameServers"
+            "type": "aws:cdk:warning",
+            "data": "No routeTableId was provided to the subnet 'subnet-0e4ec4b042daa6718'. Attempting to read its .routeTable.routeTableId will return null/undefined. (More info: https://github.com/aws/aws-cdk/pull/3171) [ack: @aws-cdk/aws-ec2:noSubnetRouteTableId]",
+            "trace": [
+              "Annotations.addMessage (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1978)",
+              "Annotations.addWarningV2 (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:38699)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromSubnetAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:24554)",
+              "/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2307",
+              "Array.map (<anonymous>)",
+              "ImportSubnetGroup.import (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2225)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35297)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
+              "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Object.require.extensions.<computed> [as .ts] (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "phase4 (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Object.Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "node:internal/main/run_main_module:28:49"
+            ]
           }
         ],
-        "/MosaicDnsCertificateStack/Certificate/Resource": [
+        "/MosaicLifeStack/MosaicVPC/PrivateSubnet1": [
+          {
+            "type": "aws:cdk:warning",
+            "data": "No routeTableId was provided to the subnet 'subnet-07a61c97e2e16d91b'. Attempting to read its .routeTable.routeTableId will return null/undefined. (More info: https://github.com/aws/aws-cdk/pull/3171) [ack: @aws-cdk/aws-ec2:noSubnetRouteTableId]",
+            "trace": [
+              "Annotations.addMessage (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1978)",
+              "Annotations.addWarningV2 (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:38699)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromSubnetAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:24554)",
+              "/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2307",
+              "Array.map (<anonymous>)",
+              "ImportSubnetGroup.import (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2225)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35335)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
+              "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Object.require.extensions.<computed> [as .ts] (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "phase4 (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Object.Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "node:internal/main/run_main_module:28:49"
+            ]
+          }
+        ],
+        "/MosaicLifeStack/MosaicVPC/PrivateSubnet2": [
+          {
+            "type": "aws:cdk:warning",
+            "data": "No routeTableId was provided to the subnet 'subnet-079dd0d7be41e96a5'. Attempting to read its .routeTable.routeTableId will return null/undefined. (More info: https://github.com/aws/aws-cdk/pull/3171) [ack: @aws-cdk/aws-ec2:noSubnetRouteTableId]",
+            "trace": [
+              "Annotations.addMessage (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1978)",
+              "Annotations.addWarningV2 (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:38699)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromSubnetAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:24554)",
+              "/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2307",
+              "Array.map (<anonymous>)",
+              "ImportSubnetGroup.import (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2225)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35335)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
+              "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Object.require.extensions.<computed> [as .ts] (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "phase4 (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Object.Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "node:internal/main/run_main_module:28:49"
+            ]
+          }
+        ],
+        "/MosaicLifeStack/MosaicVPC/PrivateSubnet3": [
+          {
+            "type": "aws:cdk:warning",
+            "data": "No routeTableId was provided to the subnet 'subnet-01e6823eddd4a9a94'. Attempting to read its .routeTable.routeTableId will return null/undefined. (More info: https://github.com/aws/aws-cdk/pull/3171) [ack: @aws-cdk/aws-ec2:noSubnetRouteTableId]",
+            "trace": [
+              "Annotations.addMessage (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:1978)",
+              "Annotations.addWarningV2 (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/annotations.js:1:896)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:38699)",
+              "new ImportedSubnet (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromSubnetAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:24554)",
+              "/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2307",
+              "Array.map (<anonymous>)",
+              "ImportSubnetGroup.import (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/util.js:1:2225)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35335)",
+              "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
+              "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
+              "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Object.require.extensions.<computed> [as .ts] (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1621:12)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "phase4 (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:649:14)",
+              "bootstrap (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:95:10)",
+              "main (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:55:10)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/bin.ts:800:3)",
+              "Module._compile (node:internal/modules/cjs/loader:1376:14)",
+              "Object.Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
+              "Module.load (node:internal/modules/cjs/loader:1207:32)",
+              "Function.Module._load (node:internal/modules/cjs/loader:1023:12)",
+              "Function.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:135:12)",
+              "node:internal/main/run_main_module:28:49"
+            ]
+          }
+        ],
+        "/MosaicLifeStack/Certificate/Resource": [
           {
             "type": "aws:cdk:logicalId",
             "data": "Certificate4E7ABB08"
           }
         ],
-        "/MosaicDnsCertificateStack/HostedZoneId": [
+        "/MosaicLifeStack/UserPool/smsRole/Resource": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "HostedZoneId"
+            "data": "UserPoolsmsRole4EA729DD"
           }
         ],
-        "/MosaicDnsCertificateStack/CertificateArn": [
+        "/MosaicLifeStack/UserPool/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserPool6BA7E5F2"
+          }
+        ],
+        "/MosaicLifeStack/UserPool/CognitoDomain/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserPoolCognitoDomainD6C7F9FA"
+          }
+        ],
+        "/MosaicLifeStack/UserPool/WebAppClient/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserPoolWebAppClientCD2D5CB1"
+          }
+        ],
+        "/MosaicLifeStack/GoogleProvider/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GoogleProvider566D8493"
+          }
+        ],
+        "/MosaicLifeStack/GitHubProvider/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "GitHubProviderDD1D07DF"
+          }
+        ],
+        "/MosaicLifeStack/CognitoConfig/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CognitoConfig0041A066"
+          }
+        ],
+        "/MosaicLifeStack/MediaBucket/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MediaBucketBCBB02BA"
+          }
+        ],
+        "/MosaicLifeStack/BackupBucket/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BackupBucket26B8E51C"
+          }
+        ],
+        "/MosaicLifeStack/webRepository/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "webRepository3064893B"
+          }
+        ],
+        "/MosaicLifeStack/core-apiRepository/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "coreapiRepository07F63354"
+          }
+        ],
+        "/MosaicLifeStack/DomainEventsTopic/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DomainEventsTopic9EECFB64"
+          }
+        ],
+        "/MosaicLifeStack/EventsDLQ/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "EventsDLQ3D9C0575"
+          }
+        ],
+        "/MosaicLifeStack/EventsQueue/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "EventsQueueB96EB0D2"
+          }
+        ],
+        "/MosaicLifeStack/EventsQueue/Policy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "EventsQueuePolicyF3E925EC"
+          }
+        ],
+        "/MosaicLifeStack/EventsQueue/MosaicLifeStackDomainEventsTopic693AF0EA/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "EventsQueueMosaicLifeStackDomainEventsTopic693AF0EA69322FFB"
+          }
+        ],
+        "/MosaicLifeStack/CoreApiRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CoreApiRoleFD696CAE"
+          }
+        ],
+        "/MosaicLifeStack/CoreApiRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CoreApiRoleDefaultPolicy532B5FA2"
+          }
+        ],
+        "/MosaicLifeStack/VpcId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "VpcId"
+          }
+        ],
+        "/MosaicLifeStack/CertificateArn": [
           {
             "type": "aws:cdk:logicalId",
             "data": "CertificateArn"
           }
         ],
-        "/MosaicDnsCertificateStack/Domain": [
+        "/MosaicLifeStack/UserPoolId": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "Domain"
+            "data": "UserPoolId"
           }
         ],
-        "/MosaicDnsCertificateStack/SubjectAlternativeNames": [
+        "/MosaicLifeStack/UserPoolClientId": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "SubjectAlternativeNames"
+            "data": "UserPoolClientId"
           }
         ],
-        "/MosaicDnsCertificateStack/CDKMetadata/Default": [
+        "/MosaicLifeStack/UserPoolDomain": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UserPoolDomain"
+          }
+        ],
+        "/MosaicLifeStack/MediaBucketName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "MediaBucketName"
+          }
+        ],
+        "/MosaicLifeStack/DomainEventsTopicArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DomainEventsTopicArn"
+          }
+        ],
+        "/MosaicLifeStack/HostedZoneId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "HostedZoneId"
+          }
+        ],
+        "/MosaicLifeStack/webRepositoryUri": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "webRepositoryUri"
+          }
+        ],
+        "/MosaicLifeStack/coreApiRepositoryUri": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "coreApiRepositoryUri"
+          }
+        ],
+        "/MosaicLifeStack/CDKMetadata/Default": [
           {
             "type": "aws:cdk:logicalId",
             "data": "CDKMetadata"
           }
         ],
-        "/MosaicDnsCertificateStack/BootstrapVersion": [
+        "/MosaicLifeStack/BootstrapVersion": [
           {
             "type": "aws:cdk:logicalId",
             "data": "BootstrapVersion"
           }
         ],
-        "/MosaicDnsCertificateStack/CheckBootstrapVersion": [
+        "/MosaicLifeStack/CheckBootstrapVersion": [
           {
             "type": "aws:cdk:logicalId",
             "data": "CheckBootstrapVersion"
           }
         ]
       },
-      "displayName": "MosaicDnsCertificateStack"
+      "displayName": "MosaicLifeStack"
     },
     "Tree": {
       "type": "cdk:tree",

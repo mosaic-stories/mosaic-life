@@ -16,12 +16,13 @@ export interface MosaicLifeStackProps extends cdk.StackProps {
     domainName: string;
     hostedZoneId?: string;
     environment: string;
+    vpcId?: string; // Optional: use existing VPC instead of creating new one
     tags: { [key: string]: string };
   };
 }
 
 export class MosaicLifeStack extends cdk.Stack {
-  public readonly vpc: ec2.Vpc;
+  public readonly vpc: ec2.IVpc;
   public readonly hostedZone: route53.IHostedZone;
   public readonly certificate: acm.Certificate;
   public readonly userPool: cognito.UserPool;
@@ -32,60 +33,79 @@ export class MosaicLifeStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: MosaicLifeStackProps) {
     super(scope, id, props);
 
-    const { domainName, hostedZoneId, environment } = props.config;
+    const { domainName, hostedZoneId, environment, vpcId } = props.config;
 
     // ============================================================
     // VPC for EKS
     // ============================================================
-    this.vpc = new ec2.Vpc(this, 'MosaicVPC', {
-      vpcName: `mosaic-${environment}-vpc`,
-      maxAzs: 3,
-      natGateways: 2, // High availability
-      subnetConfiguration: [
-        {
-          name: 'Public',
-          subnetType: ec2.SubnetType.PUBLIC,
-          cidrMask: 24,
-        },
-        {
-          name: 'Private',
-          subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-          cidrMask: 20,
-        },
-      ],
-      enableDnsHostnames: true,
-      enableDnsSupport: true,
-    });
+    if (vpcId) {
+      // Use existing VPC from infrastructure stack
+      this.vpc = ec2.Vpc.fromVpcAttributes(this, 'MosaicVPC', {
+        vpcId,
+        availabilityZones: ['us-east-1a', 'us-east-1b', 'us-east-1c'],
+        publicSubnetIds: [
+          'subnet-0d1d24670c22d0a24', // us-east-1a
+          'subnet-0828639a62b580936', // us-east-1b
+          'subnet-0e4ec4b042daa6718', // us-east-1c
+        ],
+        privateSubnetIds: [
+          'subnet-07a61c97e2e16d91b', // us-east-1a
+          'subnet-079dd0d7be41e96a5', // us-east-1b
+          'subnet-01e6823eddd4a9a94', // us-east-1c
+        ],
+      });
+    } else {
+      // Create new VPC (only if no existing VPC provided)
+      this.vpc = new ec2.Vpc(this, 'MosaicVPC', {
+        vpcName: `mosaic-${environment}-vpc`,
+        maxAzs: 3,
+        natGateways: 2, // High availability
+        subnetConfiguration: [
+          {
+            name: 'Public',
+            subnetType: ec2.SubnetType.PUBLIC,
+            cidrMask: 24,
+          },
+          {
+            name: 'Private',
+            subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+            cidrMask: 20,
+          },
+        ],
+        enableDnsHostnames: true,
+        enableDnsSupport: true,
+      });
 
-    // Tag subnets for EKS
-    cdk.Tags.of(this.vpc).add('kubernetes.io/cluster/mosaic-life', 'shared');
+      // Tag subnets for EKS (only for new VPC)
+      cdk.Tags.of(this.vpc).add('kubernetes.io/cluster/mosaic-life', 'shared');
 
-    this.vpc.publicSubnets.forEach((subnet, index) => {
-      cdk.Tags.of(subnet).add('kubernetes.io/role/elb', '1');
-      cdk.Tags.of(subnet).add('Name', `mosaic-${environment}-public-${index + 1}`);
-    });
+      this.vpc.publicSubnets.forEach((subnet, index) => {
+        cdk.Tags.of(subnet).add('kubernetes.io/role/elb', '1');
+        cdk.Tags.of(subnet).add('Name', `mosaic-${environment}-public-${index + 1}`);
+      });
 
-    this.vpc.privateSubnets.forEach((subnet, index) => {
-      cdk.Tags.of(subnet).add('kubernetes.io/role/internal-elb', '1');
-      cdk.Tags.of(subnet).add('Name', `mosaic-${environment}-private-${index + 1}`);
-    });
+      this.vpc.privateSubnets.forEach((subnet, index) => {
+        cdk.Tags.of(subnet).add('kubernetes.io/role/internal-elb', '1');
+        cdk.Tags.of(subnet).add('Name', `mosaic-${environment}-private-${index + 1}`);
+      });
 
-    // VPC Endpoints for AWS services to reduce NAT costs
-    this.vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
-    });
+      // VPC Endpoints for AWS services to reduce NAT costs (only for new VPC)
+      this.vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
+        service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+      });
 
-    this.vpc.addInterfaceEndpoint('ECRApiEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.ECR,
-    });
+      this.vpc.addInterfaceEndpoint('ECRApiEndpoint', {
+        service: ec2.InterfaceVpcEndpointAwsService.ECR,
+      });
 
-    this.vpc.addInterfaceEndpoint('ECRDockerEndpoint', {
-      service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
-    });
+      this.vpc.addInterfaceEndpoint('ECRDockerEndpoint', {
+        service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
+      });
 
-    this.vpc.addGatewayEndpoint('S3Endpoint', {
-      service: ec2.GatewayVpcEndpointAwsService.S3,
-    });
+      this.vpc.addGatewayEndpoint('S3Endpoint', {
+        service: ec2.GatewayVpcEndpointAwsService.S3,
+      });
+    }
 
     // ============================================================
     // Route53 Hosted Zone

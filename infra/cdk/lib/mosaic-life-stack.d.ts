@@ -11,13 +11,14 @@ export interface MosaicLifeStackProps extends cdk.StackProps {
         domainName: string;
         hostedZoneId?: string;
         environment: string;
+        vpcId?: string;
         tags: {
             [key: string]: string;
         };
     };
 }
 export declare class MosaicLifeStack extends cdk.Stack {
-    readonly vpc: ec2.Vpc;
+    readonly vpc: ec2.IVpc;
     readonly hostedZone: route53.IHostedZone;
     readonly certificate: acm.Certificate;
     readonly userPool: cognito.UserPool;
