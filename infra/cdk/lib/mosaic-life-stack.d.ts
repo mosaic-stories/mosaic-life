@@ -12,6 +12,9 @@ export interface MosaicLifeStackProps extends cdk.StackProps {
         hostedZoneId?: string;
         environment: string;
         vpcId?: string;
+        existingUserPoolId?: string;
+        existingEcrRepos?: boolean;
+        existingS3Buckets?: boolean;
         tags: {
             [key: string]: string;
         };
@@ -21,11 +24,11 @@ export declare class MosaicLifeStack extends cdk.Stack {
     readonly vpc: ec2.IVpc;
     readonly hostedZone: route53.IHostedZone;
     readonly certificate: acm.Certificate;
-    readonly userPool: cognito.UserPool;
+    readonly userPool: cognito.IUserPool;
     readonly userPoolClient: cognito.UserPoolClient;
-    readonly mediaBucket: s3.Bucket;
+    readonly mediaBucket: s3.IBucket;
     readonly repositories: {
-        [key: string]: ecr.Repository;
+        [key: string]: ecr.IRepository;
     };
     constructor(scope: Construct, id: string, props: MosaicLifeStackProps);
     private createEcrRepository;

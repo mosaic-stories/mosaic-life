@@ -17,6 +17,9 @@ export interface MosaicLifeStackProps extends cdk.StackProps {
     hostedZoneId?: string;
     environment: string;
     vpcId?: string; // Optional: use existing VPC instead of creating new one
+    existingUserPoolId?: string; // Optional: import existing Cognito User Pool
+    existingEcrRepos?: boolean; // If true, import existing ECR repositories
+    existingS3Buckets?: boolean; // If true, import existing S3 buckets
     tags: { [key: string]: string };
   };
 }
@@ -25,15 +28,15 @@ export class MosaicLifeStack extends cdk.Stack {
   public readonly vpc: ec2.IVpc;
   public readonly hostedZone: route53.IHostedZone;
   public readonly certificate: acm.Certificate;
-  public readonly userPool: cognito.UserPool;
+  public readonly userPool: cognito.IUserPool;
   public readonly userPoolClient: cognito.UserPoolClient;
-  public readonly mediaBucket: s3.Bucket;
-  public readonly repositories: { [key: string]: ecr.Repository };
+  public readonly mediaBucket: s3.IBucket;
+  public readonly repositories: { [key: string]: ecr.IRepository };
 
   constructor(scope: Construct, id: string, props: MosaicLifeStackProps) {
     super(scope, id, props);
 
-    const { domainName, hostedZoneId, environment, vpcId } = props.config;
+    const { domainName, hostedZoneId, environment, vpcId, existingUserPoolId, existingEcrRepos, existingS3Buckets } = props.config;
 
     // ============================================================
     // VPC for EKS
@@ -147,34 +150,39 @@ export class MosaicLifeStack extends cdk.Stack {
     // ============================================================
     // Cognito User Pool with Social Logins
     // ============================================================
-    this.userPool = new cognito.UserPool(this, 'UserPool', {
-      userPoolName: `mosaic-${environment}-users`,
-      selfSignUpEnabled: true,
-      signInAliases: {
-        email: true,
-        username: false,
-      },
-      autoVerify: {
-        email: true,
-      },
-      standardAttributes: {
-        email: {
-          required: true,
-          mutable: true,
+    if (existingUserPoolId) {
+      // Import existing User Pool
+      this.userPool = cognito.UserPool.fromUserPoolId(this, 'UserPool', existingUserPoolId);
+    } else {
+      // Create new User Pool
+      this.userPool = new cognito.UserPool(this, 'UserPool', {
+        userPoolName: `mosaic-${environment}-users`,
+        selfSignUpEnabled: true,
+        signInAliases: {
+          email: true,
+          username: false,
         },
-        givenName: {
-          required: false,
-          mutable: true,
+        autoVerify: {
+          email: true,
         },
-        familyName: {
-          required: false,
-          mutable: true,
+        standardAttributes: {
+          email: {
+            required: true,
+            mutable: true,
+          },
+          givenName: {
+            required: false,
+            mutable: true,
+          },
+          familyName: {
+            required: false,
+            mutable: true,
+          },
         },
-      },
-      customAttributes: {
-        // Note: custom attribute names must be <= 20 chars
-        // This will appear as "custom:relationship" in tokens
-        relationship: new cognito.StringAttribute({
+        customAttributes: {
+          // Note: custom attribute names must be <= 20 chars
+          // This will appear as "custom:relationship" in tokens
+          relationship: new cognito.StringAttribute({
           mutable: true,
         }),
       },
@@ -196,6 +204,7 @@ export class MosaicLifeStack extends cdk.Stack {
       // Note: advancedSecurityMode removed - requires Cognito Plus plan
       // For basic security, Cognito provides standard protections by default
     });
+    }
 
     // User Pool Domain for Cognito hosted UI
     const userPoolDomain = this.userPool.addDomain('CognitoDomain', {
@@ -289,16 +298,21 @@ export class MosaicLifeStack extends cdk.Stack {
     // S3 Buckets
     // ============================================================
     // Media storage bucket
-    this.mediaBucket = new s3.Bucket(this, 'MediaBucket', {
-      bucketName: `mosaic-${environment}-media-${this.account}`,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      versioned: true,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: environment !== 'prod',
-      lifecycleRules: [
-        {
-          id: 'TransitionToIA',
+    if (existingS3Buckets) {
+      // Import existing bucket
+      this.mediaBucket = s3.Bucket.fromBucketName(this, 'MediaBucket', `mosaic-${environment}-media-${this.account}`);
+    } else {
+      // Create new bucket
+      this.mediaBucket = new s3.Bucket(this, 'MediaBucket', {
+        bucketName: `mosaic-${environment}-media-${this.account}`,
+        encryption: s3.BucketEncryption.S3_MANAGED,
+        versioned: true,
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+        autoDeleteObjects: environment !== 'prod',
+        lifecycleRules: [
+          {
+            id: 'TransitionToIA',
           enabled: true,
           transitions: [
             {
@@ -336,16 +350,21 @@ export class MosaicLifeStack extends cdk.Stack {
         },
       ],
     });
+    }
 
     // Backup bucket
-    const backupBucket = new s3.Bucket(this, 'BackupBucket', {
-      bucketName: `mosaic-${environment}-backups-${this.account}`,
-      encryption: s3.BucketEncryption.S3_MANAGED,
-      versioned: true,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
-      lifecycleRules: [
-        {
+    let backupBucket: s3.IBucket;
+    if (existingS3Buckets) {
+      backupBucket = s3.Bucket.fromBucketName(this, 'BackupBucket', `mosaic-${environment}-backups-${this.account}`);
+    } else {
+      backupBucket = new s3.Bucket(this, 'BackupBucket', {
+        bucketName: `mosaic-${environment}-backups-${this.account}`,
+        encryption: s3.BucketEncryption.S3_MANAGED,
+        versioned: true,
+        blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+        lifecycleRules: [
+          {
           id: 'ArchiveOldBackups',
           enabled: true,
           transitions: [
@@ -357,15 +376,25 @@ export class MosaicLifeStack extends cdk.Stack {
           expiration: cdk.Duration.days(365),
         },
       ],
-    });
+      });
+    }
 
     // ============================================================
     // ECR Repositories
     // ============================================================
-    this.repositories = {
-      web: this.createEcrRepository('web', 'Frontend web application'),
-      coreApi: this.createEcrRepository('core-api', 'Core backend API'),
-    };
+    if (existingEcrRepos) {
+      // Import existing ECR repositories
+      this.repositories = {
+        web: ecr.Repository.fromRepositoryName(this, 'webRepository', 'mosaic-life/web'),
+        coreApi: ecr.Repository.fromRepositoryName(this, 'coreApiRepository', 'mosaic-life/core-api'),
+      };
+    } else {
+      // Create new ECR repositories
+      this.repositories = {
+        web: this.createEcrRepository('web', 'Frontend web application'),
+        coreApi: this.createEcrRepository('core-api', 'Core backend API'),
+      };
+    }
 
     // ============================================================
     // SNS/SQS for Event-Driven Architecture

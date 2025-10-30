@@ -1,16 +1,16 @@
 {
   "version": "48.0.0",
   "files": {
-    "a36e45445c6b71407bfb24ff042d7c588c306b95016b017a7f4144f605d76e44": {
+    "13df08fa763df61d2372133e9b3cd663406f9ab2197e25883f892322299cd3dc": {
       "displayName": "MosaicLifeStack Template",
       "source": {
         "path": "MosaicLifeStack.template.json",
         "packaging": "file"
       },
       "destinations": {
-        "033691785857-us-east-1-b993fe3b": {
+        "033691785857-us-east-1-d32865d7": {
           "bucketName": "cdk-hnb659fds-assets-033691785857-us-east-1",
-          "objectKey": "a36e45445c6b71407bfb24ff042d7c588c306b95016b017a7f4144f605d76e44.json",
+          "objectKey": "13df08fa763df61d2372133e9b3cd663406f9ab2197e25883f892322299cd3dc.json",
           "region": "us-east-1",
           "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-file-publishing-role-033691785857-us-east-1"
         }

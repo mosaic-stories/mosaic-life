@@ -56,6 +56,9 @@ new MosaicLifeStack(app, 'MosaicLifeStack', {
     domainName,
     hostedZoneId,
     vpcId, // Use existing VPC from infrastructure stack
+    existingUserPoolId: 'us-east-1_JLppKC09m', // Import existing Cognito User Pool
+    existingEcrRepos: true, // Import existing ECR repositories
+    existingS3Buckets: true, // Import existing S3 buckets
     environment,
     tags: {
       Project: 'MosaicLife',

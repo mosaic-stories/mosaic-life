@@ -18,7 +18,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-deploy-role-033691785857-us-east-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-cfn-exec-role-033691785857-us-east-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/a36e45445c6b71407bfb24ff042d7c588c306b95016b017a7f4144f605d76e44.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/13df08fa763df61d2372133e9b3cd663406f9ab2197e25883f892322299cd3dc.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -50,7 +50,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35297)",
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
-              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
               "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
@@ -88,7 +88,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35297)",
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
-              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
               "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
@@ -126,7 +126,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35297)",
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
-              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
               "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
@@ -164,7 +164,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35335)",
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
-              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
               "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
@@ -202,7 +202,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35335)",
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
-              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
               "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
@@ -240,7 +240,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:35335)",
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
-              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:43:26)",
+              "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
               "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
@@ -266,18 +266,6 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "Certificate4E7ABB08"
-          }
-        ],
-        "/MosaicLifeStack/UserPool/smsRole/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "UserPoolsmsRole4EA729DD"
-          }
-        ],
-        "/MosaicLifeStack/UserPool/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "UserPool6BA7E5F2"
           }
         ],
         "/MosaicLifeStack/UserPool/CognitoDomain/Resource": [
@@ -308,30 +296,6 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "CognitoConfig0041A066"
-          }
-        ],
-        "/MosaicLifeStack/MediaBucket/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "MediaBucketBCBB02BA"
-          }
-        ],
-        "/MosaicLifeStack/BackupBucket/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "BackupBucket26B8E51C"
-          }
-        ],
-        "/MosaicLifeStack/webRepository/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "webRepository3064893B"
-          }
-        ],
-        "/MosaicLifeStack/core-apiRepository/Resource": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "coreapiRepository07F63354"
           }
         ],
         "/MosaicLifeStack/DomainEventsTopic/Resource": [

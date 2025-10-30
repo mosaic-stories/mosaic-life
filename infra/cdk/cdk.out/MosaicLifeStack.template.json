@@ -45,136 +45,11 @@
     "aws:cdk:path": "MosaicLifeStack/Certificate/Resource"
    }
   },
-  "UserPoolsmsRole4EA729DD": {
-   "Type": "AWS::IAM::Role",
-   "Properties": {
-    "AssumeRolePolicyDocument": {
-     "Statement": [
-      {
-       "Action": "sts:AssumeRole",
-       "Condition": {
-        "StringEquals": {
-         "sts:ExternalId": "MosaicLifeStackUserPoolED75A45F"
-        }
-       },
-       "Effect": "Allow",
-       "Principal": {
-        "Service": "cognito-idp.amazonaws.com"
-       }
-      }
-     ],
-     "Version": "2012-10-17"
-    },
-    "Policies": [
-     {
-      "PolicyDocument": {
-       "Statement": [
-        {
-         "Action": "sns:Publish",
-         "Effect": "Allow",
-         "Resource": "*"
-        }
-       ],
-       "Version": "2012-10-17"
-      },
-      "PolicyName": "sns-publish"
-     }
-    ]
-   },
-   "Metadata": {
-    "aws:cdk:path": "MosaicLifeStack/UserPool/smsRole/Resource"
-   }
-  },
-  "UserPool6BA7E5F2": {
-   "Type": "AWS::Cognito::UserPool",
-   "Properties": {
-    "AccountRecoverySetting": {
-     "RecoveryMechanisms": [
-      {
-       "Name": "verified_email",
-       "Priority": 1
-      }
-     ]
-    },
-    "AdminCreateUserConfig": {
-     "AllowAdminCreateUserOnly": false
-    },
-    "AutoVerifiedAttributes": [
-     "email"
-    ],
-    "EmailVerificationMessage": "The verification code to your new account is {####}",
-    "EmailVerificationSubject": "Verify your new account",
-    "EnabledMfas": [
-     "SMS_MFA",
-     "SOFTWARE_TOKEN_MFA"
-    ],
-    "MfaConfiguration": "OPTIONAL",
-    "Policies": {
-     "PasswordPolicy": {
-      "MinimumLength": 12,
-      "RequireLowercase": true,
-      "RequireNumbers": true,
-      "RequireSymbols": true,
-      "RequireUppercase": true,
-      "TemporaryPasswordValidityDays": 3
-     }
-    },
-    "Schema": [
-     {
-      "Mutable": true,
-      "Name": "email",
-      "Required": true
-     },
-     {
-      "Mutable": true,
-      "Name": "given_name",
-      "Required": false
-     },
-     {
-      "Mutable": true,
-      "Name": "family_name",
-      "Required": false
-     },
-     {
-      "AttributeDataType": "String",
-      "Mutable": true,
-      "Name": "relationship"
-     }
-    ],
-    "SmsConfiguration": {
-     "ExternalId": "MosaicLifeStackUserPoolED75A45F",
-     "SnsCallerArn": {
-      "Fn::GetAtt": [
-       "UserPoolsmsRole4EA729DD",
-       "Arn"
-      ]
-     }
-    },
-    "SmsVerificationMessage": "The verification code to your new account is {####}",
-    "UserPoolName": "mosaic-prod-users",
-    "UsernameAttributes": [
-     "email"
-    ],
-    "VerificationMessageTemplate": {
-     "DefaultEmailOption": "CONFIRM_WITH_CODE",
-     "EmailMessage": "The verification code to your new account is {####}",
-     "EmailSubject": "Verify your new account",
-     "SmsMessage": "The verification code to your new account is {####}"
-    }
-   },
-   "UpdateReplacePolicy": "Retain",
-   "DeletionPolicy": "Retain",
-   "Metadata": {
-    "aws:cdk:path": "MosaicLifeStack/UserPool/Resource"
-   }
-  },
   "UserPoolCognitoDomainD6C7F9FA": {
    "Type": "AWS::Cognito::UserPoolDomain",
    "Properties": {
     "Domain": "mosaic-prod-033691785857",
-    "UserPoolId": {
-     "Ref": "UserPool6BA7E5F2"
-    }
+    "UserPoolId": "us-east-1_JLppKC09m"
    },
    "Metadata": {
     "aws:cdk:path": "MosaicLifeStack/UserPool/CognitoDomain/Resource"
@@ -223,9 +98,7 @@
      "IdToken": "minutes",
      "RefreshToken": "minutes"
     },
-    "UserPoolId": {
-     "Ref": "UserPool6BA7E5F2"
-    }
+    "UserPoolId": "us-east-1_JLppKC09m"
    },
    "Metadata": {
     "aws:cdk:path": "MosaicLifeStack/UserPool/WebAppClient/Resource"
@@ -246,9 +119,7 @@
     },
     "ProviderName": "Google",
     "ProviderType": "Google",
-    "UserPoolId": {
-     "Ref": "UserPool6BA7E5F2"
-    }
+    "UserPoolId": "us-east-1_JLppKC09m"
    },
    "Metadata": {
     "aws:cdk:path": "MosaicLifeStack/GoogleProvider/Resource"
@@ -270,9 +141,7 @@
     },
     "ProviderName": "GitHub",
     "ProviderType": "OIDC",
-    "UserPoolId": {
-     "Ref": "UserPool6BA7E5F2"
-    }
+    "UserPoolId": "us-east-1_JLppKC09m"
    },
    "Metadata": {
     "aws:cdk:path": "MosaicLifeStack/GitHubProvider/Resource"
@@ -287,11 +156,7 @@
      "Fn::Join": [
       "",
       [
-       "{\"userPoolId\":\"",
-       {
-        "Ref": "UserPool6BA7E5F2"
-       },
-       "\",\"userPoolClientId\":\"",
+       "{\"userPoolId\":\"us-east-1_JLppKC09m\",\"userPoolClientId\":\"",
        {
         "Ref": "UserPoolWebAppClientCD2D5CB1"
        },
@@ -308,164 +173,6 @@
    "DeletionPolicy": "Delete",
    "Metadata": {
     "aws:cdk:path": "MosaicLifeStack/CognitoConfig/Resource"
-   }
-  },
-  "MediaBucketBCBB02BA": {
-   "Type": "AWS::S3::Bucket",
-   "Properties": {
-    "BucketEncryption": {
-     "ServerSideEncryptionConfiguration": [
-      {
-       "ServerSideEncryptionByDefault": {
-        "SSEAlgorithm": "AES256"
-       }
-      }
-     ]
-    },
-    "BucketName": "mosaic-prod-media-033691785857",
-    "CorsConfiguration": {
-     "CorsRules": [
-      {
-       "AllowedHeaders": [
-        "*"
-       ],
-       "AllowedMethods": [
-        "GET",
-        "PUT",
-        "POST",
-        "DELETE"
-       ],
-       "AllowedOrigins": [
-        "https://mosaiclife.me",
-        "https://*.mosaiclife.me",
-        "http://localhost:5173"
-       ],
-       "ExposedHeaders": [
-        "ETag"
-       ],
-       "MaxAge": 3000
-      }
-     ]
-    },
-    "LifecycleConfiguration": {
-     "Rules": [
-      {
-       "Id": "TransitionToIA",
-       "Status": "Enabled",
-       "Transitions": [
-        {
-         "StorageClass": "STANDARD_IA",
-         "TransitionInDays": 90
-        },
-        {
-         "StorageClass": "GLACIER_IR",
-         "TransitionInDays": 180
-        }
-       ]
-      },
-      {
-       "Id": "DeleteOldVersions",
-       "NoncurrentVersionExpiration": {
-        "NoncurrentDays": 90
-       },
-       "Status": "Enabled"
-      }
-     ]
-    },
-    "PublicAccessBlockConfiguration": {
-     "BlockPublicAcls": true,
-     "BlockPublicPolicy": true,
-     "IgnorePublicAcls": true,
-     "RestrictPublicBuckets": true
-    },
-    "VersioningConfiguration": {
-     "Status": "Enabled"
-    }
-   },
-   "UpdateReplacePolicy": "Retain",
-   "DeletionPolicy": "Retain",
-   "Metadata": {
-    "aws:cdk:path": "MosaicLifeStack/MediaBucket/Resource"
-   }
-  },
-  "BackupBucket26B8E51C": {
-   "Type": "AWS::S3::Bucket",
-   "Properties": {
-    "BucketEncryption": {
-     "ServerSideEncryptionConfiguration": [
-      {
-       "ServerSideEncryptionByDefault": {
-        "SSEAlgorithm": "AES256"
-       }
-      }
-     ]
-    },
-    "BucketName": "mosaic-prod-backups-033691785857",
-    "LifecycleConfiguration": {
-     "Rules": [
-      {
-       "ExpirationInDays": 365,
-       "Id": "ArchiveOldBackups",
-       "Status": "Enabled",
-       "Transitions": [
-        {
-         "StorageClass": "GLACIER",
-         "TransitionInDays": 30
-        }
-       ]
-      }
-     ]
-    },
-    "PublicAccessBlockConfiguration": {
-     "BlockPublicAcls": true,
-     "BlockPublicPolicy": true,
-     "IgnorePublicAcls": true,
-     "RestrictPublicBuckets": true
-    },
-    "VersioningConfiguration": {
-     "Status": "Enabled"
-    }
-   },
-   "UpdateReplacePolicy": "Retain",
-   "DeletionPolicy": "Retain",
-   "Metadata": {
-    "aws:cdk:path": "MosaicLifeStack/BackupBucket/Resource"
-   }
-  },
-  "webRepository3064893B": {
-   "Type": "AWS::ECR::Repository",
-   "Properties": {
-    "ImageScanningConfiguration": {
-     "ScanOnPush": true
-    },
-    "ImageTagMutability": "MUTABLE",
-    "LifecyclePolicy": {
-     "LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"description\":\"Keep last 10 images\",\"selection\":{\"tagStatus\":\"any\",\"countType\":\"imageCountMoreThan\",\"countNumber\":10},\"action\":{\"type\":\"expire\"}}]}"
-    },
-    "RepositoryName": "mosaic-life/web"
-   },
-   "UpdateReplacePolicy": "Retain",
-   "DeletionPolicy": "Retain",
-   "Metadata": {
-    "aws:cdk:path": "MosaicLifeStack/webRepository/Resource"
-   }
-  },
-  "coreapiRepository07F63354": {
-   "Type": "AWS::ECR::Repository",
-   "Properties": {
-    "ImageScanningConfiguration": {
-     "ScanOnPush": true
-    },
-    "ImageTagMutability": "MUTABLE",
-    "LifecyclePolicy": {
-     "LifecyclePolicyText": "{\"rules\":[{\"rulePriority\":1,\"description\":\"Keep last 10 images\",\"selection\":{\"tagStatus\":\"any\",\"countType\":\"imageCountMoreThan\",\"countNumber\":10},\"action\":{\"type\":\"expire\"}}]}"
-    },
-    "RepositoryName": "mosaic-life/core-api"
-   },
-   "UpdateReplacePolicy": "Retain",
-   "DeletionPolicy": "Retain",
-   "Metadata": {
-    "aws:cdk:path": "MosaicLifeStack/core-apiRepository/Resource"
    }
   },
   "DomainEventsTopic9EECFB64": {
@@ -618,46 +325,10 @@
        ],
        "Effect": "Allow",
        "Resource": [
-        {
-         "Fn::GetAtt": [
-          "BackupBucket26B8E51C",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::GetAtt": [
-          "MediaBucketBCBB02BA",
-          "Arn"
-         ]
-        },
-        {
-         "Fn::Join": [
-          "",
-          [
-           {
-            "Fn::GetAtt": [
-             "BackupBucket26B8E51C",
-             "Arn"
-            ]
-           },
-           "/*"
-          ]
-         ]
-        },
-        {
-         "Fn::Join": [
-          "",
-          [
-           {
-            "Fn::GetAtt": [
-             "MediaBucketBCBB02BA",
-             "Arn"
-            ]
-           },
-           "/*"
-          ]
-         ]
-        }
+        "arn:aws:s3:::mosaic-prod-backups-033691785857",
+        "arn:aws:s3:::mosaic-prod-backups-033691785857/*",
+        "arn:aws:s3:::mosaic-prod-media-033691785857",
+        "arn:aws:s3:::mosaic-prod-media-033691785857/*"
        ]
       },
       {
@@ -710,7 +381,7 @@
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/3WQT2/CMAzFPwv34AE77TomTTvBynaegushQxt3cQJCUb771IY/1aRd4vd7ebYsL2Axf4LZxJ50ivVh2vAW0iZYPJiKVKJHMvakXwnJB/5mtIFa6+yOPKTl3TPLbzfCbFB2joNA+lTya5GmT9z0VbxIa9mNvy7OFZcNkwvjwMW54ltNLnA4r70cuSb/KrJraNzwN/Fv64przIZtC6mSMmOoa2kYzz0WlY0Segp6O8Rm4D5RVDb6COk54qG4RWVD6CFV1IlyED+MvFM26hTSh3SM/U8Rm7hV9NwFluFOY85GfxTSe6Q4bFvE8N53HmHOvbGKoYshGyc1wV4fjosZzOcwm+yVeeqjC9wSVKX+AsecXAwgAgAA"
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/3WPT2/CMAzFPwv34AE77QqTpp2Asp2nkBpkaOMudkAoynef2vKnQtolfr+nZytvBrPpG0xG9ixjVx7HFW0hbdS6oylQOAaHxp7lJzkMSjtyVrG23u4xQFo8PLPY+QFm43jvSRnSt2BYMVfvXFvybe7JueGiIvQ6DFydG36W6JX0sgp8ohLDB/O+wuHCc+Lf1SWVLhtBF1Dl3mfTcXuwV9nIK8yjO6LOraBBF6DAhoWUw6WzxAukL27ItWu92MStuECNEnd9h5yN/AqkdcTY/bwX3bviitzlbvaYDdkaUsF90W4+gtdMbvUyahM1G88lwkFeTrMJTKcwGR2EaByiV6oRin7+AW3doUf3AQAA"
    },
    "Metadata": {
     "aws:cdk:path": "MosaicLifeStack/CDKMetadata/Default"
@@ -736,9 +407,7 @@
   },
   "UserPoolId": {
    "Description": "Cognito User Pool ID",
-   "Value": {
-    "Ref": "UserPool6BA7E5F2"
-   },
+   "Value": "us-east-1_JLppKC09m",
    "Export": {
     "Name": "mosaic-prod-user-pool-id"
    }
@@ -760,9 +429,7 @@
   },
   "MediaBucketName": {
    "Description": "S3 bucket for media storage",
-   "Value": {
-    "Ref": "MediaBucketBCBB02BA"
-   },
+   "Value": "mosaic-prod-media-033691785857",
    "Export": {
     "Name": "mosaic-prod-media-bucket"
    }
@@ -786,47 +453,11 @@
     "Fn::Join": [
      "",
      [
-      {
-       "Fn::Select": [
-        4,
-        {
-         "Fn::Split": [
-          ":",
-          {
-           "Fn::GetAtt": [
-            "webRepository3064893B",
-            "Arn"
-           ]
-          }
-         ]
-        }
-       ]
-      },
-      ".dkr.ecr.",
-      {
-       "Fn::Select": [
-        3,
-        {
-         "Fn::Split": [
-          ":",
-          {
-           "Fn::GetAtt": [
-            "webRepository3064893B",
-            "Arn"
-           ]
-          }
-         ]
-        }
-       ]
-      },
-      ".",
+      "033691785857.dkr.ecr.us-east-1.",
       {
        "Ref": "AWS::URLSuffix"
       },
-      "/",
-      {
-       "Ref": "webRepository3064893B"
-      }
+      "/mosaic-life/web"
      ]
     ]
    },
@@ -840,47 +471,11 @@
     "Fn::Join": [
      "",
      [
-      {
-       "Fn::Select": [
-        4,
-        {
-         "Fn::Split": [
-          ":",
-          {
-           "Fn::GetAtt": [
-            "coreapiRepository07F63354",
-            "Arn"
-           ]
-          }
-         ]
-        }
-       ]
-      },
-      ".dkr.ecr.",
-      {
-       "Fn::Select": [
-        3,
-        {
-         "Fn::Split": [
-          ":",
-          {
-           "Fn::GetAtt": [
-            "coreapiRepository07F63354",
-            "Arn"
-           ]
-          }
-         ]
-        }
-       ]
-      },
-      ".",
+      "033691785857.dkr.ecr.us-east-1.",
       {
        "Ref": "AWS::URLSuffix"
       },
-      "/",
-      {
-       "Ref": "coreapiRepository07F63354"
-      }
+      "/mosaic-life/core-api"
      ]
     ]
    },
