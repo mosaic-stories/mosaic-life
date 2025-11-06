@@ -157,15 +157,45 @@ coreApi:
       value: "info"
     - name: AWS_REGION
       value: "us-east-1"
-    - name: COGNITO_USER_POOL_ID
-      value: "us-east-1_JLppKC09m"
+    
+    # Google OAuth Configuration
+    - name: GOOGLE_CLIENT_ID
+      valueFrom:
+        secretKeyRef:
+          name: google-oauth
+          key: client-id
+    - name: GOOGLE_CLIENT_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: google-oauth
+          key: client-secret
+    
+    # Application URLs
+    - name: APP_URL
+      value: "https://mosaiclife.me"
+    - name: API_URL
+      value: "https://api.mosaiclife.me"
+    
+    # Session Configuration
+    - name: SESSION_SECRET_KEY
+      valueFrom:
+        secretKeyRef:
+          name: session-secret
+          key: secret-key
+    
+    # AWS S3 Configuration
     - name: S3_MEDIA_BUCKET
       value: "mosaic-prod-media-033691785857"
     - name: S3_BACKUP_BUCKET
       value: "mosaic-prod-backups-033691785857"
+    
     # TODO: Replace with actual database URL from secrets
     - name: DATABASE_URL
       value: "postgresql://user:pass@localhost:5432/mosaiclife"
+    
+    # Legacy Cognito (commented out - using Google OAuth instead)
+    # - name: COGNITO_USER_POOL_ID
+    #   value: "us-east-1_JLppKC09m"
 
   # Environment from secrets (managed by infrastructure repo)
   # Comment out until secrets are created
@@ -186,7 +216,7 @@ coreApi:
       cpu: 1000m
       memory: 1Gi
     requests:
-      cpu: 500m
+      cpu: 250m  # Reduced from 500m to fit on existing nodes
       memory: 512Mi
 
   autoscaling:
