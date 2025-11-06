@@ -1,145 +1,118 @@
+# Mosaic Life - Simplified Local Development Stack
+#
+# Services: PostgreSQL + Backend API + Frontend Dev Server
+# Startup time: <10 seconds
+# Memory usage: ~300MB
+#
+# Quick start:
+#   docker compose up -d
+#   Frontend: http://localhost:5173 (Vite dev server with HMR)
+#   Backend:  http://localhost:8080 (FastAPI with auto-reload)
+#   API Docs: http://localhost:8080/docs
+#   Postgres: localhost:15432
+
 services:
+  # Backend API (FastAPI)
   core-api:
     build:
       context: ../../services/core-api
       dockerfile: Dockerfile
-    environment:
-      ENV: ${ENV:-dev}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      DB_URL: ${DB_URL:-postgresql+psycopg://postgres:postgres@postgres:5432/core}
-      OPENSEARCH_URL: ${OPENSEARCH_URL:-http://opensearch:9200}
+    
+    # Load environment variables from .env file
+    env_file:
+      - .env
+    
+    # Environment variables can be overridden here if needed
+    # Uncomment and modify as necessary for specific deployments
+    # environment:
+    #   ENV: dev
+    #   LOG_LEVEL: debug
+    #   DB_URL: postgresql+psycopg://postgres:postgres@postgres:5432/mosaic
+    #   GOOGLE_CLIENT_ID: your-client-id.apps.googleusercontent.com
+    #   GOOGLE_CLIENT_SECRET: your-client-secret
+    #   APP_URL: http://localhost:5173
+    #   API_URL: http://localhost:8080
+    #   SESSION_SECRET_KEY: dev-secret-key-change-in-production-use-openssl-rand-hex-32
+    #   S3_MEDIA_BUCKET: mosaic-life-media-dev
+    #   AWS_REGION: us-east-1
 
-      # Cognito Configuration
-      ENABLE_COGNITO_AUTH: ${ENABLE_COGNITO_AUTH:-false}
-      COGNITO_REGION: ${COGNITO_REGION:-us-east-1}
-      COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
-      COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
-      COGNITO_CLIENT_SECRET: ${COGNITO_CLIENT_SECRET:-}
-      COGNITO_DOMAIN: ${COGNITO_DOMAIN:-}
-
-      # Application URLs
-      APP_URL: ${APP_URL:-http://localhost:5173}
-      API_URL: ${API_URL:-http://localhost:8080}
-
-      # Session Configuration
-      SESSION_SECRET_KEY: ${SESSION_SECRET_KEY:-dev-secret-change-in-production}
-
-      # AWS Services
-      SNS_TOPIC_ARN_EVENTS: ${SNS_TOPIC_ARN_EVENTS:-arn:aws:sns:us-east-1:000000000000:domain-events}
-      SQS_QUEUE_URL_EVENTS: ${SQS_QUEUE_URL_EVENTS:-http://localstack:4566/000000000000/domain-events}
-      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://jaeger:4318}
-      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-http://localstack:4566}
-      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-test}
-      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-test}
-      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
     ports:
-      - "${CORE_API_PORT:-8080}:8080"
+      - "8080:8080"
+
     volumes:
-      # Mount source code for development (optional - comment out for production builds)
+      # Mount source code for hot reload (development only)
       - ../../services/core-api/app:/app/app:ro
       - ../../services/core-api/alembic:/app/alembic:ro
+      - ../../services/core-api/tests:/app/tests:ro
+
     depends_on:
       postgres:
         condition: service_healthy
-      opensearch:
-        condition: service_healthy
-      localstack:
-        condition: service_started
-      jaeger:
-        condition: service_started
+
     restart: unless-stopped
 
-  web:
-    build:
-      context: ../../apps/web
-      dockerfile: Dockerfile
-      args:
-        VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8080}
-    ports:
-      - "${WEB_PORT:-3001}:80"
-    depends_on:
-      core-api:
-        condition: service_started
-    restart: unless-stopped
-
-  postgres:
-    image: postgres:16
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-core}
-      PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-      - "${POSTGRES_PORT:-15432}:5432"
-    volumes:
-      - ../../.local/postgres-data:/var/lib/postgresql/data
-      # Optional: Initialize scripts
-      # - ../../infra/compose/init-scripts:/docker-entrypoint-initdb.d:ro
+    # Health check
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-core}"]
-      interval: 10s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Frontend Dev Server (Vite with HMR)
+  web:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    
+    # Load environment variables from .env file
+    env_file:
+      - .env
+    
+    # Environment variables can be overridden here if needed
+    # Uncomment and modify as necessary for specific deployments
+    # environment:
+    #   VITE_API_URL: http://localhost:8080
+    #   VITE_BACKEND_URL: http://core-api:8080
+    
+    ports:
+      - "5173:5173"
+    volumes:
+      # Mount entire web app for hot reload
+      - ../../apps/web:/app
+      # Use named volume for node_modules (faster on non-Linux)
+      - web-node-modules:/app/node_modules
+    restart: unless-stopped
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    
+    # Load environment variables from .env file
+    env_file:
+      - .env
+    
+    # Environment variables can be overridden here if needed
+    # Uncomment and modify as necessary for specific deployments
+    # environment:
+    #   POSTGRES_USER: postgres
+    #   POSTGRES_PASSWORD: postgres
+    #   POSTGRES_DB: mosaic
+    #   PGDATA: /var/lib/postgresql/data/pgdata
+    
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mosaic"]
+      interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
 
-  opensearch:
-    image: opensearchproject/opensearch:2.13.0
-    environment:
-      - discovery.type=single-node
-      - plugins.security.disabled=true
-      - bootstrap.memory_lock=true
-      - "OPENSEARCH_JAVA_OPTS=${OPENSEARCH_JAVA_OPTS:--Xms512m -Xmx512m}"
-      - "DISABLE_INSTALL_DEMO_CONFIG=true"
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
-    ports:
-      - "${OPENSEARCH_PORT:-9200}:9200"
-      - "9600:9600"  # Performance analyzer
-    volumes:
-      - ../../.local/opensearch-data:/usr/share/opensearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-    restart: unless-stopped
-
-  localstack:
-    image: localstack/localstack:3.5
-    environment:
-      - SERVICES=${LOCALSTACK_SERVICES:-sns,sqs,s3}
-      - LS_LOG=${LOCALSTACK_LOG_LEVEL:-info}
-      - DEBUG=${LOCALSTACK_DEBUG:-0}
-      - DATA_DIR=/var/lib/localstack/data
-      - LAMBDA_EXECUTOR=${LAMBDA_EXECUTOR:-local}
-      - DOCKER_HOST=unix:///var/run/docker.sock
-    ports:
-      - "${LOCALSTACK_PORT:-4566}:4566"
-    volumes:
-      - ../../.local/localstack-data:/var/lib/localstack
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      # Optional: Initialization scripts
-      # - ../../infra/compose/localstack-init:/etc/localstack/init:ro
-    restart: unless-stopped
-
-  jaeger:
-    image: jaegertracing/all-in-one:1.57
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - SPAN_STORAGE_TYPE=${JAEGER_STORAGE:-memory}
-    ports:
-      - "${JAEGER_UI_PORT:-16686}:16686"   # Jaeger UI
-      - "4317:4317"   # OTLP gRPC
-      - "4318:4318"   # OTLP HTTP
-      - "14268:14268" # Jaeger collector
-    volumes:
-      - ../../.local/jaeger-data:/tmp
-    restart: unless-stopped
-
+volumes:
+  postgres-data:
+    driver: local
+  web-node-modules:
+    driver: local

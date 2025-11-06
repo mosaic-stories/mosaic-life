@@ -1,6 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Route, Routes, useNavigate } from 'react-router-dom';
-import { getMe } from './lib/api/client';
+import { Route, Routes } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LandingPage } from './pages/LandingPage';
 import { AppShell } from './pages/AppShell';
 import { LegaciesPage } from './pages/LegaciesPage';
@@ -9,18 +8,9 @@ import { ChatPage } from './pages/ChatPage';
 import { SearchPage } from './pages/SearchPage';
 
 function Protected({ children }: { children: JSX.Element }) {
-  const [loading, setLoading] = useState(true);
-  const [ok, setOk] = useState(false);
-  const nav = useNavigate();
+  const { isLoading, isAuthenticated, login } = useAuth();
 
-  useEffect(() => {
-    getMe()
-      .then(() => setOk(true))
-      .catch(() => nav('/login'))
-      .finally(() => setLoading(false));
-  }, [nav]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         style={{
@@ -30,7 +20,7 @@ function Protected({ children }: { children: JSX.Element }) {
           minHeight: '100vh',
         }}
       >
-        <div>
+        <div style={{ textAlign: 'center' }}>
           <span className="loading-spinner" style={{ width: '48px', height: '48px' }}></span>
           <p style={{ marginTop: 'var(--space-4)', color: 'var(--color-text-muted)' }}>
             Loading...
@@ -40,25 +30,15 @@ function Protected({ children }: { children: JSX.Element }) {
     );
   }
 
-  return ok ? children : null;
+  if (!isAuthenticated) {
+    return <Login onLogin={login} />;
+  }
+
+  return children;
 }
 
-function Login() {
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Check for error in query params (from failed callback)
-    const params = new URLSearchParams(window.location.search);
-    const errorParam = params.get('error');
-    if (errorParam) {
-      setError(errorParam);
-    }
-  }, []);
-
-  const handleLogin = () => {
-    // Redirect to backend login endpoint which initiates OIDC flow
-    window.location.href = '/api/auth/login';
-  };
+function Login({ onLogin }: { onLogin: () => void }) {
+  const error = new URLSearchParams(window.location.search).get('error');
 
   return (
     <div
@@ -91,7 +71,7 @@ function Login() {
         )}
 
         <button
-          onClick={handleLogin}
+          onClick={onLogin}
           style={{
             padding: 'var(--space-3) var(--space-6)',
             backgroundColor: 'var(--color-primary, #0066cc)',
@@ -104,11 +84,11 @@ function Login() {
             width: '100%',
           }}
         >
-          Sign In with Cognito
+          Sign In with Google
         </button>
 
         <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginTop: 'var(--space-6)' }}>
-          Secure authentication via AWS Cognito
+          Secure authentication via Google
         </p>
       </div>
     </div>
@@ -117,23 +97,24 @@ function Login() {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/app"
-        element={
-          <Protected>
-            <AppShell />
-          </Protected>
-        }
-      >
-        <Route index element={<LegaciesPage />} />
-        <Route path="legacies" element={<LegaciesPage />} />
-        <Route path="stories" element={<StoriesPage />} />
-        <Route path="chat" element={<ChatPage />} />
-        <Route path="search" element={<SearchPage />} />
-      </Route>
-    </Routes>
+    <AuthProvider>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route
+          path="/app"
+          element={
+            <Protected>
+              <AppShell />
+            </Protected>
+          }
+        >
+          <Route index element={<LegaciesPage />} />
+          <Route path="legacies" element={<LegaciesPage />} />
+          <Route path="stories" element={<StoriesPage />} />
+          <Route path="chat" element={<ChatPage />} />
+          <Route path="search" element={<SearchPage />} />
+        </Route>
+      </Routes>
+    </AuthProvider>
   );
 }

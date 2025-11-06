@@ -11,39 +11,44 @@ Mosaic Life is a memorial stories platform that allows users to create, share, a
 
 ## Architecture
 
-### MVP Architecture (Current)
+### Simplified MVP Architecture (Current - Active)
 
-The MVP consolidates functionality into a single Core API service while maintaining adapter patterns for future service extraction:
+**See: [docs/architecture/MVP-SIMPLIFIED-ARCHITECTURE.md](docs/architecture/MVP-SIMPLIFIED-ARCHITECTURE.md)**
 
-- **Core API Service** (Python/FastAPI): Combines BFF, Stories, Graph, and Media functionality with adapters for Search, AI, and Events
-- **Web App** (React/TypeScript/Vite): SPA with TanStack Query, Zustand, React Router, and TipTap editor
-- **PostgreSQL**: Primary database with RLS for tenant isolation
-- **OpenSearch**: Search indexing (keyword + vector-ready for future RAG)
-- **Localstack**: AWS services emulation for local dev (SNS/SQS/S3)
-- **LiteLLM**: Centralized AI model proxy for cost control and quota management
+The MVP uses a **simplified stack** to enable rapid delivery:
 
-### Target Architecture (Future)
+- **Core API Service** (Python/FastAPI): Single consolidated backend with all business logic
+- **Web App** (React/TypeScript/Vite): SPA with TanStack Query, Zustand, React Router
+- **PostgreSQL**: Primary database for all data (users, legacies, stories, media references)
+- **S3**: Media storage (images, videos)
+- **Google OAuth**: User authentication (no Cognito)
 
-The target architecture separates concerns into independent services:
+**What we're NOT using (deferred to future phases)**:
+- ❌ OpenSearch / Elasticsearch (using Postgres search)
+- ❌ Neo4j graph database (using Postgres foreign keys)
+- ❌ SNS/SQS event bus (direct database writes)
+- ❌ LiteLLM proxy (direct OpenAI/Anthropic calls in Phase 3)
+- ❌ Module Federation plugins (deferred)
+- ❌ Microservices decomposition (single service)
 
-- **Gateway/BFF**: OIDC auth, session management, request fan-out
-- **Stories Service**: Story CRUD, versions, moderation
-- **Graph Service**: Neo4j-based relationship management
-- **Media Service**: S3 uploads, AV scan, thumbnails
-- **Search Indexer**: Event-driven OpenSearch indexing
-- **Plugin Host**: Module Federation runtime with capability-based security
+### Target Architecture (Future - Archived)
 
-**Migration Path:** Extract services based on scaling needs, evolve from in-process to cross-service event handling, mature plugin deployment from Helm to operator-based.
+Complex features documented in [docs/architecture/target/](docs/architecture/target/) will be added only when:
+- Users explicitly request the capability
+- Simple approach fails at scale
+- Cost/benefit analysis justifies the complexity
+
+**Migration path**: See MVP-SIMPLIFIED-ARCHITECTURE.md for when and how to add OpenSearch, Neo4j, microservices, etc.
 
 ### Key Architectural Decisions
 
-1. **OpenSearch** (not Elasticsearch) for all search functionality
-2. **Neo4j self-hosted** as primary graph DB (Neptune deferred)
-3. **Single-tenant** design; multi-tenancy may be added later
+1. **PostgreSQL for everything** - Search, relationships, all data (no distributed systems)
+2. **Google OAuth** - Simpler and free vs Cognito
+3. **Single-tenant** design; multi-tenancy deferred
 4. **Vite + React Router** for web app (Next.js only for future marketing site)
-5. **SSE-first** for AI streaming; WebSockets optional later
-6. **Helm-only deployments** (no CRDs/operators in MVP)
-7. **Outbox pattern** for event-driven consistency (Postgres → SNS → SQS)
+5. **Direct API calls** - No proxies, no message queues (simplicity over theoretical scalability)
+6. **Separate backend/frontend** - Independent deployment and scaling
+7. **Helm deployments** to existing EKS cluster
 
 ## Common Development Commands
 
@@ -127,15 +132,15 @@ docker exec -it <postgres-container> psql -U postgres -d core
 
 ## Important Documentation
 
-Read these architecture documents in order of precedence when guidance conflicts:
+Read these documents in order of precedence when guidance conflicts:
 
 1. **AGENTS.md** - Engineering assistant playbook and operating principles
-2. **docs/developer/CODING-STANDARDS.md** - Style, testing, libraries, security
-3. **docs/architecture/FRONTEND-ARCHITECTURE.md** - React app structure, Module Federation
-4. **docs/architecture/CORE-BACKEND-ARCHITECTURE.md** - Service topology, data model, events
-5. **docs/architecture/PLUGIN-ARCHITECTURE.md** - Plugin development and deployment
-6. **docs/adr/0001-mvp-option-b.md** - MVP architectural decisions
-7. **docs/developer/LOCAL.md** - Local development setup
+2. **docs/project/PROJECT-ASSESSMENT.md** - Why we simplified the architecture
+3. **docs/architecture/MVP-SIMPLIFIED-ARCHITECTURE.md** - Current active architecture (READ THIS)
+4. **docs/project/MVP-SIMPLIFIED-EXECUTION-PLAN.md** - 9-week implementation plan
+5. **docs/developer/CODING-STANDARDS.md** - Style, testing, libraries, security
+6. **docs/developer/LOCAL.md** - Local development setup
+7. **docs/architecture/target/** - Future complex architecture (archived, not active)
 
 ## Technology Stack
 

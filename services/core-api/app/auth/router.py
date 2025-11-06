@@ -1,19 +1,26 @@
+"""Authentication routes for Google OAuth."""
+
 import logging
 import secrets
+from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
-from .cognito import CognitoError, get_cognito_client
-from .middleware import create_session_cookie, get_current_user
-from .models import MeResponse
+from ..database import get_db
+from ..models.user import User
+from .google import GoogleOAuthError, get_google_client
+from .middleware import create_session_cookie, get_current_session, require_auth
+from .models import GoogleUser, MeResponse, SessionData
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Store for PKCE state validation (in production, use Redis or similar)
+# Store for CSRF state validation (in production, use Redis or similar)
 _state_store: dict[str, str] = {}
 
 
@@ -21,52 +28,31 @@ _state_store: dict[str, str] = {}
 async def me(request: Request) -> MeResponse:
     """Get current authenticated user information.
 
-    Returns user info from validated JWT token in session cookie.
-    Falls back to dev stub if Cognito auth is disabled.
+    Returns user info from validated session cookie.
     """
-    settings = get_settings()
-
-    if not settings.enable_cognito_auth:
-        # MVP stub: in dev, treat presence of a cookie as authenticated
-        user_id = request.cookies.get("session_user_id", "dev-user")
-        email = request.cookies.get("session_email", "dev@example.com")
-        name = request.cookies.get("session_name", "Dev User")
-        return MeResponse(id=user_id, email=email, name=name)
-
-    # Get authenticated user from session middleware
-    user = get_current_user(request)
-    if not user:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    session = require_auth(request)
 
     return MeResponse(
-        id=user.sub,
-        email=user.email,
-        name=user.display_name,
-        email_verified=user.email_verified,
-        given_name=user.given_name,
-        family_name=user.family_name,
+        id=session.user_id,
+        email=session.email,
+        name=session.name,
+        avatar_url=session.avatar_url,
     )
 
 
-@router.get("/auth/login")
-async def login(request: Request) -> RedirectResponse:
-    """Initiate OIDC login flow.
+@router.get("/auth/google")
+async def login_google(request: Request) -> RedirectResponse:
+    """Initiate Google OAuth login flow.
 
-    Redirects user to Cognito Hosted UI for authentication.
-    Implements PKCE (Proof Key for Code Exchange) for security.
+    Redirects user to Google for authentication.
+    Implements state parameter for CSRF protection.
     """
     settings = get_settings()
 
-    if not settings.enable_cognito_auth:
-        raise HTTPException(
-            status_code=501,
-            detail="Cognito authentication is not enabled",
-        )
-
-    if not settings.oidc_authorization_endpoint:
+    if not settings.google_client_id or not settings.google_client_secret:
         raise HTTPException(
             status_code=500,
-            detail="OIDC authorization endpoint not configured",
+            detail="Google OAuth not configured",
         )
 
     # Generate state for CSRF protection
@@ -74,21 +60,23 @@ async def login(request: Request) -> RedirectResponse:
     _state_store[state] = "pending"
 
     # Build redirect URI (callback endpoint)
-    redirect_uri = f"{settings.api_url}/api/auth/callback"
+    redirect_uri = f"{settings.api_url}/api/auth/google/callback"
 
     # Build authorization URL
     params = {
-        "client_id": settings.cognito_client_id,
-        "response_type": "code",
-        "scope": "email openid profile",
+        "client_id": settings.google_client_id,
         "redirect_uri": redirect_uri,
+        "response_type": "code",
+        "scope": "openid email profile",
         "state": state,
+        "access_type": "offline",  # Request refresh token
+        "prompt": "select_account",  # Always show account selector
     }
 
-    auth_url = f"{settings.oidc_authorization_endpoint}?{urlencode(params)}"
+    auth_url = f"{settings.google_auth_url}?{urlencode(params)}"
 
     logger.info(
-        "auth.login.redirect",
+        "auth.google.login_redirect",
         extra={
             "redirect_uri": redirect_uri,
             "state": state,
@@ -98,37 +86,33 @@ async def login(request: Request) -> RedirectResponse:
     return RedirectResponse(url=auth_url)
 
 
-@router.get("/auth/callback")
-async def callback(
+@router.get("/auth/google/callback")
+async def callback_google(
     request: Request,
     code: str | None = None,
     state: str | None = None,
     error: str | None = None,
+    db: AsyncSession = Depends(get_db),
 ) -> RedirectResponse:
-    """Handle OIDC callback from Cognito.
+    """Handle Google OAuth callback.
 
-    Exchanges authorization code for tokens and creates session.
+    Exchanges authorization code for tokens, creates or updates user,
+    and creates session.
     """
     settings = get_settings()
 
-    if not settings.enable_cognito_auth:
-        raise HTTPException(
-            status_code=501,
-            detail="Cognito authentication is not enabled",
-        )
-
-    # Check for errors from Cognito
+    # Check for errors from Google
     if error:
         logger.error(
-            "auth.callback.error",
+            "auth.google.callback_error",
             extra={"error": error},
         )
-        return RedirectResponse(url=f"{settings.app_url}/login?error={error}")
+        return RedirectResponse(url=f"{settings.app_url}/?error={error}")
 
     # Validate state (CSRF protection)
     if not state or state not in _state_store:
         logger.warning(
-            "auth.callback.invalid_state",
+            "auth.google.invalid_state",
             extra={"state": state},
         )
         raise HTTPException(status_code=400, detail="Invalid state parameter")
@@ -145,32 +129,54 @@ async def callback(
 
     try:
         # Exchange code for tokens
-        cognito_client = get_cognito_client(settings)
-        redirect_uri = f"{settings.api_url}/api/auth/callback"
+        google_client = get_google_client(settings)
+        redirect_uri = f"{settings.api_url}/api/auth/google/callback"
 
-        token_response = await cognito_client.exchange_code_for_tokens(
+        token_response = await google_client.exchange_code_for_tokens(
             code=code,
             redirect_uri=redirect_uri,
         )
 
-        # Verify the ID token
-        user = await cognito_client.verify_token(token_response.id_token)
+        # Get user info from Google
+        user_info = await google_client.get_user_info(token_response["access_token"])
+        google_user = GoogleUser(**user_info)
 
         logger.info(
-            "auth.callback.success",
+            "auth.google.user_info_received",
             extra={
-                "user_id": user.sub,
+                "google_id": google_user.id,
+                "email": google_user.email,
+            },
+        )
+
+        # Find or create user in database
+        user = await _find_or_create_user(db, google_user)
+
+        logger.info(
+            "auth.google.callback_success",
+            extra={
+                "user_id": str(user.id),
+                "google_id": user.google_id,
                 "email": user.email,
             },
         )
 
-        # Create session cookie
-        cookie_name, cookie_value = create_session_cookie(
-            settings,
-            token_response.id_token,
+        # Create session data
+        now = datetime.now(timezone.utc)
+        session_data = SessionData(
+            user_id=user.id,
+            google_id=user.google_id,
+            email=user.email,
+            name=user.name,
+            avatar_url=user.avatar_url,
+            created_at=now,
+            expires_at=now + timedelta(seconds=settings.session_cookie_max_age),
         )
 
-        # Redirect to app with session cookie
+        # Create session cookie
+        cookie_name, cookie_value = create_session_cookie(settings, session_data)
+
+        # Redirect to /app (authenticated area) with session cookie
         response = RedirectResponse(url=f"{settings.app_url}/app")
         response.set_cookie(
             key=cookie_name,
@@ -184,18 +190,19 @@ async def callback(
 
         return response
 
-    except CognitoError as e:
+    except GoogleOAuthError as e:
         logger.error(
-            "auth.callback.cognito_error",
+            "auth.google.oauth_error",
             extra={"error": str(e)},
         )
         return RedirectResponse(
-            url=f"{settings.app_url}/login?error=authentication_failed"
+            url=f"{settings.app_url}/?error=authentication_failed"
         )
     except Exception as e:
         logger.error(
-            "auth.callback.unexpected_error",
+            "auth.google.unexpected_error",
             extra={"error": str(e)},
+            exc_info=True,
         )
         raise HTTPException(
             status_code=500,
@@ -207,18 +214,19 @@ async def callback(
 async def logout(request: Request) -> Response:
     """Log out the current user.
 
-    Clears the session cookie and optionally redirects to Cognito logout.
+    Clears the session cookie.
     """
     settings = get_settings()
 
-    if not settings.enable_cognito_auth:
-        # Dev mode: just return success
-        response = Response(status_code=200)
-        response.delete_cookie(
-            key=settings.session_cookie_name,
-            path="/",
+    # Get session if exists (for logging)
+    session = get_current_session(request)
+    if session:
+        logger.info(
+            "auth.logout",
+            extra={
+                "user_id": str(session.user_id),
+            },
         )
-        return response
 
     # Clear session cookie
     response = Response(status_code=200)
@@ -230,50 +238,63 @@ async def logout(request: Request) -> Response:
         samesite="lax",
     )
 
-    logger.info(
-        "auth.logout",
-        extra={
-            "user_id": getattr(get_current_user(request), "sub", "unknown"),
-        },
-    )
-
     return response
 
 
-@router.get("/auth/logout-redirect")
-async def logout_redirect(request: Request) -> RedirectResponse:
-    """Alternative logout endpoint that redirects through Cognito.
+async def _find_or_create_user(
+    db: AsyncSession, google_user: GoogleUser
+) -> User:
+    """Find existing user or create new one.
 
-    This ensures the Cognito session is also terminated.
+    Args:
+        db: Database session
+        google_user: Google user information
+
+    Returns:
+        User model instance
     """
-    settings = get_settings()
-
-    if not settings.enable_cognito_auth or not settings.oidc_logout_endpoint:
-        return RedirectResponse(url=settings.app_url)
-
-    # Build Cognito logout URL
-    logout_params = {
-        "client_id": settings.cognito_client_id,
-        "logout_uri": settings.app_url,
-    }
-
-    cognito_logout_url = f"{settings.oidc_logout_endpoint}?{urlencode(logout_params)}"
-
-    # Clear session cookie before redirect
-    response = RedirectResponse(url=cognito_logout_url)
-    response.delete_cookie(
-        key=settings.session_cookie_name,
-        path="/",
-        httponly=True,
-        secure=settings.session_cookie_secure,
-        samesite="lax",
+    # Try to find existing user by google_id
+    result = await db.execute(
+        select(User).where(User.google_id == google_user.id)
     )
+    user = result.scalar_one_or_none()
 
-    logger.info(
-        "auth.logout_redirect",
-        extra={
-            "user_id": getattr(get_current_user(request), "sub", "unknown"),
-        },
-    )
+    if user:
+        # Update user info in case it changed
+        user.email = google_user.email
+        user.name = google_user.display_name
+        user.avatar_url = google_user.picture
+        user.updated_at = datetime.now(timezone.utc)
 
-    return response
+        await db.commit()
+        await db.refresh(user)
+
+        logger.info(
+            "auth.user_updated",
+            extra={
+                "user_id": str(user.id),
+                "google_id": user.google_id,
+            },
+        )
+    else:
+        # Create new user
+        user = User(
+            email=google_user.email,
+            google_id=google_user.id,
+            name=google_user.display_name,
+            avatar_url=google_user.picture,
+        )
+        db.add(user)
+        await db.commit()
+        await db.refresh(user)
+
+        logger.info(
+            "auth.user_created",
+            extra={
+                "user_id": str(user.id),
+                "google_id": user.google_id,
+                "email": user.email,
+            },
+        )
+
+    return user

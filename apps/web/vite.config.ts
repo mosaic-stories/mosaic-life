@@ -1,25 +1,29 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
+// Get backend URL from environment, default to localhost for local development
+const BACKEND_URL = process.env.VITE_BACKEND_URL || 'http://localhost:8080'
+
 export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    allowedHosts: ['beelink.projecthewitt.info', 'localhost'],
     proxy: {
       '/api': {
-        target: 'http://localhost:8080',
+        target: BACKEND_URL,
         changeOrigin: true,
       },
       '/healthz': {
-        target: 'http://localhost:8080',
+        target: BACKEND_URL,
         changeOrigin: true,
       },
       '/readyz': {
-        target: 'http://localhost:8080',
+        target: BACKEND_URL,
         changeOrigin: true,
       },
       '/metrics': {
-        target: 'http://localhost:8080',
+        target: BACKEND_URL,
         changeOrigin: true,
       }
     },

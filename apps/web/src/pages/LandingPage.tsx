@@ -1,12 +1,36 @@
 import { Link } from 'react-router-dom';
 import { ReadingLayout } from '../components/layout/PageLayout';
 import { Button } from '../components/ui/Button';
+import { useAuth } from '../contexts/AuthContext';
 import './LandingPage.css';
 
 export function LandingPage() {
+  const { isAuthenticated, user, login, isLoading } = useAuth();
+
   return (
     <ReadingLayout>
       <div className="landing-page">
+        {/* Show user info if logged in */}
+        {isAuthenticated && user && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 'var(--space-4)',
+              right: 'var(--space-4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-3)',
+            }}
+          >
+            <span style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
+              Welcome, {user.name || user.email}
+            </span>
+            <Link to="/app">
+              <Button size="sm">Go to App</Button>
+            </Link>
+          </div>
+        )}
+
         <header className="landing-header">
           <h1 className="landing-title">Mosaic Life</h1>
           <p className="landing-subtitle">
@@ -51,12 +75,23 @@ export function LandingPage() {
         </section>
 
         <section className="landing-cta">
-          <Link to="/app">
-            <Button size="lg">Get Started</Button>
-          </Link>
-          <p className="landing-cta-note">
-            Create your first legacy and begin preserving memories
-          </p>
+          {isAuthenticated ? (
+            <>
+              <Link to="/app">
+                <Button size="lg">Go to Your Legacies</Button>
+              </Link>
+              <p className="landing-cta-note">Continue building your legacy collection</p>
+            </>
+          ) : (
+            <>
+              <Button size="lg" onClick={login} disabled={isLoading}>
+                {isLoading ? 'Loading...' : 'Get Started'}
+              </Button>
+              <p className="landing-cta-note">
+                Sign in with Google to create your first legacy
+              </p>
+            </>
+          )}
         </section>
       </div>
     </ReadingLayout>

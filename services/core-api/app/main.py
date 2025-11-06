@@ -17,6 +17,8 @@ from .observability.tracing import configure_tracing
 from .health import router as health_router
 from .auth.router import router as auth_router
 from .auth.middleware import SessionMiddleware
+from .routes.legacy import router as legacy_router
+from .routes.story import router as story_router
 
 
 REQUESTS = Counter(
@@ -39,15 +41,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(lifespan=lifespan, title="Core API", version="0.1.0")
 
+settings = get_settings()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[],  # locked down; app relies on same-origin with cookies
+    allow_origins=[settings.app_url],  # Allow frontend to make requests
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     allow_headers=["*"],
 )
 
-# Session middleware for Cognito authentication
+# Session middleware for Google OAuth authentication
 app.add_middleware(SessionMiddleware)
 
 
@@ -72,3 +76,5 @@ def metrics() -> Response:
 
 app.include_router(health_router)
 app.include_router(auth_router, prefix="/api")
+app.include_router(legacy_router)
+app.include_router(story_router)

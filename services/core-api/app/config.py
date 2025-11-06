@@ -8,43 +8,14 @@ class Settings(BaseModel):
     port: int = int(os.getenv("PORT", "8080"))
     log_level: str = os.getenv("LOG_LEVEL", "info")
 
-    # Cognito/OIDC Configuration
-    cognito_region: str = os.getenv("COGNITO_REGION", "us-east-1")
-    cognito_user_pool_id: str | None = os.getenv("COGNITO_USER_POOL_ID")
-    cognito_client_id: str | None = os.getenv("COGNITO_CLIENT_ID")
-    cognito_client_secret: str | None = os.getenv("COGNITO_CLIENT_SECRET")
-    cognito_domain: str | None = os.getenv("COGNITO_DOMAIN")
+    # Google OAuth Configuration
+    google_client_id: str | None = os.getenv("GOOGLE_CLIENT_ID")
+    google_client_secret: str | None = os.getenv("GOOGLE_CLIENT_SECRET")
 
-    # Derived OIDC URLs (computed from Cognito settings)
-    @property
-    def oidc_issuer(self) -> str | None:
-        if self.cognito_user_pool_id:
-            return f"https://cognito-idp.{self.cognito_region}.amazonaws.com/{self.cognito_user_pool_id}"
-        return os.getenv("OIDC_ISSUER")
-
-    @property
-    def oidc_authorization_endpoint(self) -> str | None:
-        if self.cognito_domain:
-            return f"https://{self.cognito_domain}.auth.{self.cognito_region}.amazoncognito.com/oauth2/authorize"
-        return None
-
-    @property
-    def oidc_token_endpoint(self) -> str | None:
-        if self.cognito_domain:
-            return f"https://{self.cognito_domain}.auth.{self.cognito_region}.amazoncognito.com/oauth2/token"
-        return None
-
-    @property
-    def oidc_logout_endpoint(self) -> str | None:
-        if self.cognito_domain:
-            return f"https://{self.cognito_domain}.auth.{self.cognito_region}.amazoncognito.com/logout"
-        return None
-
-    @property
-    def oidc_jwks_uri(self) -> str | None:
-        if self.cognito_user_pool_id:
-            return f"https://cognito-idp.{self.cognito_region}.amazonaws.com/{self.cognito_user_pool_id}/.well-known/jwks.json"
-        return None
+    # Google OAuth URLs (standard)
+    google_auth_url: str = "https://accounts.google.com/o/oauth2/v2/auth"
+    google_token_url: str = "https://oauth2.googleapis.com/token"
+    google_userinfo_url: str = "https://www.googleapis.com/oauth2/v2/userinfo"
 
     # Application URLs
     app_url: str = os.getenv("APP_URL", "http://localhost:5173")
@@ -58,18 +29,14 @@ class Settings(BaseModel):
     session_cookie_secure: bool = os.getenv("ENV", "dev") != "dev"
     session_cookie_max_age: int = 3600  # 1 hour
 
-    # Feature Flags
-    enable_cognito_auth: bool = (
-        os.getenv("ENABLE_COGNITO_AUTH", "false").lower() == "true"
-    )
-
-    # Database and Services
+    # Database
     db_url: str | None = os.getenv("DB_URL")
-    opensearch_url: str | None = os.getenv("OPENSEARCH_URL")
-    sns_topic_arn_events: str | None = os.getenv("SNS_TOPIC_ARN_EVENTS")
-    sqs_queue_url_events: str | None = os.getenv("SQS_QUEUE_URL_EVENTS")
-    litellm_base_url: str | None = os.getenv("LITELLM_BASE_URL")
 
+    # AWS S3 Configuration (for media uploads)
+    s3_media_bucket: str | None = os.getenv("S3_MEDIA_BUCKET")
+    aws_region: str = os.getenv("AWS_REGION", "us-east-1")
+
+    # Observability
     otel_exporter_otlp_endpoint: str | None = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 
 
