@@ -44,6 +44,8 @@ jobs:
 
       - name: Start local services
         run: |
+          # Copy .env.example to .env for CI
+          cp infra/compose/.env.example infra/compose/.env
           docker compose -f infra/compose/docker-compose.yml up -d
           # Wait for backend services to be healthy (increased timeout for CI)
           timeout 180 bash -c 'until curl -f http://localhost:8080/healthz; do sleep 5; done' || echo "Backend not ready, tests may fail"
@@ -160,6 +162,8 @@ jobs:
 
       - name: Start local services
         run: |
+          # Copy .env.example to .env for CI
+          cp infra/compose/.env.example infra/compose/.env
           docker compose -f infra/compose/docker-compose.yml up -d
           # Wait for backend services to be healthy (increased timeout for CI)
           timeout 180 bash -c 'until curl -f http://localhost:8080/healthz; do sleep 5; done' || echo "Backend not ready, tests may fail"
