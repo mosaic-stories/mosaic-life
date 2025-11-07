@@ -3,11 +3,10 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import require_auth
-from ..auth.models import SessionData
 from ..database import get_db
 from ..schemas.legacy import (
     LegacyCreate,

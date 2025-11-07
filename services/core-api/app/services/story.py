@@ -9,9 +9,8 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..models.legacy import Legacy, LegacyMember
+from ..models.legacy import LegacyMember
 from ..models.story import Story
-from ..models.user import User
 from ..schemas.story import StoryCreate, StoryDetail, StoryResponse, StorySummary, StoryUpdate
 from .legacy import check_legacy_access
 
@@ -361,7 +360,7 @@ async def delete_story(
     is_creator = False
     if not is_author:
         try:
-            member = await check_legacy_access(
+            await check_legacy_access(
                 db=db,
                 user_id=user_id,
                 legacy_id=story.legacy_id,
