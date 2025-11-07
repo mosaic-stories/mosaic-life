@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.legacy import Legacy, LegacyMember
+from app.models.legacy import Legacy
 from app.models.user import User
 
 
@@ -85,7 +85,7 @@ class TestListLegacies:
         assert response.status_code == 200
         result = response.json()
         assert len(result) >= 1
-        assert any(l["id"] == str(test_legacy.id) for l in result)
+        assert any(legacy["id"] == str(test_legacy.id) for legacy in result)
 
     @pytest.mark.asyncio
     async def test_list_legacies_requires_auth(
@@ -118,7 +118,7 @@ class TestSearchLegacies:
         assert response.status_code == 200
         result = response.json()
         assert len(result) >= 1
-        assert any(l["id"] == str(test_legacy.id) for l in result)
+        assert any(legacy["id"] == str(test_legacy.id) for legacy in result)
 
     @pytest.mark.asyncio
     async def test_search_requires_query_param(

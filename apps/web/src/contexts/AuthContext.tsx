@@ -10,7 +10,10 @@ interface AuthContextType {
   refreshUser: () => Promise<void>;
 }
 
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+// Export context for useAuth hook
+export { AuthContext };
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<Me | null>(null);
