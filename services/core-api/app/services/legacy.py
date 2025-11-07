@@ -378,13 +378,13 @@ async def request_join_legacy(
         )
 
     # Check if already a member
-    result = await db.execute(
+    member_result = await db.execute(
         select(LegacyMember).where(
             LegacyMember.legacy_id == legacy_id,
             LegacyMember.user_id == user_id,
         )
     )
-    existing_member = result.scalar_one_or_none()
+    existing_member: LegacyMember | None = member_result.scalar_one_or_none()
 
     if existing_member:
         if existing_member.role == "pending":

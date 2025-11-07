@@ -103,14 +103,14 @@ async def list_legacy_stories(
         List of stories visible to the user
     """
     # Check if user is a member (not pending)
-    result = await db.execute(
+    member_result = await db.execute(
         select(LegacyMember).where(
             LegacyMember.legacy_id == legacy_id,
             LegacyMember.user_id == user_id,
             LegacyMember.role != "pending",
         )
     )
-    member = result.scalar_one_or_none()
+    member = member_result.scalar_one_or_none()
 
     # Build query based on membership
     query = (
@@ -134,8 +134,8 @@ async def list_legacy_stories(
 
     query = query.order_by(Story.created_at.desc())
 
-    result = await db.execute(query)
-    stories = result.scalars().all()
+    story_result = await db.execute(query)
+    stories = story_result.scalars().all()
 
     logger.info(
         "story.list",

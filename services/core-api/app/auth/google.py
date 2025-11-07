@@ -34,7 +34,7 @@ class GoogleOAuthClient:
             raise ValueError("Google OAuth credentials not configured")
 
         # Initialize OAuth client
-        self.oauth = OAuth()
+        self.oauth = OAuth()  # type: ignore[no-untyped-call]
         self.oauth.register(
             name="google",
             client_id=self.client_id,
@@ -82,7 +82,8 @@ class GoogleOAuthClient:
                     )
                     raise GoogleOAuthError(f"Token exchange failed: {response.text}")
 
-                return response.json()
+                result: dict[str, Any] = response.json()
+                return result
 
         except httpx.HTTPError as e:
             logger.error(
@@ -122,7 +123,8 @@ class GoogleOAuthClient:
                         f"Failed to fetch user info: {response.text}"
                     )
 
-                return response.json()
+                user_info: dict[str, Any] = response.json()
+                return user_info
 
         except httpx.HTTPError as e:
             logger.error(

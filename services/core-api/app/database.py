@@ -2,9 +2,14 @@
 
 from collections.abc import AsyncGenerator
 
-from sqlalchemy import create_engine
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy import Engine, create_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from .config import get_settings
 
@@ -16,7 +21,7 @@ class Base(DeclarativeBase):
 
 
 # Create sync engine for migrations (Alembic)
-def get_sync_engine():
+def get_sync_engine() -> Engine:
     """Get synchronous SQLAlchemy engine for migrations."""
     settings = get_settings()
     if not settings.db_url:
@@ -28,7 +33,7 @@ def get_sync_engine():
 
 
 # Create async engine for application
-def get_async_engine():
+def get_async_engine() -> AsyncEngine:
     """Get asynchronous SQLAlchemy engine for application."""
     settings = get_settings()
     if not settings.db_url:
@@ -40,13 +45,13 @@ def get_async_engine():
 
 
 # Session factories
-def get_sync_session_factory() -> sessionmaker:
+def get_sync_session_factory() -> sessionmaker[Session]:
     """Get sync session factory for migrations."""
     engine = get_sync_engine()
     return sessionmaker(bind=engine, autocommit=False, autoflush=False)
 
 
-def get_async_session_factory() -> async_sessionmaker:
+def get_async_session_factory() -> async_sessionmaker[AsyncSession]:
     """Get async session factory for application."""
     engine = get_async_engine()
     return async_sessionmaker(
