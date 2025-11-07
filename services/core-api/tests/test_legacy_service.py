@@ -72,15 +72,11 @@ class TestCheckLegacyAccess:
         test_legacy: Legacy,
     ):
         """Test access denied when role is insufficient."""
-        # Update user role to member
-        member = LegacyMember(
-            legacy_id=test_legacy.id,
-            user_id=test_user.id,
-            role="member",
-        )
-        # First, remove existing creator role
+        # First, remove existing creator role and update to member
+        from sqlalchemy import select
+        
         result = await db_session.execute(
-            db_session.query(LegacyMember).filter(
+            select(LegacyMember).filter(
                 LegacyMember.legacy_id == test_legacy.id,
                 LegacyMember.user_id == test_user.id,
             )
