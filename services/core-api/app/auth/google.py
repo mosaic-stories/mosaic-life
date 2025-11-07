@@ -5,7 +5,6 @@ from typing import Any
 
 import httpx
 from authlib.integrations.starlette_client import OAuth
-from fastapi import HTTPException
 
 from ..config import Settings
 

@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ReadingLayout } from '../components/layout/PageLayout';
 import { Button } from '../components/ui/Button';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import './LandingPage.css';
 
 export function LandingPage() {
