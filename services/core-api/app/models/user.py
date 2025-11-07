@@ -22,8 +22,12 @@ class User(Base):
         default=uuid4,
     )
 
-    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    google_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
+    email: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
+    google_id: Mapped[str] = mapped_column(
+        String(255), unique=True, nullable=False, index=True
+    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
 

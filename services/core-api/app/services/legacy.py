@@ -156,9 +156,7 @@ async def create_legacy(
     )
 
     # Load creator info
-    result = await db.execute(
-        select(User).where(User.id == user_id)
-    )
+    result = await db.execute(select(User).where(User.id == user_id))
     creator = result.scalar_one()
 
     return LegacyResponse(
@@ -370,9 +368,7 @@ async def request_join_legacy(
         HTTPException: 404 if legacy not found, 400 if already a member
     """
     # Check if legacy exists
-    result = await db.execute(
-        select(Legacy).where(Legacy.id == legacy_id)
-    )
+    result = await db.execute(select(Legacy).where(Legacy.id == legacy_id))
     legacy = result.scalar_one_or_none()
 
     if not legacy:
@@ -584,9 +580,7 @@ async def delete_legacy(
     await check_legacy_access(db, user_id, legacy_id, required_role="creator")
 
     # Load legacy
-    result = await db.execute(
-        select(Legacy).where(Legacy.id == legacy_id)
-    )
+    result = await db.execute(select(Legacy).where(Legacy.id == legacy_id))
     legacy = result.scalar_one_or_none()
 
     if not legacy:

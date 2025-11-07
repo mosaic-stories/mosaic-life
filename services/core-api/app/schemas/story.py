@@ -12,7 +12,9 @@ class StoryCreate(BaseModel):
 
     legacy_id: UUID = Field(..., description="Legacy this story belongs to")
     title: str = Field(..., min_length=1, max_length=500, description="Story title")
-    content: str = Field(..., min_length=1, max_length=50000, description="Story content in Markdown")
+    content: str = Field(
+        ..., min_length=1, max_length=50000, description="Story content in Markdown"
+    )
     visibility: Literal["public", "private", "personal"] = Field(
         default="private",
         description="Visibility level: public, private (legacy members), or personal (author only)",
@@ -22,8 +24,12 @@ class StoryCreate(BaseModel):
 class StoryUpdate(BaseModel):
     """Schema for updating an existing story."""
 
-    title: str | None = Field(None, min_length=1, max_length=500, description="Story title")
-    content: str | None = Field(None, min_length=1, max_length=50000, description="Story content in Markdown")
+    title: str | None = Field(
+        None, min_length=1, max_length=500, description="Story title"
+    )
+    content: str | None = Field(
+        None, min_length=1, max_length=50000, description="Story content in Markdown"
+    )
     visibility: Literal["public", "private", "personal"] | None = Field(
         None,
         description="Visibility level",

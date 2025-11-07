@@ -11,7 +11,13 @@ from sqlalchemy.orm import selectinload
 
 from ..models.legacy import LegacyMember
 from ..models.story import Story
-from ..schemas.story import StoryCreate, StoryDetail, StoryResponse, StorySummary, StoryUpdate
+from ..schemas.story import (
+    StoryCreate,
+    StoryDetail,
+    StoryResponse,
+    StorySummary,
+    StoryUpdate,
+)
 from .legacy import check_legacy_access
 
 logger = logging.getLogger(__name__)
@@ -264,9 +270,7 @@ async def update_story(
         HTTPException: 404 if not found, 403 if not author
     """
     # Load story
-    result = await db.execute(
-        select(Story).where(Story.id == story_id)
-    )
+    result = await db.execute(select(Story).where(Story.id == story_id))
     story = result.scalar_one_or_none()
 
     if not story:
@@ -342,9 +346,7 @@ async def delete_story(
         HTTPException: 404 if not found, 403 if not authorized
     """
     # Load story
-    result = await db.execute(
-        select(Story).where(Story.id == story_id)
-    )
+    result = await db.execute(select(Story).where(Story.id == story_id))
     story = result.scalar_one_or_none()
 
     if not story:

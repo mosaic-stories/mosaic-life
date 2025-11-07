@@ -195,9 +195,7 @@ async def callback_google(
             "auth.google.oauth_error",
             extra={"error": str(e)},
         )
-        return RedirectResponse(
-            url=f"{settings.app_url}/?error=authentication_failed"
-        )
+        return RedirectResponse(url=f"{settings.app_url}/?error=authentication_failed")
     except Exception as e:
         logger.error(
             "auth.google.unexpected_error",
@@ -241,9 +239,7 @@ async def logout(request: Request) -> Response:
     return response
 
 
-async def _find_or_create_user(
-    db: AsyncSession, google_user: GoogleUser
-) -> User:
+async def _find_or_create_user(db: AsyncSession, google_user: GoogleUser) -> User:
     """Find existing user or create new one.
 
     Args:
@@ -254,9 +250,7 @@ async def _find_or_create_user(
         User model instance
     """
     # Try to find existing user by google_id
-    result = await db.execute(
-        select(User).where(User.google_id == google_user.id)
-    )
+    result = await db.execute(select(User).where(User.google_id == google_user.id))
     user = result.scalar_one_or_none()
 
     if user:

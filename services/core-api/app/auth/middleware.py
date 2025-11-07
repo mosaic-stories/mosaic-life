@@ -53,7 +53,10 @@ class SessionMiddleware(BaseHTTPMiddleware):
 
                 logger.debug(
                     "session.validated",
-                    extra={"user_id": str(session_data.user_id), "path": request.url.path},
+                    extra={
+                        "user_id": str(session_data.user_id),
+                        "path": request.url.path,
+                    },
                 )
 
             except (SignatureExpired, BadSignature) as e:

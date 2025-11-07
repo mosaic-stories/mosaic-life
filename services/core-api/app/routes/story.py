@@ -8,7 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import require_auth
 from ..database import get_db
-from ..schemas.story import StoryCreate, StoryDetail, StoryResponse, StorySummary, StoryUpdate
+from ..schemas.story import (
+    StoryCreate,
+    StoryDetail,
+    StoryResponse,
+    StorySummary,
+    StoryUpdate,
+)
 from ..services import story as story_service
 
 router = APIRouter(prefix="/api/stories", tags=["stories"])

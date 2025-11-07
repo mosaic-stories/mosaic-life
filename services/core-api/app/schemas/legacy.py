@@ -9,7 +9,12 @@ from pydantic import BaseModel, Field
 class LegacyCreate(BaseModel):
     """Schema for creating a new legacy."""
 
-    name: str = Field(..., min_length=1, max_length=200, description="Name of the person being remembered")
+    name: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="Name of the person being remembered",
+    )
     birth_date: date | None = Field(None, description="Birth date (optional)")
     death_date: date | None = Field(None, description="Death date (optional)")
     biography: str | None = Field(None, description="Biography text (optional)")
@@ -18,7 +23,9 @@ class LegacyCreate(BaseModel):
 class LegacyUpdate(BaseModel):
     """Schema for updating an existing legacy."""
 
-    name: str | None = Field(None, min_length=1, max_length=200, description="Name of the person")
+    name: str | None = Field(
+        None, min_length=1, max_length=200, description="Name of the person"
+    )
     birth_date: date | None = Field(None, description="Birth date")
     death_date: date | None = Field(None, description="Death date")
     biography: str | None = Field(None, description="Biography text")

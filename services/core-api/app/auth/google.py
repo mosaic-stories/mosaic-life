@@ -118,7 +118,9 @@ class GoogleOAuthClient:
                             "response": response.text,
                         },
                     )
-                    raise GoogleOAuthError(f"Failed to fetch user info: {response.text}")
+                    raise GoogleOAuthError(
+                        f"Failed to fetch user info: {response.text}"
+                    )
 
                 return response.json()
 

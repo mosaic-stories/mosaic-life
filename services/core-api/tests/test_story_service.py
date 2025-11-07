@@ -171,7 +171,10 @@ class TestGetStoryDetail:
 
         assert story.id == test_story_public.id
         assert story.title == test_story_public.title
-        assert "content" in str(story.content).lower() or story.content == test_story_public.content
+        assert (
+            "content" in str(story.content).lower()
+            or story.content == test_story_public.content
+        )
 
     @pytest.mark.asyncio
     async def test_get_private_story_as_member(
@@ -309,6 +312,7 @@ class TestUpdateStory:
         assert story.title == "New Title Only"
         # Content should remain unchanged (verified by fetching from DB)
         from sqlalchemy import select
+
         result = await db_session.execute(
             select(Story).where(Story.id == test_story_public.id)
         )
@@ -337,6 +341,7 @@ class TestDeleteStory:
 
         # Verify story deleted
         from sqlalchemy import select
+
         check_result = await db_session.execute(
             select(Story).where(Story.id == test_story_public.id)
         )
@@ -410,4 +415,7 @@ class TestDeleteStory:
                 story_id=test_story_public.id,
             )
         assert exc.value.status_code == 403
-        assert "author" in exc.value.detail.lower() or "creator" in exc.value.detail.lower()
+        assert (
+            "author" in exc.value.detail.lower()
+            or "creator" in exc.value.detail.lower()
+        )

@@ -67,4 +67,6 @@ class Story(Base):
     author: Mapped["User"] = relationship("User", foreign_keys=[author_id])
 
     def __repr__(self) -> str:
-        return f"<Story(id={self.id}, title={self.title}, visibility={self.visibility})>"
+        return (
+            f"<Story(id={self.id}, title={self.title}, visibility={self.visibility})>"
+        )
