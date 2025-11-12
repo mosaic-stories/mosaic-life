@@ -18,7 +18,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-deploy-role-033691785857-us-east-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-cfn-exec-role-033691785857-us-east-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/13df08fa763df61d2372133e9b3cd663406f9ab2197e25883f892322299cd3dc.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/10f0300d679ae8864f7722e6f56b16dbf993a45626022b14022e50d747fa5f2a.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -51,7 +51,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -89,7 +89,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -127,7 +127,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -165,7 +165,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -203,7 +203,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -241,7 +241,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:46:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:53:1)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -420,6 +420,192 @@
         ]
       },
       "displayName": "MosaicLifeStack"
+    },
+    "MosaicDatabaseStack.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "MosaicDatabaseStack.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "MosaicDatabaseStack": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://033691785857/us-east-1",
+      "properties": {
+        "templateFile": "MosaicDatabaseStack.template.json",
+        "terminationProtection": false,
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-deploy-role-033691785857-us-east-1",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-cfn-exec-role-033691785857-us-east-1",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/a3840ed57fe8b7f5a0b4666bd353dc0902338f13fce662064b55b84d9b41295e.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "MosaicDatabaseStack.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-lookup-role-033691785857-us-east-1",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "MosaicDatabaseStack.assets"
+      ],
+      "metadata": {
+        "/MosaicDatabaseStack/DatabaseSecurityGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseSecurityGroup7319C0F6"
+          }
+        ],
+        "/MosaicDatabaseStack/DatabaseSubnetGroup/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseSubnetGroup"
+          }
+        ],
+        "/MosaicDatabaseStack/DatabaseSecret/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseSecret86DBB7B3"
+          }
+        ],
+        "/MosaicDatabaseStack/DatabaseSecret/Attachment/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseSecretAttachment9A63A3D4"
+          }
+        ],
+        "/MosaicDatabaseStack/DatabaseParameterGroup/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseParameterGroupC9757D64"
+          }
+        ],
+        "/MosaicDatabaseStack/Database/MonitoringRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseMonitoringRole576991DA"
+          }
+        ],
+        "/MosaicDatabaseStack/Database/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseB269D8BB"
+          }
+        ],
+        "/MosaicDatabaseStack/Database/LogRetentionpostgresql/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseLogRetentionpostgresqlFBE8A947"
+          }
+        ],
+        "/MosaicDatabaseStack/Database/LogRetentionupgrade/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseLogRetentionupgrade5EE08DCB"
+          }
+        ],
+        "/MosaicDatabaseStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB"
+          }
+        ],
+        "/MosaicDatabaseStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB"
+          }
+        ],
+        "/MosaicDatabaseStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A"
+          }
+        ],
+        "/MosaicDatabaseStack/CoreApiSecretsAccessRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CoreApiSecretsAccessRoleA08814AC"
+          }
+        ],
+        "/MosaicDatabaseStack/CoreApiSecretsAccessRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CoreApiSecretsAccessRoleDefaultPolicy634CAD7A"
+          }
+        ],
+        "/MosaicDatabaseStack/DatabaseEndpoint": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseEndpoint"
+          }
+        ],
+        "/MosaicDatabaseStack/DatabasePort": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabasePort"
+          }
+        ],
+        "/MosaicDatabaseStack/DatabaseName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseName"
+          }
+        ],
+        "/MosaicDatabaseStack/DatabaseSecretArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseSecretArn"
+          }
+        ],
+        "/MosaicDatabaseStack/DatabaseSecurityGroupId": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DatabaseSecurityGroupId"
+          }
+        ],
+        "/MosaicDatabaseStack/CoreApiSecretsRoleArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CoreApiSecretsRoleArn"
+          }
+        ],
+        "/MosaicDatabaseStack/EstimatedMonthlyCost": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "EstimatedMonthlyCost"
+          }
+        ],
+        "/MosaicDatabaseStack/UpgradePath": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "UpgradePath"
+          }
+        ],
+        "/MosaicDatabaseStack/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/MosaicDatabaseStack/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/MosaicDatabaseStack/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "MosaicDatabaseStack"
     },
     "Tree": {
       "type": "cdk:tree",

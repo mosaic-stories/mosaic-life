@@ -100,7 +100,22 @@
    export AWS_ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
    ```
 
-2. **Configure Social Logins** (Optional)
+2. **Deploy AWS Infrastructure**
+   ```bash
+   just infra-deploy
+   # Takes ~5-10 minutes
+   # Note the outputs: VPC ID, Certificate ARN, User Pool ID, etc.
+   ```
+
+3. **Deploy RDS Database** ⭐ NEW
+   ```bash
+   just db-deploy
+   # Takes ~10-15 minutes
+   # Creates PostgreSQL 16 database (cost-optimized: ~$15-19/month)
+   # See docs/DATABASE_SETUP.md for detailed configuration
+   ```
+
+4. **Configure Social Logins** (Optional)
    ```bash
    # Google OAuth (https://console.cloud.google.com/)
    export GOOGLE_CLIENT_ID="..."
@@ -111,23 +126,16 @@
    export GITHUB_CLIENT_SECRET="..."
    ```
 
-3. **Deploy AWS Infrastructure**
-   ```bash
-   just infra-deploy
-   # Takes ~5-10 minutes
-   # Note the outputs: VPC ID, Certificate ARN, User Pool ID, etc.
-   ```
-
-4. **Create EKS Cluster**
+5. **Create EKS Cluster**
    ```bash
    # See infra/DEPLOYMENT.md for detailed steps
    # Or use eksctl with the generated config
    ```
 
-5. **Install Cluster Add-ons**
+6. **Install Cluster Add-ons**
    ```bash
    # AWS Load Balancer Controller
-   # External Secrets Operator
+   # External Secrets Operator ⭐ REQUIRED for RDS
    # See infra/DEPLOYMENT.md Step 3-4
    ```
 
@@ -285,8 +293,9 @@ kubectl top nodes
 - Infrastructure (VPC, S3, etc.): ~$75-100
 - EKS Control Plane: $72
 - Worker Nodes (3x t3.large): ~$95
+- **RDS PostgreSQL (db.t3.micro): ~$15-19** ⭐ NEW
 - Data Transfer: ~$20-100
-- **Total**: ~$260-370/mo
+- **Total**: ~**$275-390/mo**
 
 ### Optimization Tips
 1. Use Spot instances for non-critical workloads
@@ -294,6 +303,7 @@ kubectl top nodes
 3. Review S3 lifecycle policies
 4. Set CloudWatch log retention
 5. Use VPC endpoints (already configured)
+6. **Scale up database only when needed** (db.t3.small ~$30/mo, t3.medium ~$60/mo)
 
 ## 🧹 Cleanup
 
@@ -316,6 +326,7 @@ just infra-destroy
 ## 📚 Documentation
 
 - **[Complete Deployment Guide](infra/DEPLOYMENT.md)** - Step-by-step instructions
+- **[Database Setup Guide](docs/DATABASE_SETUP.md)** ⭐ NEW - RDS PostgreSQL configuration and management
 - **[Infrastructure README](infra/README.md)** - Infrastructure overview
 - **[CDK Documentation](infra/cdk/README.md)** - AWS resources details
 - **[Kubernetes Guide](docs/KUBERNETES.md)** - K8s architecture
@@ -353,14 +364,15 @@ open "https://<domain>.auth.us-east-1.amazoncognito.com/login?client_id=<client-
 
 1. ✅ Infrastructure deployed
 2. ✅ EKS cluster created
-3. ✅ Application deployed
-4. ⏳ Configure DNS at domain registrar
-5. ⏳ Test end-to-end flow
-6. ⏳ Set up monitoring (Prometheus/Grafana)
-7. ✅ CI/CD configured (GitHub Actions OIDC and EKS RBAC managed in infrastructure repository - see `docs/cicd/QUICK-START.md`)
-8. ⏳ Enable WAF rules
-9. ⏳ Set up backup automation
-10. ⏳ Production readiness review
+3. ✅ RDS Database configured ⭐ NEW
+4. ✅ Application deployed
+5. ⏳ Configure DNS at domain registrar
+6. ⏳ Test end-to-end flow (including database)
+7. ⏳ Set up monitoring (Prometheus/Grafana)
+8. ✅ CI/CD configured (GitHub Actions OIDC and EKS RBAC managed in infrastructure repository - see `docs/cicd/QUICK-START.md`)
+9. ⏳ Enable WAF rules
+10. ⏳ Set up database backup automation (already enabled, test restore)
+11. ⏳ Production readiness review
 
 ## 🤝 Support
 

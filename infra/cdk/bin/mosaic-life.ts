@@ -3,6 +3,7 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { DnsCertificateStack } from '../lib/dns-certificate-stack';
 import { MosaicLifeStack } from '../lib/mosaic-life-stack';
+import { DatabaseStack } from '../lib/database-stack';
 
 const app = new cdk.App();
 
@@ -50,7 +51,7 @@ new DnsCertificateStack(app, 'MosaicDnsCertificateStack', {
 */
 
 // Option 2: Full application stack (Cognito, S3, ECR, etc.)
-new MosaicLifeStack(app, 'MosaicLifeStack', {
+const appStack = new MosaicLifeStack(app, 'MosaicLifeStack', {
   env,
   config: {
     domainName,
@@ -67,6 +68,13 @@ new MosaicLifeStack(app, 'MosaicLifeStack', {
       Component: 'Application',
     },
   },
+});
+
+// Database Stack - RDS PostgreSQL
+new DatabaseStack(app, 'MosaicDatabaseStack', {
+  env,
+  vpc: appStack.vpc,
+  environment,
 });
 
 app.synth();

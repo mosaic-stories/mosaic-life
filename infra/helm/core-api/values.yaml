@@ -3,9 +3,38 @@ image:
   tag: "0.1.0"
   pullPolicy: IfNotPresent
 
+replicaCount: 2
+
 service:
   type: ClusterIP
   port: 80
+
+# Service Account for IRSA
+serviceAccount:
+  create: true
+  automount: true
+  # Annotations for IRSA (will be set during deployment)
+  annotations: {}
+    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/mosaic-prod-core-api-secrets-role
+  name: ""
+
+# External Secrets configuration
+externalSecrets:
+  enabled: true
+  secretStore: aws-secrets-manager
+  # Credentials secret name in AWS Secrets Manager (contains username/password)
+  credentialsSecretName: "mosaic/prod/rds/credentials"
+  region: us-east-1
+  # Database connection details (set after RDS deployment)
+  dbEndpoint: "" # e.g., mosaic-prod-db.xxxxx.us-east-1.rds.amazonaws.com
+  dbPort: "5432"
+  dbName: "mosaic"
+
+# Database migrations
+migrations:
+  enabled: true
+  # Run migrations automatically before deployment
+  autoRun: true
 
 env:
   ENV: dev
@@ -19,7 +48,7 @@ env:
 
 secrets:
   OIDC_CLIENT_SECRET: "" # sourced via External Secrets in real envs
-  DB_URL: ""             # sourced via External Secrets in real envs
+  DB_URL: ""             # sourced via External Secrets (fallback only)
 
 resources:
   requests:

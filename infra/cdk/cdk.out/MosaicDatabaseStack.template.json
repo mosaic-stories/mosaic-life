@@ -1,0 +1,540 @@
+{
+ "Resources": {
+  "DatabaseSecurityGroup7319C0F6": {
+   "Type": "AWS::EC2::SecurityGroup",
+   "Properties": {
+    "GroupDescription": "Security group for RDS PostgreSQL instance",
+    "GroupName": "mosaic-prod-rds-sg",
+    "SecurityGroupEgress": [
+     {
+      "CidrIp": "255.255.255.255/32",
+      "Description": "Disallow all traffic",
+      "FromPort": 252,
+      "IpProtocol": "icmp",
+      "ToPort": 86
+     }
+    ],
+    "SecurityGroupIngress": [
+     {
+      "CidrIp": "10.0.0.0/16",
+      "Description": "Allow PostgreSQL traffic from VPC",
+      "FromPort": 5432,
+      "IpProtocol": "tcp",
+      "ToPort": 5432
+     }
+    ],
+    "VpcId": "vpc-0cda4cc7432deca33"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/DatabaseSecurityGroup/Resource"
+   }
+  },
+  "DatabaseSubnetGroup": {
+   "Type": "AWS::RDS::DBSubnetGroup",
+   "Properties": {
+    "DBSubnetGroupDescription": "Subnet group for RDS PostgreSQL",
+    "DBSubnetGroupName": "mosaic-prod-db-subnet-group",
+    "SubnetIds": [
+     "subnet-07a61c97e2e16d91b",
+     "subnet-079dd0d7be41e96a5",
+     "subnet-01e6823eddd4a9a94"
+    ]
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/DatabaseSubnetGroup/Default"
+   }
+  },
+  "DatabaseSecret86DBB7B3": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Master credentials for RDS PostgreSQL",
+    "GenerateSecretString": {
+     "ExcludePunctuation": true,
+     "GenerateStringKey": "password",
+     "PasswordLength": 32,
+     "RequireEachIncludedType": true,
+     "SecretStringTemplate": "{\"username\":\"mosaicadmin\"}"
+    },
+    "Name": "mosaic/prod/rds/credentials"
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/DatabaseSecret/Resource"
+   }
+  },
+  "DatabaseSecretAttachment9A63A3D4": {
+   "Type": "AWS::SecretsManager::SecretTargetAttachment",
+   "Properties": {
+    "SecretId": {
+     "Ref": "DatabaseSecret86DBB7B3"
+    },
+    "TargetId": {
+     "Ref": "DatabaseB269D8BB"
+    },
+    "TargetType": "AWS::RDS::DBInstance"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/DatabaseSecret/Attachment/Resource"
+   }
+  },
+  "DatabaseParameterGroupC9757D64": {
+   "Type": "AWS::RDS::DBParameterGroup",
+   "Properties": {
+    "Description": "Custom parameter group for Mosaic Life PostgreSQL",
+    "Family": "postgres16",
+    "Parameters": {
+     "max_connections": "100",
+     "shared_buffers": "{DBInstanceClassMemory/4096}",
+     "effective_cache_size": "{DBInstanceClassMemory*3/4096}",
+     "maintenance_work_mem": "{DBInstanceClassMemory/16384}",
+     "work_mem": "{DBInstanceClassMemory/25600}",
+     "wal_buffers": "2048",
+     "checkpoint_completion_target": "0.9",
+     "random_page_cost": "1.1",
+     "effective_io_concurrency": "200",
+     "log_min_duration_statement": "1000",
+     "log_connections": "1",
+     "log_disconnections": "1",
+     "log_lock_waits": "1",
+     "idle_in_transaction_session_timeout": "300000",
+     "statement_timeout": "30000"
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/DatabaseParameterGroup/Resource"
+   }
+  },
+  "DatabaseMonitoringRole576991DA": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "monitoring.rds.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AmazonRDSEnhancedMonitoringRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/Database/MonitoringRole/Resource"
+   }
+  },
+  "DatabaseB269D8BB": {
+   "Type": "AWS::RDS::DBInstance",
+   "Properties": {
+    "AllocatedStorage": "20",
+    "AutoMinorVersionUpgrade": true,
+    "BackupRetentionPeriod": 7,
+    "CopyTagsToSnapshot": true,
+    "DBInstanceClass": "db.t3.micro",
+    "DBInstanceIdentifier": "mosaic-prod-db",
+    "DBName": "mosaic",
+    "DBParameterGroupName": {
+     "Ref": "DatabaseParameterGroupC9757D64"
+    },
+    "DBSubnetGroupName": {
+     "Ref": "DatabaseSubnetGroup"
+    },
+    "DeletionProtection": true,
+    "EnableCloudwatchLogsExports": [
+     "postgresql",
+     "upgrade"
+    ],
+    "EnablePerformanceInsights": false,
+    "Engine": "postgres",
+    "EngineVersion": "16",
+    "MasterUserPassword": {
+     "Fn::Join": [
+      "",
+      [
+       "{{resolve:secretsmanager:",
+       {
+        "Ref": "DatabaseSecret86DBB7B3"
+       },
+       ":SecretString:password::}}"
+      ]
+     ]
+    },
+    "MasterUsername": {
+     "Fn::Join": [
+      "",
+      [
+       "{{resolve:secretsmanager:",
+       {
+        "Ref": "DatabaseSecret86DBB7B3"
+       },
+       ":SecretString:username::}}"
+      ]
+     ]
+    },
+    "MaxAllocatedStorage": 100,
+    "MonitoringInterval": 60,
+    "MonitoringRoleArn": {
+     "Fn::GetAtt": [
+      "DatabaseMonitoringRole576991DA",
+      "Arn"
+     ]
+    },
+    "MultiAZ": false,
+    "Port": "5432",
+    "PreferredBackupWindow": "03:00-04:00",
+    "PreferredMaintenanceWindow": "sun:04:00-sun:05:00",
+    "PubliclyAccessible": false,
+    "StorageEncrypted": true,
+    "StorageType": "gp3",
+    "VPCSecurityGroups": [
+     {
+      "Fn::GetAtt": [
+       "DatabaseSecurityGroup7319C0F6",
+       "GroupId"
+      ]
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Snapshot",
+   "DeletionPolicy": "Snapshot",
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/Database/Resource"
+   }
+  },
+  "DatabaseLogRetentionpostgresqlFBE8A947": {
+   "Type": "Custom::LogRetention",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A",
+      "Arn"
+     ]
+    },
+    "LogGroupName": {
+     "Fn::Join": [
+      "",
+      [
+       "/aws/rds/instance/",
+       {
+        "Ref": "DatabaseB269D8BB"
+       },
+       "/postgresql"
+      ]
+     ]
+    },
+    "RetentionInDays": 7
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/Database/LogRetentionpostgresql/Resource"
+   }
+  },
+  "DatabaseLogRetentionupgrade5EE08DCB": {
+   "Type": "Custom::LogRetention",
+   "Properties": {
+    "ServiceToken": {
+     "Fn::GetAtt": [
+      "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A",
+      "Arn"
+     ]
+    },
+    "LogGroupName": {
+     "Fn::Join": [
+      "",
+      [
+       "/aws/rds/instance/",
+       {
+        "Ref": "DatabaseB269D8BB"
+       },
+       "/upgrade"
+      ]
+     ]
+    },
+    "RetentionInDays": 7
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/Database/LogRetentionupgrade/Resource"
+   }
+  },
+  "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/Resource"
+   }
+  },
+  "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "logs:DeleteRetentionPolicy",
+        "logs:PutRetentionPolicy"
+       ],
+       "Effect": "Allow",
+       "Resource": "*"
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB",
+    "Roles": [
+     {
+      "Ref": "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource"
+   }
+  },
+  "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aFD4BFC8A": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Handler": "index.handler",
+    "Runtime": "nodejs22.x",
+    "Timeout": 900,
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-033691785857-us-east-1",
+     "S3Key": "2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d.zip"
+    },
+    "Role": {
+     "Fn::GetAtt": [
+      "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB",
+      "Arn"
+     ]
+    }
+   },
+   "DependsOn": [
+    "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRoleDefaultPolicyADDA7DEB",
+    "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8aServiceRole9741ECFB"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Resource",
+    "aws:asset:path": "asset.2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "CoreApiSecretsAccessRoleA08814AC": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRoleWithWebIdentity",
+       "Condition": {
+        "StringEquals": {
+         "oidc.eks.us-east-1.amazonaws.com/id/CLUSTER_OIDC_ID:sub": "system:serviceaccount:mosaic-prod:core-api",
+         "oidc.eks.us-east-1.amazonaws.com/id/CLUSTER_OIDC_ID:aud": "sts.amazonaws.com"
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Federated": "arn:aws:iam::033691785857:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/CLUSTER_OIDC_ID"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Description": "IAM role for core-api to access database secrets via IRSA",
+    "RoleName": "mosaic-prod-core-api-secrets-role"
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/CoreApiSecretsAccessRole/Resource"
+   }
+  },
+  "CoreApiSecretsAccessRoleDefaultPolicy634CAD7A": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Ref": "DatabaseSecret86DBB7B3"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "CoreApiSecretsAccessRoleDefaultPolicy634CAD7A",
+    "Roles": [
+     {
+      "Ref": "CoreApiSecretsAccessRoleA08814AC"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/CoreApiSecretsAccessRole/DefaultPolicy/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/12OQWuDQBCFf0vu61TNqcfYQAkUGrT3MK5Tu1F3w85sQ5D970Vtg83pvXnvg3k55NkzpBu8cqKbLulNDWMlqDuFVz6NpHMYK9LBG7m9ehcu6uXT/gui8g3DWIXaktyRfbEOjuhxICG/6h+yPQrWyHSwLGg1LdDfFRWT9iQ8oMWW/DzKk/yumdwiH+hbkp0I6q+B7Ap4bKIyOMBYun7+NevR9UbfpnNxUfWuZXhzbUlCVoyzircnZCZh2E2ieAtF0B1JgUxRlcQu+GX/3c9kJdga207Fe5BLkKisawjO/PSdp5BlkG7ObEzigxUzEJSL/gCk0J63pAEAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "MosaicDatabaseStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "DatabaseEndpoint": {
+   "Description": "RDS PostgreSQL endpoint address",
+   "Value": {
+    "Fn::GetAtt": [
+     "DatabaseB269D8BB",
+     "Endpoint.Address"
+    ]
+   },
+   "Export": {
+    "Name": "mosaic-prod-db-endpoint"
+   }
+  },
+  "DatabasePort": {
+   "Description": "RDS PostgreSQL port",
+   "Value": {
+    "Fn::GetAtt": [
+     "DatabaseB269D8BB",
+     "Endpoint.Port"
+    ]
+   },
+   "Export": {
+    "Name": "mosaic-prod-db-port"
+   }
+  },
+  "DatabaseName": {
+   "Description": "Database name",
+   "Value": "mosaic",
+   "Export": {
+    "Name": "mosaic-prod-db-name"
+   }
+  },
+  "DatabaseSecretArn": {
+   "Description": "ARN of the database credentials secret (username/password)",
+   "Value": {
+    "Ref": "DatabaseSecret86DBB7B3"
+   },
+   "Export": {
+    "Name": "mosaic-prod-db-secret-arn"
+   }
+  },
+  "DatabaseSecurityGroupId": {
+   "Description": "Security group ID for database access",
+   "Value": {
+    "Fn::GetAtt": [
+     "DatabaseSecurityGroup7319C0F6",
+     "GroupId"
+    ]
+   },
+   "Export": {
+    "Name": "mosaic-prod-db-sg-id"
+   }
+  },
+  "CoreApiSecretsRoleArn": {
+   "Description": "IAM role ARN for core-api to access database secrets",
+   "Value": {
+    "Fn::GetAtt": [
+     "CoreApiSecretsAccessRoleA08814AC",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "mosaic-prod-core-api-secrets-role-arn"
+   }
+  },
+  "EstimatedMonthlyCost": {
+   "Description": "Estimated monthly cost for this database configuration",
+   "Value": "db.t3.micro: ~$13-15/month + storage: ~$2-4/month = ~$15-19/month total"
+  },
+  "UpgradePath": {
+   "Description": "How to scale up for production workloads",
+   "Value": "To upgrade: Change instanceType to T3_SMALL (~$30/mo) or T3_MEDIUM (~$60/mo), set multiAz=true (+100% cost)"
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

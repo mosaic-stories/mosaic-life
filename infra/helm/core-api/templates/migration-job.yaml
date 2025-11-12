@@ -1,0 +1,100 @@
+{{- if .Values.migrations.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "core-api.fullname" . }}-migration-{{ .Release.Revision }}
+  labels:
+    {{- include "core-api.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    # Run before install and upgrade
+    helm.sh/hook: pre-install,pre-upgrade
+    # Hook weight (run after secrets are created)
+    helm.sh/hook-weight: "5"
+    # Delete job after successful completion
+    helm.sh/hook-delete-policy: before-hook-creation
+  namespace: {{ .Release.Namespace }}
+spec:
+  # Only keep successful jobs for 1 hour
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "core-api.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      serviceAccountName: {{ include "core-api.serviceAccountName" . }}
+      restartPolicy: Never
+      
+      # Wait for database secret to be available
+      initContainers:
+        - name: wait-for-secret
+          image: bitnami/kubectl:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for database secret to be created..."
+              until kubectl get secret {{ include "core-api.fullname" . }}-db-secret -n {{ .Release.Namespace }} 2>/dev/null; do
+                echo "Secret not yet available, waiting..."
+                sleep 5
+              done
+              echo "Database secret is available!"
+      
+      containers:
+        - name: alembic-migrate
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          
+          # Run Alembic migration
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Starting database migration..."
+              echo "Alembic version:"
+              alembic --version
+              
+              echo "Current migration status:"
+              alembic current || echo "No migrations yet"
+              
+              echo "Running migrations..."
+              alembic upgrade head
+              
+              echo "Migration completed successfully!"
+              echo "Current migration status:"
+              alembic current
+          
+          env:
+            {{- range $k, $v := .Values.env }}
+            - name: {{ $k }}
+              value: "{{ $v }}"
+            {{- end }}
+            
+            {{- if .Values.externalSecrets.enabled }}
+            # Database URL from External Secrets
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "core-api.fullname" . }}-db-secret
+                  key: DB_URL
+            {{- else }}
+            # Fallback to static secret
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "core-api.fullname" . }}-secrets
+                  key: DB_URL
+            {{- end }}
+          
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+{{- end }}

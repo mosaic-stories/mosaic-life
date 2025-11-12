@@ -113,8 +113,8 @@
      "family_name": "family_name"
     },
     "ProviderDetails": {
-     "client_id": "86995776201-js969aenuqmo4lv57g4m6s61if806qvn.apps.googleusercontent.com",
-     "client_secret": "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",
+     "client_id": "REPLACE_WITH_GOOGLE_CLIENT_ID",
+     "client_secret": "REPLACE_WITH_GOOGLE_CLIENT_SECRET",
      "authorize_scopes": "profile email openid"
     },
     "ProviderName": "Google",
@@ -133,8 +133,8 @@
      "given_name": "name"
     },
     "ProviderDetails": {
-     "client_id": "Ov23liHAcqMT1YODD2y4",
-     "client_secret": "d75eeb7ad4d681da88001009e7ca3be28a2d5f1a",
+     "client_id": "REPLACE_WITH_GITHUB_CLIENT_ID",
+     "client_secret": "REPLACE_WITH_GITHUB_CLIENT_SECRET",
      "authorize_scopes": "openid email profile",
      "attributes_request_method": "GET",
      "oidc_issuer": "https://token.actions.githubusercontent.com"

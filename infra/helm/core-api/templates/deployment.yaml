@@ -6,7 +6,7 @@ metadata:
     app.kubernetes.io/name: {{ include "core-api.name" . }}
     app.kubernetes.io/instance: {{ .Release.Name }}
 spec:
-  replicas: 1
+  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "core-api.name" . }}
@@ -17,6 +17,7 @@ spec:
         app.kubernetes.io/name: {{ include "core-api.name" . }}
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
+      serviceAccountName: {{ include "core-api.serviceAccountName" . }}
       containers:
         - name: core-api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -30,11 +31,21 @@ spec:
             - name: {{ $k }}
               value: "{{ $v }}"
             {{- end }}
+            {{- if .Values.externalSecrets.enabled }}
+            # Database URL from External Secrets
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "core-api.fullname" . }}-db-secret
+                  key: DB_URL
+            {{- else }}
+            # Fallback to static secret (for development)
             - name: DB_URL
               valueFrom:
                 secretKeyRef:
                   name: {{ include "core-api.fullname" . }}-secrets
                   key: DB_URL
+            {{- end }}
             - name: OIDC_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:

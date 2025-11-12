@@ -80,6 +80,161 @@ dns-diff:
     cd infra/cdk && npm run build && npx cdk diff MosaicDnsCertificateStack
 
 # ============================================================
+# Database (RDS PostgreSQL)
+# ============================================================
+
+# Deploy RDS Database Stack via CDK
+db-deploy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Deploying RDS PostgreSQL database..."
+    echo "Configuration: db.t3.micro, PostgreSQL 16, Single-AZ"
+    echo "Estimated cost: ~$15-19/month"
+    cd infra/cdk
+    npm install
+    npm run build
+    npx cdk deploy MosaicDatabaseStack --require-approval never
+    echo ""
+    echo "✓ Database deployed successfully!"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Update IRSA role annotation in Helm values"
+    echo "  2. Deploy application: just gitops-deploy prod"
+    echo "  3. Check database connection: just db-info"
+
+# Show database connection information
+db-info:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "═══════════════════════════════════════════════════════════"
+    echo "RDS PostgreSQL Connection Information"
+    echo "═══════════════════════════════════════════════════════════"
+    
+    # Get outputs from CloudFormation
+    DB_ENDPOINT=$(aws cloudformation describe-stacks \
+      --stack-name MosaicDatabaseStack \
+      --query 'Stacks[0].Outputs[?OutputKey==`DatabaseEndpoint`].OutputValue' \
+      --output text 2>/dev/null || echo "Not deployed")
+    
+    DB_PORT=$(aws cloudformation describe-stacks \
+      --stack-name MosaicDatabaseStack \
+      --query 'Stacks[0].Outputs[?OutputKey==`DatabasePort`].OutputValue' \
+      --output text 2>/dev/null || echo "5432")
+    
+    DB_NAME=$(aws cloudformation describe-stacks \
+      --stack-name MosaicDatabaseStack \
+      --query 'Stacks[0].Outputs[?OutputKey==`DatabaseName`].OutputValue' \
+      --output text 2>/dev/null || echo "mosaic")
+    
+    SECRET_ARN=$(aws cloudformation describe-stacks \
+      --stack-name MosaicDatabaseStack \
+      --query 'Stacks[0].Outputs[?OutputKey==`DatabaseConnectionSecretArn`].OutputValue' \
+      --output text 2>/dev/null || echo "Not available")
+    
+    IRSA_ROLE_ARN=$(aws cloudformation describe-stacks \
+      --stack-name MosaicDatabaseStack \
+      --query 'Stacks[0].Outputs[?OutputKey==`CoreApiSecretsRoleArn`].OutputValue' \
+      --output text 2>/dev/null || echo "Not available")
+    
+    echo "Endpoint:    $DB_ENDPOINT"
+    echo "Port:        $DB_PORT"
+    echo "Database:    $DB_NAME"
+    echo ""
+    echo "Secret ARN:  $SECRET_ARN"
+    echo "IRSA Role:   $IRSA_ROLE_ARN"
+    echo ""
+    echo "═══════════════════════════════════════════════════════════"
+    echo "To get database credentials:"
+    echo "  just db-get-credentials"
+    echo ""
+    echo "To connect from a pod:"
+    echo "  kubectl run -it --rm psql --image=postgres:16 --restart=Never -- \\"
+    echo "    psql postgresql://USER:PASS@$DB_ENDPOINT:$DB_PORT/$DB_NAME"
+    echo "═══════════════════════════════════════════════════════════"
+
+# Get database credentials from Secrets Manager
+db-get-credentials:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Fetching database credentials from AWS Secrets Manager..."
+    
+    SECRET_ARN=$(aws cloudformation describe-stacks \
+      --stack-name MosaicDatabaseStack \
+      --query 'Stacks[0].Outputs[?OutputKey==`DatabaseConnectionSecretArn`].OutputValue' \
+      --output text 2>/dev/null)
+    
+    if [ -z "$SECRET_ARN" ] || [ "$SECRET_ARN" = "None" ]; then
+      echo "Error: Database not deployed or secret not found"
+      echo "Run: just db-deploy"
+      exit 1
+    fi
+    
+    aws secretsmanager get-secret-value --secret-id "$SECRET_ARN" --query SecretString --output text | jq .
+
+# Show CDK diff for database stack
+db-diff:
+    cd infra/cdk && npm run build && npx cdk diff MosaicDatabaseStack
+
+# Run database migrations manually
+db-migrate:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    POD=$(kubectl get pods -n {{NAMESPACE}} -l app.kubernetes.io/name=core-api -o jsonpath='{.items[0].metadata.name}')
+    if [ -z "$POD" ]; then
+      echo "Error: No core-api pods found in namespace {{NAMESPACE}}"
+      exit 1
+    fi
+    echo "Running migrations in pod: $POD"
+    kubectl exec -n {{NAMESPACE}} "$POD" -- alembic upgrade head
+
+# Connect to database via psql (requires kubectl run)
+db-shell:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Getting database credentials..."
+    
+    # Get credentials secret ARN
+    SECRET_ARN=$(aws cloudformation describe-stacks \
+      --stack-name MosaicDatabaseStack \
+      --query 'Stacks[0].Outputs[?OutputKey==`DatabaseSecretArn`].OutputValue' \
+      --output text 2>/dev/null)
+    
+    # Get database endpoint
+    DB_ENDPOINT=$(aws cloudformation describe-stacks \
+      --stack-name MosaicDatabaseStack \
+      --query 'Stacks[0].Outputs[?OutputKey==`DatabaseEndpoint`].OutputValue' \
+      --output text 2>/dev/null)
+    
+    if [ -z "$SECRET_ARN" ] || [ "$SECRET_ARN" = "None" ] || [ -z "$DB_ENDPOINT" ]; then
+      echo "Error: Database not deployed"
+      exit 1
+    fi
+    
+    SECRET=$(aws secretsmanager get-secret-value --secret-id "$SECRET_ARN" --query SecretString --output text)
+    DB_USER=$(echo "$SECRET" | jq -r .username)
+    DB_PASS=$(echo "$SECRET" | jq -r .password)
+    
+    echo "Connecting to database..."
+    kubectl run -it --rm psql-$(date +%s) --image=postgres:16 --restart=Never --namespace={{NAMESPACE}} -- \
+      psql "postgresql://$DB_USER:$DB_PASS@$DB_ENDPOINT:5432/mosaic"
+
+# Destroy database stack (with confirmation)
+db-destroy:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "⚠️  WARNING: This will destroy the RDS database and all data!"
+    echo "This action cannot be undone."
+    echo ""
+    read -p "Type 'DELETE DATABASE' to confirm: " confirm
+    if [ "$confirm" = "DELETE DATABASE" ]; then
+      cd infra/cdk
+      npx cdk destroy MosaicDatabaseStack
+      echo "✓ Database stack destroyed"
+    else
+      echo "Aborted"
+    fi
+
+# ============================================================
 # Docker Image Build
 # ============================================================
 

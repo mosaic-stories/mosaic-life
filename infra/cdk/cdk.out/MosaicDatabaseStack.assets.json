@@ -1,0 +1,36 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d": {
+      "displayName": "LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/Code",
+      "source": {
+        "path": "asset.2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "033691785857-us-east-1-3228e146": {
+          "bucketName": "cdk-hnb659fds-assets-033691785857-us-east-1",
+          "objectKey": "2819175352ad1ce0dae768e83fc328fb70fb5f10b4a8ff0ccbcb791f02b0716d.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-file-publishing-role-033691785857-us-east-1"
+        }
+      }
+    },
+    "a3840ed57fe8b7f5a0b4666bd353dc0902338f13fce662064b55b84d9b41295e": {
+      "displayName": "MosaicDatabaseStack Template",
+      "source": {
+        "path": "MosaicDatabaseStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "033691785857-us-east-1-10cd26d5": {
+          "bucketName": "cdk-hnb659fds-assets-033691785857-us-east-1",
+          "objectKey": "a3840ed57fe8b7f5a0b4666bd353dc0902338f13fce662064b55b84d9b41295e.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-file-publishing-role-033691785857-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}
