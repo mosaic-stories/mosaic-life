@@ -128,7 +128,7 @@ db-info:
     
     SECRET_ARN=$(aws cloudformation describe-stacks \
       --stack-name MosaicDatabaseStack \
-      --query 'Stacks[0].Outputs[?OutputKey==`DatabaseConnectionSecretArn`].OutputValue' \
+      --query 'Stacks[0].Outputs[?OutputKey==`DatabaseSecretArn`].OutputValue' \
       --output text 2>/dev/null || echo "Not available")
     
     IRSA_ROLE_ARN=$(aws cloudformation describe-stacks \
@@ -160,7 +160,7 @@ db-get-credentials:
     
     SECRET_ARN=$(aws cloudformation describe-stacks \
       --stack-name MosaicDatabaseStack \
-      --query 'Stacks[0].Outputs[?OutputKey==`DatabaseConnectionSecretArn`].OutputValue' \
+      --query 'Stacks[0].Outputs[?OutputKey==`DatabaseSecretArn`].OutputValue' \
       --output text 2>/dev/null)
     
     if [ -z "$SECRET_ARN" ] || [ "$SECRET_ARN" = "None" ]; then

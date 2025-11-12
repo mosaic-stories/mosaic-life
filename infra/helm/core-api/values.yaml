@@ -15,7 +15,7 @@ serviceAccount:
   automount: true
   # Annotations for IRSA (will be set during deployment)
   annotations: {}
-    # eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/mosaic-prod-core-api-secrets-role
+    eks.amazonaws.com/role-arn: arn:aws:iam::033691785857:role/mosaic-prod-core-api-secrets-role
   name: ""
 
 # External Secrets configuration
@@ -45,6 +45,7 @@ env:
   OPENSEARCH_URL: "http://opensearch:9200"
   SNS_TOPIC_ARN_EVENTS: ""
   SQS_QUEUE_URL_EVENTS: ""
+  DATABASE_SECRET_ARN: "arn:aws:secretsmanager:us-east-1:033691785857:secret:mosaic/prod/rds/credentials-Oy5AjN"
 
 secrets:
   OIDC_CLIENT_SECRET: "" # sourced via External Secrets in real envs
