@@ -188,10 +188,12 @@ coreApi:
       value: "mosaic-prod-media-033691785857"
     - name: S3_BACKUP_BUCKET
       value: "mosaic-prod-backups-033691785857"
+    - name: DATABASE_SECRET_ARN
+      value: "arn:aws:secretsmanager:us-east-1:033691785857:secret:mosaic/prod/rds/credentials-Oy5AjN1"
     
     # TODO: Replace with actual database URL from secrets
-    - name: DATABASE_URL
-      value: "postgresql://user:pass@localhost:5432/mosaiclife"
+    # - name: DATABASE_URL
+    #   value: "postgresql://user:pass@localhost:5432/mosaiclife"
     
     # Legacy Cognito (commented out - using Google OAuth instead)
     # - name: COGNITO_USER_POOL_ID

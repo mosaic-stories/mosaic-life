@@ -876,29 +876,24 @@ gitops-update-tag environment="prod" tag="":
     
     # Update the image tag
     echo "Updating image tag in environments/{{environment}}/values.yaml..."
-    yq eval ".global.imageTag = \"$TAG\"" -i "environments/{{environment}}/values.yaml"
+    # Using jq filter syntax with -y flag for YAML output (compatible with Python-based yq)
+    yq -yi ".global.imageTag = \"$TAG\"" "environments/{{environment}}/values.yaml"
     
     echo ""
     echo "Updated values:"
     cat "environments/{{environment}}/values.yaml"
     echo ""
     
-    # Commit and push
-    read -p "Commit and push changes? (y/n): " confirm
-    if [ "$confirm" = "y" ]; then
-      git add "environments/{{environment}}/values.yaml"
-      git commit -m "deploy({{environment}}): manual update to image tag $TAG"
-      git push origin main
-      echo ""
-      echo "✅ GitOps repository updated"
-      echo "🚀 ArgoCD will automatically sync the {{environment}} environment"
-      echo ""
-      echo "Monitor deployment:"
-      echo "  just argocd-watch mosaic-life-{{environment}}"
-    else
-      git checkout "environments/{{environment}}/values.yaml"
-      echo "Aborted - changes reverted"
-    fi
+    # Commit and push (non-interactive)
+    git add "environments/{{environment}}/values.yaml"
+    git commit -m "deploy({{environment}}): manual update to image tag $TAG"
+    git push origin main
+    echo ""
+    echo "✅ GitOps repository updated"
+    echo "🚀 ArgoCD will automatically sync the {{environment}} environment"
+    echo ""
+    echo "Monitor deployment:"
+    echo "  just argocd-watch mosaic-life-{{environment}}"
 
 # Deploy specific git SHA to environment via GitOps
 gitops-deploy-sha sha="" environment="prod": (gitops-update-tag environment sha)
