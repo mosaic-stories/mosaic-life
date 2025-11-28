@@ -18,72 +18,72 @@ interface SearchBarProps {
   compact?: boolean;
 }
 
+// Mock search data
+const allSearchData: SearchResult[] = [
+  {
+    id: '1',
+    type: 'legacy',
+    title: 'Sarah Chen',
+    subtitle: 'Teacher, mentor, and friend',
+    badge: 'In Memoriam',
+    badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
+    image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop'
+  },
+  {
+    id: '2',
+    type: 'legacy',
+    title: 'Robert "Bob" Anderson',
+    subtitle: '35 years of service',
+    badge: 'Retirement',
+    badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
+    image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop'
+  },
+  {
+    id: '3',
+    type: 'legacy',
+    title: 'James Martinez',
+    subtitle: 'Computer Science graduate',
+    badge: 'Graduation',
+    badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop'
+  },
+  {
+    id: '4',
+    type: 'legacy',
+    title: 'Margaret "Maggie" Thompson',
+    subtitle: 'Community leader and advocate',
+    badge: 'Living Tribute',
+    badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
+    image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop'
+  },
+  {
+    id: 'veterans',
+    type: 'community',
+    title: 'Remembering Our Veterans',
+    subtitle: '342 members • Public',
+    badge: 'Community'
+  },
+  {
+    id: 'grief',
+    type: 'community',
+    title: 'Grief Support Circle',
+    subtitle: '127 members • Private',
+    badge: 'Community'
+  },
+  {
+    id: 'family',
+    type: 'community',
+    title: 'Preserving Family History',
+    subtitle: '423 members • Public',
+    badge: 'Community'
+  }
+];
+
 export default function SearchBar({ onSelectResult, compact }: SearchBarProps) {
   const [query, setQuery] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
-
-  // Mock search data
-  const allSearchData: SearchResult[] = [
-    {
-      id: '1',
-      type: 'legacy',
-      title: 'Sarah Chen',
-      subtitle: 'Teacher, mentor, and friend',
-      badge: 'In Memoriam',
-      badgeColor: 'bg-amber-100 text-amber-800 border-amber-200',
-      image: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=200&h=200&fit=crop'
-    },
-    {
-      id: '2',
-      type: 'legacy',
-      title: 'Robert "Bob" Anderson',
-      subtitle: '35 years of service',
-      badge: 'Retirement',
-      badgeColor: 'bg-blue-100 text-blue-800 border-blue-200',
-      image: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&h=200&fit=crop'
-    },
-    {
-      id: '3',
-      type: 'legacy',
-      title: 'James Martinez',
-      subtitle: 'Computer Science graduate',
-      badge: 'Graduation',
-      badgeColor: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-      image: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&h=200&fit=crop'
-    },
-    {
-      id: '4',
-      type: 'legacy',
-      title: 'Margaret "Maggie" Thompson',
-      subtitle: 'Community leader and advocate',
-      badge: 'Living Tribute',
-      badgeColor: 'bg-purple-100 text-purple-800 border-purple-200',
-      image: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=200&h=200&fit=crop'
-    },
-    {
-      id: 'veterans',
-      type: 'community',
-      title: 'Remembering Our Veterans',
-      subtitle: '342 members • Public',
-      badge: 'Community'
-    },
-    {
-      id: 'grief',
-      type: 'community',
-      title: 'Grief Support Circle',
-      subtitle: '127 members • Private',
-      badge: 'Community'
-    },
-    {
-      id: 'family',
-      type: 'community',
-      title: 'Preserving Family History',
-      subtitle: '423 members • Public',
-      badge: 'Community'
-    }
-  ];
 
   // Handle search
   useEffect(() => {

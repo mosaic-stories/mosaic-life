@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookHeart, Calendar, Loader2 } from 'lucide-react';
+import { ArrowLeft, BookHeart, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
@@ -15,7 +15,7 @@ interface LegacyCreationProps {
   onThemeChange: (themeId: string) => void;
 }
 
-export default function LegacyCreation({ onNavigate, currentTheme, onThemeChange }: LegacyCreationProps) {
+export default function LegacyCreation({ onNavigate: _onNavigate, currentTheme, onThemeChange }: LegacyCreationProps) {
   const navigate = useNavigate();
   const createLegacy = useCreateLegacy();
 

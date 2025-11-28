@@ -32,7 +32,7 @@ function DemoBadge() {
   );
 }
 
-export default function StoryCreation({ onNavigate, legacyId, storyId, currentTheme, onThemeChange }: StoryCreationProps) {
+export default function StoryCreation({ onNavigate: _onNavigate, legacyId, storyId, currentTheme, onThemeChange }: StoryCreationProps) {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -41,11 +41,11 @@ export default function StoryCreation({ onNavigate, legacyId, storyId, currentTh
   const [currentPrompt, setCurrentPrompt] = useState<AIPrompt | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const { data: legacy, isLoading: legacyLoading } = useLegacy(legacyId);
+  const { data: legacy, isLoading: _legacyLoading } = useLegacy(legacyId);
   const { data: existingStory, isLoading: storyLoading } = useStory(storyId);
   const createStory = useCreateStory();
   const updateStory = useUpdateStory();
-  const theme = getThemeClasses(currentTheme);
+  const _theme = getThemeClasses(currentTheme);
 
   const isEditMode = !!storyId;
 

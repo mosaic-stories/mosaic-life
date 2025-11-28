@@ -18,7 +18,7 @@ interface StoryCreationMinimalProps {
 
 export default function StoryCreationMinimal({
   onNavigate,
-  legacyId,
+  legacyId: _legacyId,
   currentTheme,
   onThemeChange,
   user,

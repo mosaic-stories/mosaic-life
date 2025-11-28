@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Heart, Image, Lock, Loader2, MessageSquare, MoreVertical, Pencil, Plus, Share2, Sparkles, Trash2, Users, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Heart, Lock, Loader2, MessageSquare, MoreVertical, Pencil, Plus, Share2, Sparkles, Trash2, Users, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
@@ -26,7 +26,7 @@ import ThemeSelector from './ThemeSelector';
 import { useLegacy, useLegacyPublic, useDeleteLegacy } from '@/lib/hooks/useLegacies';
 import { useStories, usePublicStories } from '@/lib/hooks/useStories';
 import { formatLegacyDates } from '@/lib/api/legacies';
-import type { StorySummary, StoryDetail } from '@/lib/api/stories';
+import type { StorySummary } from '@/lib/api/stories';
 
 interface LegacyProfileProps {
   legacyId: string;
@@ -115,10 +115,10 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
   const storiesLoading = user ? authStories.isLoading : publicStories.isLoading;
   const storiesError = user ? authStories.error : publicStories.error;
 
-  const theme = getThemeClasses(currentTheme);
+  const _theme = getThemeClasses(currentTheme);
 
   // Check if current user is the creator of the legacy
-  const isCreator = user && legacy?.created_by === legacy?.members?.find(m => m.email === user.email)?.user_id;
+  const _isCreator = user && legacy?.created_by === legacy?.members?.find(m => m.email === user.email)?.user_id;
 
   const handleAddStory = () => {
     navigate(`/legacy/${legacyId}/story/new`);

@@ -126,7 +126,7 @@ export default function Footer({ onNavigate }: FooterProps) {
 
         {/* Bottom bar */}
         <div className="pt-8 border-t border-neutral-200 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-neutral-500">
-          <p>© 2024 Mosaic Life. All rights reserved.</p>
+          <p>© 2025 Mosaic Life. All rights reserved.</p>
           <p className="text-neutral-400">mosaiclife.me</p>
         </div>
       </div>

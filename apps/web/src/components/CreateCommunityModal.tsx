@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Globe, Lock, Users, Info } from 'lucide-react';
+import { Globe, Lock, Users, Info } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
@@ -19,7 +19,7 @@ interface CreateCommunityModalProps {
   onNavigate: (view: string) => void;
 }
 
-export default function CreateCommunityModal({ isOpen, onClose, onNavigate }: CreateCommunityModalProps) {
+export default function CreateCommunityModal({ isOpen, onClose, onNavigate: _onNavigate }: CreateCommunityModalProps) {
   const [communityName, setCommunityName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');

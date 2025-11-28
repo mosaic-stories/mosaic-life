@@ -65,7 +65,7 @@ async def metrics_middleware(
             request.method, request.url.path, str(response.status_code)
         ).inc()
     except Exception:
-        pass
+        logger.warning("Failed to update metrics", exc_info=True)
     return response
 
 

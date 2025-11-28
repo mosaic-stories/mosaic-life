@@ -1,4 +1,4 @@
-import { ArrowLeft, Edit, Share2, Plus, Image as ImageIcon, MessageSquare, Sparkles, Users, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Share2, Plus, MessageSquare, Sparkles, Users, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Card } from './ui/card';

@@ -76,7 +76,7 @@ export default function AIAgentChat({ onNavigate, legacyId, currentTheme, onThem
     }, 1000);
   };
 
-  const getAgentResponse = (agentId: string, userMessage: string) => {
+  const getAgentResponse = (agentId: string, _userMessage: string) => {
     const responses: { [key: string]: string } = {
       'biographer': "That's a wonderful detail. I notice this story connects to the theme of 'nurturing' that appears in several other memories. Would you like me to create a thematic collection around this?",
       'reporter': "Can you tell me more about that specific moment? What time of day was it? What did the room look like? What sounds do you remember?",

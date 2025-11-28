@@ -83,7 +83,7 @@ export default function RootLayout() {
     setIsAuthModalOpen(true);
   }, []);
 
-  const handleAuthenticate = useCallback((provider: string) => {
+  const handleAuthenticate = useCallback((_provider: string) => {
     // Trigger the OAuth flow
     login();
     setIsAuthModalOpen(false);

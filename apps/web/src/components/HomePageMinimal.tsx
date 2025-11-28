@@ -1,8 +1,7 @@
-import { BookHeart, Home, Info, Users, ArrowRight, ImageIcon, Sparkles } from 'lucide-react';
+import { BookHeart, Users, ArrowRight, ImageIcon, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
-import Footer from './Footer';
 import DogearToggle from './DogearToggle';
 
 interface HomePageMinimalProps {
@@ -17,7 +16,7 @@ interface HomePageMinimalProps {
 
 export default function HomePageMinimal({ 
   onNavigate, 
-  onSelectLegacy, 
+  onSelectLegacy: _onSelectLegacy, 
   currentTheme, 
   onThemeChange,
   user,

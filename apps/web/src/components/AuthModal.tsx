@@ -8,7 +8,7 @@ interface AuthModalProps {
   onAuthenticate: (provider: string) => void;
 }
 
-export default function AuthModal({ isOpen, onClose, onAuthenticate }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, onAuthenticate: _onAuthenticate }: AuthModalProps) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
 
   const handleGoogleLogin = () => {

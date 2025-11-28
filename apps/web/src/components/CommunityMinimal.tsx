@@ -18,7 +18,7 @@ interface CommunityMinimalProps {
 
 export default function CommunityMinimal({
   onNavigate,
-  onSelectLegacy,
+  onSelectLegacy: _onSelectLegacy,
   currentTheme,
   onThemeChange,
   user,

@@ -7,8 +7,6 @@ import {
   createStory,
   updateStory,
   deleteStory,
-  type StorySummary,
-  type StoryDetail,
   type CreateStoryInput,
   type UpdateStoryInput,
 } from '@/lib/api/stories';
@@ -72,7 +70,7 @@ export function useDeleteStory() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ storyId, legacyId }: { storyId: string; legacyId: string }) =>
+    mutationFn: ({ storyId, legacyId: _legacyId }: { storyId: string; legacyId: string }) =>
       deleteStory(storyId),
     onSuccess: (_, { storyId, legacyId }) => {
       queryClient.invalidateQueries({ queryKey: storyKeys.list(legacyId) });

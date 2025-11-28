@@ -8,7 +8,6 @@ import {
   updateLegacy,
   deleteLegacy,
   exploreLegacies,
-  type Legacy,
   type CreateLegacyInput,
   type UpdateLegacyInput,
 } from '@/lib/api/legacies';

@@ -1,4 +1,4 @@
-import { ArrowRight, BookHeart, Sparkles, Bell, Plus, Maximize2, Loader2, Users } from 'lucide-react';
+import { ArrowRight, BookHeart, Sparkles, Plus, Loader2, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
@@ -8,7 +8,7 @@ import Footer from './Footer';
 import SearchBar from './SearchBar';
 import DogearToggle from './DogearToggle';
 import { useLegacies, useExploreLegacies } from '@/lib/hooks/useLegacies';
-import { formatLegacyDates, getLegacyContext, type Legacy } from '@/lib/api/legacies';
+import { formatLegacyDates, getLegacyContext } from '@/lib/api/legacies';
 
 interface HomepageProps {
   onNavigate: (view: string) => void;

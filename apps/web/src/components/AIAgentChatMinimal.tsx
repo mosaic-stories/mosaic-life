@@ -1,4 +1,4 @@
-import { ArrowLeft, Send, Sparkles, BookHeart } from 'lucide-react';
+import { ArrowLeft, Send, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import ThemeSelector from './ThemeSelector';
@@ -22,7 +22,7 @@ interface Message {
 
 export default function AIAgentChatMinimal({
   onNavigate,
-  legacyId,
+  legacyId: _legacyId,
   currentTheme,
   onThemeChange,
   user,

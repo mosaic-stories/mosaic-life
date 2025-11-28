@@ -15,7 +15,7 @@ interface HowItWorksMinimalProps {
 
 export default function HowItWorksMinimal({ 
   onNavigate,
-  onSelectLegacy,
+  onSelectLegacy: _onSelectLegacy,
   currentTheme,
   onThemeChange,
   user,

@@ -15,7 +15,7 @@ interface AboutMinimalProps {
 
 export default function AboutMinimal({ 
   onNavigate,
-  onSelectLegacy,
+  onSelectLegacy: _onSelectLegacy,
   currentTheme,
   onThemeChange,
   user,
