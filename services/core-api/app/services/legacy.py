@@ -151,7 +151,7 @@ async def create_legacy(
         extra={
             "legacy_id": str(legacy.id),
             "user_id": str(user_id),
-            "name": legacy.name,
+            "legacy_name": legacy.name,
         },
     )
 
@@ -263,6 +263,141 @@ async def search_legacies_by_name(
         )
         for legacy in legacies
     ]
+
+
+async def explore_legacies(
+    db: AsyncSession,
+    limit: int = 20,
+) -> list[LegacyResponse]:
+    """Get legacies for public exploration (no auth required).
+
+    Returns recent legacies for the homepage "Explore Legacies" section.
+
+    Args:
+        db: Database session
+        limit: Maximum number of legacies to return
+
+    Returns:
+        List of legacies with creator info
+    """
+    result = await db.execute(
+        select(Legacy)
+        .options(
+            selectinload(Legacy.creator),
+            selectinload(Legacy.members).selectinload(LegacyMember.user),
+        )
+        .order_by(Legacy.created_at.desc())
+        .limit(limit)
+    )
+    legacies = result.scalars().all()
+
+    logger.info(
+        "legacy.explore",
+        extra={
+            "count": len(legacies),
+        },
+    )
+
+    return [
+        LegacyResponse(
+            id=legacy.id,
+            name=legacy.name,
+            birth_date=legacy.birth_date,
+            death_date=legacy.death_date,
+            biography=legacy.biography,
+            created_by=legacy.created_by,
+            created_at=legacy.created_at,
+            updated_at=legacy.updated_at,
+            creator_email=legacy.creator.email if legacy.creator else None,
+            creator_name=legacy.creator.name if legacy.creator else None,
+            members=[
+                LegacyMemberResponse(
+                    user_id=member.user_id,
+                    email=member.user.email if member.user else "",
+                    name=member.user.name if member.user else "",
+                    role=member.role,
+                    joined_at=member.joined_at,
+                )
+                for member in legacy.members
+                if member.role != "pending"
+            ] if legacy.members else [],
+        )
+        for legacy in legacies
+    ]
+
+
+async def get_legacy_public(
+    db: AsyncSession,
+    legacy_id: UUID,
+) -> LegacyResponse:
+    """Get legacy details for public viewing (no auth required).
+
+    Args:
+        db: Database session
+        legacy_id: Legacy ID
+
+    Returns:
+        Legacy details with members
+
+    Raises:
+        HTTPException: 404 if not found
+    """
+    # Load legacy with creator and members
+    result = await db.execute(
+        select(Legacy)
+        .options(
+            selectinload(Legacy.creator),
+            selectinload(Legacy.members).selectinload(LegacyMember.user),
+        )
+        .where(Legacy.id == legacy_id)
+    )
+    legacy = result.scalar_one_or_none()
+
+    if not legacy:
+        logger.warning(
+            "legacy.not_found.public",
+            extra={
+                "legacy_id": str(legacy_id),
+            },
+        )
+        raise HTTPException(
+            status_code=404,
+            detail="Legacy not found",
+        )
+
+    logger.info(
+        "legacy.detail.public",
+        extra={
+            "legacy_id": str(legacy_id),
+        },
+    )
+
+    # Build member responses
+    members = [
+        LegacyMemberResponse(
+            user_id=member.user_id,
+            email=member.user.email if member.user else "",
+            name=member.user.name if member.user else "",
+            role=member.role,
+            joined_at=member.joined_at,
+        )
+        for member in legacy.members
+        if member.role != "pending"
+    ]
+
+    return LegacyResponse(
+        id=legacy.id,
+        name=legacy.name,
+        birth_date=legacy.birth_date,
+        death_date=legacy.death_date,
+        biography=legacy.biography,
+        created_by=legacy.created_by,
+        created_at=legacy.created_at,
+        updated_at=legacy.updated_at,
+        creator_email=legacy.creator.email if legacy.creator else None,
+        creator_name=legacy.creator.name if legacy.creator else None,
+        members=members,
+    )
 
 
 async def get_legacy_detail(

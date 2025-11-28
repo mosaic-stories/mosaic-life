@@ -1,6 +1,7 @@
 """Service layer for story operations."""
 
 import logging
+import re
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -21,6 +22,54 @@ from ..schemas.story import (
 from .legacy import check_legacy_access
 
 logger = logging.getLogger(__name__)
+
+# Maximum length for content preview
+PREVIEW_MAX_LENGTH = 200
+
+
+def create_content_preview(content: str, max_length: int = PREVIEW_MAX_LENGTH) -> str:
+    """Create a truncated preview of story content.
+
+    Strips markdown formatting and truncates to max_length characters,
+    ending at a word boundary with an ellipsis if truncated.
+
+    Args:
+        content: Full story content (may contain markdown)
+        max_length: Maximum preview length
+
+    Returns:
+        Truncated plain text preview
+    """
+    # Remove markdown formatting
+    # Remove headers
+    text = re.sub(r"^#{1,6}\s+", "", content, flags=re.MULTILINE)
+    # Remove bold/italic
+    text = re.sub(r"\*{1,3}([^*]+)\*{1,3}", r"\1", text)
+    text = re.sub(r"_{1,3}([^_]+)_{1,3}", r"\1", text)
+    # Remove links but keep text
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    # Remove images
+    text = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", text)
+    # Remove code blocks
+    text = re.sub(r"```[^`]*```", "", text, flags=re.DOTALL)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    # Remove blockquotes
+    text = re.sub(r"^>\s+", "", text, flags=re.MULTILINE)
+    # Remove horizontal rules
+    text = re.sub(r"^[-*_]{3,}$", "", text, flags=re.MULTILINE)
+    # Collapse multiple newlines/whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+
+    if len(text) <= max_length:
+        return text
+
+    # Truncate at word boundary
+    truncated = text[:max_length]
+    last_space = truncated.rfind(" ")
+    if last_space > max_length * 0.7:  # Only use word boundary if reasonably close
+        truncated = truncated[:last_space]
+
+    return truncated.rstrip(".,;:!?") + "..."
 
 
 async def create_story(
@@ -152,6 +201,55 @@ async def list_legacy_stories(
             id=story.id,
             legacy_id=story.legacy_id,
             title=story.title,
+            content_preview=create_content_preview(story.content),
+            author_id=story.author_id,
+            author_name=story.author.name,
+            visibility=story.visibility,
+            created_at=story.created_at,
+            updated_at=story.updated_at,
+        )
+        for story in stories
+    ]
+
+
+async def list_public_stories(
+    db: AsyncSession,
+    legacy_id: UUID,
+) -> list[StorySummary]:
+    """List public stories for a legacy (no auth required).
+
+    Args:
+        db: Database session
+        legacy_id: Legacy ID
+
+    Returns:
+        List of public stories for the legacy
+    """
+    query = (
+        select(Story)
+        .options(selectinload(Story.author))
+        .where(Story.legacy_id == legacy_id)
+        .where(Story.visibility == "public")
+        .order_by(Story.created_at.desc())
+    )
+
+    story_result = await db.execute(query)
+    stories = story_result.scalars().all()
+
+    logger.info(
+        "story.list.public",
+        extra={
+            "legacy_id": str(legacy_id),
+            "count": len(stories),
+        },
+    )
+
+    return [
+        StorySummary(
+            id=story.id,
+            legacy_id=story.legacy_id,
+            title=story.title,
+            content_preview=create_content_preview(story.content),
             author_id=story.author_id,
             author_name=story.author.name,
             visibility=story.visibility,

@@ -1,66 +1,98 @@
-import { createContext, useState, useEffect, ReactNode } from 'react';
-import { getMe, type Me } from '../lib/api/client';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+
+// User type matching backend response
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  avatar_url?: string;
+}
 
 interface AuthContextType {
-  user: Me | null;
+  user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: () => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-// Export context for useAuth hook
-export { AuthContext };
+interface AuthProviderProps {
+  children: ReactNode;
+}
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<Me | null>(null);
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshUser = async () => {
+  // Fetch current user from /api/me
+  const refreshUser = useCallback(async () => {
     try {
-      const userData = await getMe();
-      setUser(userData);
-    } catch {
-      setUser(null);
-    }
-  };
+      const response = await fetch('/api/me', {
+        credentials: 'include',
+      });
 
-  useEffect(() => {
-    refreshUser().finally(() => setIsLoading(false));
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user:', error);
+      setUser(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const login = () => {
-    window.location.href = '/api/auth/google';
-  };
+  // Check auth status on mount
+  useEffect(() => {
+    refreshUser();
+  }, [refreshUser]);
 
-  const logout = async () => {
+  // Redirect to Google OAuth
+  const login = useCallback(() => {
+    // Get the current URL to redirect back after login
+    const returnUrl = window.location.pathname + window.location.search;
+    // Store return URL in sessionStorage for after OAuth callback
+    sessionStorage.setItem('auth_return_url', returnUrl);
+    // Redirect to backend OAuth endpoint
+    window.location.href = '/api/auth/google';
+  }, []);
+
+  // Logout user
+  const logout = useCallback(async () => {
     try {
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
-      setUser(null);
-      window.location.href = '/';
     } catch (error) {
-      console.error('Logout failed:', error);
+      console.error('Logout request failed:', error);
+    } finally {
+      setUser(null);
     }
+  }, []);
+
+  const value: AuthContextType = {
+    user,
+    isLoading,
+    isAuthenticated: !!user,
+    login,
+    logout,
+    refreshUser,
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        logout,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthContextType {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 }

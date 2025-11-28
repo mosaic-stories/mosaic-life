@@ -678,7 +678,7 @@ dev-backend:
 
 # Start local development environment (full Docker Compose stack)
 dev-up:
-    docker-compose -f infra/compose/docker-compose.yml up -d
+    docker compose -f infra/compose/docker-compose.yml up -d
     @echo "✓ Development environment started"
     @echo "Frontend: http://localhost:5173"
     @echo "Backend: http://localhost:8080"
@@ -711,6 +711,55 @@ start:
 stop:
     docker compose -f infra/compose/docker-compose.yml stop
     @echo "✓ Docker Compose stack stopped"
+
+# Seed database with sample data
+seed:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Seeding database with sample data..."
+    cd services/core-api
+
+    # Use the compose network DB URL
+    export DB_URL="postgresql+psycopg://postgres:postgres@localhost:15432/mosaic"
+
+    # Run the seed script
+    python scripts/seed.py
+    echo "✓ Database seeded"
+
+# Full local development setup: start services, run migrations, seed data
+setup: start
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Waiting for services to be ready..."
+    sleep 5
+
+    # Check if core-api is healthy
+    echo "Checking core-api health..."
+    for i in {1..30}; do
+      if curl -sf http://localhost:8080/health > /dev/null 2>&1; then
+        echo "✓ core-api is healthy"
+        break
+      fi
+      echo "  Waiting for core-api... ($i/30)"
+      sleep 2
+    done
+
+    # Seed the database
+    just seed
+
+    echo ""
+    echo "════════════════════════════════════════════════"
+    echo "✓ Local development environment ready!"
+    echo "════════════════════════════════════════════════"
+    echo ""
+    echo "Services:"
+    echo "  - Web App:       http://localhost:5173"
+    echo "  - API:           http://localhost:8080"
+    echo "  - API Docs:      http://localhost:8080/docs"
+    echo "  - PostgreSQL:    localhost:15432"
+    echo ""
+    echo "Sample data has been seeded into the database."
+    echo "Login with Google OAuth to access the legacies."
 
 # Restart docker-compose stack
 restart:

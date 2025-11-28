@@ -53,6 +53,7 @@ class StorySummary(BaseModel):
     id: UUID
     legacy_id: UUID
     title: str
+    content_preview: str = Field(description="Truncated preview of story content")
     author_id: UUID
     author_name: str
     visibility: str

@@ -68,6 +68,27 @@ async def list_legacies(
 
 
 @router.get(
+    "/explore",
+    response_model=list[LegacyResponse],
+    summary="Explore public legacies",
+    description="Get legacies for public exploration. No authentication required.",
+)
+async def explore_legacies(
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(default=20, ge=1, le=100, description="Maximum number of legacies to return"),
+) -> list[LegacyResponse]:
+    """Get legacies for public exploration.
+
+    Returns recent legacies for the homepage "Explore Legacies" section.
+    No authentication required.
+    """
+    return await legacy_service.explore_legacies(
+        db=db,
+        limit=limit,
+    )
+
+
+@router.get(
     "/search",
     response_model=list[LegacySearchResponse],
     summary="Search legacies by name",
@@ -90,6 +111,27 @@ async def search_legacies(
     return await legacy_service.search_legacies_by_name(
         db=db,
         query=q,
+    )
+
+
+@router.get(
+    "/{legacy_id}/public",
+    response_model=LegacyResponse,
+    summary="Get legacy details (public)",
+    description="Get legacy details for public viewing. No authentication required.",
+)
+async def get_legacy_public(
+    legacy_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> LegacyResponse:
+    """Get legacy details for public viewing.
+
+    Returns full legacy details including member list.
+    No authentication required.
+    """
+    return await legacy_service.get_legacy_public(
+        db=db,
+        legacy_id=legacy_id,
     )
 
 

@@ -47,6 +47,26 @@ async def create_story(
 
 
 @router.get(
+    "/public",
+    response_model=list[StorySummary],
+    summary="List public stories for a legacy",
+    description="List public stories for a legacy. No authentication required.",
+)
+async def list_public_stories(
+    legacy_id: UUID = Query(..., description="Legacy ID to list stories for"),
+    db: AsyncSession = Depends(get_db),
+) -> list[StorySummary]:
+    """List public stories for a legacy.
+
+    Returns only public stories. No authentication required.
+    """
+    return await story_service.list_public_stories(
+        db=db,
+        legacy_id=legacy_id,
+    )
+
+
+@router.get(
     "/",
     response_model=list[StorySummary],
     summary="List stories for a legacy",
