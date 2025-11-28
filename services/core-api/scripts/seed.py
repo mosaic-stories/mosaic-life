@@ -9,7 +9,7 @@ Can be run with: python -m scripts.seed
 import asyncio
 import os
 import sys
-from datetime import date, datetime, timezone
+from datetime import date
 from uuid import uuid4
 
 # Add parent directory to path for imports
@@ -220,7 +220,7 @@ async def clear_existing_data(session: AsyncSession) -> None:
 
 async def seed_database(db_url: str) -> None:
     """Seed the database with sample data."""
-    print(f"Connecting to database...")
+    print("Connecting to database...")
 
     engine = create_async_engine(db_url, echo=False)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
