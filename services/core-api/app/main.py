@@ -20,6 +20,8 @@ from .auth.middleware import SessionMiddleware
 from .routes.legacy import router as legacy_router
 from .routes.story import router as story_router
 
+logger = logging.getLogger(__name__)
+
 
 REQUESTS = Counter(
     "core_api_http_requests_total",
