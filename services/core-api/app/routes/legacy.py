@@ -75,7 +75,9 @@ async def list_legacies(
 )
 async def explore_legacies(
     db: AsyncSession = Depends(get_db),
-    limit: int = Query(default=20, ge=1, le=100, description="Maximum number of legacies to return"),
+    limit: int = Query(
+        default=20, ge=1, le=100, description="Maximum number of legacies to return"
+    ),
 ) -> list[LegacyResponse]:
     """Get legacies for public exploration.
 

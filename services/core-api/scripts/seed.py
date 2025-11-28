@@ -207,13 +207,29 @@ He's right. They can't.""",
 async def clear_existing_data(session: AsyncSession) -> None:
     """Clear existing seed data (but preserve real user data)."""
     # Delete stories first (foreign key constraint)
-    await session.execute(text("DELETE FROM stories WHERE author_id IN (SELECT id FROM users WHERE email LIKE '%example.com' OR email = 'demo@mosaiclife.app')"))
+    await session.execute(
+        text(
+            "DELETE FROM stories WHERE author_id IN (SELECT id FROM users WHERE email LIKE '%example.com' OR email = 'demo@mosaiclife.app')"
+        )
+    )
     # Delete legacy members
-    await session.execute(text("DELETE FROM legacy_members WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%example.com' OR email = 'demo@mosaiclife.app')"))
+    await session.execute(
+        text(
+            "DELETE FROM legacy_members WHERE user_id IN (SELECT id FROM users WHERE email LIKE '%example.com' OR email = 'demo@mosaiclife.app')"
+        )
+    )
     # Delete legacies
-    await session.execute(text("DELETE FROM legacies WHERE created_by IN (SELECT id FROM users WHERE email LIKE '%example.com' OR email = 'demo@mosaiclife.app')"))
+    await session.execute(
+        text(
+            "DELETE FROM legacies WHERE created_by IN (SELECT id FROM users WHERE email LIKE '%example.com' OR email = 'demo@mosaiclife.app')"
+        )
+    )
     # Delete demo users
-    await session.execute(text("DELETE FROM users WHERE email LIKE '%example.com' OR email = 'demo@mosaiclife.app'"))
+    await session.execute(
+        text(
+            "DELETE FROM users WHERE email LIKE '%example.com' OR email = 'demo@mosaiclife.app'"
+        )
+    )
     await session.commit()
     print("✓ Cleared existing seed data")
 
@@ -247,11 +263,7 @@ async def seed_database(db_url: str) -> None:
 
         for data in SAMPLE_DATA:
             # Create legacy
-            legacy = Legacy(
-                id=uuid4(),
-                created_by=primary_user.id,
-                **data["legacy"]
-            )
+            legacy = Legacy(id=uuid4(), created_by=primary_user.id, **data["legacy"])
             session.add(legacy)
             await session.flush()  # Get the legacy ID
 
@@ -302,8 +314,7 @@ async def main():
     """Main entry point."""
     # Get database URL from environment or use default
     db_url = os.environ.get(
-        "DB_URL",
-        "postgresql+psycopg://postgres:postgres@localhost:15432/mosaic"
+        "DB_URL", "postgresql+psycopg://postgres:postgres@localhost:15432/mosaic"
     )
 
     # Convert to async URL if needed

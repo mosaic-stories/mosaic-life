@@ -320,7 +320,9 @@ async def explore_legacies(
                 )
                 for member in legacy.members
                 if member.role != "pending"
-            ] if legacy.members else [],
+            ]
+            if legacy.members
+            else [],
         )
         for legacy in legacies
     ]
