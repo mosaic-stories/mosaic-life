@@ -3,8 +3,8 @@ from functools import lru_cache
 from typing import Any
 
 import httpx
-from jose import JWTError, jwk, jwt
-from jose.utils import base64url_decode
+# from jose import JWTError, jwk, jwt
+# from jose.utils import base64url_decode
 
 from ..config import Settings
 from .models import CognitoUser, TokenResponse
