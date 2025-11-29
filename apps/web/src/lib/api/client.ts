@@ -14,10 +14,12 @@ export class ApiError extends Error {
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     let errorData: unknown;
+    let bodyText: string | null = null;
     try {
-      errorData = await response.json();
+      bodyText = await response.text();
+      errorData = bodyText ? JSON.parse(bodyText) : undefined;
     } catch {
-      errorData = await response.text();
+      errorData = bodyText ?? undefined;
     }
     throw new ApiError(
       response.status,

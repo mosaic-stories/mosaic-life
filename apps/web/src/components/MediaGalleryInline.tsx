@@ -11,6 +11,7 @@ import {
 } from './ui/dialog';
 import { useLegacyMedia, useDeleteMedia, useSetProfileImage } from '@/lib/hooks/useMedia';
 import type { MediaItem } from '@/lib/api/media';
+import { rewriteBackendUrlForDev } from '@/lib/url';
 
 interface MediaGalleryInlineProps {
   legacyId: string;
@@ -76,7 +77,7 @@ export default function MediaGalleryInline({
             onClick={() => setSelectedMedia(item)}
           >
             <img
-              src={item.download_url}
+              src={rewriteBackendUrlForDev(item.download_url)}
               alt={item.filename}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
             />
@@ -123,7 +124,7 @@ export default function MediaGalleryInline({
           {selectedMedia && (
             <>
               <img
-                src={selectedMedia.download_url}
+                src={rewriteBackendUrlForDev(selectedMedia.download_url)}
                 alt={selectedMedia.filename}
                 className="w-full max-h-[70vh] object-contain"
               />

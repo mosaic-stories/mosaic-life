@@ -27,6 +27,7 @@ import ThemeSelector from './ThemeSelector';
 import { useLegacyWithFallback, useDeleteLegacy } from '@/lib/hooks/useLegacies';
 import { useStoriesWithFallback } from '@/lib/hooks/useStories';
 import { formatLegacyDates } from '@/lib/api/legacies';
+import { rewriteBackendUrlForDev } from '@/lib/url';
 import type { StorySummary } from '@/lib/api/stories';
 
 interface LegacyProfileProps {
@@ -219,7 +220,7 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
             <div className="size-32 rounded-2xl overflow-hidden bg-neutral-100 flex-shrink-0">
               {legacy.profile_image_url ? (
                 <img
-                  src={legacy.profile_image_url}
+                  src={rewriteBackendUrlForDev(legacy.profile_image_url)}
                   alt={legacy.name}
                   className="w-full h-full object-cover"
                 />

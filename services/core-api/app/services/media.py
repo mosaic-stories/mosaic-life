@@ -98,7 +98,7 @@ async def request_upload_url(
             "media_id": str(media_id),
             "legacy_id": str(legacy_id),
             "user_id": str(user_id),
-            "filename": data.filename,
+            "media_filename": data.filename,
         },
     )
 

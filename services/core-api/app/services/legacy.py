@@ -198,7 +198,10 @@ async def list_user_legacies(
     result = await db.execute(
         select(Legacy)
         .join(LegacyMember)
-        .options(selectinload(Legacy.creator))
+        .options(
+            selectinload(Legacy.creator),
+            selectinload(Legacy.profile_image),
+        )
         .where(
             LegacyMember.user_id == user_id,
             LegacyMember.role != "pending",
@@ -227,6 +230,8 @@ async def list_user_legacies(
             updated_at=legacy.updated_at,
             creator_email=legacy.creator.email,
             creator_name=legacy.creator.name,
+            profile_image_id=legacy.profile_image_id,
+            profile_image_url=get_profile_image_url(legacy),
         )
         for legacy in legacies
     ]

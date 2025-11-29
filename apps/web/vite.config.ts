@@ -32,6 +32,10 @@ export default defineConfig({
       '/metrics': {
         target: BACKEND_URL,
         changeOrigin: true,
+      },
+      '/media': {
+        target: BACKEND_URL,
+        changeOrigin: true,
       }
     },
     // Set permissive CSP headers for dev mode

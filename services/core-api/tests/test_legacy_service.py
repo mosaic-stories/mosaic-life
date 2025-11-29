@@ -159,8 +159,14 @@ class TestListUserLegacies:
         db_session: AsyncSession,
         test_user: User,
         test_legacy: Legacy,
+        test_media,
     ):
         """Test listing user's legacies."""
+        # Attach media as profile image to exercise response fields
+        test_legacy.profile_image_id = test_media.id
+        test_legacy.profile_image = test_media
+        await db_session.commit()
+
         legacies = await legacy_service.list_user_legacies(
             db=db_session,
             user_id=test_user.id,
@@ -169,6 +175,8 @@ class TestListUserLegacies:
         assert len(legacies) == 1
         assert legacies[0].id == test_legacy.id
         assert legacies[0].name == test_legacy.name
+        assert legacies[0].profile_image_id == test_media.id
+        assert legacies[0].profile_image_url
 
     @pytest.mark.asyncio
     async def test_list_excludes_pending(

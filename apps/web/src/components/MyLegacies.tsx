@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import ThemeSelector from './ThemeSelector';
 import { useLegacies } from '@/lib/hooks/useLegacies';
 import { formatLegacyDates, getLegacyContext, type Legacy } from '@/lib/api/legacies';
+import { rewriteBackendUrlForDev } from '@/lib/url';
 
 interface MyLegaciesProps {
   onNavigate: (view: string) => void;
@@ -33,6 +34,19 @@ function LegacyCard({ legacy, onClick }: { legacy: Legacy; onClick: () => void }
       className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
       onClick={onClick}
     >
+      <div className="h-40 bg-neutral-100 overflow-hidden">
+        {legacy.profile_image_url ? (
+          <img
+            src={rewriteBackendUrlForDev(legacy.profile_image_url)}
+            alt={legacy.name}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="h-full flex items-center justify-center text-neutral-300">
+            <Users className="size-10" />
+          </div>
+        )}
+      </div>
       <div className="p-5 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-semibold text-neutral-900 line-clamp-1">{legacy.name}</h3>

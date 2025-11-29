@@ -9,6 +9,7 @@ import SearchBar from './SearchBar';
 import DogearToggle from './DogearToggle';
 import { useLegacies, useExploreLegacies } from '@/lib/hooks/useLegacies';
 import { formatLegacyDates, getLegacyContext } from '@/lib/api/legacies';
+import { rewriteBackendUrlForDev } from '@/lib/url';
 
 interface HomepageProps {
   onNavigate: (view: string) => void;
@@ -213,7 +214,15 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onT
                     onClick={() => onSelectLegacy(legacy.id)}
                   >
                     <div className="aspect-[4/3] overflow-hidden bg-neutral-100 flex items-center justify-center">
-                      <Users className="size-12 text-neutral-300" />
+                      {legacy.profile_image_url ? (
+                        <img
+                          src={rewriteBackendUrlForDev(legacy.profile_image_url)}
+                          alt={legacy.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Users className="size-12 text-neutral-300" />
+                      )}
                     </div>
                     <div className="p-5 space-y-3">
                       <div className="flex items-start justify-between gap-2">
@@ -295,7 +304,15 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onT
                     onClick={() => onSelectLegacy(legacy.id)}
                   >
                     <div className="aspect-[4/3] overflow-hidden bg-neutral-100 flex items-center justify-center">
-                      <Users className="size-12 text-neutral-300" />
+                      {legacy.profile_image_url ? (
+                        <img
+                          src={rewriteBackendUrlForDev(legacy.profile_image_url)}
+                          alt={legacy.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <Users className="size-12 text-neutral-300" />
+                      )}
                     </div>
                     <div className="p-5 space-y-3">
                       <div className="flex items-start justify-between gap-2">
