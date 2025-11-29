@@ -47,12 +47,24 @@ class Legacy(Base):
         nullable=False,
     )
 
+    profile_image_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("media.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Relationships
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
     members: Mapped[list["LegacyMember"]] = relationship(
         "LegacyMember",
         back_populates="legacy",
         cascade="all, delete-orphan",
+    )
+    profile_image: Mapped["Media | None"] = relationship(
+        "Media",
+        foreign_keys=[profile_image_id],
+        lazy="joined",
     )
 
     def __repr__(self) -> str:
