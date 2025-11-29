@@ -4,8 +4,8 @@ import { Badge } from './ui/badge';
 import { Card } from './ui/card';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
-import { useLegacy, useLegacyPublic } from '@/lib/hooks/useLegacies';
-import { useStories, usePublicStories } from '@/lib/hooks/useStories';
+import { useLegacyWithFallback } from '@/lib/hooks/useLegacies';
+import { useStoriesWithFallback } from '@/lib/hooks/useStories';
 import { formatLegacyDates } from '@/lib/api/legacies';
 
 interface LegacyProfileMinimalProps {
@@ -27,19 +27,16 @@ export default function LegacyProfileMinimal({
   onAuthClick,
   onSignOut
 }: LegacyProfileMinimalProps) {
-  // Use authenticated endpoints when user is logged in, public endpoints otherwise
-  const authLegacy = useLegacy(user ? legacyId : undefined);
-  const publicLegacy = useLegacyPublic(!user ? legacyId : undefined);
-  const authStories = useStories(user ? legacyId : undefined);
-  const publicStories = usePublicStories(!user ? legacyId : undefined);
+  // Use fallback hooks that try private endpoint first, then fall back to public
+  const legacyQuery = useLegacyWithFallback(legacyId, !!user);
+  const storiesQuery = useStoriesWithFallback(legacyId, !!user);
 
-  // Select the appropriate data based on auth state
-  const legacy = user ? authLegacy.data : publicLegacy.data;
-  const legacyLoading = user ? authLegacy.isLoading : publicLegacy.isLoading;
-  const legacyError = user ? authLegacy.error : publicLegacy.error;
-  const stories = user ? authStories.data : publicStories.data;
-  const storiesLoading = user ? authStories.isLoading : publicStories.isLoading;
-  const storiesError = user ? authStories.error : publicStories.error;
+  const legacy = legacyQuery.data;
+  const legacyLoading = legacyQuery.isLoading;
+  const legacyError = legacyQuery.error;
+  const stories = storiesQuery.data;
+  const storiesLoading = storiesQuery.isLoading;
+  const storiesError = storiesQuery.error;
 
   const dates = legacy ? formatLegacyDates(legacy) : '';
 

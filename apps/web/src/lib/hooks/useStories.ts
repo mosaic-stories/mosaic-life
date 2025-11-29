@@ -10,6 +10,7 @@ import {
   type CreateStoryInput,
   type UpdateStoryInput,
 } from '@/lib/api/stories';
+import { ApiError } from '@/lib/api/client';
 
 export const storyKeys = {
   all: ['stories'] as const,
@@ -86,4 +87,37 @@ export function usePublicStories(legacyId: string | undefined) {
     queryFn: () => getPublicStories(legacyId!),
     enabled: !!legacyId,
   });
+}
+
+// Hook that tries private endpoint first, falls back to public if user is not a member
+// Use this for viewing stories from explore or direct links
+export function useStoriesWithFallback(legacyId: string | undefined, isAuthenticated: boolean) {
+  const privateQuery = useQuery({
+    queryKey: storyKeys.list(legacyId!),
+    queryFn: () => getStories(legacyId!),
+    enabled: !!legacyId && isAuthenticated,
+    retry: false, // Don't retry on 403
+  });
+
+  // Check if private query failed with 403 (access denied)
+  const shouldFallbackToPublic = privateQuery.isError &&
+    privateQuery.error instanceof ApiError &&
+    privateQuery.error.status === 403;
+
+  const publicQuery = useQuery({
+    queryKey: [...storyKeys.list(legacyId!), 'public'],
+    queryFn: () => getPublicStories(legacyId!),
+    // Fetch public if: not authenticated OR private failed with 403
+    enabled: !!legacyId && (!isAuthenticated || shouldFallbackToPublic),
+  });
+
+  // Return private data if available and no error, otherwise public data
+  if (isAuthenticated && privateQuery.data && !privateQuery.isError) {
+    return privateQuery;
+  }
+  if (shouldFallbackToPublic || !isAuthenticated) {
+    return publicQuery;
+  }
+  // Still loading private query or other error
+  return privateQuery;
 }

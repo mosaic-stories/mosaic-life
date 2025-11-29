@@ -11,6 +11,7 @@ import {
   type CreateLegacyInput,
   type UpdateLegacyInput,
 } from '@/lib/api/legacies';
+import { ApiError } from '@/lib/api/client';
 
 export const legacyKeys = {
   all: ['legacies'] as const,
@@ -87,4 +88,37 @@ export function useLegacyPublic(id: string | undefined) {
     queryFn: () => getLegacyPublic(id!),
     enabled: !!id,
   });
+}
+
+// Hook that tries private endpoint first, falls back to public if user is not a member
+// Use this for viewing legacies from explore or direct links
+export function useLegacyWithFallback(id: string | undefined, isAuthenticated: boolean) {
+  const privateQuery = useQuery({
+    queryKey: legacyKeys.detail(id!),
+    queryFn: () => getLegacy(id!),
+    enabled: !!id && isAuthenticated,
+    retry: false, // Don't retry on 403
+  });
+
+  // Check if private query failed with 403 (access denied)
+  const shouldFallbackToPublic = privateQuery.isError &&
+    privateQuery.error instanceof ApiError &&
+    privateQuery.error.status === 403;
+
+  const publicQuery = useQuery({
+    queryKey: [...legacyKeys.detail(id!), 'public'],
+    queryFn: () => getLegacyPublic(id!),
+    // Fetch public if: not authenticated OR private failed with 403
+    enabled: !!id && (!isAuthenticated || shouldFallbackToPublic),
+  });
+
+  // Return private data if available and no error, otherwise public data
+  if (isAuthenticated && privateQuery.data && !privateQuery.isError) {
+    return privateQuery;
+  }
+  if (shouldFallbackToPublic || !isAuthenticated) {
+    return publicQuery;
+  }
+  // Still loading private query or other error
+  return privateQuery;
 }
