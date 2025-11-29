@@ -1,6 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as cr from 'aws-cdk-lib/custom-resources';
 import * as route53 from 'aws-cdk-lib/aws-route53';
 import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
@@ -302,6 +303,59 @@ export class MosaicLifeStack extends cdk.Stack {
     if (existingS3Buckets) {
       // Import existing bucket
       this.mediaBucket = s3.Bucket.fromBucketName(this, 'MediaBucket', `mosaic-${environment}-media-${this.account}`);
+
+      // Add CORS rule to existing bucket using Custom Resource
+      new cr.AwsCustomResource(this, 'MediaBucketCors', {
+        onCreate: {
+          service: 'S3',
+          action: 'putBucketCors',
+          parameters: {
+            Bucket: this.mediaBucket.bucketName,
+            CORSConfiguration: {
+              CORSRules: [
+                {
+                  AllowedHeaders: ['*'],
+                  AllowedMethods: ['GET', 'PUT', 'POST', 'DELETE'],
+                  AllowedOrigins: [
+                    `https://${domainName}`,
+                    `https://*.${domainName}`,
+                    'http://localhost:5173',
+                  ],
+                  ExposedHeaders: ['ETag'],
+                  MaxAgeSeconds: 3000,
+                },
+              ],
+            },
+          },
+          physicalResourceId: cr.PhysicalResourceId.of('MediaBucketCors'),
+        },
+        onUpdate: {
+          service: 'S3',
+          action: 'putBucketCors',
+          parameters: {
+            Bucket: this.mediaBucket.bucketName,
+            CORSConfiguration: {
+              CORSRules: [
+                {
+                  AllowedHeaders: ['*'],
+                  AllowedMethods: ['GET', 'PUT', 'POST', 'DELETE'],
+                  AllowedOrigins: [
+                    `https://${domainName}`,
+                    `https://*.${domainName}`,
+                    'http://localhost:5173',
+                  ],
+                  ExposedHeaders: ['ETag'],
+                  MaxAgeSeconds: 3000,
+                },
+              ],
+            },
+          },
+          physicalResourceId: cr.PhysicalResourceId.of('MediaBucketCors'),
+        },
+        policy: cr.AwsCustomResourcePolicy.fromSdkCalls({
+          resources: [this.mediaBucket.bucketArn],
+        }),
+      });
     } else {
       // Create new bucket
       this.mediaBucket = new s3.Bucket(this, 'MediaBucket', {

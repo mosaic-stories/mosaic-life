@@ -1,6 +1,5 @@
 // Media API client
 import { apiGet, apiPost, apiDelete, apiPatch } from './client';
-import { rewriteBackendUrlForDev } from '@/lib/url';
 
 export interface UploadUrlResponse {
   upload_url: string;
@@ -52,8 +51,8 @@ export async function requestUploadUrl(
 }
 
 export async function uploadFile(url: string, file: File): Promise<void> {
-  const targetUrl = rewriteBackendUrlForDev(url);
-  const response = await fetch(targetUrl, {
+  // Don't rewrite S3 presigned URLs - use them directly
+  const response = await fetch(url, {
     method: 'PUT',
     body: file,
     headers: {

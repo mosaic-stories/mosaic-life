@@ -1,16 +1,31 @@
 {
   "version": "48.0.0",
   "files": {
-    "58ef5f53d1759b87ed0826fade12f5b6a5c2828481516ed954d83dd34b80bf60": {
+    "34a66902956b031404ef497526f619b900363fe7fd65ff02b1de4c30fe10c034": {
+      "displayName": "AWS679f53fac002430cb0da5b7982bd2287/Code",
+      "source": {
+        "path": "asset.34a66902956b031404ef497526f619b900363fe7fd65ff02b1de4c30fe10c034",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "033691785857-us-east-1-b7ee59d7": {
+          "bucketName": "cdk-hnb659fds-assets-033691785857-us-east-1",
+          "objectKey": "34a66902956b031404ef497526f619b900363fe7fd65ff02b1de4c30fe10c034.zip",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-file-publishing-role-033691785857-us-east-1"
+        }
+      }
+    },
+    "ede8f26af962e11b25d227dbd40c9e77cb0dea4fac2a936e308381a68086833e": {
       "displayName": "MosaicLifeStack Template",
       "source": {
         "path": "MosaicLifeStack.template.json",
         "packaging": "file"
       },
       "destinations": {
-        "033691785857-us-east-1-4faa80a9": {
+        "033691785857-us-east-1-b8c66d3a": {
           "bucketName": "cdk-hnb659fds-assets-033691785857-us-east-1",
-          "objectKey": "58ef5f53d1759b87ed0826fade12f5b6a5c2828481516ed954d83dd34b80bf60.json",
+          "objectKey": "ede8f26af962e11b25d227dbd40c9e77cb0dea4fac2a936e308381a68086833e.json",
           "region": "us-east-1",
           "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-file-publishing-role-033691785857-us-east-1"
         }
