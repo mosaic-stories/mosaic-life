@@ -287,11 +287,18 @@ networkPolicy:
           port: 53 # DNS
         - protocol: UDP
           port: 53 # DNS
-    - to: # Allow AWS services
-        - podSelector: {}
+    - to: # Allow AWS services (HTTPS)
+        - ipBlock:
+            cidr: 0.0.0.0/0
       ports:
         - protocol: TCP
           port: 443
+    - to: # Allow RDS PostgreSQL
+        - ipBlock:
+            cidr: 10.20.0.0/16  # VPC CIDR
+      ports:
+        - protocol: TCP
+          port: 5432
 
 # Pod Security Standards
 podSecurityContext:
