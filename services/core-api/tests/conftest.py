@@ -1,6 +1,8 @@
 """Shared test fixtures and configuration."""
 
 import asyncio
+import os
+import tempfile
 from collections.abc import AsyncGenerator
 from datetime import datetime, timedelta, timezone
 
@@ -9,18 +11,37 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
+# Set up test environment BEFORE importing app modules that use get_settings
+_test_media_dir = tempfile.mkdtemp(prefix="mosaic_test_media_")
+os.environ["LOCAL_MEDIA_PATH"] = _test_media_dir
+os.environ["STORAGE_BACKEND"] = "local"
+
 from app.auth.middleware import create_session_cookie
 from app.auth.models import SessionData
 from app.config import get_settings
 from app.database import Base, get_db
 from app.main import app
 from app.models.legacy import Legacy, LegacyMember
+from app.models.media import Media
 from app.models.story import Story
 from app.models.user import User
+
+# Clear the lru_cache on get_settings to pick up test env vars
+get_settings.cache_clear()
 
 
 # Test database URL (in-memory SQLite for speed)
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_environment():
+    """Set up test environment cleanup after all tests run."""
+    yield
+
+    # Cleanup after all tests
+    import shutil
+    shutil.rmtree(_test_media_dir, ignore_errors=True)
 
 
 @pytest.fixture(scope="session")
@@ -257,3 +278,24 @@ async def test_story_personal(
     await db_session.commit()
     await db_session.refresh(story)
     return story
+
+
+@pytest_asyncio.fixture
+async def test_media(
+    db_session: AsyncSession,
+    test_user: User,
+    test_legacy: Legacy,
+) -> Media:
+    """Create a test media item."""
+    media = Media(
+        legacy_id=test_legacy.id,
+        filename="test-image.jpg",
+        content_type="image/jpeg",
+        size_bytes=1024,
+        storage_path=f"legacy/{test_legacy.id}/test-media-id.jpg",
+        uploaded_by=test_user.id,
+    )
+    db_session.add(media)
+    await db_session.commit()
+    await db_session.refresh(media)
+    return media
