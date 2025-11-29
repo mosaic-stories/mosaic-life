@@ -107,3 +107,9 @@ infra/compose/.env
 *.kubeconfig
 
 **/node_modules
+
+# CDK Compiled Artifacts
+infra/cdk/lib/*.js
+infra/cdk/lib/*.d.ts
+infra/cdk/bin/*.js
+infra/cdk/bin/*.d.ts
