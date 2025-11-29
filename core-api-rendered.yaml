@@ -1,0 +1,305 @@
+---
+# Source: core-api/templates/secrets-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: core-api-secrets-sa
+  labels:
+    helm.sh/chart: core-api-0.1.0
+    app.kubernetes.io/name: core-api
+    app.kubernetes.io/instance: core-api
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::033691785857:role/mosaic-prod-core-api-secrets-role
+  namespace: mosaic-prod
+automountServiceAccountToken: true
+---
+# Source: core-api/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: core-api-core-api
+  labels:
+    helm.sh/chart: core-api-0.1.0
+    app.kubernetes.io/name: core-api
+    app.kubernetes.io/instance: core-api
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::033691785857:role/mosaic-prod-core-api-role
+  namespace: mosaic-prod
+automountServiceAccountToken: true
+---
+# Source: core-api/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: core-api-core-api-secrets
+type: Opaque
+stringData:
+  DB_URL: ""
+  OIDC_CLIENT_SECRET: ""
+---
+# Source: core-api/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: core-api-core-api
+  labels:
+    app.kubernetes.io/name: core-api
+    app.kubernetes.io/instance: core-api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: core-api
+    app.kubernetes.io/instance: core-api
+---
+# Source: core-api/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: core-api-core-api
+  labels:
+    app.kubernetes.io/name: core-api
+    app.kubernetes.io/instance: core-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: core-api
+      app.kubernetes.io/instance: core-api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: core-api
+        app.kubernetes.io/instance: core-api
+    spec:
+      serviceAccountName: core-api-core-api
+      containers:
+        - name: core-api
+          image: "ghcr.io/yourorg/core-api:0.1.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: DATABASE_SECRET_ARN
+              value: "arn:aws:secretsmanager:us-east-1:033691785857:secret:mosaic/prod/rds/credentials-Oy5AjN"
+            - name: ENV
+              value: "dev"
+            - name: LITELLM_BASE_URL
+              value: "http://litellm:4000"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: OIDC_CLIENT_ID
+              value: ""
+            - name: OIDC_ISSUER
+              value: ""
+            - name: OPENSEARCH_URL
+              value: "http://opensearch:9200"
+            - name: SNS_TOPIC_ARN_EVENTS
+              value: ""
+            - name: SQS_QUEUE_URL_EVENTS
+              value: ""
+            # Database URL from External Secrets
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: core-api-core-api-db-secret
+                  key: DB_URL
+            - name: OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: core-api-core-api-secrets
+                  key: OIDC_CLIENT_SECRET
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 8080
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+---
+# Source: core-api/templates/external-secret.yaml
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: core-api-core-api-db
+  labels:
+    helm.sh/chart: core-api-0.1.0
+    app.kubernetes.io/name: core-api
+    app.kubernetes.io/instance: core-api
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: mosaic-prod
+spec:
+  # Refresh secret every 5 minutes
+  refreshInterval: 5m
+  
+  # Secret store reference (AWS Secrets Manager)
+  secretStoreRef:
+    name: aws-secrets-manager
+    kind: SecretStore
+  
+  # Target Kubernetes secret
+  target:
+    name: core-api-core-api-db-secret
+    creationPolicy: Owner
+    template:
+      engineVersion: v2
+      data:
+        # Construct DB_URL from fetched credentials and endpoint.
+        # Prefer explicit chart endpoint; if blank, use host in secret.
+        # Secret JSON created by RDS typically contains: username, password, host (or endpoint), port
+        DB_URL: |
+          postgresql+psycopg://{{ .username }}:{{ .password }}@{{ .host }}:5432/mosaic
+  
+  # Data to fetch from AWS Secrets Manager (credentials only)
+  dataFrom:
+    - extract:
+        key: mosaic/prod/rds/credentials
+---
+# Source: core-api/templates/external-secret.yaml
+# SecretStore for AWS Secrets Manager
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: aws-secrets-manager
+  labels:
+    helm.sh/chart: core-api-0.1.0
+    app.kubernetes.io/name: core-api
+    app.kubernetes.io/instance: core-api
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+  namespace: mosaic-prod
+spec:
+  provider:
+    aws:
+      service: SecretsManager
+      region: us-east-1
+      # Use IRSA for authentication (no static credentials)
+      auth:
+        jwt:
+          serviceAccountRef:
+            name: core-api-secrets-sa
+---
+# Source: core-api/templates/migration-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: core-api-core-api-migration-1
+  labels:
+    helm.sh/chart: core-api-0.1.0
+    app.kubernetes.io/name: core-api
+    app.kubernetes.io/instance: core-api
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: migration
+  annotations:
+    # Run before install and upgrade
+    helm.sh/hook: pre-install,pre-upgrade
+    # Hook weight (run after secrets are created)
+    helm.sh/hook-weight: "5"
+    # Delete job after successful completion
+    helm.sh/hook-delete-policy: before-hook-creation
+  namespace: mosaic-prod
+spec:
+  # Only keep successful jobs for 1 hour
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: core-api-0.1.0
+        app.kubernetes.io/name: core-api
+        app.kubernetes.io/instance: core-api
+        app.kubernetes.io/version: "0.1.0"
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: migration
+    spec:
+      serviceAccountName: core-api-core-api
+      restartPolicy: Never
+      
+      # Wait for database secret to be available
+      initContainers:
+        - name: wait-for-secret
+          image: bitnami/kubectl:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for database secret to be created..."
+              until kubectl get secret core-api-core-api-db-secret -n mosaic-prod 2>/dev/null; do
+                echo "Secret not yet available, waiting..."
+                sleep 5
+              done
+              echo "Database secret is available!"
+      
+      containers:
+        - name: alembic-migrate
+          image: "ghcr.io/yourorg/core-api:0.1.0"
+          imagePullPolicy: IfNotPresent
+          
+          # Run Alembic migration
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Starting database migration..."
+              echo "Alembic version:"
+              alembic --version
+              
+              echo "Current migration status:"
+              alembic current || echo "No migrations yet"
+              
+              echo "Running migrations..."
+              alembic upgrade head
+              
+              echo "Migration completed successfully!"
+              echo "Current migration status:"
+              alembic current
+          
+          env:
+            - name: DATABASE_SECRET_ARN
+              value: "arn:aws:secretsmanager:us-east-1:033691785857:secret:mosaic/prod/rds/credentials-Oy5AjN"
+            - name: ENV
+              value: "dev"
+            - name: LITELLM_BASE_URL
+              value: "http://litellm:4000"
+            - name: LOG_LEVEL
+              value: "info"
+            - name: OIDC_CLIENT_ID
+              value: ""
+            - name: OIDC_ISSUER
+              value: ""
+            - name: OPENSEARCH_URL
+              value: "http://opensearch:9200"
+            - name: SNS_TOPIC_ARN_EVENTS
+              value: ""
+            - name: SQS_QUEUE_URL_EVENTS
+              value: ""
+            # Database URL from External Secrets
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: core-api-core-api-db-secret
+                  key: DB_URL
+          
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi

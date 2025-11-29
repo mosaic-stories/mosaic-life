@@ -1,0 +1,50 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  annotations:
+    force-sync: "1764427325"
+    kubectl.kubernetes.io/last-applied-configuration: |
+      {"apiVersion":"external-secrets.io/v1beta1","kind":"ExternalSecret","metadata":{"annotations":{},"labels":{"app.kubernetes.io/instance":"core-api","app.kubernetes.io/managed-by":"Helm","app.kubernetes.io/name":"core-api","app.kubernetes.io/version":"0.1.0","helm.sh/chart":"core-api-0.1.0"},"name":"core-api-core-api-db","namespace":"mosaic-prod"},"spec":{"dataFrom":[{"extract":{"key":"mosaic/prod/rds/credentials"}}],"refreshInterval":"5m","secretStoreRef":{"kind":"SecretStore","name":"aws-secrets-manager"},"target":{"creationPolicy":"Owner","name":"core-api-core-api-db-secret","template":{"data":{"DB_URL":"postgresql+psycopg://{{ .username }}:{{ .password }}@{{ .host }}:5432/mosaic\n"},"engineVersion":"v2"}}}}
+  creationTimestamp: "2025-11-29T07:21:55Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: core-api
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: core-api
+    app.kubernetes.io/version: 0.1.0
+    helm.sh/chart: core-api-0.1.0
+  name: core-api-core-api-db
+  namespace: mosaic-prod
+  resourceVersion: "22507178"
+  uid: 3420fee5-ccdf-40a8-86c1-85e7a08332d6
+spec:
+  dataFrom:
+  - extract:
+      conversionStrategy: Default
+      decodingStrategy: None
+      key: mosaic/prod/rds/credentials
+      metadataPolicy: None
+  refreshInterval: 5m
+  secretStoreRef:
+    kind: SecretStore
+    name: aws-secrets-manager
+  target:
+    creationPolicy: Owner
+    deletionPolicy: Retain
+    name: core-api-core-api-db-secret
+    template:
+      data:
+        DB_URL: postgresql+psycopg://{{ .username }}:{{ .password }}@{{ .host }}:5432/mosaic
+      engineVersion: v2
+      mergePolicy: Replace
+status:
+  binding:
+    name: core-api-core-api-db-secret
+  conditions:
+  - lastTransitionTime: "2025-11-29T14:42:06Z"
+    message: Secret was synced
+    reason: SecretSynced
+    status: "True"
+    type: Ready
+  refreshTime: "2025-11-29T14:52:06Z"
+  syncedResourceVersion: 1-68d30326106939634f19726745610413

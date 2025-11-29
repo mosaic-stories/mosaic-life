@@ -1,0 +1,66 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: core-api-migration-fix
+  namespace: mosaic-prod
+  labels:
+    app.kubernetes.io/component: migration
+    app.kubernetes.io/instance: core-api
+    app.kubernetes.io/name: core-api
+spec:
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: migration
+        app.kubernetes.io/instance: core-api
+        app.kubernetes.io/name: core-api
+    spec:
+      serviceAccountName: core-api-core-api
+      restartPolicy: Never
+      
+      initContainers:
+        - name: wait-for-secret
+          image: bitnami/kubectl:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for database secret to be created..."
+              until kubectl get secret core-api-core-api-db-secret -n mosaic-prod 2>/dev/null; do
+                echo "Secret not yet available, waiting..."
+                sleep 5
+              done
+              echo "Database secret is available!"
+      
+      containers:
+        - name: alembic-migrate
+          image: 033691785857.dkr.ecr.us-east-1.amazonaws.com/mosaic-life/core-api:e8eb157
+          imagePullPolicy: Always
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              echo "Starting database migration..."
+              echo "Alembic version:"
+              alembic --version
+              
+              echo "Current migration status:"
+              alembic current || echo "No migrations yet"
+              
+              echo "Running migrations..."
+              alembic upgrade head
+              
+              echo "Migration completed successfully!"
+              echo "Current migration status:"
+              alembic current
+          env:
+            - name: DB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: core-api-core-api-db-secret
+                  key: DB_URL
+            - name: AWS_REGION
+              value: us-east-1

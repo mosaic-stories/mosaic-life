@@ -210,7 +210,7 @@ export class DatabaseStack extends cdk.Stack {
         {
           StringEquals: {
             [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]: 
-              `system:serviceaccount:mosaic-${environment}:core-api`,
+              `system:serviceaccount:mosaic-${environment}:core-api-secrets-sa`,
             [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]: 
               'sts.amazonaws.com',
           },

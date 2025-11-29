@@ -1,5 +1,5 @@
 image:
-  repository: ghcr.io/yourorg/core-api
+  repository: 033691785857.dkr.ecr.us-east-1.amazonaws.com/mosaic-life/core-api
   tag: "0.1.0"
   pullPolicy: IfNotPresent
 
@@ -14,7 +14,7 @@ serviceAccount:
   create: true
   automount: true
   # Annotations for IRSA (will be set during deployment)
-  annotations: {}
+  annotations:
     eks.amazonaws.com/role-arn: arn:aws:iam::033691785857:role/mosaic-prod-core-api-secrets-role
   name: ""
 

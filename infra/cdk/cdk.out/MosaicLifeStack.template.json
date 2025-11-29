@@ -286,13 +286,13 @@
        "Action": "sts:AssumeRoleWithWebIdentity",
        "Condition": {
         "StringEquals": {
-         "oidc.eks.${this.region}.amazonaws.com/id/CLUSTER_ID:sub": "system:serviceaccount:mosaiclife:core-api",
-         "oidc.eks.${this.region}.amazonaws.com/id/CLUSTER_ID:aud": "sts.amazonaws.com"
+         "oidc.eks.us-east-1.amazonaws.com/id/D491975E1999961E7BBAAE1A77332FBA:sub": "system:serviceaccount:mosaic-prod:core-api",
+         "oidc.eks.us-east-1.amazonaws.com/id/D491975E1999961E7BBAAE1A77332FBA:aud": "sts.amazonaws.com"
         }
        },
        "Effect": "Allow",
        "Principal": {
-        "Federated": "arn:aws:iam::033691785857:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/CLUSTER_ID"
+        "Federated": "arn:aws:iam::033691785857:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/D491975E1999961E7BBAAE1A77332FBA"
        }
       }
      ],
