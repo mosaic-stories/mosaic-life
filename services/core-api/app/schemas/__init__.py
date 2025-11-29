@@ -1,5 +1,11 @@
 """Pydantic schemas for API request/response validation."""
 
+from .invitation import (
+    InvitationAcceptResponse,
+    InvitationCreate,
+    InvitationPreview,
+    InvitationResponse,
+)
 from .legacy import (
     LegacyCreate,
     LegacyMemberResponse,
@@ -14,4 +20,8 @@ __all__ = [
     "LegacyResponse",
     "LegacySearchResponse",
     "LegacyMemberResponse",
+    "InvitationCreate",
+    "InvitationResponse",
+    "InvitationPreview",
+    "InvitationAcceptResponse",
 ]
