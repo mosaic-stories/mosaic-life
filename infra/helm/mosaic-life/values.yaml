@@ -211,11 +211,11 @@ coreApi:
     # - secretRef:
     #     name: database-config  # Database credentials
 
-  # Service Account for IRSA (if needed)
+  # Service Account for IRSA (S3 Access)
   serviceAccount:
     create: true
-    annotations: {}
-      # eks.amazonaws.com/role-arn: arn:aws:iam::033691785857:role/mosaic-core-api-role
+    annotations:
+      eks.amazonaws.com/role-arn: arn:aws:iam::033691785857:role/mosaic-prod-core-api-role
 
   resources:
     limits:
