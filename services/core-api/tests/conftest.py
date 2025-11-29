@@ -41,6 +41,7 @@ def setup_test_environment():
 
     # Cleanup after all tests
     import shutil
+
     shutil.rmtree(_test_media_dir, ignore_errors=True)
 
 

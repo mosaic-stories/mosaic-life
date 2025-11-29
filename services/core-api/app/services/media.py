@@ -268,9 +268,7 @@ async def delete_media(
         raise HTTPException(status_code=404, detail="Media not found")
 
     # Only uploader or legacy creator can delete
-    legacy_result = await db.execute(
-        select(Legacy).where(Legacy.id == legacy_id)
-    )
+    legacy_result = await db.execute(select(Legacy).where(Legacy.id == legacy_id))
     legacy = legacy_result.scalar_one()
 
     if media.uploaded_by != user_id and legacy.created_by != user_id:
@@ -328,9 +326,7 @@ async def set_profile_image(
         )
 
     # Update legacy
-    legacy_result = await db.execute(
-        select(Legacy).where(Legacy.id == legacy_id)
-    )
+    legacy_result = await db.execute(select(Legacy).where(Legacy.id == legacy_id))
     legacy = legacy_result.scalar_one()
     legacy.profile_image_id = media_id
 
