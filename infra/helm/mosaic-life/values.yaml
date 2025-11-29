@@ -186,6 +186,8 @@ coreApi:
       value: ".mosaiclife.me"  # Cross-subdomain cookie for api.mosaiclife.me -> mosaiclife.me
     
     # AWS S3 Configuration
+    - name: STORAGE_BACKEND
+      value: "s3"
     - name: S3_MEDIA_BUCKET
       value: "mosaic-prod-media-033691785857"
     - name: S3_BACKUP_BUCKET
