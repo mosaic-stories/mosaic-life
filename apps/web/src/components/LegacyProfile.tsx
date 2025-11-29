@@ -20,8 +20,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
-import { mediaItems } from '../lib/mockData';
 import { getThemeClasses } from '../lib/themes';
+import MediaUploader from './MediaUploader';
+import MediaGalleryInline from './MediaGalleryInline';
 import ThemeSelector from './ThemeSelector';
 import { useLegacyWithFallback, useDeleteLegacy } from '@/lib/hooks/useLegacies';
 import { useStoriesWithFallback } from '@/lib/hooks/useStories';
@@ -215,8 +216,18 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
       <section className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-6 py-12">
           <div className="flex items-start gap-8">
-            <div className="size-32 rounded-2xl overflow-hidden bg-neutral-100 flex-shrink-0 flex items-center justify-center">
-              <Users className="size-12 text-neutral-400" />
+            <div className="size-32 rounded-2xl overflow-hidden bg-neutral-100 flex-shrink-0">
+              {legacy.profile_image_url ? (
+                <img
+                  src={legacy.profile_image_url}
+                  alt={legacy.name}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center">
+                  <Users className="size-12 text-neutral-400" />
+                </div>
+              )}
             </div>
             <div className="flex-1 space-y-4">
               <div className="space-y-2">
@@ -267,14 +278,13 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
             </button>
             <button
               onClick={() => setActiveSection('media')}
-              className={`py-4 border-b-2 transition-colors flex items-center gap-2 ${
+              className={`py-4 border-b-2 transition-colors ${
                 activeSection === 'media'
                   ? 'border-[rgb(var(--theme-primary))] text-neutral-900'
                   : 'border-transparent text-neutral-500 hover:text-neutral-900'
               }`}
             >
               Media Gallery
-              <DemoBadge />
             </button>
             <button
               onClick={() => setActiveSection('ai')}
@@ -345,35 +355,20 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
         )}
 
         {activeSection === 'media' && (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <h2 className="text-neutral-900">Photo Gallery</h2>
-                <DemoBadge />
-              </div>
-              <Button variant="outline" size="sm" onClick={() => navigate(`/legacy/${legacyId}/gallery`)}>
-                View Full Gallery
-              </Button>
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-neutral-900">Photo Gallery</h2>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {mediaItems.map((item) => (
-                <div key={item.id} className="aspect-square rounded-lg overflow-hidden bg-neutral-100 group cursor-pointer">
-                  <img
-                    src={item.url}
-                    alt={item.caption}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                </div>
-              ))}
-              <button className="aspect-square rounded-lg border-2 border-dashed border-neutral-300 hover:border-[rgb(var(--theme-accent))] hover:bg-[rgb(var(--theme-accent-light))]/30 transition-colors flex items-center justify-center">
-                <div className="text-center space-y-2">
-                  <div className="size-10 rounded-full bg-neutral-100 flex items-center justify-center mx-auto">
-                    <Plus className="size-5 text-neutral-600" />
-                  </div>
-                  <p className="text-sm text-neutral-600">Add photos</p>
-                </div>
-              </button>
-            </div>
+
+            {user && (
+              <MediaUploader legacyId={legacyId} />
+            )}
+
+            <MediaGalleryInline
+              legacyId={legacyId}
+              profileImageId={legacy.profile_image_id}
+              canEdit={!!user}
+            />
           </div>
         )}
 
