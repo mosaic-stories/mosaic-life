@@ -429,16 +429,18 @@ export class MosaicLifeStack extends cdk.Stack {
     // IAM Roles for EKS IRSA
     // ============================================================
 
+    const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
+
     // Role for core-api to access S3, Secrets Manager, SQS/SNS
     const coreApiRole = new iam.Role(this, 'CoreApiRole', {
       roleName: `mosaic-${environment}-core-api-role`,
       assumedBy: new iam.WebIdentityPrincipal(
-        `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/CLUSTER_ID`,
+        `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`,
         {
           StringEquals: {
-            'oidc.eks.${this.region}.amazonaws.com/id/CLUSTER_ID:sub':
-              'system:serviceaccount:mosaiclife:core-api',
-            'oidc.eks.${this.region}.amazonaws.com/id/CLUSTER_ID:aud': 'sts.amazonaws.com',
+            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]:
+              `system:serviceaccount:mosaic-${environment}:core-api`,
+            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]: 'sts.amazonaws.com',
           },
         }
       ),

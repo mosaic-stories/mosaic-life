@@ -200,16 +200,18 @@ export class DatabaseStack extends cdk.Stack {
 
     // Grant core-api service account read access to secrets
     // This will be used by External Secrets Operator in Kubernetes
+    const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
+    
     const eksServiceAccountRole = new iam.Role(this, 'CoreApiSecretsAccessRole', {
       roleName: `mosaic-${environment}-core-api-secrets-role`,
       description: 'IAM role for core-api to access database secrets via IRSA',
       assumedBy: new iam.FederatedPrincipal(
-        `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/CLUSTER_OIDC_ID`,
+        `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`,
         {
           StringEquals: {
-            [`oidc.eks.${this.region}.amazonaws.com/id/CLUSTER_OIDC_ID:sub`]: 
+            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]: 
               `system:serviceaccount:mosaic-${environment}:core-api`,
-            [`oidc.eks.${this.region}.amazonaws.com/id/CLUSTER_OIDC_ID:aud`]: 
+            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]: 
               'sts.amazonaws.com',
           },
         },
