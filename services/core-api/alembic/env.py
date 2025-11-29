@@ -9,7 +9,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.database import Base
-from app.models import User, Legacy, LegacyMember, Media
+from app.models import User, Legacy, LegacyMember, Media  # noqa: F401
 
 config = context.config
 if config.config_file_name is not None:

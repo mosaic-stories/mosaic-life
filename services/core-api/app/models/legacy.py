@@ -1,6 +1,7 @@
 """Legacy and LegacyMember models."""
 
 from datetime import date, datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import Date, DateTime, ForeignKey, String, Text, UniqueConstraint
@@ -10,6 +11,9 @@ from sqlalchemy.sql import func
 
 from ..database import Base
 from .user import User
+
+if TYPE_CHECKING:
+    from .media import Media
 
 
 class Legacy(Base):

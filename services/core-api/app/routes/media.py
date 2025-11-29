@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..adapters.storage import LocalStorageAdapter, get_storage_adapter
 from ..auth.middleware import require_auth
 from ..config import get_settings
 from ..database import get_db

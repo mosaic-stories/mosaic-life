@@ -16,15 +16,15 @@ _test_media_dir = tempfile.mkdtemp(prefix="mosaic_test_media_")
 os.environ["LOCAL_MEDIA_PATH"] = _test_media_dir
 os.environ["STORAGE_BACKEND"] = "local"
 
-from app.auth.middleware import create_session_cookie
-from app.auth.models import SessionData
-from app.config import get_settings
-from app.database import Base, get_db
-from app.main import app
-from app.models.legacy import Legacy, LegacyMember
-from app.models.media import Media
-from app.models.story import Story
-from app.models.user import User
+from app.auth.middleware import create_session_cookie  # noqa: E402
+from app.auth.models import SessionData  # noqa: E402
+from app.config import get_settings  # noqa: E402
+from app.database import Base, get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.legacy import Legacy, LegacyMember  # noqa: E402
+from app.models.media import Media  # noqa: E402
+from app.models.story import Story  # noqa: E402
+from app.models.user import User  # noqa: E402
 
 # Clear the lru_cache on get_settings to pick up test env vars
 get_settings.cache_clear()

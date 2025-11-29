@@ -2,7 +2,6 @@
 """Storage adapter for media files."""
 
 import logging
-import os
 from abc import ABC, abstractmethod
 from pathlib import Path
 

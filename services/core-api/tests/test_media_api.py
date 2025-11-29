@@ -3,7 +3,6 @@
 import pytest
 from datetime import datetime, timedelta, timezone
 from httpx import AsyncClient
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.legacy import Legacy
 from app.models.media import Media

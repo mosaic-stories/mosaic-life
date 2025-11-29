@@ -1,6 +1,7 @@
 """Media model for uploaded files."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import BigInteger, DateTime, ForeignKey, String
@@ -9,6 +10,10 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from ..database import Base
+
+if TYPE_CHECKING:
+    from .legacy import Legacy
+    from .user import User
 
 
 class Media(Base):
