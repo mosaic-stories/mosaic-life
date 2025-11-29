@@ -22,13 +22,52 @@ from ..schemas.legacy import (
 
 logger = logging.getLogger(__name__)
 
-# Role hierarchy for permission checks
+# Role hierarchy for permission checks (new 4-tier model)
+ROLE_LEVELS: dict[str, int] = {
+    "creator": 4,
+    "admin": 3,
+    "advocate": 2,
+    "admirer": 1,
+}
+
+# Legacy role hierarchy (deprecated, kept for backwards compatibility during migration)
 ROLE_HIERARCHY = {
-    "creator": 3,
-    "editor": 2,
-    "member": 1,
+    "creator": 4,
+    "admin": 3,
+    "advocate": 2,
+    "admirer": 1,
+    # Old role names mapped to new levels for transition period
+    "editor": 3,  # editor -> admin
+    "member": 2,  # member -> advocate
     "pending": 0,
 }
+
+
+def can_manage_role(actor_role: str, target_role: str) -> bool:
+    """Check if actor can manage (invite, demote, remove) target role.
+
+    Rules:
+    - Creator can manage all roles including other creators
+    - Admin can manage admin, advocate, admirer
+    - Advocate can manage advocate, admirer
+    - Admirer cannot manage anyone
+    """
+    actor_level = ROLE_LEVELS.get(actor_role, 0)
+    target_level = ROLE_LEVELS.get(target_role, 0)
+
+    # Admirer cannot manage anyone
+    if actor_role == "admirer":
+        return False
+
+    return actor_level >= target_level
+
+
+def can_invite_role(actor_role: str, target_role: str) -> bool:
+    """Check if actor can invite someone at target role level.
+
+    Same rules as can_manage_role.
+    """
+    return can_manage_role(actor_role, target_role)
 
 
 def get_profile_image_url(legacy: Legacy) -> str | None:

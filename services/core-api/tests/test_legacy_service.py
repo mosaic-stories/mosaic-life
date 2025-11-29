@@ -461,3 +461,54 @@ class TestRemoveLegacyMember:
             )
         assert exc.value.status_code == 400
         assert "Cannot remove" in exc.value.detail
+
+
+class TestRoleHierarchy:
+    """Tests for role hierarchy."""
+
+    def test_role_levels(self):
+        """Test role level values."""
+        from app.services.legacy import ROLE_LEVELS
+
+        assert ROLE_LEVELS["creator"] == 4
+        assert ROLE_LEVELS["admin"] == 3
+        assert ROLE_LEVELS["advocate"] == 2
+        assert ROLE_LEVELS["admirer"] == 1
+
+    def test_can_manage_role(self):
+        """Test role management permissions."""
+        from app.services.legacy import can_manage_role
+
+        # Creator can manage all roles
+        assert can_manage_role("creator", "creator") is True
+        assert can_manage_role("creator", "admin") is True
+        assert can_manage_role("creator", "advocate") is True
+        assert can_manage_role("creator", "admirer") is True
+
+        # Admin can manage admin and below
+        assert can_manage_role("admin", "creator") is False
+        assert can_manage_role("admin", "admin") is True
+        assert can_manage_role("admin", "advocate") is True
+        assert can_manage_role("admin", "admirer") is True
+
+        # Advocate can manage advocate and below
+        assert can_manage_role("advocate", "creator") is False
+        assert can_manage_role("advocate", "admin") is False
+        assert can_manage_role("advocate", "advocate") is True
+        assert can_manage_role("advocate", "admirer") is True
+
+        # Admirer cannot manage anyone
+        assert can_manage_role("admirer", "creator") is False
+        assert can_manage_role("admirer", "admin") is False
+        assert can_manage_role("admirer", "advocate") is False
+        assert can_manage_role("admirer", "admirer") is False
+
+    def test_can_invite_role(self):
+        """Test role invitation permissions."""
+        from app.services.legacy import can_invite_role
+
+        # Same as can_manage_role
+        assert can_invite_role("creator", "admin") is True
+        assert can_invite_role("admin", "creator") is False
+        assert can_invite_role("advocate", "admirer") is True
+        assert can_invite_role("admirer", "admirer") is False
