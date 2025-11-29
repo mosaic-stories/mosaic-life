@@ -24,6 +24,7 @@ const LegacyCreationBase = lazy(() => import('@/components/LegacyCreation'));
 const MediaGalleryBase = lazy(() => import('@/components/MediaGallery'));
 const AIAgentChatBase = lazy(() => import('@/components/AIAgentChat'));
 const AIAgentChatMinimalBase = lazy(() => import('@/components/AIAgentChatMinimal'));
+const InviteAcceptPageBase = lazy(() => import('@/components/InviteAcceptPage'));
 
 // Wrapped components with shared props
 const Homepage = withSharedProps(HomepageBase);
@@ -114,6 +115,11 @@ export const router = createBrowserRouter([
       {
         path: 'legacy/:legacyId/minimal',
         element: <LazyPage><LegacyProfileMinimal /></LazyPage>,
+      },
+      // Invitation accept page (requires auth but not protected route)
+      {
+        path: 'invite/:token',
+        element: <LazyPage><InviteAcceptPageBase /></LazyPage>,
       },
 
       // Protected routes
