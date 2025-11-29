@@ -50,6 +50,68 @@ Complex features documented in [docs/architecture/target/](docs/architecture/tar
 6. **Separate backend/frontend** - Independent deployment and scaling
 7. **Helm deployments** to existing EKS cluster
 
+## Operational Guidelines
+
+### Local Development: Docker Compose Only
+
+**CRITICAL:** Always use `docker compose` for local development. Never use standalone `docker` CLI commands without compose context.
+
+```bash
+# ✅ CORRECT - Use docker compose
+docker compose -f infra/compose/docker-compose.yml up -d
+docker compose exec core-api bash
+docker compose exec postgres psql -U postgres -d core
+docker compose logs -f core-api
+
+# ❌ WRONG - Never use standalone docker commands
+docker exec -it <container> ...
+docker run ...
+docker build ...
+```
+
+### Python: Always Use uv
+
+**CRITICAL:** All Python operations must use `uv` to ensure consistent environment, dependencies, and configuration.
+
+```bash
+# ✅ CORRECT - Use uv for all Python operations
+uv run python -m app.main
+uv run pytest
+uv run alembic upgrade head
+uv sync  # Install dependencies
+
+# ❌ WRONG - Never use pip or raw python directly
+pip install ...
+python -m pytest
+python -m app.main
+```
+
+### Production Deployment
+
+Production changes flow through GitOps:
+
+1. **All changes must be committed to the repository** - No manual kubectl/helm changes in production
+2. **GitHub Actions validates** - Build must pass, tests must succeed
+3. **ArgoCD reconciles automatically** - Picks up changes after successful CI
+
+**Allowed production tools** (for inspection/debugging only, not configuration):
+- `argocd` - View sync status, trigger manual syncs
+- `kubectl` - Inspect resources, view logs
+- `helm` - Template validation, dry-runs
+- `aws` - Check AWS resources
+- `gh` - GitHub operations
+- `git` - Version control
+
+### Infrastructure References
+
+- **Core infrastructure** (EKS, Karpenter, external-secrets, Route53, IAM): https://github.com/mosaic-stories/infrastructure (local: `/apps/mosaic-life-infrastructure`)
+- **Application deployment** (Helm charts, CDK): Managed in this repository under `infra/`
+
+### Production URLs
+
+- **Web Application:** https://mosaiclife.me
+- **Core API:** https://api.mosaiclife.me (also https://mosaiclife.me/api/)
+
 ## Common Development Commands
 
 ### Full Stack Development
@@ -59,13 +121,13 @@ Complex features documented in [docs/architecture/target/](docs/architecture/tar
 docker compose -f infra/compose/docker-compose.yml up -d
 
 # View logs
-docker compose logs -f core-api
-docker compose logs -f web
+docker compose -f infra/compose/docker-compose.yml logs -f core-api
+docker compose -f infra/compose/docker-compose.yml logs -f web
 
 # Reset everything
-docker compose down
+docker compose -f infra/compose/docker-compose.yml down
 docker volume prune -f
-docker compose up -d
+docker compose -f infra/compose/docker-compose.yml up -d
 ```
 
 ### Frontend Development
@@ -95,35 +157,42 @@ npm run lint
 ```bash
 cd services/core-api
 
-# Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or venv\Scripts\activate  # Windows
-
-# Install dependencies
-pip install -e .
+# Install dependencies (uv manages the virtual environment automatically)
+uv sync
 
 # Run migrations
-alembic upgrade head
+uv run alembic upgrade head
 
 # Create new migration
-alembic revision --autogenerate -m "description"
+uv run alembic revision --autogenerate -m "description"
 
 # Start dev server (runs on http://localhost:8080)
-python -m app.main
+uv run python -m app.main
 
 # Run tests
-pytest
+uv run pytest
 
 # Run with specific log level
-LOG_LEVEL=debug python -m app.main
+LOG_LEVEL=debug uv run python -m app.main
+
+# Type checking
+uv run mypy app/
+
+# Linting
+uv run ruff check app/
 ```
 
 ### Database Operations
 
 ```bash
-# Connect to local PostgreSQL
-docker exec -it <postgres-container> psql -U postgres -d core
+# Connect to local PostgreSQL (via docker compose)
+docker compose -f infra/compose/docker-compose.yml exec postgres psql -U postgres -d core
+
+# Run SQL file
+docker compose -f infra/compose/docker-compose.yml exec -T postgres psql -U postgres -d core < script.sql
+
+# Backup database
+docker compose -f infra/compose/docker-compose.yml exec postgres pg_dump -U postgres core > backup.sql
 
 # Connection details (local):
 # Host: localhost, Port: 15432
@@ -162,7 +231,7 @@ Read these documents in order of precedence when guidance conflicts:
 - **Messaging:** boto3 (SNS/SQS), aioboto3 for async
 - **HTTP Client:** httpx with tenacity for retries
 - **Testing:** pytest, pytest-asyncio, schemathesis
-- **Package Manager:** uv (preferred) or pip
+- **Package Manager:** uv (required - never use pip directly)
 
 ### Infrastructure
 - **Container Registry:** ECR
@@ -324,9 +393,9 @@ Modify port mappings in `infra/compose/docker-compose.yml` if ports are already 
 
 ### Database Connection Issues
 ```bash
-docker compose down
+docker compose -f infra/compose/docker-compose.yml down
 docker volume prune
-docker compose up -d postgres
+docker compose -f infra/compose/docker-compose.yml up -d postgres
 ```
 
 ### OpenSearch Memory Issues
@@ -334,30 +403,49 @@ Increase Docker memory to 4GB+ or adjust heap settings in docker-compose.yml.
 
 ### Migration Conflicts
 ```bash
+cd services/core-api
+
 # Rollback one migration
-alembic downgrade -1
+uv run alembic downgrade -1
 
 # Reset to base
-alembic downgrade base
+uv run alembic downgrade base
 
 # Re-apply
-alembic upgrade head
+uv run alembic upgrade head
 ```
 
 ## Notes for AI Assistants
 
 When working with this codebase:
 
-1. **Always check AGENTS.md** for approval requirements and planning templates
-2. **Follow adapter patterns** even in MVP - this enables future service extraction
-3. **Use OpenSearch** (not Elasticsearch) - this is a key architectural anchor
-4. **Prefer SSE for streaming** - WebSockets are deferred
-5. **Design for single-tenant** but keep APIs forward-compatible with tenant_id
-6. **Emit OTel spans** for all significant operations
-7. **Never commit secrets** - use AWS Secrets Manager references
-8. **Sanitize user content** before rendering
-9. **Use TodoWrite** for multi-step tasks
-10. **Target < 400 LOC per PR** - split larger changes
+### Critical Operational Rules
+
+1. **Docker Compose only** - Never use standalone `docker` CLI. Always use `docker compose -f infra/compose/docker-compose.yml ...`
+2. **uv for Python** - Never use `pip`, `python`, or `venv` directly. Always use `uv run ...` or `uv sync`
+3. **GitOps for production** - All production changes must be committed to repo. Never make manual changes via kubectl/helm
+
+### Architecture Guidelines
+
+4. **Always check AGENTS.md** for approval requirements and planning templates
+5. **Follow adapter patterns** even in MVP - this enables future service extraction
+6. **Use OpenSearch** (not Elasticsearch) - this is a key architectural anchor
+7. **Prefer SSE for streaming** - WebSockets are deferred
+8. **Design for single-tenant** but keep APIs forward-compatible with tenant_id
+9. **Emit OTel spans** for all significant operations
+
+### Security & Quality
+
+10. **Never commit secrets** - use AWS Secrets Manager references
+11. **Sanitize user content** before rendering
+12. **Use TodoWrite** for multi-step tasks
+13. **Target < 400 LOC per PR** - split larger changes
+
+### Infrastructure Context
+
+- **Core infrastructure repo:** `/apps/mosaic-life-infrastructure` (EKS, Karpenter, external-secrets, Route53, IAM)
+- **Application infra:** Managed in this repo under `infra/` (Helm charts, CDK)
+- **Production URLs:** https://mosaiclife.me (web), https://api.mosaiclife.me (API)
 
 ## Additional Resources
 
