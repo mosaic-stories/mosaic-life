@@ -24,6 +24,7 @@ class RoleUpdate(BaseModel):
 
     role: str
 
+
 router = APIRouter(prefix="/api/legacies", tags=["legacies"])
 logger = logging.getLogger(__name__)
 

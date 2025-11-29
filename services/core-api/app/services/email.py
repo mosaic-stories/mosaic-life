@@ -121,13 +121,13 @@ async def send_invitation_email(
                 "invite_url": invite_url,
             },
         )
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("INVITATION EMAIL (local mode - not sent)")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"To: {to_email}")
         print(f"Subject: {subject}")
         print(f"Invite URL: {invite_url}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
         return True
 
     # Production mode - send via SES
