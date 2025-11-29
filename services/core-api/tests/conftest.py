@@ -138,24 +138,29 @@ async def test_user_2(db_session: AsyncSession) -> User:
     return user
 
 
-@pytest.fixture
-def auth_headers(test_user: User) -> dict[str, str]:
-    """Create authentication headers for test user."""
+def create_auth_headers_for_user(user: User) -> dict[str, str]:
+    """Create authentication headers for a specific user."""
     settings = get_settings()
 
     now = datetime.now(timezone.utc)
     session_data = SessionData(
-        user_id=test_user.id,
-        google_id=test_user.google_id,
-        email=test_user.email,
-        name=test_user.name,
-        avatar_url=test_user.avatar_url,
+        user_id=user.id,
+        google_id=user.google_id,
+        email=user.email,
+        name=user.name,
+        avatar_url=user.avatar_url,
         created_at=now,
         expires_at=now + timedelta(hours=24),
     )
 
     cookie_name, cookie_value = create_session_cookie(settings, session_data)
     return {"Cookie": f"{cookie_name}={cookie_value}"}
+
+
+@pytest.fixture
+def auth_headers(test_user: User) -> dict[str, str]:
+    """Create authentication headers for test user."""
+    return create_auth_headers_for_user(test_user)
 
 
 @pytest_asyncio.fixture
