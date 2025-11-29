@@ -5,8 +5,8 @@ import logging
 from abc import ABC, abstractmethod
 from pathlib import Path
 
-import boto3
-from botocore.config import Config as BotoConfig
+import boto3  # type: ignore
+from botocore.config import Config as BotoConfig  # type: ignore
 
 from ..config import get_settings
 
@@ -96,7 +96,7 @@ class S3StorageAdapter(StorageAdapter):
             ExpiresIn=self.upload_expiry,
         )
         logger.info("s3.upload_url_generated", extra={"path": path})
-        return url
+        return str(url)
 
     def generate_download_url(self, path: str) -> str:
         """Generate S3 presigned download URL."""
@@ -108,7 +108,7 @@ class S3StorageAdapter(StorageAdapter):
             },
             ExpiresIn=self.download_expiry,
         )
-        return url
+        return str(url)
 
     def file_exists(self, path: str) -> bool:
         """Check if file exists in S3."""
