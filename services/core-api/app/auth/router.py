@@ -243,6 +243,7 @@ async def callback_google(
             secure=settings.session_cookie_secure,
             samesite="lax",
             path="/",
+            domain=settings.session_cookie_domain,  # Cross-subdomain cookie
         )
 
         return response
@@ -291,6 +292,7 @@ async def logout(request: Request) -> Response:
         httponly=True,
         secure=settings.session_cookie_secure,
         samesite="lax",
+        domain=settings.session_cookie_domain,  # Must match domain used when setting
     )
 
     return response

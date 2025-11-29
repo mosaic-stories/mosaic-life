@@ -182,6 +182,8 @@ coreApi:
         secretKeyRef:
           name: session-secret
           key: secret-key
+    - name: SESSION_COOKIE_DOMAIN
+      value: ".mosaiclife.me"  # Cross-subdomain cookie for api.mosaiclife.me -> mosaiclife.me
     
     # AWS S3 Configuration
     - name: S3_MEDIA_BUCKET

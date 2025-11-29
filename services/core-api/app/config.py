@@ -28,6 +28,9 @@ class Settings(BaseModel):
     session_cookie_name: str = "mosaic_session"
     session_cookie_secure: bool = os.getenv("ENV", "dev") != "dev"
     session_cookie_max_age: int = 3600  # 1 hour
+    # Cookie domain for cross-subdomain auth (e.g., ".mosaiclife.me")
+    # None means current domain only (for local dev)
+    session_cookie_domain: str | None = os.getenv("SESSION_COOKIE_DOMAIN")
 
     # Database
     db_url: str | None = os.getenv("DB_URL")
