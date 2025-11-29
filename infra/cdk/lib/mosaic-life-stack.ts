@@ -45,7 +45,7 @@ export class MosaicLifeStack extends cdk.Stack {
       // Use existing VPC from infrastructure stack
       this.vpc = ec2.Vpc.fromVpcAttributes(this, 'MosaicVPC', {
         vpcId,
-        vpcCidrBlock: '10.0.0.0/16', // CIDR block of the existing VPC
+        vpcCidrBlock: '10.20.0.0/16', // CIDR block of the existing VPC (from infrastructure stack)
         availabilityZones: ['us-east-1a', 'us-east-1b', 'us-east-1c'],
         publicSubnetIds: [
           'subnet-0d1d24670c22d0a24', // us-east-1a
