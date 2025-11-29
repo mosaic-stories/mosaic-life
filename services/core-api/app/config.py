@@ -39,6 +39,10 @@ class Settings(BaseModel):
     s3_media_bucket: str | None = os.getenv("S3_MEDIA_BUCKET")
     aws_region: str = os.getenv("AWS_REGION", "us-east-1")
 
+    # SES Configuration (for email)
+    ses_from_email: str | None = os.getenv("SES_FROM_EMAIL")
+    ses_region: str = os.getenv("SES_REGION", "us-east-1")
+
     # Storage Configuration
     storage_backend: str = os.getenv("STORAGE_BACKEND", "local")
     local_media_path: str = os.getenv("LOCAL_MEDIA_PATH", "/app/media")
