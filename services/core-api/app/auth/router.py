@@ -1,7 +1,11 @@
 """Authentication routes for Google OAuth."""
 
+import base64
+import hashlib
+import hmac
 import logging
 import secrets
+import time
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
@@ -20,8 +24,66 @@ from .models import GoogleUser, MeResponse, SessionData
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
-# Store for CSRF state validation (in production, use Redis or similar)
-_state_store: dict[str, str] = {}
+# State token validity period (5 minutes)
+STATE_TOKEN_MAX_AGE = 300
+
+
+def _create_signed_state(secret_key: str) -> str:
+    """Create a signed state token for CSRF protection.
+
+    The state token contains a random nonce and timestamp, signed with HMAC.
+    This allows stateless validation across multiple pods.
+    """
+    nonce = secrets.token_urlsafe(16)
+    timestamp = str(int(time.time()))
+    payload = f"{nonce}:{timestamp}"
+
+    # Sign with HMAC-SHA256
+    signature = hmac.new(
+        secret_key.encode(),
+        payload.encode(),
+        hashlib.sha256,
+    ).digest()
+
+    # Combine payload and signature
+    signed = f"{payload}:{base64.urlsafe_b64encode(signature).decode()}"
+    return base64.urlsafe_b64encode(signed.encode()).decode()
+
+
+def _verify_signed_state(state: str, secret_key: str) -> bool:
+    """Verify a signed state token.
+
+    Returns True if the token is valid and not expired.
+    """
+    try:
+        # Decode the state
+        decoded = base64.urlsafe_b64decode(state.encode()).decode()
+        parts = decoded.rsplit(":", 2)
+        if len(parts) != 3:
+            return False
+
+        nonce, timestamp_str, signature_b64 = parts
+        payload = f"{nonce}:{timestamp_str}"
+
+        # Check timestamp (not expired)
+        timestamp = int(timestamp_str)
+        if time.time() - timestamp > STATE_TOKEN_MAX_AGE:
+            logger.warning("auth.state.expired", extra={"age": time.time() - timestamp})
+            return False
+
+        # Verify signature
+        expected_signature = hmac.new(
+            secret_key.encode(),
+            payload.encode(),
+            hashlib.sha256,
+        ).digest()
+
+        actual_signature = base64.urlsafe_b64decode(signature_b64.encode())
+
+        return hmac.compare_digest(expected_signature, actual_signature)
+    except Exception as e:
+        logger.warning("auth.state.invalid", extra={"error": str(e)})
+        return False
 
 
 @router.get("/me", response_model=MeResponse)
@@ -45,7 +107,7 @@ async def login_google(request: Request) -> RedirectResponse:
     """Initiate Google OAuth login flow.
 
     Redirects user to Google for authentication.
-    Implements state parameter for CSRF protection.
+    Implements state parameter for CSRF protection using signed tokens.
     """
     settings = get_settings()
 
@@ -55,9 +117,8 @@ async def login_google(request: Request) -> RedirectResponse:
             detail="Google OAuth not configured",
         )
 
-    # Generate state for CSRF protection
-    state = secrets.token_urlsafe(32)
-    _state_store[state] = "pending"
+    # Generate signed state for CSRF protection (stateless across pods)
+    state = _create_signed_state(settings.session_secret_key)
 
     # Build redirect URI (callback endpoint)
     redirect_uri = f"{settings.api_url}/api/auth/google/callback"
@@ -79,7 +140,6 @@ async def login_google(request: Request) -> RedirectResponse:
         "auth.google.login_redirect",
         extra={
             "redirect_uri": redirect_uri,
-            "state": state,
         },
     )
 
@@ -109,16 +169,13 @@ async def callback_google(
         )
         return RedirectResponse(url=f"{settings.app_url}/?error={error}")
 
-    # Validate state (CSRF protection)
-    if not state or state not in _state_store:
+    # Validate state (CSRF protection using signed token)
+    if not state or not _verify_signed_state(state, settings.session_secret_key):
         logger.warning(
             "auth.google.invalid_state",
-            extra={"state": state},
+            extra={"state": state[:50] if state else None},
         )
         raise HTTPException(status_code=400, detail="Invalid state parameter")
-
-    # Remove state from store (one-time use)
-    del _state_store[state]
 
     # Validate authorization code
     if not code:
