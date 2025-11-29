@@ -44,6 +44,8 @@ services:
       - ../../services/core-api/app:/app/app:ro
       - ../../services/core-api/alembic:/app/alembic:ro
       - ../../services/core-api/tests:/app/tests:ro
+      # Media storage volume for local development
+      - media-data:/app/media
 
     depends_on:
       postgres:
@@ -115,4 +117,6 @@ volumes:
   postgres-data:
     driver: local
   web-node-modules:
+    driver: local
+  media-data:
     driver: local
