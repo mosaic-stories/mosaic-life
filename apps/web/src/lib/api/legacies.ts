@@ -21,6 +21,8 @@ export interface Legacy {
   creator_email?: string | null;
   creator_name?: string | null;
   members?: LegacyMember[] | null;
+  profile_image_id?: string | null;
+  profile_image_url?: string | null;
 }
 
 export interface CreateLegacyInput {
