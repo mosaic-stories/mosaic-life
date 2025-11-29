@@ -1,6 +1,7 @@
 """API routes for legacy management."""
 
 import logging
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
@@ -255,7 +256,7 @@ async def list_members(
     legacy_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """List all members of a legacy.
 
     Returns members sorted by role level (creator first) then join date.
@@ -279,7 +280,7 @@ async def change_member_role(
     data: RoleUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Change a member's role.
 
     Only creators and admins can change roles. Actor can only

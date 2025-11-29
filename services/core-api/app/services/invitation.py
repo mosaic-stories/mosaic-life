@@ -118,13 +118,14 @@ async def create_invitation(
     await db.refresh(invitation)
 
     # Send email (don't fail if email fails)
-    await send_invitation_email(
-        to_email=data.email,
-        inviter_name=inviter.name or inviter.email,
-        legacy_name=legacy.name,
-        role=data.role,
-        token=invitation.token,
-    )
+    if inviter is not None and legacy is not None:
+        await send_invitation_email(
+            to_email=data.email,
+            inviter_name=inviter.name or inviter.email,
+            legacy_name=legacy.name,
+            role=data.role,
+            token=invitation.token,
+        )
 
     logger.info(
         "invitation.created",
@@ -143,8 +144,8 @@ async def create_invitation(
         email=invitation.email,
         role=invitation.role,
         invited_by=invitation.invited_by,
-        inviter_name=inviter.name,
-        inviter_email=inviter.email,
+        inviter_name=inviter.name if inviter else None,
+        inviter_email=inviter.email if inviter else None,
         created_at=invitation.created_at,
         expires_at=invitation.expires_at,
         accepted_at=invitation.accepted_at,

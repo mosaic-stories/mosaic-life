@@ -2,8 +2,8 @@
 
 import logging
 
-import boto3
-from botocore.exceptions import ClientError
+import boto3  # type: ignore[import-untyped]
+from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from ..config import get_settings
 

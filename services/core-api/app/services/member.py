@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -19,7 +20,7 @@ async def list_members(
     db: AsyncSession,
     legacy_id: UUID,
     requester_id: UUID,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """List all members of a legacy.
 
     All members can view the member list.
@@ -72,7 +73,7 @@ async def change_member_role(
     target_user_id: UUID,
     new_role: str,
     actor_id: UUID,
-) -> dict:
+) -> dict[str, Any]:
     """Change a member's role.
 
     Rules:
@@ -228,7 +229,8 @@ async def remove_member(
                 )
             )
         )
-        if creator_count_result.scalar() <= 1:
+        creator_count = creator_count_result.scalar()
+        if creator_count is not None and creator_count <= 1:
             raise HTTPException(
                 status_code=400,
                 detail="Cannot remove the last creator.",
@@ -283,7 +285,8 @@ async def leave_legacy(
                 )
             )
         )
-        if creator_count_result.scalar() <= 1:
+        creator_count = creator_count_result.scalar()
+        if creator_count is not None and creator_count <= 1:
             raise HTTPException(
                 status_code=400,
                 detail="You are the last creator. Promote someone else before leaving.",
