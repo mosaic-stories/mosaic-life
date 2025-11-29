@@ -81,3 +81,16 @@ export async function apiDelete<T = void>(path: string): Promise<T> {
   });
   return handleResponse<T>(response);
 }
+
+export async function apiPatch<T>(path: string, data: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method: 'PATCH',
+    credentials: 'include',
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  return handleResponse<T>(response);
+}
