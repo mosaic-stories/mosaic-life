@@ -13,6 +13,7 @@ from ..database import Base
 from .user import User
 
 if TYPE_CHECKING:
+    from .invitation import Invitation
     from .media import Media
 
 
@@ -65,6 +66,11 @@ class Legacy(Base):
         back_populates="legacy",
         cascade="all, delete-orphan",
     )
+    invitations: Mapped[list["Invitation"]] = relationship(
+        "Invitation",
+        back_populates="legacy",
+        cascade="all, delete-orphan",
+    )
     profile_image: Mapped["Media | None"] = relationship(
         "Media",
         foreign_keys=[profile_image_id],
@@ -91,11 +97,11 @@ class LegacyMember(Base):
         primary_key=True,
     )
 
-    # Roles: 'creator', 'editor', 'member', 'pending'
+    # Roles: 'creator', 'admin', 'advocate', 'admirer'
     role: Mapped[str] = mapped_column(
         String(20),
         nullable=False,
-        server_default="member",
+        server_default="advocate",
         index=True,
     )
 
