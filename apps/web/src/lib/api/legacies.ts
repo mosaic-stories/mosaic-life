@@ -1,11 +1,12 @@
 // Legacies API functions
-import { apiGet, apiPost, apiPut, apiDelete } from './client';
+import { apiGet, apiPost, apiPut, apiDelete, apiPatch } from './client';
 
 export interface LegacyMember {
   user_id: string;
   email: string;
-  name: string;
-  role: string;
+  name: string | null;
+  avatar_url?: string | null;
+  role: 'creator' | 'admin' | 'advocate' | 'admirer';
   joined_at: string;
 }
 
@@ -104,4 +105,31 @@ export async function exploreLegacies(limit: number = 20): Promise<Legacy[]> {
 // Public endpoint - get legacy details without authentication
 export async function getLegacyPublic(id: string): Promise<Legacy> {
   return apiGet<Legacy>(`/api/legacies/${id}/public`);
+}
+
+// Member management functions
+export async function listMembers(legacyId: string): Promise<LegacyMember[]> {
+  return apiGet<LegacyMember[]>(`/api/legacies/${legacyId}/members`);
+}
+
+export async function changeMemberRole(
+  legacyId: string,
+  userId: string,
+  role: string
+): Promise<LegacyMember> {
+  return apiPatch<LegacyMember>(
+    `/api/legacies/${legacyId}/members/${userId}`,
+    { role }
+  );
+}
+
+export async function removeMember(
+  legacyId: string,
+  userId: string
+): Promise<void> {
+  return apiDelete(`/api/legacies/${legacyId}/members/${userId}`);
+}
+
+export async function leaveLegacy(legacyId: string): Promise<void> {
+  return apiDelete(`/api/legacies/${legacyId}/members/me`);
 }

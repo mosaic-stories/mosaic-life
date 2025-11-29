@@ -8,6 +8,10 @@ import {
   updateLegacy,
   deleteLegacy,
   exploreLegacies,
+  listMembers,
+  changeMemberRole,
+  removeMember,
+  leaveLegacy,
   type CreateLegacyInput,
   type UpdateLegacyInput,
 } from '@/lib/api/legacies';
@@ -20,6 +24,11 @@ export const legacyKeys = {
   details: () => [...legacyKeys.all, 'detail'] as const,
   detail: (id: string) => [...legacyKeys.details(), id] as const,
   explore: () => [...legacyKeys.all, 'explore'] as const,
+};
+
+export const memberKeys = {
+  all: ['members'] as const,
+  list: (legacyId: string) => [...memberKeys.all, 'list', legacyId] as const,
 };
 
 export function useLegacies() {
@@ -121,4 +130,61 @@ export function useLegacyWithFallback(id: string | undefined, isAuthenticated: b
   }
   // Still loading private query or other error
   return privateQuery;
+}
+
+// Member management hooks
+export function useMembers(legacyId: string) {
+  return useQuery({
+    queryKey: memberKeys.list(legacyId),
+    queryFn: () => listMembers(legacyId),
+  });
+}
+
+export function useChangeMemberRole() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      legacyId,
+      userId,
+      role,
+    }: {
+      legacyId: string;
+      userId: string;
+      role: string;
+    }) => changeMemberRole(legacyId, userId, role),
+    onSuccess: (_, { legacyId }) => {
+      queryClient.invalidateQueries({ queryKey: memberKeys.list(legacyId) });
+      queryClient.invalidateQueries({ queryKey: legacyKeys.detail(legacyId) });
+    },
+  });
+}
+
+export function useRemoveMember() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      legacyId,
+      userId,
+    }: {
+      legacyId: string;
+      userId: string;
+    }) => removeMember(legacyId, userId),
+    onSuccess: (_, { legacyId }) => {
+      queryClient.invalidateQueries({ queryKey: memberKeys.list(legacyId) });
+      queryClient.invalidateQueries({ queryKey: legacyKeys.detail(legacyId) });
+    },
+  });
+}
+
+export function useLeaveLegacy() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (legacyId: string) => leaveLegacy(legacyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: legacyKeys.lists() });
+    },
+  });
 }
