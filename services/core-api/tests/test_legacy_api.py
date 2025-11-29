@@ -5,8 +5,9 @@ from datetime import datetime, timedelta, timezone
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.legacy import Legacy
+from app.models.legacy import Legacy, LegacyMember
 from app.models.user import User
+from tests.conftest import create_auth_headers_for_user
 
 
 class TestCreateLegacy:
@@ -404,3 +405,129 @@ class TestJoinApprovalFlow:
         assert get_response_approved.status_code == 200
         result = get_response_approved.json()
         assert result["id"] == legacy_id
+
+
+class TestMemberManagement:
+    """Tests for member management endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_list_members(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+    ):
+        """Test listing legacy members."""
+        response = await client.get(
+            f"/api/legacies/{test_legacy.id}/members",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) >= 1  # At least the creator
+
+    @pytest.mark.asyncio
+    async def test_change_member_role(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+        db_session: AsyncSession,
+    ):
+        """Test changing a member's role."""
+        # Add another member
+        other_user = User(
+            email="other@example.com",
+            google_id="google_other",
+            name="Other User",
+        )
+        db_session.add(other_user)
+        await db_session.commit()
+        await db_session.refresh(other_user)
+
+        member = LegacyMember(
+            legacy_id=test_legacy.id,
+            user_id=other_user.id,
+            role="advocate",
+        )
+        db_session.add(member)
+        await db_session.commit()
+
+        response = await client.patch(
+            f"/api/legacies/{test_legacy.id}/members/{other_user.id}",
+            json={"role": "admin"},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["role"] == "admin"
+
+    @pytest.mark.asyncio
+    async def test_remove_member(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+        db_session: AsyncSession,
+    ):
+        """Test removing a member."""
+        other_user = User(
+            email="removable@example.com",
+            google_id="google_removable",
+            name="Removable User",
+        )
+        db_session.add(other_user)
+        await db_session.commit()
+        await db_session.refresh(other_user)
+
+        member = LegacyMember(
+            legacy_id=test_legacy.id,
+            user_id=other_user.id,
+            role="advocate",
+        )
+        db_session.add(member)
+        await db_session.commit()
+
+        response = await client.delete(
+            f"/api/legacies/{test_legacy.id}/members/{other_user.id}",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 204
+
+    @pytest.mark.asyncio
+    async def test_leave_legacy(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_legacy: Legacy,
+    ):
+        """Test leaving a legacy."""
+        # Create a non-creator member
+        leaving_user = User(
+            email="leaving@example.com",
+            google_id="google_leaving",
+            name="Leaving User",
+        )
+        db_session.add(leaving_user)
+        await db_session.commit()
+        await db_session.refresh(leaving_user)
+
+        member = LegacyMember(
+            legacy_id=test_legacy.id,
+            user_id=leaving_user.id,
+            role="advocate",
+        )
+        db_session.add(member)
+        await db_session.commit()
+
+        leaving_auth = create_auth_headers_for_user(leaving_user)
+
+        response = await client.delete(
+            f"/api/legacies/{test_legacy.id}/members/me",
+            headers=leaving_auth,
+        )
+
+        assert response.status_code == 204

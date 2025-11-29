@@ -15,6 +15,14 @@ from ..schemas.legacy import (
     LegacyUpdate,
 )
 from ..services import legacy as legacy_service
+from ..services import member as member_service
+from pydantic import BaseModel
+
+
+class RoleUpdate(BaseModel):
+    """Schema for updating a member's role."""
+
+    role: str
 
 router = APIRouter(prefix="/api/legacies", tags=["legacies"])
 logger = logging.getLogger(__name__)
@@ -237,6 +245,55 @@ async def request_join(
     )
 
 
+@router.get(
+    "/{legacy_id}/members",
+    summary="List legacy members",
+    description="List all members of a legacy. Any member can view.",
+)
+async def list_members(
+    legacy_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> list[dict]:
+    """List all members of a legacy.
+
+    Returns members sorted by role level (creator first) then join date.
+    """
+    session = require_auth(request)
+    return await member_service.list_members(
+        db=db,
+        legacy_id=legacy_id,
+        requester_id=session.user_id,
+    )
+
+
+@router.patch(
+    "/{legacy_id}/members/{user_id}",
+    summary="Change member role",
+    description="Change a member's role. Only creator and admin can change roles.",
+)
+async def change_member_role(
+    legacy_id: UUID,
+    user_id: UUID,
+    data: RoleUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Change a member's role.
+
+    Only creators and admins can change roles. Actor can only
+    assign roles at or below their own level.
+    """
+    session = require_auth(request)
+    return await member_service.change_member_role(
+        db=db,
+        legacy_id=legacy_id,
+        target_user_id=user_id,
+        new_role=data.role,
+        actor_id=session.user_id,
+    )
+
+
 @router.post(
     "/{legacy_id}/members/{user_id}/approve",
     summary="Approve member",
@@ -264,10 +321,33 @@ async def approve_member(
 
 
 @router.delete(
+    "/{legacy_id}/members/me",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Leave legacy",
+    description="Leave a legacy voluntarily. The last creator cannot leave.",
+)
+async def leave_legacy(
+    legacy_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Leave a legacy voluntarily.
+
+    The last creator cannot leave - they must promote someone else first.
+    """
+    session = require_auth(request)
+    await member_service.leave_legacy(
+        db=db,
+        legacy_id=legacy_id,
+        user_id=session.user_id,
+    )
+
+
+@router.delete(
     "/{legacy_id}/members/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Remove member",
-    description="Remove a member from a legacy. Only creator can remove members.",
+    description="Remove a member from a legacy. Only creator and admin can remove members.",
 )
 async def remove_member(
     legacy_id: UUID,
@@ -277,14 +357,14 @@ async def remove_member(
 ) -> None:
     """Remove a member from a legacy.
 
-    Only the legacy creator can remove members.
-    Cannot remove the creator.
+    Only creators and admins can remove members.
+    Cannot remove the last creator.
     """
     session = require_auth(request)
 
-    await legacy_service.remove_legacy_member(
+    await member_service.remove_member(
         db=db,
-        remover_user_id=session.user_id,
         legacy_id=legacy_id,
-        user_id=user_id,
+        target_user_id=user_id,
+        actor_id=session.user_id,
     )
