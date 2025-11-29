@@ -62,6 +62,10 @@ class LegacyResponse(BaseModel):
     # Optional: include member info
     members: list[LegacyMemberResponse] | None = None
 
+    # Profile image
+    profile_image_id: UUID | None = None
+    profile_image_url: str | None = None
+
     model_config = {"from_attributes": True}
 
 

@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from ..adapters.storage import get_storage_adapter
 from ..models.legacy import Legacy, LegacyMember
 from ..models.user import User
 from ..schemas.legacy import (
@@ -28,6 +29,14 @@ ROLE_HIERARCHY = {
     "member": 1,
     "pending": 0,
 }
+
+
+def get_profile_image_url(legacy: Legacy) -> str | None:
+    """Get the download URL for a legacy's profile image."""
+    if not legacy.profile_image or not legacy.profile_image.storage_path:
+        return None
+    storage = get_storage_adapter()
+    return storage.generate_download_url(legacy.profile_image.storage_path)
 
 
 async def check_legacy_access(
@@ -285,6 +294,7 @@ async def explore_legacies(
         .options(
             selectinload(Legacy.creator),
             selectinload(Legacy.members).selectinload(LegacyMember.user),
+            selectinload(Legacy.profile_image),
         )
         .order_by(Legacy.created_at.desc())
         .limit(limit)
@@ -323,6 +333,8 @@ async def explore_legacies(
             ]
             if legacy.members
             else [],
+            profile_image_id=legacy.profile_image_id,
+            profile_image_url=get_profile_image_url(legacy),
         )
         for legacy in legacies
     ]
@@ -350,6 +362,7 @@ async def get_legacy_public(
         .options(
             selectinload(Legacy.creator),
             selectinload(Legacy.members).selectinload(LegacyMember.user),
+            selectinload(Legacy.profile_image),
         )
         .where(Legacy.id == legacy_id)
     )
@@ -399,6 +412,8 @@ async def get_legacy_public(
         creator_email=legacy.creator.email if legacy.creator else None,
         creator_name=legacy.creator.name if legacy.creator else None,
         members=members,
+        profile_image_id=legacy.profile_image_id,
+        profile_image_url=get_profile_image_url(legacy),
     )
 
 
@@ -431,6 +446,7 @@ async def get_legacy_detail(
         .options(
             selectinload(Legacy.creator),
             selectinload(Legacy.members).selectinload(LegacyMember.user),
+            selectinload(Legacy.profile_image),
         )
         .where(Legacy.id == legacy_id)
     )
@@ -481,6 +497,8 @@ async def get_legacy_detail(
         creator_email=legacy.creator.email,
         creator_name=legacy.creator.name,
         members=members,
+        profile_image_id=legacy.profile_image_id,
+        profile_image_url=get_profile_image_url(legacy),
     )
 
 
