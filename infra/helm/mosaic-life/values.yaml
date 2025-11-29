@@ -188,12 +188,12 @@ coreApi:
       value: "mosaic-prod-media-033691785857"
     - name: S3_BACKUP_BUCKET
       value: "mosaic-prod-backups-033691785857"
-    - name: DATABASE_SECRET_ARN
-      value: "arn:aws:secretsmanager:us-east-1:033691785857:secret:mosaic/prod/rds/credentials-Oy5AjN1"
-    
-    # TODO: Replace with actual database URL from secrets
-    # - name: DATABASE_URL
-    #   value: "postgresql://user:pass@localhost:5432/mosaiclife"
+    # Database URL from External Secrets
+    - name: DB_URL
+      valueFrom:
+        secretKeyRef:
+          name: database-credentials
+          key: DB_URL
     
     # Legacy Cognito (commented out - using Google OAuth instead)
     # - name: COGNITO_USER_POOL_ID
@@ -307,3 +307,13 @@ securityContext:
     drop:
       - ALL
   readOnlyRootFilesystem: true
+
+# External Secrets Configuration
+externalSecrets:
+  enabled: true
+  refreshInterval: "1h"
+  secretStoreRef:
+    name: aws-secretsmanager
+    kind: ClusterSecretStore
+  database:
+    secretKey: "mosaic/prod/rds/credentials"
