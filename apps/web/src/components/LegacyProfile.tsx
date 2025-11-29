@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Heart, Lock, Loader2, MessageSquare, MoreVertical, Pencil, Plus, Share2, Sparkles, Trash2, Users, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, Heart, Lock, Loader2, MessageSquare, MoreVertical, Pencil, Plus, Share2, Sparkles, Trash2, Users, AlertCircle, UserPlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
@@ -29,6 +29,7 @@ import { useStoriesWithFallback } from '@/lib/hooks/useStories';
 import { formatLegacyDates } from '@/lib/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import type { StorySummary } from '@/lib/api/stories';
+import MemberDrawer from './MemberDrawer';
 
 interface LegacyProfileProps {
   legacyId: string;
@@ -101,6 +102,7 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<'stories' | 'media' | 'ai'>('stories');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showMemberDrawer, setShowMemberDrawer] = useState(false);
 
   // Use fallback hooks that try private endpoint first, then fall back to public
   const legacyQuery = useLegacyWithFallback(legacyId, !!user);
@@ -116,8 +118,17 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
 
   const _theme = getThemeClasses(currentTheme);
 
+  // Find current user's membership and role
+  const currentUserMember = useMemo(() => {
+    if (!user || !legacy?.members) return null;
+    return legacy.members.find(m => m.email === user.email);
+  }, [user, legacy?.members]);
+
+  const currentUserRole = currentUserMember?.role || 'admirer';
+  const isMember = !!currentUserMember;
+
   // Check if current user is the creator of the legacy
-  const _isCreator = user && legacy?.created_by === legacy?.members?.find(m => m.email === user.email)?.user_id;
+  const _isCreator = currentUserRole === 'creator';
 
   const handleAddStory = () => {
     navigate(`/legacy/${legacyId}/story/new`);
@@ -248,10 +259,24 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
                   <MessageSquare className="size-4" />
                   <span>{storyCount} {storyCount === 1 ? 'story' : 'stories'}</span>
                 </div>
-                <div className="flex items-center gap-2 text-neutral-600">
+                <button
+                  onClick={() => setShowMemberDrawer(true)}
+                  className="flex items-center gap-2 text-neutral-600 hover:text-[rgb(var(--theme-primary))] transition-colors"
+                >
                   <Users className="size-4" />
                   <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
-                </div>
+                </button>
+                {isMember && currentUserRole !== 'admirer' && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowMemberDrawer(true)}
+                    className="text-[rgb(var(--theme-primary))] border-[rgb(var(--theme-accent))] hover:bg-[rgb(var(--theme-accent-light))]"
+                  >
+                    <UserPlus className="size-4 mr-1" />
+                    Invite
+                  </Button>
+                )}
                 {legacy.creator_name && (
                   <div className="text-neutral-500">
                     Created by {legacy.creator_name}
@@ -484,6 +509,16 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Member Management Drawer */}
+      {isMember && (
+        <MemberDrawer
+          legacyId={legacyId}
+          isOpen={showMemberDrawer}
+          onClose={() => setShowMemberDrawer(false)}
+          currentUserRole={currentUserRole}
+        />
+      )}
     </div>
   );
 }
