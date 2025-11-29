@@ -16,7 +16,7 @@
     ],
     "SecurityGroupIngress": [
      {
-      "CidrIp": "10.0.0.0/16",
+      "CidrIp": "10.20.0.0/16",
       "Description": "Allow PostgreSQL traffic from VPC",
       "FromPort": 5432,
       "IpProtocol": "tcp",
