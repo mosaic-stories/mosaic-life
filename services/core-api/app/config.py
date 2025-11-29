@@ -39,6 +39,23 @@ class Settings(BaseModel):
     s3_media_bucket: str | None = os.getenv("S3_MEDIA_BUCKET")
     aws_region: str = os.getenv("AWS_REGION", "us-east-1")
 
+    # Storage Configuration
+    storage_backend: str = os.getenv("STORAGE_BACKEND", "local")
+    local_media_path: str = os.getenv("LOCAL_MEDIA_PATH", "/app/media")
+
+    # Upload limits
+    max_upload_size_bytes: int = 10 * 1024 * 1024  # 10 MB
+    upload_url_expiry_seconds: int = 300  # 5 minutes
+    download_url_expiry_seconds: int = 900  # 15 minutes
+
+    # Allowed content types
+    allowed_content_types: list[str] = [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+    ]
+
     # Observability
     otel_exporter_otlp_endpoint: str | None = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
 
