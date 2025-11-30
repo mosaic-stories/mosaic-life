@@ -4,6 +4,7 @@ import logging
 from uuid import UUID
 
 from sqlalchemy import and_, func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -159,7 +160,7 @@ async def update_notification_status(
 
 async def mark_all_as_read(db: AsyncSession, user_id: UUID) -> int:
     """Mark all unread notifications as read for a user."""
-    result = await db.execute(
+    result: CursorResult[tuple[Notification]] = await db.execute(
         update(Notification)
         .where(
             and_(
@@ -171,7 +172,7 @@ async def mark_all_as_read(db: AsyncSession, user_id: UUID) -> int:
     )
     await db.commit()
 
-    count = result.rowcount
+    count: int = result.rowcount or 0
     logger.info(
         "notification.mark_all_read",
         extra={"user_id": str(user_id), "count": count},

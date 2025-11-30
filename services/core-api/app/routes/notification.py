@@ -1,5 +1,6 @@
 """Notification API routes."""
 
+from typing import Any, Dict
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -63,7 +64,7 @@ async def update_notification(
 async def mark_all_read(
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> Dict[str, Any]:
     """Mark all unread notifications as read."""
     session = require_auth(request)
     count = await notification_service.mark_all_as_read(db, session.user_id)
