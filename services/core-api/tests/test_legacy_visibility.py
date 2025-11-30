@@ -207,3 +207,111 @@ class TestServiceFunctionsReturnVisibility:
         result = await legacy_service.search_legacies_by_name(db=db_session, query="Searchable")
         assert len(result) >= 1
         assert result[0].visibility == "public"
+
+
+class TestExploreVisibilityFiltering:
+    """Tests for explore endpoint visibility filtering."""
+
+    @pytest.mark.asyncio
+    async def test_explore_unauthenticated_only_shows_public(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test unauthenticated explore only returns public legacies."""
+        # Create public and private legacies
+        public_legacy = Legacy(name="Public One", created_by=test_user.id, visibility="public")
+        private_legacy = Legacy(name="Private One", created_by=test_user.id, visibility="private")
+        db_session.add_all([public_legacy, private_legacy])
+        await db_session.commit()
+
+        # Explore without user_id (unauthenticated)
+        result = await legacy_service.explore_legacies(db=db_session, user_id=None)
+
+        names = [l.name for l in result]
+        assert "Public One" in names
+        assert "Private One" not in names
+
+    @pytest.mark.asyncio
+    async def test_explore_authenticated_shows_public_and_accessible_private(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+    ):
+        """Test authenticated explore shows public + private legacies user is member of."""
+        # Create public legacy by user 2
+        public_legacy = Legacy(name="Public By Other", created_by=test_user_2.id, visibility="public")
+        db_session.add(public_legacy)
+
+        # Create private legacy user is member of
+        private_member = Legacy(name="Private Member", created_by=test_user_2.id, visibility="private")
+        db_session.add(private_member)
+        await db_session.flush()
+        member = LegacyMember(legacy_id=private_member.id, user_id=test_user.id, role="advocate")
+        db_session.add(member)
+
+        # Create private legacy user is NOT member of
+        private_other = Legacy(name="Private Other", created_by=test_user_2.id, visibility="private")
+        db_session.add(private_other)
+        await db_session.commit()
+
+        result = await legacy_service.explore_legacies(db=db_session, user_id=test_user.id)
+
+        names = [l.name for l in result]
+        assert "Public By Other" in names
+        assert "Private Member" in names
+        assert "Private Other" not in names
+
+    @pytest.mark.asyncio
+    async def test_explore_filter_public_only(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test explore with visibility_filter='public'."""
+        public_legacy = Legacy(name="Filter Public", created_by=test_user.id, visibility="public")
+        private_legacy = Legacy(name="Filter Private", created_by=test_user.id, visibility="private")
+        db_session.add_all([public_legacy, private_legacy])
+        await db_session.flush()
+
+        # Add user as member of private legacy
+        member = LegacyMember(legacy_id=private_legacy.id, user_id=test_user.id, role="creator")
+        db_session.add(member)
+        await db_session.commit()
+
+        result = await legacy_service.explore_legacies(
+            db=db_session,
+            user_id=test_user.id,
+            visibility_filter="public",
+        )
+
+        names = [l.name for l in result]
+        assert "Filter Public" in names
+        assert "Filter Private" not in names
+
+    @pytest.mark.asyncio
+    async def test_explore_filter_private_only(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test explore with visibility_filter='private'."""
+        public_legacy = Legacy(name="Filter Public 2", created_by=test_user.id, visibility="public")
+        private_legacy = Legacy(name="Filter Private 2", created_by=test_user.id, visibility="private")
+        db_session.add_all([public_legacy, private_legacy])
+        await db_session.flush()
+
+        member = LegacyMember(legacy_id=private_legacy.id, user_id=test_user.id, role="creator")
+        db_session.add(member)
+        await db_session.commit()
+
+        result = await legacy_service.explore_legacies(
+            db=db_session,
+            user_id=test_user.id,
+            visibility_filter="private",
+        )
+
+        names = [l.name for l in result]
+        assert "Filter Public 2" not in names
+        assert "Filter Private 2" in names

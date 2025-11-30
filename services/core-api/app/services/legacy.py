@@ -325,34 +325,75 @@ async def search_legacies_by_name(
 async def explore_legacies(
     db: AsyncSession,
     limit: int = 20,
+    user_id: UUID | None = None,
+    visibility_filter: str = "all",
 ) -> list[LegacyResponse]:
-    """Get legacies for public exploration (no auth required).
-
-    Returns recent legacies for the homepage "Explore Legacies" section.
+    """Get legacies for exploration.
 
     Args:
         db: Database session
         limit: Maximum number of legacies to return
+        user_id: Current user ID (None if unauthenticated)
+        visibility_filter: Filter by visibility ('all', 'public', 'private')
 
     Returns:
         List of legacies with creator info
     """
-    result = await db.execute(
+    from sqlalchemy import or_
+
+    # Build base query
+    query = (
         select(Legacy)
         .options(
             selectinload(Legacy.creator),
             selectinload(Legacy.members).selectinload(LegacyMember.user),
             selectinload(Legacy.profile_image),
         )
-        .order_by(Legacy.created_at.desc())
-        .limit(limit)
     )
-    legacies = result.scalars().all()
+
+    # Apply visibility filtering
+    if user_id is None:
+        # Unauthenticated: only public legacies
+        query = query.where(Legacy.visibility == "public")
+    elif visibility_filter == "public":
+        # Authenticated, filter public only
+        query = query.where(Legacy.visibility == "public")
+    elif visibility_filter == "private":
+        # Authenticated, filter private only (must be member)
+        query = query.join(LegacyMember).where(
+            Legacy.visibility == "private",
+            LegacyMember.user_id == user_id,
+            LegacyMember.role != "pending",
+        )
+    else:
+        # 'all': public legacies + private legacies user is member of
+        # Use subquery to check membership for private legacies
+        member_subquery = (
+            select(LegacyMember.legacy_id)
+            .where(
+                LegacyMember.user_id == user_id,
+                LegacyMember.role != "pending",
+            )
+            .scalar_subquery()
+        )
+        query = query.where(
+            or_(
+                Legacy.visibility == "public",
+                Legacy.id.in_(member_subquery),
+            )
+        )
+
+    query = query.order_by(Legacy.created_at.desc()).limit(limit)
+
+    result = await db.execute(query)
+    legacies = result.scalars().unique().all()
 
     logger.info(
         "legacy.explore",
         extra={
             "count": len(legacies),
+            "user_id": str(user_id) if user_id else None,
+            "visibility_filter": visibility_filter,
         },
     )
 
