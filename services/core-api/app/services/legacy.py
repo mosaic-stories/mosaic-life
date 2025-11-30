@@ -178,6 +178,7 @@ async def create_legacy(
         birth_date=data.birth_date,
         death_date=data.death_date,
         biography=data.biography,
+        visibility=data.visibility,
         created_by=user_id,
     )
     db.add(legacy)
@@ -213,6 +214,7 @@ async def create_legacy(
         birth_date=legacy.birth_date,
         death_date=legacy.death_date,
         biography=legacy.biography,
+        visibility=legacy.visibility,
         created_by=legacy.created_by,
         created_at=legacy.created_at,
         updated_at=legacy.updated_at,

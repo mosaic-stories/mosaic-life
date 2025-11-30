@@ -88,3 +88,40 @@ class TestLegacyVisibilitySchemas:
             visibility="public",
         )
         assert response.visibility == "public"
+
+
+from app.services import legacy as legacy_service
+
+
+class TestCreateLegacyVisibility:
+    """Tests for creating legacies with visibility."""
+
+    @pytest.mark.asyncio
+    async def test_create_legacy_default_private(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test creating legacy defaults to private."""
+        data = LegacyCreate(name="Test Legacy")
+        result = await legacy_service.create_legacy(
+            db=db_session,
+            user_id=test_user.id,
+            data=data,
+        )
+        assert result.visibility == "private"
+
+    @pytest.mark.asyncio
+    async def test_create_legacy_public(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test creating public legacy."""
+        data = LegacyCreate(name="Public Legacy", visibility="public")
+        result = await legacy_service.create_legacy(
+            db=db_session,
+            user_id=test_user.id,
+            data=data,
+        )
+        assert result.visibility == "public"
