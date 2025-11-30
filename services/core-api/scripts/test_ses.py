@@ -6,8 +6,6 @@ This script tests AWS SES configuration and sends a test email.
 Run from the core-api directory with: uv run python scripts/test_ses.py
 """
 
-import asyncio
-import os
 import sys
 from pathlib import Path
 
@@ -153,8 +151,8 @@ def check_ses_account_status(region: str) -> None:
         print(f"   {e}")
 
 
-def test_ses_permissions(region: str, from_email: str) -> bool:
-    """Test if we have permission to send emails."""
+def check_ses_permissions(region: str, from_email: str) -> bool:
+    """Check if we have permission to send emails."""
     print_header("6. SES IAM Permissions Test")
     
     try:
@@ -264,10 +262,10 @@ Mosaic Life""".format(from_email=from_email, region=region),
         )
         
         message_id = response.get("MessageId")
-        print(f"\n✅ Email sent successfully!")
+        print("\n✅ Email sent successfully!")
         print(f"   Message ID: {message_id}")
         print(f"\n   Check the inbox for: {to_email}")
-        print(f"   Also check spam/junk folders")
+        print("   Also check spam/junk folders")
         
         return True
     except ClientError as e:
@@ -317,7 +315,7 @@ def main():
     
     if from_email not in verified:
         print(f"\n⚠️  WARNING: From email '{from_email}' is NOT verified in SES")
-        print(f"   Verify it in the AWS SES console:")
+        print("   Verify it in the AWS SES console:")
         print(f"   https://console.aws.amazon.com/ses/home?region={region}#verified-senders-email:")
     
     # Check sending quota
@@ -326,8 +324,8 @@ def main():
     # Check account status
     check_ses_account_status(region)
     
-    # Test permissions
-    test_ses_permissions(region, from_email)
+    # Check permissions
+    check_ses_permissions(region, from_email)
     
     # Offer to send test email
     print_header("Send Test Email?")

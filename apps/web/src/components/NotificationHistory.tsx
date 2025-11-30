@@ -12,7 +12,7 @@ interface NotificationHistoryProps {
 }
 
 export default function NotificationHistory({
-  onNavigate,
+  onNavigate: _onNavigate,
 }: NotificationHistoryProps) {
   const navigate = useNavigate();
   const { data: notifications, isLoading } = useNotifications(true); // Include dismissed
