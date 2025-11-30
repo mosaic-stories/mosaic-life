@@ -28,11 +28,11 @@ def print_header(title: str) -> None:
 def check_aws_credentials() -> bool:
     """Check if AWS credentials are available."""
     print_header("1. AWS Credentials Check")
-    
+
     try:
         sts = boto3.client("sts")
         identity = sts.get_caller_identity()
-        
+
         print("✅ AWS Credentials Found")
         print(f"   Account ID: {identity['Account']}")
         print(f"   User ARN: {identity['Arn']}")
@@ -51,19 +51,19 @@ def check_aws_credentials() -> bool:
 def check_ses_configuration() -> dict | None:
     """Check SES configuration from settings."""
     print_header("2. SES Configuration Check")
-    
+
     settings = get_settings()
-    
+
     print(f"SES From Email: {settings.ses_from_email or '❌ NOT SET'}")
     print(f"SES Region: {settings.ses_region}")
     print(f"App URL: {settings.app_url}")
-    
+
     if not settings.ses_from_email:
         print("\n❌ SES_FROM_EMAIL environment variable is not set")
         print("   Set it to enable email sending")
         print("   Example: export SES_FROM_EMAIL=noreply@mosaiclife.me")
         return None
-    
+
     return {
         "from_email": settings.ses_from_email,
         "region": settings.ses_region,
@@ -73,13 +73,13 @@ def check_ses_configuration() -> dict | None:
 def check_ses_verified_identities(region: str) -> list[str]:
     """Check which email addresses are verified in SES."""
     print_header("3. SES Verified Identities")
-    
+
     try:
         ses = boto3.client("ses", region_name=region)
         response = ses.list_verified_email_addresses()
-        
+
         verified = response.get("VerifiedEmailAddresses", [])
-        
+
         if verified:
             print(f"✅ Found {len(verified)} verified email address(es):")
             for email in verified:
@@ -87,7 +87,7 @@ def check_ses_verified_identities(region: str) -> list[str]:
         else:
             print("❌ No verified email addresses found")
             print("   Verify an email address in the AWS SES console")
-        
+
         return verified
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
@@ -99,18 +99,18 @@ def check_ses_verified_identities(region: str) -> list[str]:
 def check_ses_sending_quota(region: str) -> dict | None:
     """Check SES sending quota and usage."""
     print_header("4. SES Sending Quota")
-    
+
     try:
         ses = boto3.client("ses", region_name=region)
         quota = ses.get_send_quota()
-        
+
         print(f"Max 24 Hour Send: {quota['Max24HourSend']:.0f}")
         print(f"Max Send Rate: {quota['MaxSendRate']:.0f} emails/second")
         print(f"Sent Last 24 Hours: {quota['SentLast24Hours']:.0f}")
-        
-        remaining = quota['Max24HourSend'] - quota['SentLast24Hours']
+
+        remaining = quota["Max24HourSend"] - quota["SentLast24Hours"]
         print(f"Remaining Today: {remaining:.0f}")
-        
+
         return quota
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
@@ -122,29 +122,31 @@ def check_ses_sending_quota(region: str) -> dict | None:
 def check_ses_account_status(region: str) -> None:
     """Check if SES account is in sandbox mode."""
     print_header("5. SES Account Status")
-    
+
     try:
         ses = boto3.client("ses", region_name=region)
         account = ses.get_account_sending_enabled()
-        
+
         if account.get("Enabled"):
             print("✅ Account sending is ENABLED")
         else:
             print("❌ Account sending is DISABLED")
             return
-        
+
         # Try to determine sandbox status by checking configuration sets
         try:
             config_sets = ses.list_configuration_sets()
-            print(f"Configuration Sets: {len(config_sets.get('ConfigurationSets', []))}")
+            print(
+                f"Configuration Sets: {len(config_sets.get('ConfigurationSets', []))}"
+            )
         except Exception:
             pass
-        
+
         print("\n⚠️  Note: If your account is in sandbox mode:")
         print("   • You can only send TO verified email addresses")
         print("   • You can only send FROM verified email addresses")
         print("   • Request production access in AWS SES console")
-        
+
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
         print(f"❌ Error checking account status: {error_code}")
@@ -154,31 +156,31 @@ def check_ses_account_status(region: str) -> None:
 def check_ses_permissions(region: str, from_email: str) -> bool:
     """Check if we have permission to send emails."""
     print_header("6. SES IAM Permissions Test")
-    
+
     try:
         ses = boto3.client("ses", region_name=region)
-        
+
         # Try to get sending statistics (requires ses:GetSendStatistics)
         ses.get_send_statistics()
         print("✅ ses:GetSendStatistics - OK")
-        
+
         # Try to list verified emails (requires ses:ListVerifiedEmailAddresses)
         ses.list_verified_email_addresses()
         print("✅ ses:ListVerifiedEmailAddresses - OK")
-        
+
         # Try to get quota (requires ses:GetSendQuota)
         ses.get_send_quota()
         print("✅ ses:GetSendQuota - OK")
-        
+
         print("\n✅ Basic SES read permissions are working")
         print("   Note: ses:SendEmail permission will be tested with actual send")
-        
+
         return True
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
         print(f"❌ Permission check failed: {error_code}")
         print(f"   {e}")
-        
+
         if error_code == "AccessDenied":
             print("\n   Required IAM permissions for SES:")
             print("   • ses:SendEmail")
@@ -186,21 +188,21 @@ def check_ses_permissions(region: str, from_email: str) -> bool:
             print("   • ses:GetSendQuota")
             print("   • ses:ListVerifiedEmailAddresses")
             print("   • ses:GetSendStatistics")
-        
+
         return False
 
 
 def send_test_email(region: str, from_email: str, to_email: str) -> bool:
     """Send a test email via SES."""
     print_header("7. Send Test Email")
-    
+
     print(f"From: {from_email}")
     print(f"To: {to_email}")
     print(f"Region: {region}")
-    
+
     try:
         ses = boto3.client("ses", region_name=region)
-        
+
         response = ses.send_email(
             Source=from_email,
             Destination={"ToAddresses": [to_email]},
@@ -260,21 +262,21 @@ Mosaic Life""".format(from_email=from_email, region=region),
                 },
             },
         )
-        
+
         message_id = response.get("MessageId")
         print("\n✅ Email sent successfully!")
         print(f"   Message ID: {message_id}")
         print(f"\n   Check the inbox for: {to_email}")
         print("   Also check spam/junk folders")
-        
+
         return True
     except ClientError as e:
         error_code = e.response.get("Error", {}).get("Code", "Unknown")
         error_message = e.response.get("Error", {}).get("Message", "Unknown error")
-        
+
         print(f"\n❌ Failed to send email: {error_code}")
         print(f"   {error_message}")
-        
+
         # Provide specific guidance based on error code
         if error_code == "MessageRejected":
             print("\n   Common causes:")
@@ -285,7 +287,7 @@ Mosaic Life""".format(from_email=from_email, region=region),
             print("\n   Missing IAM permission: ses:SendEmail")
         elif error_code == "InvalidParameterValue":
             print("\n   Check that email addresses are valid")
-        
+
         return False
 
 
@@ -295,45 +297,47 @@ def main():
     print("  AWS SES Email Configuration Diagnostic")
     print("  Mosaic Life - Legacy Member Invitations")
     print("=" * 70)
-    
+
     # Check AWS credentials
     if not check_aws_credentials():
         print("\n❌ Cannot proceed without AWS credentials")
         sys.exit(1)
-    
+
     # Check SES configuration
     ses_config = check_ses_configuration()
     if not ses_config:
         print("\n❌ Cannot proceed without SES_FROM_EMAIL configured")
         sys.exit(1)
-    
+
     from_email = ses_config["from_email"]
     region = ses_config["region"]
-    
+
     # Check verified identities
     verified = check_ses_verified_identities(region)
-    
+
     if from_email not in verified:
         print(f"\n⚠️  WARNING: From email '{from_email}' is NOT verified in SES")
         print("   Verify it in the AWS SES console:")
-        print(f"   https://console.aws.amazon.com/ses/home?region={region}#verified-senders-email:")
-    
+        print(
+            f"   https://console.aws.amazon.com/ses/home?region={region}#verified-senders-email:"
+        )
+
     # Check sending quota
     check_ses_sending_quota(region)
-    
+
     # Check account status
     check_ses_account_status(region)
-    
+
     # Check permissions
     check_ses_permissions(region, from_email)
-    
+
     # Offer to send test email
     print_header("Send Test Email?")
     print("Enter a recipient email address to send a test email")
     print("(Press Enter to skip)")
-    
+
     to_email = input("\nRecipient email: ").strip()
-    
+
     if to_email:
         if "@" not in to_email:
             print("❌ Invalid email address")
@@ -341,7 +345,7 @@ def main():
             send_test_email(region, from_email, to_email)
     else:
         print("Skipped test email send")
-    
+
     print_header("Diagnostic Complete")
     print("Review the results above to identify any configuration issues.\n")
 

@@ -12,9 +12,7 @@ class InvitationCreate(BaseModel):
     Either email or user_id must be provided, but not both.
     """
 
-    email: EmailStr | None = Field(
-        default=None, description="Email address to invite"
-    )
+    email: EmailStr | None = Field(default=None, description="Email address to invite")
     user_id: UUID | None = Field(
         default=None, description="User ID to invite (for existing users)"
     )
