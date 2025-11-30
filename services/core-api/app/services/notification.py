@@ -3,8 +3,10 @@
 import logging
 from uuid import UUID
 
+from typing import Any, cast
+
 from sqlalchemy import and_, func, select, update
-from sqlalchemy.engine import CursorResult
+from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -160,7 +162,7 @@ async def update_notification_status(
 
 async def mark_all_as_read(db: AsyncSession, user_id: UUID) -> int:
     """Mark all unread notifications as read for a user."""
-    result: CursorResult[tuple[Notification]] = await db.execute(
+    result: Result[Any] = await db.execute(
         update(Notification)
         .where(
             and_(
@@ -172,7 +174,8 @@ async def mark_all_as_read(db: AsyncSession, user_id: UUID) -> int:
     )
     await db.commit()
 
-    count: int = result.rowcount or 0
+    # mypy doesn't recognize rowcount on Result[Any], but it exists at runtime
+    count: int = cast(int, getattr(result, "rowcount", 0)) or 0
     logger.info(
         "notification.mark_all_read",
         extra={"user_id": str(user_id), "count": count},
