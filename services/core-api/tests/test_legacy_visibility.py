@@ -1,6 +1,7 @@
 """Tests for legacy visibility feature."""
 
 import pytest
+from fastapi import HTTPException
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -377,3 +378,215 @@ class TestExploreAPI:
         names = [legacy["name"] for legacy in response.json()]
         assert "API Filter Public" not in names
         assert "API Filter Private" in names
+
+
+class TestSearchVisibility:
+    """Tests for search with visibility filtering."""
+
+    @pytest.mark.asyncio
+    async def test_search_unauthenticated_only_public(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test unauthenticated search returns only public legacies."""
+        public_legacy = Legacy(name="Search Public", created_by=test_user.id, visibility="public")
+        private_legacy = Legacy(name="Search Private", created_by=test_user.id, visibility="private")
+        db_session.add_all([public_legacy, private_legacy])
+        await db_session.commit()
+
+        result = await legacy_service.search_legacies_by_name(
+            db=db_session,
+            query="Search",
+            user_id=None,
+        )
+
+        names = [l.name for l in result]
+        assert "Search Public" in names
+        assert "Search Private" not in names
+
+    @pytest.mark.asyncio
+    async def test_search_authenticated_shows_accessible(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+    ):
+        """Test authenticated search shows public + accessible private."""
+        public_legacy = Legacy(name="Search2 Public", created_by=test_user_2.id, visibility="public")
+        private_member = Legacy(name="Search2 Private Member", created_by=test_user_2.id, visibility="private")
+        private_other = Legacy(name="Search2 Private Other", created_by=test_user_2.id, visibility="private")
+
+        db_session.add_all([public_legacy, private_member, private_other])
+        await db_session.flush()
+
+        member = LegacyMember(legacy_id=private_member.id, user_id=test_user.id, role="advocate")
+        db_session.add(member)
+        await db_session.commit()
+
+        result = await legacy_service.search_legacies_by_name(
+            db=db_session,
+            query="Search2",
+            user_id=test_user.id,
+        )
+
+        names = [l.name for l in result]
+        assert "Search2 Public" in names
+        assert "Search2 Private Member" in names
+        assert "Search2 Private Other" not in names
+
+
+class TestPublicEndpointVisibility:
+    """Tests for public endpoint visibility enforcement."""
+
+    @pytest.mark.asyncio
+    async def test_get_legacy_public_returns_public_legacy(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test get_legacy_public returns public legacies."""
+        legacy = Legacy(name="Public Legacy", created_by=test_user.id, visibility="public")
+        db_session.add(legacy)
+        await db_session.commit()
+
+        result = await legacy_service.get_legacy_public(db=db_session, legacy_id=legacy.id)
+        assert result.name == "Public Legacy"
+        assert result.visibility == "public"
+
+    @pytest.mark.asyncio
+    async def test_get_legacy_public_rejects_private_legacy(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test get_legacy_public returns 404 for private legacies."""
+        legacy = Legacy(name="Private Legacy", created_by=test_user.id, visibility="private")
+        db_session.add(legacy)
+        await db_session.commit()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await legacy_service.get_legacy_public(db=db_session, legacy_id=legacy.id)
+        assert exc_info.value.status_code == 404
+        assert "not found" in exc_info.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_public_api_returns_public_legacy(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test public API endpoint returns public legacies."""
+        legacy = Legacy(name="API Public Legacy", created_by=test_user.id, visibility="public")
+        db_session.add(legacy)
+        await db_session.commit()
+
+        response = await client.get(f"/api/legacies/{legacy.id}/public")
+        assert response.status_code == 200
+        assert response.json()["name"] == "API Public Legacy"
+
+    @pytest.mark.asyncio
+    async def test_public_api_rejects_private_legacy(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test public API endpoint returns 404 for private legacies."""
+        legacy = Legacy(name="API Private Legacy", created_by=test_user.id, visibility="private")
+        db_session.add(legacy)
+        await db_session.commit()
+
+        response = await client.get(f"/api/legacies/{legacy.id}/public")
+        assert response.status_code == 404
+
+
+class TestUpdateVisibility:
+    """Tests for updating legacy visibility."""
+
+    @pytest.mark.asyncio
+    async def test_creator_can_update_visibility(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test creator can update visibility from private to public."""
+        # Create private legacy
+        legacy = Legacy(name="Test Legacy", created_by=test_user.id, visibility="private")
+        db_session.add(legacy)
+        await db_session.flush()
+
+        # Add creator as member
+        member = LegacyMember(legacy_id=legacy.id, user_id=test_user.id, role="creator")
+        db_session.add(member)
+        await db_session.commit()
+
+        # Update visibility to public
+        update_data = LegacyUpdate(visibility="public")
+        result = await legacy_service.update_legacy(
+            db=db_session,
+            user_id=test_user.id,
+            legacy_id=legacy.id,
+            data=update_data,
+        )
+
+        assert result.visibility == "public"
+
+    @pytest.mark.asyncio
+    async def test_creator_can_make_public_legacy_private(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test creator can update visibility from public to private."""
+        # Create public legacy
+        legacy = Legacy(name="Test Legacy", created_by=test_user.id, visibility="public")
+        db_session.add(legacy)
+        await db_session.flush()
+
+        # Add creator as member
+        member = LegacyMember(legacy_id=legacy.id, user_id=test_user.id, role="creator")
+        db_session.add(member)
+        await db_session.commit()
+
+        # Update visibility to private
+        update_data = LegacyUpdate(visibility="private")
+        result = await legacy_service.update_legacy(
+            db=db_session,
+            user_id=test_user.id,
+            legacy_id=legacy.id,
+            data=update_data,
+        )
+
+        assert result.visibility == "private"
+
+    @pytest.mark.asyncio
+    async def test_non_creator_cannot_update_visibility(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+    ):
+        """Test non-creator cannot update visibility."""
+        # Create legacy by user 2
+        legacy = Legacy(name="Test Legacy", created_by=test_user_2.id, visibility="private")
+        db_session.add(legacy)
+        await db_session.flush()
+
+        # Add user 2 as creator, user 1 as admin
+        creator = LegacyMember(legacy_id=legacy.id, user_id=test_user_2.id, role="creator")
+        admin = LegacyMember(legacy_id=legacy.id, user_id=test_user.id, role="admin")
+        db_session.add_all([creator, admin])
+        await db_session.commit()
+
+        # Try to update visibility as admin (should fail)
+        update_data = LegacyUpdate(visibility="public")
+        with pytest.raises(HTTPException) as exc_info:
+            await legacy_service.update_legacy(
+                db=db_session,
+                user_id=test_user.id,
+                legacy_id=legacy.id,
+                data=update_data,
+            )
+        assert exc_info.value.status_code == 403

@@ -113,7 +113,7 @@ async def explore_legacies(
     "/search",
     response_model=list[LegacySearchResponse],
     summary="Search legacies by name",
-    description="Search for legacies by name (case-insensitive partial match).",
+    description="Search for legacies by name (case-insensitive partial match). Returns public legacies for unauthenticated users, or public + accessible private legacies for authenticated users.",
 )
 async def search_legacies(
     request: Request,
@@ -124,14 +124,17 @@ async def search_legacies(
 
     Performs case-insensitive partial match on legacy name.
     Returns up to 50 results ordered by creation date.
+
+    Unauthenticated users see only public legacies.
+    Authenticated users see public + private legacies they are members of.
     """
-    # Auth optional for search (but required by middleware if not public)
-    if request:
-        require_auth(request)
+    session = get_current_session(request)
+    user_id = session.user_id if session else None
 
     return await legacy_service.search_legacies_by_name(
         db=db,
         query=q,
+        user_id=user_id,
     )
 
 

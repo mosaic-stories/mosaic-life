@@ -14,6 +14,7 @@ import {
   leaveLegacy,
   type CreateLegacyInput,
   type UpdateLegacyInput,
+  type VisibilityFilter,
 } from '@/lib/api/legacies';
 import { ApiError } from '@/lib/api/client';
 
@@ -82,11 +83,11 @@ export function useDeleteLegacy() {
   });
 }
 
-// Hook for public explore endpoint - no authentication required
-export function useExploreLegacies(limit: number = 20) {
+// Hook for public explore endpoint - no authentication required for public legacies
+export function useExploreLegacies(limit: number = 20, visibilityFilter?: VisibilityFilter) {
   return useQuery({
-    queryKey: legacyKeys.explore(),
-    queryFn: () => exploreLegacies(limit),
+    queryKey: [...legacyKeys.explore(), { limit, visibilityFilter }],
+    queryFn: () => exploreLegacies(limit, visibilityFilter),
   });
 }
 

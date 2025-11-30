@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Heart, Lock, Loader2, MessageSquare, MoreVertical, Pencil, Plus, Share2, Sparkles, Trash2, Users, AlertCircle, UserPlus } from 'lucide-react';
+import { ArrowLeft, Calendar, Globe, Heart, Lock, Loader2, MessageSquare, MoreVertical, Pencil, Plus, Share2, Sparkles, Trash2, Users, AlertCircle, UserPlus } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
@@ -152,19 +152,35 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
   }
 
   if (legacyError || !legacy) {
+    // Check if this is a 404 error (not found or private)
+    const is404 = legacyError && 'status' in legacyError && (legacyError as unknown as { status: number }).status === 404;
+
     return (
       <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center p-6">
-        <Card className="p-6 border-red-200 bg-red-50 max-w-md">
-          <div className="flex items-center gap-3 text-red-800">
-            <AlertCircle className="size-5" />
-            <div>
-              <p className="font-medium">Failed to load legacy</p>
-              <p className="text-sm text-red-600">The legacy could not be found or an error occurred.</p>
-            </div>
+        <Card className="p-8 max-w-md text-center space-y-4">
+          <div className="size-16 rounded-full bg-neutral-100 flex items-center justify-center mx-auto">
+            <Lock className="size-8 text-neutral-400" />
           </div>
-          <Button className="mt-4" onClick={() => navigate('/my-legacies')}>
-            Back to My Legacies
-          </Button>
+          <div className="space-y-2">
+            <h2 className="text-neutral-900">Legacy Not Found</h2>
+            {is404 ? (
+              <p className="text-sm text-neutral-600">
+                This legacy doesn't exist or is private. If this is a private legacy, you may need to be invited by a member.
+              </p>
+            ) : (
+              <p className="text-sm text-neutral-600">
+                An error occurred while loading this legacy. Please try again.
+              </p>
+            )}
+          </div>
+          <div className="flex gap-3 justify-center pt-2">
+            <Button variant="outline" onClick={() => navigate('/')}>
+              Go Home
+            </Button>
+            <Button onClick={() => navigate('/my-legacies')}>
+              My Legacies
+            </Button>
+          </div>
         </Card>
       </div>
     );
@@ -245,9 +261,15 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
                   <h1 className="text-neutral-900">{legacy.name}</h1>
-                  <Badge variant="outline" className="bg-[rgb(var(--theme-accent-light))] text-[rgb(var(--theme-primary-dark))] border-[rgb(var(--theme-accent))]">
-                    <Lock className="size-3 mr-1" />
-                    Private
+                  <Badge variant="outline" className={legacy.visibility === 'public'
+                    ? "bg-green-50 text-green-700 border-green-200"
+                    : "bg-[rgb(var(--theme-accent-light))] text-[rgb(var(--theme-primary-dark))] border-[rgb(var(--theme-accent))]"
+                  }>
+                    {legacy.visibility === 'public' ? (
+                      <><Globe className="size-3 mr-1" /> Public</>
+                    ) : (
+                      <><Lock className="size-3 mr-1" /> Private</>
+                    )}
                   </Badge>
                 </div>
                 {dates && <p className="text-neutral-600">{dates}</p>}

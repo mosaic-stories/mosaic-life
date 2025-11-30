@@ -282,23 +282,47 @@ async def list_user_legacies(
 async def search_legacies_by_name(
     db: AsyncSession,
     query: str,
+    user_id: UUID | None = None,
 ) -> list[LegacySearchResponse]:
     """Search legacies by name (case-insensitive).
 
     Args:
         db: Database session
         query: Search query string
+        user_id: Current user ID (None if unauthenticated)
 
     Returns:
-        List of matching legacies
+        List of matching legacies user can access
     """
-    # Use ILIKE for case-insensitive search
-    result = await db.execute(
-        select(Legacy)
-        .where(Legacy.name.ilike(f"%{query}%"))
-        .order_by(Legacy.created_at.desc())
-        .limit(50)  # Limit results
-    )
+    from sqlalchemy import or_
+
+    # Build base query
+    base_query = select(Legacy).where(Legacy.name.ilike(f"%{query}%"))
+
+    # Apply visibility filtering
+    if user_id is None:
+        # Unauthenticated: only public legacies
+        base_query = base_query.where(Legacy.visibility == "public")
+    else:
+        # Authenticated: public + private legacies user is member of
+        member_subquery = (
+            select(LegacyMember.legacy_id)
+            .where(
+                LegacyMember.user_id == user_id,
+                LegacyMember.role != "pending",
+            )
+            .scalar_subquery()
+        )
+        base_query = base_query.where(
+            or_(
+                Legacy.visibility == "public",
+                Legacy.id.in_(member_subquery),
+            )
+        )
+
+    base_query = base_query.order_by(Legacy.created_at.desc()).limit(50)
+
+    result = await db.execute(base_query)
     legacies = result.scalars().all()
 
     logger.info(
@@ -306,6 +330,7 @@ async def search_legacies_by_name(
         extra={
             "query": query,
             "count": len(legacies),
+            "user_id": str(user_id) if user_id else None,
         },
     )
 
@@ -436,6 +461,8 @@ async def get_legacy_public(
 ) -> LegacyResponse:
     """Get legacy details for public viewing (no auth required).
 
+    Only returns public legacies. Private legacies return 404.
+
     Args:
         db: Database session
         legacy_id: Legacy ID
@@ -444,9 +471,9 @@ async def get_legacy_public(
         Legacy details with members
 
     Raises:
-        HTTPException: 404 if not found
+        HTTPException: 404 if not found or if legacy is private
     """
-    # Load legacy with creator and members
+    # Load legacy with creator and members (only if public)
     result = await db.execute(
         select(Legacy)
         .options(
@@ -454,7 +481,7 @@ async def get_legacy_public(
             selectinload(Legacy.members).selectinload(LegacyMember.user),
             selectinload(Legacy.profile_image),
         )
-        .where(Legacy.id == legacy_id)
+        .where(Legacy.id == legacy_id, Legacy.visibility == "public")
     )
     legacy = result.scalar_one_or_none()
 
@@ -775,6 +802,8 @@ async def update_legacy(
         legacy.death_date = data.death_date
     if data.biography is not None:
         legacy.biography = data.biography
+    if data.visibility is not None:
+        legacy.visibility = data.visibility
 
     legacy.updated_at = datetime.now(timezone.utc)
 
