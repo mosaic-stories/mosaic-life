@@ -1,10 +1,12 @@
 """Tests for legacy visibility feature."""
 
 import pytest
+from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.legacy import Legacy
 from app.models.user import User
+from app.schemas.legacy import LegacyCreate, LegacyResponse, LegacyUpdate
 
 
 class TestLegacyVisibilityModel:
@@ -44,3 +46,45 @@ class TestLegacyVisibilityModel:
         await db_session.refresh(legacy)
 
         assert legacy.visibility == "public"
+
+
+class TestLegacyVisibilitySchemas:
+    """Tests for legacy visibility in Pydantic schemas."""
+
+    def test_legacy_create_defaults_to_private(self):
+        """Test LegacyCreate defaults visibility to private."""
+        data = LegacyCreate(name="Test")
+        assert data.visibility == "private"
+
+    def test_legacy_create_accepts_public(self):
+        """Test LegacyCreate accepts public visibility."""
+        data = LegacyCreate(name="Test", visibility="public")
+        assert data.visibility == "public"
+
+    def test_legacy_create_rejects_invalid_visibility(self):
+        """Test LegacyCreate rejects invalid visibility values."""
+        with pytest.raises(ValidationError):
+            LegacyCreate(name="Test", visibility="invalid")
+
+    def test_legacy_update_visibility_optional(self):
+        """Test LegacyUpdate has optional visibility field."""
+        data = LegacyUpdate()
+        assert data.visibility is None
+
+    def test_legacy_response_includes_visibility(self):
+        """Test LegacyResponse includes visibility field."""
+        from datetime import datetime
+        from uuid import uuid4
+
+        response = LegacyResponse(
+            id=uuid4(),
+            name="Test",
+            birth_date=None,
+            death_date=None,
+            biography=None,
+            created_by=uuid4(),
+            created_at=datetime.now(),
+            updated_at=datetime.now(),
+            visibility="public",
+        )
+        assert response.visibility == "public"
