@@ -367,13 +367,10 @@ async def explore_legacies(
     from sqlalchemy import or_
 
     # Build base query
-    query = (
-        select(Legacy)
-        .options(
-            selectinload(Legacy.creator),
-            selectinload(Legacy.members).selectinload(LegacyMember.user),
-            selectinload(Legacy.profile_image),
-        )
+    query = select(Legacy).options(
+        selectinload(Legacy.creator),
+        selectinload(Legacy.members).selectinload(LegacyMember.user),
+        selectinload(Legacy.profile_image),
     )
 
     # Apply visibility filtering
