@@ -4,6 +4,7 @@ import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
+import { NotificationBell } from './notifications';
 import { useState } from 'react';
 
 interface StoryCreationMinimalProps {
@@ -65,7 +66,10 @@ export default function StoryCreationMinimal({
             </button>
             <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
             {user ? (
-              <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              <>
+                <NotificationBell />
+                <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              </>
             ) : (
               <Button onClick={onAuthClick} size="sm">Sign In</Button>
             )}

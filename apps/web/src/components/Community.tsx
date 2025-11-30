@@ -21,6 +21,7 @@ import { Input } from './ui/input';
 import { useState } from 'react';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
+import { NotificationBell } from './notifications';
 import Footer from './Footer';
 import CreateCommunityModal from './CreateCommunityModal';
 import SearchBar from './SearchBar';
@@ -212,7 +213,10 @@ export default function Community({ onNavigate, onSelectLegacy, currentTheme, on
               <div className="flex items-center gap-3">
                 <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
                 {user ? (
-                  <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+                  <>
+                    <NotificationBell />
+                    <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+                  </>
                 ) : (
                   <Button size="sm" onClick={onAuthClick}>Sign In</Button>
                 )}

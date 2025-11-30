@@ -4,6 +4,7 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
+import { NotificationBell } from './notifications';
 import Footer from './Footer';
 import SearchBar from './SearchBar';
 import DogearToggle from './DogearToggle';
@@ -136,6 +137,7 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onT
                 <Plus className="size-4" />
                 <span className="hidden sm:inline">Create Legacy</span>
               </Button>
+              <NotificationBell />
               <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
             </div>
           )}

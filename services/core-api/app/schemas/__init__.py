@@ -13,6 +13,7 @@ from .legacy import (
     LegacySearchResponse,
     LegacyUpdate,
 )
+from .user import UserSearchResult
 
 __all__ = [
     "LegacyCreate",
@@ -24,4 +25,5 @@ __all__ = [
     "InvitationResponse",
     "InvitationPreview",
     "InvitationAcceptResponse",
+    "UserSearchResult",
 ]

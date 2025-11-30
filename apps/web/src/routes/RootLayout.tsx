@@ -65,6 +65,7 @@ export default function RootLayout() {
       'community-minimal': '/community/minimal',
       'my-legacies': '/my-legacies',
       'my-legacies-minimal': '/my-legacies/minimal',
+      'notifications': '/notifications',
       'profile': '/legacy/1', // Default to legacy 1 for now
       'story': '/legacy/new', // Create a new legacy
       'create-legacy': '/legacy/new',

@@ -21,6 +21,7 @@ from ..schemas.invitation import (
 )
 from .email import send_invitation_email
 from .legacy import can_invite_role, check_legacy_access, get_profile_image_url
+from .notification import create_notification
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ async def create_invitation(
         db: Database session
         legacy_id: Legacy to invite to
         inviter_id: User sending the invitation
-        data: Invitation details (email, role)
+        data: Invitation details (email or user_id, and role)
 
     Returns:
         Created invitation
@@ -63,13 +64,31 @@ async def create_invitation(
             f"cannot invite {data.role}s.",
         )
 
+    # Determine invite mode and get user/email
+    invite_by_user_id = data.user_id is not None
+    user: User | None = None
+    email: str
+
+    if invite_by_user_id:
+        # Invite by user_id - look up the user
+        user = await db.get(User, data.user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found.")
+        email = user.email
+    else:
+        # Invite by email
+        email = data.email  # type: ignore  # Validated by schema
+        # Check if user exists in system
+        existing_user = await db.execute(select(User).where(User.email == email))
+        user = existing_user.scalar_one_or_none()
+
     # Check for existing pending invitation
     now = datetime.now(timezone.utc)
     existing = await db.execute(
         select(Invitation).where(
             and_(
                 Invitation.legacy_id == legacy_id,
-                Invitation.email == data.email,
+                Invitation.email == email,
                 Invitation.accepted_at.is_(None),
                 Invitation.revoked_at.is_(None),
                 Invitation.expires_at > now,
@@ -79,12 +98,10 @@ async def create_invitation(
     if existing.scalar_one_or_none():
         raise HTTPException(
             status_code=400,
-            detail="A pending invitation already exists for this email.",
+            detail="A pending invitation already exists for this person.",
         )
 
     # Check if user is already a member
-    existing_user = await db.execute(select(User).where(User.email == data.email))
-    user = existing_user.scalar_one_or_none()
     if user:
         existing_member = await db.execute(
             select(LegacyMember).where(
@@ -100,14 +117,14 @@ async def create_invitation(
                 detail="This person is already a member of this legacy.",
             )
 
-    # Get legacy and inviter details for email
+    # Get legacy and inviter details
     legacy = await db.get(Legacy, legacy_id)
     inviter = await db.get(User, inviter_id)
 
     # Create invitation
     invitation = Invitation(
         legacy_id=legacy_id,
-        email=data.email,
+        email=email,
         role=data.role,
         invited_by=inviter_id,
         token=_generate_token(),
@@ -117,14 +134,28 @@ async def create_invitation(
     await db.commit()
     await db.refresh(invitation)
 
-    # Send email (don't fail if email fails)
-    if inviter is not None and legacy is not None:
+    # Send email only for email-based invitations (not for user_id invitations)
+    if not invite_by_user_id and inviter is not None and legacy is not None:
         await send_invitation_email(
-            to_email=data.email,
+            to_email=email,
             inviter_name=inviter.name or inviter.email,
             legacy_name=legacy.name,
             role=data.role,
             token=invitation.token,
+        )
+
+    # Create notification for the invited user (if they exist in the system)
+    if user is not None and inviter is not None and legacy is not None:
+        await create_notification(
+            db=db,
+            user_id=user.id,
+            notification_type="invitation_received",
+            title="Legacy Invitation",
+            message=f"{inviter.name or inviter.email} invited you to join '{legacy.name}' as {data.role}",
+            link=f"/invite/{invitation.token}",
+            actor_id=inviter_id,
+            resource_type="invitation",
+            resource_id=invitation.id,
         )
 
     logger.info(
@@ -133,8 +164,9 @@ async def create_invitation(
             "invitation_id": str(invitation.id),
             "legacy_id": str(legacy_id),
             "inviter_id": str(inviter_id),
-            "invitee_email": data.email,
+            "invitee_email": email,
             "role": data.role,
+            "invite_mode": "user_id" if invite_by_user_id else "email",
         },
     )
 

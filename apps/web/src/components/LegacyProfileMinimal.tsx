@@ -4,6 +4,7 @@ import { Badge } from './ui/badge';
 import { Card } from './ui/card';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
+import { NotificationBell } from './notifications';
 import { useLegacyWithFallback } from '@/lib/hooks/useLegacies';
 import { useStoriesWithFallback } from '@/lib/hooks/useStories';
 import { formatLegacyDates } from '@/lib/api/legacies';
@@ -89,7 +90,10 @@ export default function LegacyProfileMinimal({
             </button>
             <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
             {user ? (
-              <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              <>
+                <NotificationBell />
+                <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              </>
             ) : (
               <Button onClick={onAuthClick} size="sm">Sign In</Button>
             )}

@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
+import { NotificationBell } from './notifications';
 import Footer from './Footer';
 import SearchBar from './SearchBar';
 
@@ -75,7 +76,10 @@ export default function About({ onNavigate, onSelectLegacy, currentTheme, onThem
               <div className="flex items-center gap-3">
                 <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
                 {user ? (
-                  <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+                  <>
+                    <NotificationBell />
+                    <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+                  </>
                 ) : (
                   <Button size="sm" onClick={onAuthClick}>Sign In</Button>
                 )}

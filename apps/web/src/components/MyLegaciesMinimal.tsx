@@ -2,6 +2,7 @@ import { Plus, BookHeart, Image, MessageSquare, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
+import { NotificationBell } from './notifications';
 import { legacies } from '../lib/mockData';
 import DogearToggle from './DogearToggle';
 
@@ -69,7 +70,10 @@ export default function MyLegaciesMinimal({
             </button>
             <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
             {user ? (
-              <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              <>
+                <NotificationBell />
+                <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              </>
             ) : (
               <Button onClick={onAuthClick} size="sm">Sign In</Button>
             )}

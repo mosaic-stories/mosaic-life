@@ -3,18 +3,35 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 
 class InvitationCreate(BaseModel):
-    """Schema for creating an invitation."""
+    """Schema for creating an invitation.
 
-    email: EmailStr = Field(..., description="Email address to invite")
+    Either email or user_id must be provided, but not both.
+    """
+
+    email: EmailStr | None = Field(
+        default=None, description="Email address to invite"
+    )
+    user_id: UUID | None = Field(
+        default=None, description="User ID to invite (for existing users)"
+    )
     role: str = Field(
         default="advocate",
         pattern="^(creator|admin|advocate|admirer)$",
         description="Role to grant upon acceptance",
     )
+
+    @model_validator(mode="after")
+    def validate_email_or_user_id(self) -> "InvitationCreate":
+        """Ensure exactly one of email or user_id is provided."""
+        if self.email is None and self.user_id is None:
+            raise ValueError("Either email or user_id must be provided")
+        if self.email is not None and self.user_id is not None:
+            raise ValueError("Cannot provide both email and user_id")
+        return self
 
 
 class InvitationResponse(BaseModel):

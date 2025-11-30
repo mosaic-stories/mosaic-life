@@ -2,6 +2,7 @@ import { ArrowLeft, Heart, Shield, Globe, BookHeart } from 'lucide-react';
 import { Button } from './ui/button';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
+import { NotificationBell } from './notifications';
 
 interface AboutMinimalProps {
   onNavigate: (view: string) => void;
@@ -44,7 +45,10 @@ export default function AboutMinimal({
             </button>
             <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
             {user ? (
-              <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              <>
+                <NotificationBell />
+                <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              </>
             ) : (
               <Button onClick={onAuthClick} size="sm">Sign In</Button>
             )}

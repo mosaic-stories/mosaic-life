@@ -2,7 +2,8 @@
 import { apiGet, apiPost, apiDelete } from './client';
 
 export interface InvitationCreate {
-  email: string;
+  email?: string;
+  user_id?: string;
   role: 'creator' | 'admin' | 'advocate' | 'admirer';
 }
 

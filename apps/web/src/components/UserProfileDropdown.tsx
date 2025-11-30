@@ -1,4 +1,4 @@
-import { User, BookOpen, MessageSquare, Users, Settings, HelpCircle, LogOut } from 'lucide-react';
+import { User, BookOpen, MessageSquare, Users, Settings, HelpCircle, LogOut, Bell } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -82,14 +82,22 @@ export default function UserProfileDropdown({ user, onNavigate, onSignOut }: Use
           <span>My Stories</span>
         </DropdownMenuItem>
         
-        <DropdownMenuItem 
+        <DropdownMenuItem
           onClick={() => onNavigate('connected-legacies')}
           className="cursor-pointer py-2.5"
         >
           <Users className="size-4 mr-3 text-neutral-500" />
           <span>Connected Legacies</span>
         </DropdownMenuItem>
-        
+
+        <DropdownMenuItem
+          onClick={() => onNavigate('notifications')}
+          className="cursor-pointer py-2.5"
+        >
+          <Bell className="size-4 mr-3 text-neutral-500" />
+          <span>Notification History</span>
+        </DropdownMenuItem>
+
         <DropdownMenuSeparator />
         
         <DropdownMenuItem 

@@ -3,6 +3,7 @@ import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
+import { NotificationBell } from './notifications';
 import { useState } from 'react';
 
 interface AIAgentChatMinimalProps {
@@ -85,7 +86,10 @@ export default function AIAgentChatMinimal({
             </button>
             <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
             {user ? (
-              <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              <>
+                <NotificationBell />
+                <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              </>
             ) : (
               <Button onClick={onAuthClick} size="sm">Sign In</Button>
             )}

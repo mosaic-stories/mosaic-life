@@ -21,6 +21,8 @@ from .routes.legacy import router as legacy_router
 from .routes.story import router as story_router
 from .routes.media import router as media_router, local_router as media_local_router
 from .routes.invitation import router as invitation_router
+from .routes.notification import router as notification_router
+from .routes.user import router as user_router
 
 logger = logging.getLogger(__name__)
 
@@ -85,3 +87,5 @@ app.include_router(story_router)
 app.include_router(media_router)
 app.include_router(media_local_router)
 app.include_router(invitation_router)
+app.include_router(notification_router)
+app.include_router(user_router)

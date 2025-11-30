@@ -2,6 +2,7 @@ import { ArrowLeft, User, Pencil, Users, Image, Sparkles, Share2, Globe, BookHea
 import { Button } from './ui/button';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
+import { NotificationBell } from './notifications';
 
 interface HowItWorksMinimalProps {
   onNavigate: (view: string) => void;
@@ -44,7 +45,10 @@ export default function HowItWorksMinimal({
             </button>
             <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
             {user ? (
-              <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              <>
+                <NotificationBell />
+                <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+              </>
             ) : (
               <Button onClick={onAuthClick} size="sm">Sign In</Button>
             )}

@@ -25,6 +25,7 @@ const MediaGalleryBase = lazy(() => import('@/components/MediaGallery'));
 const AIAgentChatBase = lazy(() => import('@/components/AIAgentChat'));
 const AIAgentChatMinimalBase = lazy(() => import('@/components/AIAgentChatMinimal'));
 const InviteAcceptPageBase = lazy(() => import('@/components/InviteAcceptPage'));
+const NotificationHistoryBase = lazy(() => import('@/components/NotificationHistory'));
 
 // Wrapped components with shared props
 const Homepage = withSharedProps(HomepageBase);
@@ -39,6 +40,7 @@ const CommunityMinimal = withSharedProps(CommunityMinimalBase);
 const MyLegacies = withSharedProps(MyLegaciesBase);
 const MyLegaciesMinimal = withSharedProps(MyLegaciesMinimalBase);
 const LegacyCreation = withSharedProps(LegacyCreationBase);
+const NotificationHistory = withSharedProps(NotificationHistoryBase);
 
 // Components that need legacyId from URL
 const LegacyProfile = withLegacyProps(LegacyProfileBase);
@@ -144,6 +146,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <LazyPage><LegacyCreation /></LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'notifications',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><NotificationHistory /></LazyPage>
           </ProtectedRoute>
         ),
       },
