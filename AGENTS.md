@@ -2,23 +2,29 @@
 
 This repository uses an AI coding assistant to accelerate delivery while preserving quality and security. This document defines **how the assistant should work**, where to find the **authoritative architecture docs**, and the **approval workflow** for complex tasks.
 
-> **Authoritative docs (store under `/docs`—see paths below):**
+> **Current Architecture:** Simplified MVP (Option B)
 >
-> * `/docs/architecture/CORE-BACKEND-ARCHITECTURE.md`
-> * `/docs/architecture/FRONTEND-ARCHITECTURE.md`
-> * `/docs/architecture/PLUGIN-ARCHITECTURE.md`
-> * `/docs/ops/SHARED-SERVICES.md`
-> * `/docs/standards/CODING-STANDARDS.md`
+> **Active Documentation:**
+>
+> * `/docs/architecture/MVP-SIMPLIFIED-ARCHITECTURE.md` - Current active architecture
+> * `/docs/project/MVP-SIMPLIFIED-EXECUTION-PLAN.md` - 9-week implementation plan
+> * `/docs/developer/CODING-STANDARDS.md` - Style, testing, libraries, security
+> * `/docs/developer/LOCAL.md` - Local development setup
+>
+> **Future Architecture (Archived):**
+>
+> * `/docs/architecture/target/` - Complex features deferred to post-MVP
 
 ---
 
 ## 1) Operating Principles
 
 1. **Plan first.** For any non-trivial task, propose **1–3 approaches** with pros/cons, risks, and the exact files to touch. Wait for human approval before coding.
-2. **Follow the docs.** Implementations must conform to the documents listed above. If conflicts arise, use the precedence order in §2.
+2. **Follow the docs.** Implementations must conform to MVP-SIMPLIFIED-ARCHITECTURE.md and CODING-STANDARDS.md. If conflicts arise, use the precedence order in §2.
 3. **Security and privacy first.** Never introduce insecure patterns (no plaintext secrets, unsafe HTML, eval, etc.).
 4. **Keep changes small and testable.** Prefer incremental PRs with clear tests and telemetry.
 5. **Make it observable.** Add OTel spans/metrics/logs for meaningful actions.
+6. **Use correct tools.** Always use `docker compose` (not standalone `docker`) and `uv` (not `pip`) for Python operations.
 
 ---
 
@@ -26,39 +32,96 @@ This repository uses an AI coding assistant to accelerate delivery while preserv
 
 When guidance conflicts, apply this precedence (highest first):
 
-1. **AGENT.md** (this file)
-2. **CODING-STANDARDS.md**
-3. **FRONTEND-ARCHITECTURE.md**
-4. **CORE-BACKEND-ARCHITECTURE.md**
-5. **PLUGIN-ARCHITECTURE.md**
-6. **SHARED-SERVICES.md**
+1. **CLAUDE.md** - Official instructions for how agents should behave
+2. **AGENTS.md** (this file) - Engineering assistant playbook
+3. **MVP-SIMPLIFIED-ARCHITECTURE.md** - Current active architecture
+4. **CODING-STANDARDS.md** - Code style and standards
+5. **MVP-SIMPLIFIED-EXECUTION-PLAN.md** - Implementation roadmap
 
-If a document is missing or outdated, prefer newer decisions captured here and open an issue to reconcile.
-
----
-
-## 3) Repository Documentation Layout (required)
-
-Store the markdown files under:
-
-```
-/docs/
-  architecture/
-    CORE-BACKEND-ARCHITECTURE.md
-    FRONTEND-ARCHITECTURE.md
-    PLUGIN-ARCHITECTURE.md
-  ops/
-    SHARED-SERVICES.md
-  standards/
-    CODING-STANDARDS.md
-  AGENT.md  # this file (also at repo root if desired)
-```
-
-Keep these files versioned in PRs; link them in issues/PR descriptions.
+If a document is missing or outdated, prefer newer decisions captured in CLAUDE.md and open an issue to reconcile.
 
 ---
 
-## 4) Planning Template (use before coding)
+## 3) Current MVP Architecture (Simplified - Active)
+
+**The MVP uses a simplified stack to enable rapid delivery:**
+
+### What We're Building
+
+- **Core API Service** (Python/FastAPI): Single consolidated backend with all business logic
+- **Web App** (React/TypeScript/Vite): SPA with TanStack Query, Zustand, React Router
+- **PostgreSQL**: Primary database for all data (users, legacies, stories, media references)
+- **S3**: Media storage (images, videos)
+- **Google OAuth**: User authentication (no Cognito for MVP)
+
+### What We're NOT Using (Deferred)
+
+- ❌ OpenSearch / Elasticsearch (using Postgres search)
+- ❌ Neo4j graph database (using Postgres foreign keys)
+- ❌ SNS/SQS event bus (direct database writes)
+- ❌ LiteLLM proxy (direct OpenAI/Anthropic calls in Phase 3)
+- ❌ Module Federation plugins (deferred)
+- ❌ Microservices decomposition (single service)
+
+**Migration path:** See MVP-SIMPLIFIED-ARCHITECTURE.md for when and how to add OpenSearch, Neo4j, microservices, etc.
+
+---
+
+## 4) Critical Operational Rules
+
+### Local Development: Docker Compose Only
+
+**CRITICAL:** Always use `docker compose` for local development. Never use standalone `docker` CLI commands without compose context.
+
+```bash
+# ✅ CORRECT - Use docker compose
+docker compose -f infra/compose/docker-compose.yml up -d
+docker compose exec core-api bash
+docker compose exec postgres psql -U postgres -d core
+docker compose logs -f core-api
+
+# ❌ WRONG - Never use standalone docker commands
+docker exec -it <container> ...
+docker run ...
+docker build ...
+```
+
+### Python: Always Use uv
+
+**CRITICAL:** All Python operations must use `uv` to ensure consistent environment, dependencies, and configuration.
+
+```bash
+# ✅ CORRECT - Use uv for all Python operations
+uv run python -m app.main
+uv run pytest
+uv run alembic upgrade head
+uv sync  # Install dependencies
+
+# ❌ WRONG - Never use pip or raw python directly
+pip install ...
+python -m pytest
+python -m app.main
+```
+
+### Production Deployment: GitOps Only
+
+Production changes flow through GitOps:
+
+1. **All changes must be committed to the repository** - No manual kubectl/helm changes in production
+2. **GitHub Actions validates** - Build must pass, tests must succeed
+3. **ArgoCD reconciles automatically** - Picks up changes after successful CI
+
+**Allowed production tools** (for inspection/debugging only, not configuration):
+- `argocd` - View sync status, trigger manual syncs
+- `kubectl` - Inspect resources, view logs
+- `helm` - Template validation, dry-runs
+- `aws` - Check AWS resources
+- `gh` - GitHub operations
+- `git` - Version control
+
+---
+
+## 5) Planning Template (use before coding)
 
 For any **complex task** (new API, schema change, feature slice, infra change), respond with the following plan in the PR or issue comment **before** generating code:
 
@@ -97,38 +160,38 @@ For any **complex task** (new API, schema change, feature slice, infra change), 
 
 ---
 
-## 5) Implementation Rules (must follow)
+## 6) Implementation Rules (must follow)
 
-* **Languages & frameworks** per CODING-STANDARDS (§4):
+* **Languages & frameworks** per CODING-STANDARDS.md:
 
   * Frontend: React + TS + **Vite**, **React Router**, **TanStack Query**, **Zustand**, **TipTap** editor; **SSE** for streaming.
-  * Backend: **FastAPI**, Pydantic v2, Postgres (SQLAlchemy/Alembic), **Neo4j** (self‑hosted), **OpenSearch** (not Elasticsearch), **SNS/SQS**, **LiteLLM** proxy.
-* **Auth:** OIDC via AWS Cognito with BFF-managed httpOnly cookies (see FRONTEND-ARCHITECTURE §3 and CORE-BACKEND-ARCHITECTURE §3).
-* **Plugins:** UI via **Module Federation** (Pattern A); backend plugins deploy via **Helm-only** (Pattern 1). Follow PLUGIN-ARCHITECTURE.
-* **Search:** Use **OpenSearch**; treat any reference to Elasticsearch as an alternative—prefer OpenSearch APIs and features (k‑NN vectors).
+  * Backend: **FastAPI**, Pydantic v2, Postgres (SQLAlchemy/Alembic). MVP uses direct OpenAI/Anthropic calls; future phases may add OpenSearch, Neo4j, SNS/SQS, LiteLLM proxy.
+* **Auth:** Google OAuth for MVP; future OIDC via AWS Cognito with BFF-managed httpOnly cookies.
+* **Plugins:** Deferred to post-MVP. Future: UI via **Module Federation** (Pattern A); backend plugins deploy via **Helm-only** (Pattern 1).
+* **Search:** Postgres full-text search for MVP. Future: **OpenSearch** with k-NN vectors for hybrid search.
 * **Tenancy:** Single-tenant by default. Do not add tenant selectors in UI. Keep APIs forward-compatible with a future `tenant_id` parameter.
 
 ---
 
-## 6) Security & Compliance (always)
+## 7) Security & Compliance (always)
 
-* Never commit secrets. Use AWS Secrets Manager + External Secrets (see SHARED-SERVICES §2).
+* Never commit secrets. Use AWS Secrets Manager + External Secrets (see docs/ops/SHARED-SERVICES.md if available).
 * Sanitize all user-rendered content (Markdown/HTML) using the shared sanitizer.
 * Enforce CSP and only allow declared plugin origins.
 * Validate inputs with zod (frontend) and Pydantic (backend). Use least-privileged IAM roles via IRSA.
 
 ---
 
-## 7) Observability & Quality Gates
+## 8) Observability & Quality Gates
 
-* Emit OTel spans named using the conventions in CODING-STANDARDS §17.
+* Emit OTel spans named using the conventions in CODING-STANDARDS.md.
 * Add Prometheus metrics with standard labels.
 * Log JSON only; include request IDs and versions.
-* Tests required per CODING-STANDARDS §5, with Playwright flows for user-facing features.
+* Tests required per CODING-STANDARDS.md, with Playwright flows for user-facing features.
 
 ---
 
-## 8) CI/CD Expectations
+## 9) CI/CD Expectations
 
 * Generate SBOM (syft) and sign images/charts (cosign) in GitHub Actions.
 * Use Helm (OCI) charts; ArgoCD deploys from a GitOps repo. No direct kubectl to prod.
@@ -136,7 +199,7 @@ For any **complex task** (new API, schema change, feature slice, infra change), 
 
 ---
 
-## 9) AI Assistant Prompt Patterns (copy/paste)
+## 10) AI Assistant Prompt Patterns (copy/paste)
 
 Use these when requesting code generation from the assistant:
 
@@ -188,11 +251,12 @@ Files: services/search-indexer/*
 
 ## 11) Known Consistency Decisions (Latest)
 
-* **OpenSearch preferred** over Elasticsearch everywhere. If a doc mentions Elasticsearch, treat it as an alternative only.
-* **Neo4j (self-hosted)** is the primary graph DB; Neptune remains an optional future alternative.
-* **Single-tenant** product. Multi-tenancy may be added later; design APIs to accept a tenant\_id without exposing it in UI now.
+* **Postgres-first for MVP:** Using Postgres for search and relationships. OpenSearch and Neo4j are deferred to future phases when proven necessary.
+* **Google OAuth for MVP:** Using Google OAuth directly; AWS Cognito integration deferred to post-MVP.
+* **Single-tenant** product. Multi-tenancy may be added later; design APIs to accept a tenant_id without exposing it in UI now.
 * **Vite + React Router** for the web app shell. Next.js may be used only for a separate marketing site later.
 * **SSE-first** streaming for AI chat; WebSockets are optional later.
+* **Direct API calls:** No LiteLLM proxy, SNS/SQS, or microservices for MVP. These are deferred to post-MVP when complexity is justified.
 
 If you find another inconsistency, **open an issue** and propose a short patch to the relevant doc.
 

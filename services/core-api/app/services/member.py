@@ -142,7 +142,8 @@ async def change_member_role(
                 )
             )
         )
-        if creator_count_result.scalar() <= 1:
+        creator_count = creator_count_result.scalar()
+        if creator_count is not None and creator_count <= 1:
             raise HTTPException(
                 status_code=400,
                 detail="Cannot demote the last creator. Promote someone else first.",
