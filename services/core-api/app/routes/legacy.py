@@ -1,13 +1,13 @@
 """API routes for legacy management."""
 
 import logging
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth.middleware import require_auth
+from ..auth.middleware import get_current_session, require_auth
 from ..database import get_db
 from ..schemas.legacy import (
     LegacyCreate,
@@ -80,23 +80,32 @@ async def list_legacies(
 @router.get(
     "/explore",
     response_model=list[LegacyResponse],
-    summary="Explore public legacies",
-    description="Get legacies for public exploration. No authentication required.",
+    summary="Explore legacies",
+    description="Get legacies for exploration. Returns public legacies for unauthenticated users, or filtered results for authenticated users.",
 )
 async def explore_legacies(
+    request: Request,
     db: AsyncSession = Depends(get_db),
     limit: int = Query(
         default=20, ge=1, le=100, description="Maximum number of legacies to return"
     ),
+    visibility_filter: Literal["all", "public", "private"] = Query(
+        default="all", description="Filter by visibility (authenticated users only)"
+    ),
 ) -> list[LegacyResponse]:
-    """Get legacies for public exploration.
+    """Get legacies for exploration.
 
-    Returns recent legacies for the homepage "Explore Legacies" section.
-    No authentication required.
+    Returns public legacies for unauthenticated users.
+    Authenticated users can filter by visibility.
     """
+    session = get_current_session(request)
+    user_id = session.user_id if session else None
+
     return await legacy_service.explore_legacies(
         db=db,
         limit=limit,
+        user_id=user_id,
+        visibility_filter=visibility_filter if user_id else "public",
     )
 
 

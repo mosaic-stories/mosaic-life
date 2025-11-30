@@ -315,3 +315,65 @@ class TestExploreVisibilityFiltering:
         names = [l.name for l in result]
         assert "Filter Public 2" not in names
         assert "Filter Private 2" in names
+
+
+from httpx import AsyncClient
+from tests.conftest import create_auth_headers_for_user
+
+
+class TestExploreAPI:
+    """Tests for explore API endpoint with visibility."""
+
+    @pytest.mark.asyncio
+    async def test_explore_unauthenticated_returns_public_only(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test explore without auth returns only public legacies."""
+        # Create public and private legacies
+        public_legacy = Legacy(name="API Public", created_by=test_user.id, visibility="public")
+        private_legacy = Legacy(name="API Private", created_by=test_user.id, visibility="private")
+        db_session.add_all([public_legacy, private_legacy])
+        await db_session.commit()
+
+        response = await client.get("/api/legacies/explore")
+        assert response.status_code == 200
+
+        names = [legacy["name"] for legacy in response.json()]
+        assert "API Public" in names
+        assert "API Private" not in names
+
+    @pytest.mark.asyncio
+    async def test_explore_authenticated_with_filter(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test explore with visibility_filter parameter."""
+        public_legacy = Legacy(name="API Filter Public", created_by=test_user.id, visibility="public")
+        private_legacy = Legacy(name="API Filter Private", created_by=test_user.id, visibility="private")
+        db_session.add_all([public_legacy, private_legacy])
+        await db_session.flush()
+
+        member = LegacyMember(legacy_id=private_legacy.id, user_id=test_user.id, role="creator")
+        db_session.add(member)
+        await db_session.commit()
+
+        headers = create_auth_headers_for_user(test_user)
+
+        # Filter public only
+        response = await client.get("/api/legacies/explore?visibility_filter=public", headers=headers)
+        assert response.status_code == 200
+        names = [legacy["name"] for legacy in response.json()]
+        assert "API Filter Public" in names
+        assert "API Filter Private" not in names
+
+        # Filter private only
+        response = await client.get("/api/legacies/explore?visibility_filter=private", headers=headers)
+        assert response.status_code == 200
+        names = [legacy["name"] for legacy in response.json()]
+        assert "API Filter Public" not in names
+        assert "API Filter Private" in names
