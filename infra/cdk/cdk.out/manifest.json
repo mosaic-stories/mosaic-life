@@ -18,7 +18,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-deploy-role-033691785857-us-east-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-cfn-exec-role-033691785857-us-east-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/ede8f26af962e11b25d227dbd40c9e77cb0dea4fac2a936e308381a68086833e.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/88e11e2abdc92ac153a67bf25027a8b694408f0bf01c7034be79e9799214e190.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -51,7 +51,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:47:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:29:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -89,7 +89,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:47:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:29:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -127,7 +127,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:47:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:29:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -165,7 +165,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:47:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:29:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -203,7 +203,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:47:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:29:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -241,7 +241,7 @@
               "new ImportedVpc (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/core/lib/prop-injectable.js:1:488)",
               "Function.fromVpcAttributes (/apps/mosaic-life/infra/cdk/node_modules/aws-cdk-lib/aws-ec2/lib/vpc.js:1:9123)",
               "new MosaicLifeStack (/apps/mosaic-life/infra/cdk/lib/mosaic-life-stack.ts:47:26)",
-              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:54:18)",
+              "Object.<anonymous> (/apps/mosaic-life/infra/cdk/bin/mosaic-life.ts:29:18)",
               "Module._compile (node:internal/modules/cjs/loader:1376:14)",
               "Module.m._compile (/apps/mosaic-life/infra/cdk/node_modules/ts-node/src/index.ts:1618:23)",
               "Module._extensions..js (node:internal/modules/cjs/loader:1435:10)",
@@ -296,6 +296,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "CognitoConfig0041A066"
+          }
+        ],
+        "/MosaicLifeStack/SessionSecret/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "SessionSecretC41FBD23"
           }
         ],
         "/MosaicLifeStack/MediaBucketCors/Resource/Default": [
@@ -640,6 +646,192 @@
         ]
       },
       "displayName": "MosaicDatabaseStack"
+    },
+    "MosaicStagingResourcesStack.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "MosaicStagingResourcesStack.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "MosaicStagingResourcesStack": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://033691785857/us-east-1",
+      "properties": {
+        "templateFile": "MosaicStagingResourcesStack.template.json",
+        "terminationProtection": false,
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-deploy-role-033691785857-us-east-1",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-cfn-exec-role-033691785857-us-east-1",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/bc90e074ff63c704077f7bbe5ec71494922c495f1981cc9d614b0e7917e98f0f.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "MosaicStagingResourcesStack.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-lookup-role-033691785857-us-east-1",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "MosaicStagingResourcesStack.assets"
+      ],
+      "metadata": {
+        "/MosaicStagingResourcesStack/StagingMediaBucket/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingMediaBucket0162AB43"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingMediaBucket/Policy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingMediaBucketPolicy3A3B6333"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingMediaBucket/AutoDeleteObjectsCustomResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingMediaBucketAutoDeleteObjectsCustomResourceCC1312AA"
+          }
+        ],
+        "/MosaicStagingResourcesStack/Custom::S3AutoDeleteObjectsCustomResourceProvider": [
+          {
+            "type": "aws:cdk:is-custom-resource-handler-customResourceProvider",
+            "data": true
+          }
+        ],
+        "/MosaicStagingResourcesStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Role": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomS3AutoDeleteObjectsCustomResourceProviderRole3B1BD092"
+          }
+        ],
+        "/MosaicStagingResourcesStack/Custom::S3AutoDeleteObjectsCustomResourceProvider/Handler": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CustomS3AutoDeleteObjectsCustomResourceProviderHandler9D90184F"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingBackupBucket/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingBackupBucket996D727B"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingBackupBucket/Policy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingBackupBucketPolicyE985E852"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingBackupBucket/AutoDeleteObjectsCustomResource/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingBackupBucketAutoDeleteObjectsCustomResource66A9246A"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingSessionSecret/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingSessionSecret4987467B"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingDomainEventsTopic/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingDomainEventsTopic476D4C5C"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingEventsDLQ/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingEventsDLQF68990AE"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingEventsQueue/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingEventsQueue2360CE9E"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingEventsQueue/Policy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingEventsQueuePolicy23FCF165"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingEventsQueue/MosaicStagingResourcesStackStagingDomainEventsTopic00B7BCF7/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingEventsQueueMosaicStagingResourcesStackStagingDomainEventsTopic00B7BCF78E1703C5"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingCoreApiRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingCoreApiRole3AA7529C"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingCoreApiRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingCoreApiRoleDefaultPolicy6315AD05"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingMediaBucketName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingMediaBucketName"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingBackupBucketName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingBackupBucketName"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingCoreApiRoleArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingCoreApiRoleArn"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingSessionSecretArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingSessionSecretArn"
+          }
+        ],
+        "/MosaicStagingResourcesStack/StagingDomainEventsTopicArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "StagingDomainEventsTopicArn"
+          }
+        ],
+        "/MosaicStagingResourcesStack/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/MosaicStagingResourcesStack/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/MosaicStagingResourcesStack/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "MosaicStagingResourcesStack"
     },
     "Tree": {
       "type": "cdk:tree",

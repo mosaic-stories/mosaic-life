@@ -175,6 +175,34 @@
     "aws:cdk:path": "MosaicLifeStack/CognitoConfig/Resource"
    }
   },
+  "SessionSecretC41FBD23": {
+   "Type": "AWS::SecretsManager::Secret",
+   "Properties": {
+    "Description": "Session secret key for authentication",
+    "GenerateSecretString": {
+     "ExcludePunctuation": true,
+     "GenerateStringKey": "secret-key",
+     "PasswordLength": 64,
+     "SecretStringTemplate": "{}"
+    },
+    "Name": "mosaic/prod/session/secret-key",
+    "Tags": [
+     {
+      "Key": "Component",
+      "Value": "Security"
+     },
+     {
+      "Key": "Environment",
+      "Value": "prod"
+     }
+    ]
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "MosaicLifeStack/SessionSecret/Resource"
+   }
+  },
   "MediaBucketCorsE6F17917": {
    "Type": "Custom::AWS",
    "Properties": {
