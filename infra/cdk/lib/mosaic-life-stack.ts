@@ -296,6 +296,21 @@ export class MosaicLifeStack extends cdk.Stack {
       },
     });
 
+    // Session Secret for production
+    const sessionSecret = new secretsmanager.Secret(this, 'SessionSecret', {
+      secretName: `mosaic/${environment}/session/secret-key`,
+      description: 'Session secret key for authentication',
+      generateSecretString: {
+        secretStringTemplate: JSON.stringify({}),
+        generateStringKey: 'secret-key',
+        excludePunctuation: true,
+        passwordLength: 64,
+      },
+    });
+
+    cdk.Tags.of(sessionSecret).add('Environment', environment);
+    cdk.Tags.of(sessionSecret).add('Component', 'Security');
+
     // ============================================================
     // S3 Buckets
     // ============================================================
