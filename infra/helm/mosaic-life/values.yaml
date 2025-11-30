@@ -328,3 +328,5 @@ externalSecrets:
     kind: ClusterSecretStore
   database:
     secretKey: "mosaic/prod/rds/credentials"
+  session:
+    secretKey: "mosaic/prod/session/secret-key"
