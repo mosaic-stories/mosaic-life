@@ -125,3 +125,85 @@ class TestCreateLegacyVisibility:
             data=data,
         )
         assert result.visibility == "public"
+
+
+from app.models.legacy import LegacyMember
+
+
+class TestServiceFunctionsReturnVisibility:
+    """Tests that all service functions return visibility."""
+
+    @pytest.mark.asyncio
+    async def test_list_user_legacies_includes_visibility(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test list_user_legacies includes visibility."""
+        # Create a legacy
+        legacy = Legacy(name="Test", created_by=test_user.id, visibility="public")
+        db_session.add(legacy)
+        await db_session.flush()
+
+        member = LegacyMember(legacy_id=legacy.id, user_id=test_user.id, role="creator")
+        db_session.add(member)
+        await db_session.commit()
+
+        result = await legacy_service.list_user_legacies(db=db_session, user_id=test_user.id)
+        assert len(result) >= 1
+        assert result[0].visibility == "public"
+
+    @pytest.mark.asyncio
+    async def test_get_legacy_detail_includes_visibility(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test get_legacy_detail includes visibility."""
+        legacy = Legacy(name="Test", created_by=test_user.id, visibility="private")
+        db_session.add(legacy)
+        await db_session.flush()
+
+        member = LegacyMember(legacy_id=legacy.id, user_id=test_user.id, role="creator")
+        db_session.add(member)
+        await db_session.commit()
+
+        result = await legacy_service.get_legacy_detail(
+            db=db_session,
+            user_id=test_user.id,
+            legacy_id=legacy.id,
+        )
+        assert result.visibility == "private"
+
+    @pytest.mark.asyncio
+    async def test_explore_legacies_includes_visibility(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test explore_legacies includes visibility."""
+        legacy = Legacy(name="Test", created_by=test_user.id, visibility="public")
+        db_session.add(legacy)
+        await db_session.commit()
+
+        result = await legacy_service.explore_legacies(db=db_session)
+        assert len(result) >= 1
+        # Find our legacy
+        our_legacy = next((l for l in result if l.name == "Test"), None)
+        assert our_legacy is not None
+        assert our_legacy.visibility == "public"
+
+    @pytest.mark.asyncio
+    async def test_search_legacies_includes_visibility(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """Test search_legacies includes visibility."""
+        legacy = Legacy(name="Searchable", created_by=test_user.id, visibility="public")
+        db_session.add(legacy)
+        await db_session.commit()
+
+        result = await legacy_service.search_legacies_by_name(db=db_session, query="Searchable")
+        assert len(result) >= 1
+        assert result[0].visibility == "public"

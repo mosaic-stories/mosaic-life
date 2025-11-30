@@ -266,6 +266,7 @@ async def list_user_legacies(
             birth_date=legacy.birth_date,
             death_date=legacy.death_date,
             biography=legacy.biography,
+            visibility=legacy.visibility,
             created_by=legacy.created_by,
             created_at=legacy.created_at,
             updated_at=legacy.updated_at,
@@ -315,6 +316,7 @@ async def search_legacies_by_name(
             birth_date=legacy.birth_date,
             death_date=legacy.death_date,
             created_at=legacy.created_at,
+            visibility=legacy.visibility,
         )
         for legacy in legacies
     ]
@@ -361,6 +363,7 @@ async def explore_legacies(
             birth_date=legacy.birth_date,
             death_date=legacy.death_date,
             biography=legacy.biography,
+            visibility=legacy.visibility,
             created_by=legacy.created_by,
             created_at=legacy.created_at,
             updated_at=legacy.updated_at,
@@ -452,6 +455,7 @@ async def get_legacy_public(
         birth_date=legacy.birth_date,
         death_date=legacy.death_date,
         biography=legacy.biography,
+        visibility=legacy.visibility,
         created_by=legacy.created_by,
         created_at=legacy.created_at,
         updated_at=legacy.updated_at,
@@ -537,6 +541,7 @@ async def get_legacy_detail(
         birth_date=legacy.birth_date,
         death_date=legacy.death_date,
         biography=legacy.biography,
+        visibility=legacy.visibility,
         created_by=legacy.created_by,
         created_at=legacy.created_at,
         updated_at=legacy.updated_at,
@@ -749,6 +754,7 @@ async def update_legacy(
         birth_date=legacy.birth_date,
         death_date=legacy.death_date,
         biography=legacy.biography,
+        visibility=legacy.visibility,
         created_by=legacy.created_by,
         created_at=legacy.created_at,
         updated_at=legacy.updated_at,
