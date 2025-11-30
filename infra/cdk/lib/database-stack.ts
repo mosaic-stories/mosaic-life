@@ -204,7 +204,7 @@ export class DatabaseStack extends cdk.Stack {
     
     const eksServiceAccountRole = new iam.Role(this, 'CoreApiSecretsAccessRole', {
       roleName: `mosaic-${environment}-core-api-secrets-role`,
-      description: 'IAM role for core-api to access database secrets via IRSA',
+      description: 'IAM role for core-api to access database secrets and send emails via IRSA',
       assumedBy: new iam.FederatedPrincipal(
         `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`,
         {
@@ -217,6 +217,29 @@ export class DatabaseStack extends cdk.Stack {
         },
         'sts:AssumeRoleWithWebIdentity'
       ),
+      inlinePolicies: {
+        'SESEmailSendPolicy': new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: [
+                'ses:SendEmail',
+                'ses:SendRawEmail',
+              ],
+              resources: ['*'], // SES actions don't support resource-level permissions
+            }),
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: [
+                'ses:GetSendQuota',
+                'ses:GetSendStatistics',
+                'ses:ListVerifiedEmailAddresses',
+              ],
+              resources: ['*'],
+            }),
+          ],
+        }),
+      },
     });
 
     // Grant read access to database credentials secret

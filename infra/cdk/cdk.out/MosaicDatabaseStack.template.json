@@ -383,7 +383,28 @@
      ],
      "Version": "2012-10-17"
     },
-    "Description": "IAM role for core-api to access database secrets via IRSA",
+    "Description": "IAM role for core-api to access database secrets and send emails via IRSA",
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": [
+          "ses:GetSendQuota",
+          "ses:GetSendStatistics",
+          "ses:ListVerifiedEmailAddresses",
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+         ],
+         "Effect": "Allow",
+         "Resource": "*"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "SESEmailSendPolicy"
+     }
+    ],
     "RoleName": "mosaic-prod-core-api-secrets-role"
    },
    "Metadata": {

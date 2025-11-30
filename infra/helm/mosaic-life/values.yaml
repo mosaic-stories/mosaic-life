@@ -176,6 +176,12 @@ coreApi:
     - name: API_URL
       value: "https://api.mosaiclife.me"
     
+    # SES Email Configuration
+    - name: SES_FROM_EMAIL
+      value: "noreply@mosaiclife.me"
+    - name: SES_REGION
+      value: "us-east-1"
+
     # Session Configuration
     - name: SESSION_SECRET_KEY
       valueFrom:

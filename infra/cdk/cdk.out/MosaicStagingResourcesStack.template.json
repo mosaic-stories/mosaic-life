@@ -577,7 +577,28 @@
      ],
      "Version": "2012-10-17"
     },
-    "Description": "IAM role for staging core-api service in EKS",
+    "Description": "IAM role for staging core-api service in EKS (S3, Secrets, SES)",
+    "Policies": [
+     {
+      "PolicyDocument": {
+       "Statement": [
+        {
+         "Action": [
+          "ses:GetSendQuota",
+          "ses:GetSendStatistics",
+          "ses:ListVerifiedEmailAddresses",
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+         ],
+         "Effect": "Allow",
+         "Resource": "*"
+        }
+       ],
+       "Version": "2012-10-17"
+      },
+      "PolicyName": "SESEmailSendPolicy"
+     }
+    ],
     "RoleName": "mosaic-staging-core-api-role",
     "Tags": [
      {

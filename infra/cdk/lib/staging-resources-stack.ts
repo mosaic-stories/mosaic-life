@@ -168,7 +168,30 @@ export class StagingResourcesStack extends cdk.Stack {
           },
         }
       ),
-      description: 'IAM role for staging core-api service in EKS',
+      description: 'IAM role for staging core-api service in EKS (S3, Secrets, SES)',
+      inlinePolicies: {
+        'SESEmailSendPolicy': new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: [
+                'ses:SendEmail',
+                'ses:SendRawEmail',
+              ],
+              resources: ['*'],
+            }),
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: [
+                'ses:GetSendQuota',
+                'ses:GetSendStatistics',
+                'ses:ListVerifiedEmailAddresses',
+              ],
+              resources: ['*'],
+            }),
+          ],
+        }),
+      },
     });
 
     // Grant S3 access

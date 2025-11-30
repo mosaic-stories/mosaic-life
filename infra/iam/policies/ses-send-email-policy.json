@@ -1,0 +1,31 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "SESSendEmail",
+      "Effect": "Allow",
+      "Action": [
+        "ses:SendEmail",
+        "ses:SendRawEmail"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "ses:FromAddress": [
+            "noreply@mosaiclife.me"
+          ]
+        }
+      }
+    },
+    {
+      "Sid": "SESReadAccess",
+      "Effect": "Allow",
+      "Action": [
+        "ses:GetSendQuota",
+        "ses:GetSendStatistics",
+        "ses:ListVerifiedEmailAddresses"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
