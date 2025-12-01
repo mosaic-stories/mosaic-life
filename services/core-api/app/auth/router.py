@@ -203,6 +203,8 @@ async def callback_google(
             extra={
                 "google_id": google_user.id,
                 "email": google_user.email,
+                "has_picture": google_user.picture is not None,
+                "picture_url": google_user.picture[:100] if google_user.picture else None,
             },
         )
 
@@ -327,6 +329,7 @@ async def _find_or_create_user(db: AsyncSession, google_user: GoogleUser) -> Use
             extra={
                 "user_id": str(user.id),
                 "google_id": user.google_id,
+                "avatar_url": user.avatar_url[:100] if user.avatar_url else None,
             },
         )
     else:
@@ -347,6 +350,7 @@ async def _find_or_create_user(db: AsyncSession, google_user: GoogleUser) -> Use
                 "user_id": str(user.id),
                 "google_id": user.google_id,
                 "email": user.email,
+                "avatar_url": user.avatar_url[:100] if user.avatar_url else None,
             },
         )
 
