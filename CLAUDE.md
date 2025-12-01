@@ -175,11 +175,13 @@ uv run pytest
 # Run with specific log level
 LOG_LEVEL=debug uv run python -m app.main
 
-# Type checking
-uv run mypy app/
+# REQUIRED VALIDATION (run before committing)
+just validate-backend    # Runs both ruff + mypy
 
-# Linting
-uv run ruff check app/
+# Or run individually:
+just lint-backend        # Ruff linting
+just typecheck-backend   # MyPy type checking
+just lint-fix-backend    # Auto-fix ruff issues
 ```
 
 ### Database Operations
@@ -254,6 +256,7 @@ For non-trivial changes, use the planning template from AGENTS.md:
 
 - **TypeScript:** Strict types, no `any`, ESLint + Prettier
 - **Python:** Type hints, Black formatting, Ruff linting, MyPy strict checks
+- **Validation Required:** ALL backend changes must pass `just validate-backend` before committing
 - **Commits:** Conventional Commits format (`feat:`, `fix:`, `chore:`, `docs:`)
 - **PRs:** Target < 400 LOC, squash-merge, link to GitHub Issue
 - **Testing:** ≥80% coverage, tests required for all new features
@@ -423,23 +426,25 @@ When working with this codebase:
 
 1. **Docker Compose only** - Never use standalone `docker` CLI. Always use `docker compose -f infra/compose/docker-compose.yml ...`
 2. **uv for Python** - Never use `pip`, `python`, or `venv` directly. Always use `uv run ...` or `uv sync`
-3. **GitOps for production** - All production changes must be committed to repo. Never make manual changes via kubectl/helm
+3. **Validate all backend changes** - Run `just validate-backend` before completing any backend task. All code must pass ruff and mypy checks.
+4. **GitOps for production** - All production changes must be committed to repo. Never make manual changes via kubectl/helm
 
 ### Architecture Guidelines
 
-4. **Always check AGENTS.md** for approval requirements and planning templates
-5. **Follow adapter patterns** even in MVP - this enables future service extraction
-6. **Use OpenSearch** (not Elasticsearch) - this is a key architectural anchor
-7. **Prefer SSE for streaming** - WebSockets are deferred
-8. **Design for single-tenant** but keep APIs forward-compatible with tenant_id
-9. **Emit OTel spans** for all significant operations
+5. **Always check AGENTS.md** for approval requirements and planning templates
+6. **Follow adapter patterns** even in MVP - this enables future service extraction
+7. **Use OpenSearch** (not Elasticsearch) - this is a key architectural anchor
+8. **Prefer SSE for streaming** - WebSockets are deferred
+9. **Design for single-tenant** but keep APIs forward-compatible with tenant_id
+10. **Emit OTel spans** for all significant operations
 
 ### Security & Quality
 
-10. **Never commit secrets** - use AWS Secrets Manager references
-11. **Sanitize user content** before rendering
-12. **Use TodoWrite** for multi-step tasks
-13. **Target < 400 LOC per PR** - split larger changes
+11. **Never commit secrets** - use AWS Secrets Manager references
+12. **Sanitize user content** before rendering
+13. **Validate before completing** - Run `just validate-backend` (or `just validate-all`) as final step
+14. **Use TodoWrite** for multi-step tasks
+15. **Target < 400 LOC per PR** - split larger changes
 
 ### Infrastructure Context
 

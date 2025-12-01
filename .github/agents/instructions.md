@@ -58,6 +58,11 @@ uv run pytest
 uv run alembic upgrade head
 uv sync
 
+# REQUIRED VALIDATION (run before committing)
+just validate-backend    # Runs both ruff + mypy
+just lint-backend        # Ruff linting only
+just typecheck-backend   # MyPy type checking only
+
 # ❌ WRONG - Never use pip or raw python
 pip install ...
 python -m pytest
@@ -71,6 +76,15 @@ All production changes must:
 3. Be deployed automatically via ArgoCD
 
 Never make manual changes with kubectl/helm in production.
+
+### Validation: Always Required
+
+Before completing any backend work:
+```bash
+just validate-backend    # Required - runs ruff + mypy
+just validate-frontend   # For frontend changes
+just validate-all        # For full-stack changes
+```
 
 ## Development Commands
 
@@ -105,8 +119,12 @@ uv run alembic upgrade head                # Run migrations
 uv run alembic revision --autogenerate -m "description"  # New migration
 uv run python -m app.main                  # Start server (localhost:8080)
 uv run pytest                              # Run tests
-uv run mypy app/                           # Type checking
-uv run ruff check app/                     # Linting
+
+# REQUIRED VALIDATION (run before committing)
+just validate-backend                      # Runs both ruff + mypy
+just lint-backend                          # Ruff linting only
+just typecheck-backend                     # MyPy type checking only
+just lint-fix-backend                      # Auto-fix ruff issues
 ```
 
 ### Database
@@ -170,6 +188,7 @@ docker compose -f infra/compose/docker-compose.yml exec postgres pg_dump -U post
 - Ruff linting
 - MyPy strict checks
 - ≥80% test coverage
+- **REQUIRED: Run `just validate-backend` before committing any backend changes**
 
 ### Security
 - Never commit secrets (use AWS Secrets Manager)
@@ -196,6 +215,9 @@ docker compose -f infra/compose/docker-compose.yml exec postgres pg_dump -U post
 - Test additions or fixes
 - Documentation updates
 - CI workflow fixes
+
+**Always before completing backend work:**
+- Run `just validate-backend` to ensure code passes ruff and mypy checks
 
 ## Planning Template
 

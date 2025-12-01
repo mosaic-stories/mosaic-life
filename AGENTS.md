@@ -25,6 +25,7 @@ This repository uses an AI coding assistant to accelerate delivery while preserv
 4. **Keep changes small and testable.** Prefer incremental PRs with clear tests and telemetry.
 5. **Make it observable.** Add OTel spans/metrics/logs for meaningful actions.
 6. **Use correct tools.** Always use `docker compose` (not standalone `docker`) and `uv` (not `pip`) for Python operations.
+7. **Validate all changes.** Run `just validate-backend` before completing any backend work. All code must pass ruff and mypy checks.
 
 ---
 
@@ -96,6 +97,12 @@ uv run python -m app.main
 uv run pytest
 uv run alembic upgrade head
 uv sync  # Install dependencies
+
+# REQUIRED: Validate before completing
+just validate-backend    # Runs ruff + mypy
+just lint-backend        # Ruff only
+just typecheck-backend   # MyPy only
+just lint-fix-backend    # Auto-fix ruff issues
 
 # ❌ WRONG - Never use pip or raw python directly
 pip install ...
@@ -188,6 +195,11 @@ For any **complex task** (new API, schema change, feature slice, infra change), 
 * Add Prometheus metrics with standard labels.
 * Log JSON only; include request IDs and versions.
 * Tests required per CODING-STANDARDS.md, with Playwright flows for user-facing features.
+* **ALL backend changes must pass `just validate-backend` before completion.** This runs:
+  * `ruff check app/` - Linting with consistent style rules
+  * `mypy app/` - Strict type checking
+* Frontend changes should pass `just validate-frontend` (ESLint + TypeScript)
+* Use `just validate-all` to check both backend and frontend together
 
 ---
 
@@ -226,7 +238,7 @@ Files: apps/web/src/features/ai-chat/*
 ```
 Goal: Add POST /v1/stories to Stories Service.
 Inputs: Pydantic schema, authZ call, outbox event, OpenAPI update.
-Acceptance: pytest unit + integration, Schemathesis contract test, OTel spans, Prom metrics.
+Acceptance: pytest unit + integration, Schemathesis contract test, OTel spans, Prom metrics, passes `just validate-backend`.
 Files: services/stories/*, packages/shared-types/*
 ```
 

@@ -767,6 +767,76 @@ restart:
     @echo "✓ Docker Compose stack restarted"
 
 # ============================================================
+# Code Quality & Validation
+# ============================================================
+
+# Run ruff linting on backend code
+lint-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running ruff linting on services/core-api..."
+    cd services/core-api
+    uv run ruff check app/
+    echo "✓ Ruff linting passed"
+
+# Run mypy type checking on backend code
+typecheck-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running mypy type checking on services/core-api..."
+    cd services/core-api
+    uv run mypy app/
+    echo "✓ MyPy type checking passed"
+
+# Run all backend validation (ruff + mypy)
+validate-backend: lint-backend typecheck-backend
+    @echo ""
+    @echo "════════════════════════════════════════════════"
+    @echo "✓ All backend validation checks passed!"
+    @echo "════════════════════════════════════════════════"
+
+# Run ruff linting with auto-fix
+lint-fix-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running ruff with auto-fix on services/core-api..."
+    cd services/core-api
+    uv run ruff check --fix app/
+    echo "✓ Ruff auto-fix completed"
+
+# Run frontend linting
+lint-frontend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running ESLint on apps/web..."
+    cd apps/web
+    npm run lint
+    echo "✓ ESLint passed"
+
+# Run frontend type checking
+typecheck-frontend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running TypeScript type checking on apps/web..."
+    cd apps/web
+    npx tsc --noEmit
+    echo "✓ TypeScript type checking passed"
+
+# Run all frontend validation (lint + typecheck)
+validate-frontend: lint-frontend typecheck-frontend
+    @echo ""
+    @echo "════════════════════════════════════════════════"
+    @echo "✓ All frontend validation checks passed!"
+    @echo "════════════════════════════════════════════════"
+
+# Run all validation checks (backend + frontend)
+validate-all: validate-backend validate-frontend
+    @echo ""
+    @echo "════════════════════════════════════════════════"
+    @echo "✓ ALL validation checks passed!"
+    @echo "════════════════════════════════════════════════"
+
+# ============================================================
 # Cluster Information
 # ============================================================
 
