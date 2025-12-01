@@ -61,6 +61,7 @@ uv sync
 # REQUIRED VALIDATION (run before committing)
 just validate-backend    # Runs both ruff + mypy
 just lint-backend        # Ruff linting only
+just format-backend      # Ruff format checking only
 just typecheck-backend   # MyPy type checking only
 
 # ❌ WRONG - Never use pip or raw python
@@ -123,8 +124,9 @@ uv run pytest                              # Run tests
 # REQUIRED VALIDATION (run before committing)
 just validate-backend                      # Runs both ruff + mypy
 just lint-backend                          # Ruff linting only
+just format-backend                        # Ruff format checking only
 just typecheck-backend                     # MyPy type checking only
-just lint-fix-backend                      # Auto-fix ruff issues
+just lint-fix-backend                      # Auto-fix ruff issues + format code
 ```
 
 ### Database

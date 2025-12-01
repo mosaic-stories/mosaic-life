@@ -779,6 +779,15 @@ lint-backend:
     uv run ruff check app/
     echo "✓ Ruff linting passed"
 
+# Check ruff formatting on backend code
+format-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Checking ruff formatting on services/core-api..."
+    cd services/core-api
+    uv run ruff format --check app/
+    echo "✓ Ruff formatting check passed"
+
 # Run mypy type checking on backend code
 typecheck-backend:
     #!/usr/bin/env bash
@@ -788,21 +797,22 @@ typecheck-backend:
     uv run mypy app/
     echo "✓ MyPy type checking passed"
 
-# Run all backend validation (ruff + mypy)
-validate-backend: lint-backend typecheck-backend
+# Run all backend validation (ruff lint + format + mypy)
+validate-backend: lint-backend format-backend typecheck-backend
     @echo ""
     @echo "════════════════════════════════════════════════"
     @echo "✓ All backend validation checks passed!"
     @echo "════════════════════════════════════════════════"
 
-# Run ruff linting with auto-fix
+# Run ruff linting with auto-fix and formatting
 lint-fix-backend:
     #!/usr/bin/env bash
     set -euo pipefail
-    echo "Running ruff with auto-fix on services/core-api..."
+    echo "Running ruff with auto-fix and formatting on services/core-api..."
     cd services/core-api
     uv run ruff check --fix app/
-    echo "✓ Ruff auto-fix completed"
+    uv run ruff format app/
+    echo "✓ Ruff auto-fix and formatting completed"
 
 # Run frontend linting
 lint-frontend:

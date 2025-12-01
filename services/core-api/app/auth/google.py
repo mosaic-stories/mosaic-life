@@ -124,18 +124,20 @@ class GoogleOAuthClient:
                     )
 
                 user_info: dict[str, Any] = response.json()
-                
+
                 # Log what we received from Google (for debugging avatar issues)
                 logger.info(
                     "google.userinfo.received",
                     extra={
                         "has_picture": "picture" in user_info,
-                        "picture_url": user_info.get("picture", "NOT_PROVIDED")[:100] if "picture" in user_info else None,
+                        "picture_url": user_info.get("picture", "NOT_PROVIDED")[:100]
+                        if "picture" in user_info
+                        else None,
                         "user_id": user_info.get("sub"),
                         "email": user_info.get("email"),
                     },
                 )
-                
+
                 return user_info
 
         except httpx.HTTPError as e:

@@ -204,7 +204,9 @@ async def callback_google(
                 "google_id": google_user.id,
                 "email": google_user.email,
                 "has_picture": google_user.picture is not None,
-                "picture_url": google_user.picture[:100] if google_user.picture else None,
+                "picture_url": google_user.picture[:100]
+                if google_user.picture
+                else None,
             },
         )
 

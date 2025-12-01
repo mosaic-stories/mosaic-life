@@ -180,8 +180,9 @@ just validate-backend    # Runs both ruff + mypy
 
 # Or run individually:
 just lint-backend        # Ruff linting
+just format-backend      # Ruff format checking
 just typecheck-backend   # MyPy type checking
-just lint-fix-backend    # Auto-fix ruff issues
+just lint-fix-backend    # Auto-fix ruff issues + format code
 ```
 
 ### Database Operations

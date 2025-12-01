@@ -100,9 +100,10 @@ uv sync  # Install dependencies
 
 # REQUIRED: Validate before completing
 just validate-backend    # Runs ruff + mypy
-just lint-backend        # Ruff only
+just lint-backend        # Ruff linting only
+just format-backend      # Ruff format checking only
 just typecheck-backend   # MyPy only
-just lint-fix-backend    # Auto-fix ruff issues
+just lint-fix-backend    # Auto-fix ruff issues + format code
 
 # ❌ WRONG - Never use pip or raw python directly
 pip install ...
@@ -197,6 +198,7 @@ For any **complex task** (new API, schema change, feature slice, infra change), 
 * Tests required per CODING-STANDARDS.md, with Playwright flows for user-facing features.
 * **ALL backend changes must pass `just validate-backend` before completion.** This runs:
   * `ruff check app/` - Linting with consistent style rules
+  * `ruff format --check app/` - Format checking (matches CI)
   * `mypy app/` - Strict type checking
 * Frontend changes should pass `just validate-frontend` (ESLint + TypeScript)
 * Use `just validate-all` to check both backend and frontend together
