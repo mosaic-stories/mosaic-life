@@ -12,8 +12,9 @@ Interactive API documentation powered by the OpenAPI specification.
 
 ## Download Specification
 
-- [OpenAPI JSON](openapi.json) - Machine-readable specification
-- [OpenAPI YAML](openapi.yaml) - Human-readable specification
+The Mosaic Life API specification is available in JSON format:
+
+- [OpenAPI JSON](openapi.json) - API specification
 
 ## Using the API
 

@@ -3,7 +3,14 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOCS_DIR="$(dirname "$SCRIPT_DIR")"
-CORE_API_DIR="$DOCS_DIR/../../services/core-api"
+
+# Support both local dev and Docker build paths
+if [ -d "/build/services/core-api" ]; then
+    CORE_API_DIR="/build/services/core-api"
+else
+    CORE_API_DIR="$DOCS_DIR/../../services/core-api"
+fi
+
 OUTPUT_DIR="$DOCS_DIR/docs/api"
 
 echo "[docs] Generating OpenAPI specification..."

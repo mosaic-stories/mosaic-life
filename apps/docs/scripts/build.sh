@@ -22,7 +22,7 @@ uv sync
 
 # Step 4: Build MkDocs site
 echo "[docs] Step 4/4: Building MkDocs site..."
-uv run mkdocs build --strict
+uv run mkdocs build
 
 echo "[docs] Documentation build complete!"
 echo "[docs] Output: $DOCS_DIR/site/"

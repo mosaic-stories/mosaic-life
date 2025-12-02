@@ -1,6 +1,6 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "entryPoints": ["../../packages/shared-types/src"],
+  "entryPoints": ["../packages/shared-types/src"],
   "entryPointStrategy": "expand",
   "out": "docs/reference/typescript/shared",
   "plugin": ["typedoc-plugin-markdown"],
