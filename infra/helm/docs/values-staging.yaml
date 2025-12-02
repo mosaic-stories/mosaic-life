@@ -1,0 +1,33 @@
+# Staging-specific values for docs
+
+replicaCount: 1
+
+image:
+  tag: "develop"
+
+ingress:
+  annotations:
+    alb.ingress.kubernetes.io/group.name: mosaic-life-staging
+    alb.ingress.kubernetes.io/group.order: "30"
+  hosts:
+    - host: stage-docs.mosaiclife.me
+      paths:
+        - path: /
+          pathType: Prefix
+
+externalDns:
+  hostname: stage-docs.mosaiclife.me
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 25m
+    memory: 32Mi
+
+podDisruptionBudget:
+  enabled: false
+
+autoscaling:
+  enabled: false
