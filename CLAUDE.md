@@ -202,6 +202,39 @@ docker compose -f infra/compose/docker-compose.yml exec postgres pg_dump -U post
 # Database: core, User: postgres, Password: postgres
 ```
 
+### Documentation Development
+
+```bash
+cd apps/docs
+
+# Install dependencies
+uv sync
+npm install
+
+# Serve docs locally with hot reload (runs on http://localhost:8000)
+uv run mkdocs serve
+
+# Build documentation (includes OpenAPI and TypeDoc generation)
+bash scripts/build.sh
+
+# Generate OpenAPI spec only
+bash scripts/generate-openapi.sh
+
+# Generate TypeDoc only
+bash scripts/generate-typedoc.sh
+```
+
+Or use just commands:
+
+```bash
+just docs-serve           # Serve locally
+just docs-build           # Full build
+just docs-generate-openapi # Generate OpenAPI spec
+just docs-generate-typedoc # Generate TypeDoc
+just docs-docker-build    # Build Docker image
+just docs-docker-up       # Run in Docker
+```
+
 ## Important Documentation
 
 Read these documents in order of precedence when guidance conflicts:
@@ -343,14 +376,21 @@ OpenSearch indexes with tenant isolation:
 ```
 /
 ├── apps/
-│   └── web/              # React + Vite frontend
-│       ├── src/
-│       │   ├── app/      # App shell, routes
-│       │   ├── components/ # Shared UI components
-│       │   ├── features/ # Feature modules (editor, ai-chat, media, search)
-│       │   ├── lib/      # Utilities (http client, sanitizer, otel)
-│       │   └── api/      # Generated API clients (future)
-│       └── package.json
+│   ├── web/              # React + Vite frontend
+│   │   ├── src/
+│   │   │   ├── app/      # App shell, routes
+│   │   │   ├── components/ # Shared UI components
+│   │   │   ├── features/ # Feature modules (editor, ai-chat, media, search)
+│   │   │   ├── lib/      # Utilities (http client, sanitizer, otel)
+│   │   │   └── api/      # Generated API clients (future)
+│   │   └── package.json
+│   └── docs/             # MkDocs documentation site
+│       ├── docs/         # Markdown content
+│       ├── scripts/      # Build scripts (generate-openapi.sh, generate-typedoc.sh, build.sh)
+│       ├── mkdocs.yml    # MkDocs configuration
+│       ├── pyproject.toml # Python dependencies (mkdocs, mkdocs-material)
+│       ├── package.json  # Node dependencies (typedoc)
+│       └── Dockerfile    # Multi-stage Docker build
 ├── services/
 │   └── core-api/         # FastAPI backend (MVP consolidated service)
 │       ├── app/
@@ -381,6 +421,7 @@ OpenSearch indexes with tenant isolation:
 - Frontend (dev): http://localhost:5173
 - Frontend (prod build): http://localhost:3001
 - Backend API: http://localhost:8080
+- Documentation: http://localhost:8000 (via docker compose --profile docs)
 - PostgreSQL: localhost:15432
 - OpenSearch: http://localhost:9200
 - Localstack (AWS): http://localhost:4566
