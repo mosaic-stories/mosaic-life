@@ -1,0 +1,127 @@
+site_name: Mosaic Life Documentation
+site_url: https://docs.mosaiclife.me
+site_description: Documentation for the Mosaic Life memorial stories platform
+site_author: Mosaic Stories
+
+repo_name: mosaic-stories/mosaic-life
+repo_url: https://github.com/mosaic-stories/mosaic-life
+
+copyright: Copyright &copy; 2024-2025 Mosaic Stories
+
+theme:
+  name: material
+  custom_dir: overrides
+  language: en
+
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - search:
+      lang: en
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [../../services/core-api]
+          options:
+            docstring_style: google
+            show_source: true
+            show_root_heading: true
+            show_root_toc_entry: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            members_order: source
+            separate_signature: true
+            unwrap_annotated: true
+            merge_init_into_class: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+
+nav:
+  - Home: index.md
+  - Getting Started:
+    - Installation: getting-started/installation.md
+    - First Steps: getting-started/first-steps.md
+  - User Guide:
+    - Creating Stories: user-guide/creating-stories.md
+    - Sharing Memories: user-guide/sharing-memories.md
+  - Developer Guide:
+    - Local Setup: developer-guide/local-setup.md
+    - Architecture: developer-guide/architecture.md
+    - Contributing: developer-guide/contributing.md
+  - API Reference:
+    - Overview: api/overview.md
+    - OpenAPI: api/openapi.md
+  - Code Reference:
+    - Python: reference/python/index.md
+    - TypeScript: reference/typescript/index.md
+  - Changelog: changelog.md
+
+extra:
+  version:
+    provider: mike
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/mosaic-stories/mosaic-life
+  generator: false
