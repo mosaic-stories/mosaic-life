@@ -1,0 +1,22 @@
+[project]
+name = "mosaic-docs"
+version = "0.1.0"
+description = "Mosaic Life Documentation"
+requires-python = ">=3.12"
+
+dependencies = [
+    "mkdocs>=1.6.0",
+    "mkdocs-material>=9.5.0",
+    "mkdocstrings[python]>=0.26.0",
+    "mike>=2.1.0",
+    "pymdown-extensions>=10.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mkdocs-swagger-ui-tag>=0.6.0",
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
