@@ -1085,6 +1085,38 @@ clean-all:
     docker system prune -af --volumes
 
 # ============================================================
+# Documentation
+# ============================================================
+
+# Serve documentation locally with hot reload
+docs-serve:
+    cd apps/docs && uv run mkdocs serve
+
+# Build documentation (includes OpenAPI and TypeDoc generation)
+docs-build:
+    cd apps/docs && bash scripts/build.sh
+
+# Generate OpenAPI specification only
+docs-generate-openapi:
+    cd apps/docs && bash scripts/generate-openapi.sh
+
+# Generate TypeScript documentation only
+docs-generate-typedoc:
+    cd apps/docs && bash scripts/generate-typedoc.sh
+
+# Build docs Docker image
+docs-docker-build:
+    docker compose -f infra/compose/docker-compose.yml --profile docs build docs
+
+# Start docs service in Docker
+docs-docker-up:
+    docker compose -f infra/compose/docker-compose.yml --profile docs up docs -d
+
+# Stop docs service in Docker
+docs-docker-down:
+    docker compose -f infra/compose/docker-compose.yml --profile docs down
+
+# ============================================================
 # Utilities
 # ============================================================
 
