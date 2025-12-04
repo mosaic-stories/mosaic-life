@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookHeart, Loader2 } from 'lucide-react';
+import { ArrowLeft, BookHeart, Globe, Lock, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
@@ -8,6 +8,7 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import ThemeSelector from './ThemeSelector';
 import { useCreateLegacy } from '@/lib/hooks/useLegacies';
+import type { LegacyVisibility } from '@/lib/api/legacies';
 
 interface LegacyCreationProps {
   onNavigate: (view: string) => void;
@@ -23,6 +24,7 @@ export default function LegacyCreation({ onNavigate: _onNavigate, currentTheme, 
   const [birthDate, setBirthDate] = useState('');
   const [deathDate, setDeathDate] = useState('');
   const [biography, setBiography] = useState('');
+  const [visibility, setVisibility] = useState<LegacyVisibility>('private');
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,6 +42,7 @@ export default function LegacyCreation({ onNavigate: _onNavigate, currentTheme, 
         birth_date: birthDate || null,
         death_date: deathDate || null,
         biography: biography.trim() || null,
+        visibility,
       });
 
       // Navigate to the newly created legacy
@@ -135,6 +138,53 @@ export default function LegacyCreation({ onNavigate: _onNavigate, currentTheme, 
                 />
                 <p className="text-xs text-neutral-500">
                   A short description that introduces this person to visitors.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Label>Visibility</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setVisibility('private')}
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                      visibility === 'private'
+                        ? 'border-[rgb(var(--theme-primary))] bg-[rgb(var(--theme-accent-light))]'
+                        : 'border-neutral-200 hover:border-neutral-300'
+                    }`}
+                  >
+                    <Lock className={`size-5 ${visibility === 'private' ? 'text-[rgb(var(--theme-primary))]' : 'text-neutral-500'}`} />
+                    <div className="text-left">
+                      <div className={`font-medium ${visibility === 'private' ? 'text-[rgb(var(--theme-primary))]' : 'text-neutral-900'}`}>
+                        Private
+                      </div>
+                      <div className="text-xs text-neutral-500">
+                        Only invited members can view
+                      </div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVisibility('public')}
+                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                      visibility === 'public'
+                        ? 'border-[rgb(var(--theme-primary))] bg-[rgb(var(--theme-accent-light))]'
+                        : 'border-neutral-200 hover:border-neutral-300'
+                    }`}
+                  >
+                    <Globe className={`size-5 ${visibility === 'public' ? 'text-[rgb(var(--theme-primary))]' : 'text-neutral-500'}`} />
+                    <div className="text-left">
+                      <div className={`font-medium ${visibility === 'public' ? 'text-[rgb(var(--theme-primary))]' : 'text-neutral-900'}`}>
+                        Public
+                      </div>
+                      <div className="text-xs text-neutral-500">
+                        Anyone can discover and view
+                      </div>
+                    </div>
+                  </button>
+                </div>
+                <p className="text-xs text-neutral-500">
+                  You can change this setting later.
                 </p>
               </div>
 

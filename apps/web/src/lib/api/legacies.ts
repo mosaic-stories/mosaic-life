@@ -10,12 +10,15 @@ export interface LegacyMember {
   joined_at: string;
 }
 
+export type LegacyVisibility = 'public' | 'private';
+
 export interface Legacy {
   id: string;
   name: string;
   birth_date: string | null;
   death_date: string | null;
   biography: string | null;
+  visibility: LegacyVisibility;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -31,6 +34,7 @@ export interface CreateLegacyInput {
   birth_date?: string | null;
   death_date?: string | null;
   biography?: string | null;
+  visibility?: LegacyVisibility;
 }
 
 export interface UpdateLegacyInput {
@@ -38,6 +42,7 @@ export interface UpdateLegacyInput {
   birth_date?: string | null;
   death_date?: string | null;
   biography?: string | null;
+  visibility?: LegacyVisibility;
 }
 
 export interface LegacySearchResult {
@@ -46,6 +51,7 @@ export interface LegacySearchResult {
   birth_date: string | null;
   death_date: string | null;
   created_at: string;
+  visibility: LegacyVisibility;
   similarity?: number | null;
 }
 
@@ -97,9 +103,18 @@ export async function joinLegacy(id: string): Promise<{ message: string }> {
   return apiPost<{ message: string }>(`/api/legacies/${id}/join`);
 }
 
-// Public endpoint - no authentication required
-export async function exploreLegacies(limit: number = 20): Promise<Legacy[]> {
-  return apiGet<Legacy[]>(`/api/legacies/explore?limit=${limit}`);
+export type VisibilityFilter = 'all' | 'public' | 'private';
+
+// Public endpoint - no authentication required for public legacies
+export async function exploreLegacies(
+  limit: number = 20,
+  visibilityFilter?: VisibilityFilter
+): Promise<Legacy[]> {
+  const params = new URLSearchParams({ limit: limit.toString() });
+  if (visibilityFilter) {
+    params.set('visibility_filter', visibilityFilter);
+  }
+  return apiGet<Legacy[]>(`/api/legacies/explore?${params.toString()}`);
 }
 
 // Public endpoint - get legacy details without authentication

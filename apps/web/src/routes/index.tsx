@@ -21,6 +21,7 @@ const MyLegaciesMinimalBase = lazy(() => import('@/components/MyLegaciesMinimal'
 const StoryCreationBase = lazy(() => import('@/components/StoryCreation'));
 const StoryCreationMinimalBase = lazy(() => import('@/components/StoryCreationMinimal'));
 const LegacyCreationBase = lazy(() => import('@/components/LegacyCreation'));
+const LegacyEditBase = lazy(() => import('@/components/LegacyEdit'));
 const MediaGalleryBase = lazy(() => import('@/components/MediaGallery'));
 const AIAgentChatBase = lazy(() => import('@/components/AIAgentChat'));
 const AIAgentChatMinimalBase = lazy(() => import('@/components/AIAgentChatMinimal'));
@@ -40,6 +41,7 @@ const CommunityMinimal = withSharedProps(CommunityMinimalBase);
 const MyLegacies = withSharedProps(MyLegaciesBase);
 const MyLegaciesMinimal = withSharedProps(MyLegaciesMinimalBase);
 const LegacyCreation = withSharedProps(LegacyCreationBase);
+const LegacyEdit = withLegacyProps(LegacyEditBase);
 const NotificationHistory = withSharedProps(NotificationHistoryBase);
 
 // Components that need legacyId from URL
@@ -154,6 +156,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <LazyPage><NotificationHistory /></LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'legacy/:legacyId/edit',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><LegacyEdit /></LazyPage>
           </ProtectedRoute>
         ),
       },

@@ -89,11 +89,11 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    
+
     # Load environment variables from .env file
     env_file:
       - .env
-    
+
     # Environment variables can be overridden here if needed
     # Uncomment and modify as necessary for specific deployments
     # environment:
@@ -101,7 +101,7 @@ services:
     #   POSTGRES_PASSWORD: postgres
     #   POSTGRES_DB: mosaic
     #   PGDATA: /var/lib/postgresql/data/pgdata
-    
+
     ports:
       - "15432:5432"
     volumes:
@@ -112,6 +112,21 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+  # Documentation Site (MkDocs)
+  docs:
+    build:
+      context: ../..
+      dockerfile: apps/docs/Dockerfile
+    ports:
+      - "8000:8080"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    profiles:
+      - docs
 
 volumes:
   postgres-data:

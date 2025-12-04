@@ -1,0 +1,15 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["../packages/shared-types/src"],
+  "entryPointStrategy": "expand",
+  "out": "docs/reference/typescript/shared",
+  "plugin": ["typedoc-plugin-markdown"],
+  "outputFileStrategy": "modules",
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "readme": "none",
+  "githubPages": false,
+  "hideBreadcrumbs": true,
+  "hidePageHeader": true
+}

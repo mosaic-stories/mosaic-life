@@ -33,6 +33,13 @@ class Legacy(Base):
     death_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     biography: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    visibility: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        server_default="private",
+        index=True,
+    )
+
     created_by: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),

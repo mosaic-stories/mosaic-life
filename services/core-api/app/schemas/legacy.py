@@ -1,6 +1,7 @@
 """Pydantic schemas for Legacy API."""
 
 from datetime import date, datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -18,6 +19,10 @@ class LegacyCreate(BaseModel):
     birth_date: date | None = Field(None, description="Birth date (optional)")
     death_date: date | None = Field(None, description="Death date (optional)")
     biography: str | None = Field(None, description="Biography text (optional)")
+    visibility: Literal["public", "private"] = Field(
+        default="private",
+        description="Legacy visibility: 'public' (anyone can view) or 'private' (members only)",
+    )
 
 
 class LegacyUpdate(BaseModel):
@@ -29,6 +34,10 @@ class LegacyUpdate(BaseModel):
     birth_date: date | None = Field(None, description="Birth date")
     death_date: date | None = Field(None, description="Death date")
     biography: str | None = Field(None, description="Biography text")
+    visibility: Literal["public", "private"] | None = Field(
+        default=None,
+        description="Legacy visibility: 'public' or 'private'",
+    )
 
 
 class LegacyMemberResponse(BaseModel):
@@ -55,6 +64,9 @@ class LegacyResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    # Visibility
+    visibility: str = "private"
+
     # Optional: include creator info
     creator_email: str | None = None
     creator_name: str | None = None
@@ -77,6 +89,9 @@ class LegacySearchResponse(BaseModel):
     birth_date: date | None
     death_date: date | None
     created_at: datetime
+
+    # Visibility
+    visibility: str = "private"
 
     # Similarity score for search ranking (0.0 to 1.0)
     similarity: float | None = None

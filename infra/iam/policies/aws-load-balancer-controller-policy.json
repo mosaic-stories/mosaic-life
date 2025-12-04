@@ -1,0 +1,232 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "AllowElbServiceLinkedRoleCreation",
+            "Effect": "Allow",
+            "Action": "iam:CreateServiceLinkedRole",
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "iam:AWSServiceName": "elasticloadbalancing.amazonaws.com"
+                }
+            }
+        },
+        {
+            "Sid": "AllowEc2Describe",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:DescribeAccountAttributes",
+                "ec2:DescribeAddresses",
+                "ec2:DescribeAvailabilityZones",
+                "ec2:DescribeInternetGateways",
+                "ec2:DescribeVpcs",
+                "ec2:DescribeVpcEndpoints",
+                "ec2:DescribeVpcPeeringConnections",
+                "ec2:DescribeSubnets",
+                "ec2:DescribeSecurityGroups",
+                "ec2:DescribeInstances",
+                "ec2:DescribeNetworkInterfaces",
+                "ec2:DescribeTags",
+                "ec2:GetCoipPoolUsage",
+                "ec2:DescribeCoipPools"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowSecurityGroupCreation",
+            "Effect": "Allow",
+            "Action": "ec2:CreateSecurityGroup",
+            "Resource": [
+                "arn:aws:ec2:us-east-1:033691785857:security-group/*",
+                "arn:aws:ec2:us-east-1:033691785857:vpc/*"
+            ]
+        },
+        {
+            "Sid": "AllowSecurityGroupCreationTagging",
+            "Effect": "Allow",
+            "Action": "ec2:CreateTags",
+            "Resource": "arn:aws:ec2:us-east-1:033691785857:security-group/*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestTag/elbv2.k8s.aws/cluster": "mosaiclife-eks",
+                    "ec2:CreateAction": "CreateSecurityGroup"
+                }
+            }
+        },
+        {
+            "Sid": "AllowTaggedSecurityGroupManagement",
+            "Effect": "Allow",
+            "Action": "ec2:DeleteSecurityGroup",
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceTag/elbv2.k8s.aws/cluster": "mosaiclife-eks"
+                }
+            }
+        },
+        {
+            "Sid": "AllowSecurityGroupRuleManagement",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:RevokeSecurityGroupIngress",
+                "ec2:AuthorizeSecurityGroupEgress",
+                "ec2:RevokeSecurityGroupEgress"
+            ],
+            "Resource": "arn:aws:ec2:us-east-1:033691785857:security-group/*"
+        },
+        {
+            "Sid": "AllowSecurityGroupTagging",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:CreateTags",
+                "ec2:DeleteTags"
+            ],
+            "Resource": "arn:aws:ec2:us-east-1:033691785857:security-group/*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:ResourceTag/elbv2.k8s.aws/cluster": "mosaiclife-eks"
+                },
+                "StringEqualsIfExists": {
+                    "aws:RequestTag/elbv2.k8s.aws/cluster": "mosaiclife-eks"
+                }
+            }
+        },
+        {
+            "Sid": "AllowElasticLoadBalancingCreate",
+            "Effect": "Allow",
+            "Action": [
+                "elasticloadbalancing:CreateLoadBalancer",
+                "elasticloadbalancing:CreateTargetGroup",
+                "elasticloadbalancing:AddTags"
+            ],
+            "Resource": "*",
+            "Condition": {
+                "StringEquals": {
+                    "aws:RequestTag/elbv2.k8s.aws/cluster": "mosaiclife-eks"
+                }
+            }
+        },
+        {
+            "Sid": "AllowElasticLoadBalancingWrites",
+            "Effect": "Allow",
+            "Action": [
+                "elasticloadbalancing:CreateListener",
+                "elasticloadbalancing:CreateRule",
+                "elasticloadbalancing:DeleteLoadBalancer",
+                "elasticloadbalancing:DeleteTargetGroup",
+                "elasticloadbalancing:DeleteListener",
+                "elasticloadbalancing:DeleteRule",
+                "elasticloadbalancing:ModifyLoadBalancerAttributes",
+                "elasticloadbalancing:ModifyListener",
+                "elasticloadbalancing:ModifyRule",
+                "elasticloadbalancing:ModifyTargetGroup",
+                "elasticloadbalancing:ModifyTargetGroupAttributes",
+                "elasticloadbalancing:SetIpAddressType",
+                "elasticloadbalancing:SetSecurityGroups",
+                "elasticloadbalancing:SetSubnets",
+                "elasticloadbalancing:RegisterTargets",
+                "elasticloadbalancing:DeregisterTargets",
+                "elasticloadbalancing:AddListenerCertificates",
+                "elasticloadbalancing:RemoveListenerCertificates",
+                "elasticloadbalancing:SetWebAcl"
+            ],
+            "Resource": [
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:loadbalancer/app/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:loadbalancer/net/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:listener/app/*/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:listener/net/*/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:listener-rule/app/*/*/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:listener-rule/net/*/*/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:targetgroup/*/*"
+            ]
+        },
+        {
+            "Sid": "AllowElasticLoadBalancingTagging",
+            "Effect": "Allow",
+            "Action": [
+                "elasticloadbalancing:AddTags",
+                "elasticloadbalancing:RemoveTags"
+            ],
+            "Resource": [
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:loadbalancer/app/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:loadbalancer/net/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:listener/app/*/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:listener/net/*/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:listener-rule/app/*/*/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:listener-rule/net/*/*/*/*",
+                "arn:aws:elasticloadbalancing:us-east-1:033691785857:targetgroup/*/*"
+            ]
+        },
+        {
+            "Sid": "AllowElasticLoadBalancingRead",
+            "Effect": "Allow",
+            "Action": [
+                "elasticloadbalancing:DescribeLoadBalancers",
+                "elasticloadbalancing:DescribeLoadBalancerAttributes",
+                "elasticloadbalancing:DescribeListeners",
+                "elasticloadbalancing:DescribeListenerCertificates",
+                "elasticloadbalancing:DescribeRules",
+                "elasticloadbalancing:DescribeSSLPolicies",
+                "elasticloadbalancing:DescribeTags",
+                "elasticloadbalancing:DescribeTargetGroups",
+                "elasticloadbalancing:DescribeTargetGroupAttributes",
+                "elasticloadbalancing:DescribeTargetHealth",
+                "elasticloadbalancing:DescribeAccountLimits",
+                "elasticloadbalancing:DescribeTrustStoreAssociations",
+                "elasticloadbalancing:DescribeTrustStores"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowAcmCertAccess",
+            "Effect": "Allow",
+            "Action": [
+                "acm:DescribeCertificate",
+                "acm:ListCertificates",
+                "acm:GetCertificate"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowShieldAndWaf",
+            "Effect": "Allow",
+            "Action": [
+                "shield:CreateProtection",
+                "shield:DeleteProtection",
+                "shield:DescribeProtection",
+                "shield:DescribeSubscription",
+                "shield:GetSubscriptionState",
+                "shield:ListProtections",
+                "waf-regional:AssociateWebACL",
+                "waf-regional:DisassociateWebACL",
+                "waf-regional:GetWebACL",
+                "waf-regional:GetWebACLForResource",
+                "waf-regional:ListResourcesForWebACL",
+                "waf-regional:ListWebACLs",
+                "wafv2:AssociateWebACL",
+                "wafv2:DisassociateWebACL",
+                "wafv2:GetWebACL",
+                "wafv2:GetWebACLForResource",
+                "wafv2:ListWebACLs"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowCognitoIntegration",
+            "Effect": "Allow",
+            "Action": "cognito-idp:DescribeUserPoolClient",
+            "Resource": "*"
+        },
+        {
+            "Sid": "AllowIamServerCertificates",
+            "Effect": "Allow",
+            "Action": [
+                "iam:ListServerCertificates",
+                "iam:GetServerCertificate"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

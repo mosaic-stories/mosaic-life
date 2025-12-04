@@ -1,4 +1,4 @@
-import { ArrowLeft, BookHeart, Plus, Loader2, AlertCircle, Users } from 'lucide-react';
+import { ArrowLeft, BookHeart, Plus, Loader2, AlertCircle, Users, Globe, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -65,9 +65,13 @@ function LegacyCard({ legacy, onClick }: { legacy: Legacy; onClick: () => void }
             <Users className="size-3" />
             <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
           </div>
-          {legacy.creator_name && (
-            <span>Created by {legacy.creator_name}</span>
-          )}
+          <div className="flex items-center gap-1">
+            {legacy.visibility === 'public' ? (
+              <><Globe className="size-3" /> Public</>
+            ) : (
+              <><Lock className="size-3" /> Private</>
+            )}
+          </div>
         </div>
       </div>
     </Card>

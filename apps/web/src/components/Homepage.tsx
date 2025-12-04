@@ -1,4 +1,6 @@
-import { ArrowRight, BookHeart, Sparkles, Plus, Loader2, Users } from 'lucide-react';
+import { ArrowRight, BookHeart, Sparkles, Plus, Loader2, Users, Globe, Lock } from 'lucide-react';
+import { useState } from 'react';
+import type { VisibilityFilter } from '@/lib/api/legacies';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
@@ -23,10 +25,12 @@ interface HomepageProps {
 }
 
 export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onThemeChange, user, onAuthClick, onSignOut }: HomepageProps) {
+  const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
+
   // useLegacies for authenticated users' personal legacies (requires auth)
   const { data: myLegacies, isLoading: myLegaciesLoading } = useLegacies();
-  // useExploreLegacies for public explore section (no auth required)
-  const { data: exploreLegacies, isLoading: exploreLoading } = useExploreLegacies(20);
+  // useExploreLegacies for public explore section (visibility filter for authenticated users)
+  const { data: exploreLegacies, isLoading: exploreLoading } = useExploreLegacies(20, user ? visibilityFilter : undefined);
 
   const contextLabels: Record<string, string> = {
     'memorial': 'In Memoriam',
@@ -279,12 +283,50 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onT
       {/* Explore Legacies */}
       <section className="bg-white py-20">
         <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center space-y-3 mb-12">
+          <div className="text-center space-y-3 mb-8">
             <h2 className="text-neutral-900">Explore Legacies</h2>
             <p className="text-neutral-600 max-w-2xl mx-auto">
               See how people are creating meaningful tributes for every occasion
             </p>
           </div>
+
+          {/* Visibility filter - only for authenticated users */}
+          {user && (
+            <div className="flex justify-center gap-2 mb-8">
+              <button
+                onClick={() => setVisibilityFilter('all')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  visibilityFilter === 'all'
+                    ? 'bg-[rgb(var(--theme-primary))] text-white'
+                    : 'border border-neutral-200 hover:border-[rgb(var(--theme-primary))]'
+                }`}
+              >
+                All
+              </button>
+              <button
+                onClick={() => setVisibilityFilter('public')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  visibilityFilter === 'public'
+                    ? 'bg-[rgb(var(--theme-primary))] text-white'
+                    : 'border border-neutral-200 hover:border-[rgb(var(--theme-primary))]'
+                }`}
+              >
+                <Globe className="size-4" />
+                Public
+              </button>
+              <button
+                onClick={() => setVisibilityFilter('private')}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+                  visibilityFilter === 'private'
+                    ? 'bg-[rgb(var(--theme-primary))] text-white'
+                    : 'border border-neutral-200 hover:border-[rgb(var(--theme-primary))]'
+                }`}
+              >
+                <Lock className="size-4" />
+                Private
+              </button>
+            </div>
+          )}
 
           {exploreLoading && (
             <div className="flex items-center justify-center py-12">
@@ -335,6 +377,13 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onT
 
                       <div className="flex items-center gap-4 pt-2 text-sm text-neutral-500">
                         <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
+                        <span className="flex items-center gap-1">
+                          {legacy.visibility === 'public' ? (
+                            <><Globe className="size-3" /> Public</>
+                          ) : (
+                            <><Lock className="size-3" /> Private</>
+                          )}
+                        </span>
                       </div>
                     </div>
                   </Card>

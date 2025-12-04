@@ -165,13 +165,18 @@ def auth_headers(test_user: User) -> dict[str, str]:
 
 @pytest_asyncio.fixture
 async def test_legacy(db_session: AsyncSession, test_user: User) -> Legacy:
-    """Create a test legacy with creator membership."""
+    """Create a test legacy with creator membership.
+
+    Note: Created as public for backwards compatibility with tests
+    that don't pass user_id to search functions.
+    """
     legacy = Legacy(
         name="Test Legacy",
         birth_date=None,
         death_date=None,
         biography="Test biography",
         created_by=test_user.id,
+        visibility="public",
     )
     db_session.add(legacy)
     await db_session.flush()

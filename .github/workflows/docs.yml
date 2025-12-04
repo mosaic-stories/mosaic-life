@@ -1,0 +1,265 @@
+name: CI - Documentation
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'apps/docs/**'
+      - 'services/core-api/app/**'
+      - 'apps/web/src/**'
+      - 'packages/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'apps/docs/**'
+      - 'services/core-api/app/**'
+      - 'apps/web/src/**'
+      - 'packages/**'
+      - '.github/workflows/docs.yml'
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      deploy_version:
+        description: 'Version tag to deploy (e.g., v1.0.0)'
+        required: false
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: mosaic-life/docs
+
+jobs:
+  # Job 1: Build and test documentation
+  build:
+    name: Build Documentation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      image_tag: ${{ steps.meta.outputs.version }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: apps/docs/package-lock.json
+
+      - name: Install Python dependencies (docs)
+        working-directory: apps/docs
+        run: uv sync
+
+      - name: Install Python dependencies (core-api for OpenAPI)
+        working-directory: services/core-api
+        run: uv sync
+
+      - name: Install Node dependencies
+        working-directory: apps/docs
+        run: npm ci
+
+      - name: Generate OpenAPI specification
+        working-directory: apps/docs
+        run: bash scripts/generate-openapi.sh
+
+      - name: Generate TypeDoc
+        working-directory: apps/docs
+        run: bash scripts/generate-typedoc.sh
+        continue-on-error: true
+
+      - name: Build MkDocs
+        working-directory: apps/docs
+        run: uv run mkdocs build --strict
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-site
+          path: apps/docs/site/
+          retention-days: 7
+
+  # Job 2: Build and push Docker image (only on push to main/develop or release)
+  push:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name != 'pull_request'
+    permissions:
+      id-token: write
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: docs-site
+          path: apps/docs/site/
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-ecr-push
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}
+          tags: |
+            type=sha,format=short,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/docs/Dockerfile.ci
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: false
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.version }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Scan image
+        uses: anchore/scan-action@v4
+        with:
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ steps.meta.outputs.version }}
+          fail-build: false
+          severity-cutoff: high
+
+  # Job 3: Update GitOps repository with new image tag
+  update-gitops:
+    name: Update GitOps
+    runs-on: ubuntu-latest
+    needs: push
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v4
+        with:
+          repository: mosaic-stories/gitops
+          token: ${{ secrets.GITOPS_PAT }}
+          path: gitops
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]] || [[ "${{ github.event_name }}" == "release" ]]; then
+            echo "environment=prod" >> $GITHUB_OUTPUT
+            echo "values_file=environments/prod/docs-values.yaml" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "values_file=environments/staging/docs-values.yaml" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update image tag
+        working-directory: gitops
+        run: |
+          # Create docs-values.yaml if it doesn't exist
+          mkdir -p $(dirname ${{ steps.env.outputs.values_file }})
+
+          if [ ! -f "${{ steps.env.outputs.values_file }}" ]; then
+            echo "image:" > ${{ steps.env.outputs.values_file }}
+            echo "  tag: \"\"" >> ${{ steps.env.outputs.values_file }}
+          fi
+
+          # Update the image tag
+          yq e '.image.tag = "${{ github.sha }}"' -i ${{ steps.env.outputs.values_file }}
+
+      - name: Commit and push
+        working-directory: gitops
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git diff --staged --quiet || git commit -m "chore(docs): update image tag to ${{ github.sha }}
+
+          Triggered by: ${{ github.event_name }}
+          Branch: ${{ github.ref_name }}
+          Commit: ${{ github.sha }}
+          Actor: ${{ github.actor }}"
+          git push
+
+  # Job 4: Version documentation (only on release)
+  version-docs:
+    name: Version Documentation
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'release'
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        working-directory: apps/docs
+        run: uv sync
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy versioned docs with mike
+        working-directory: apps/docs
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          uv run mike deploy --push --update-aliases $VERSION latest

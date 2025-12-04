@@ -1,0 +1,9 @@
+apiVersion: v2
+name: docs
+description: Mosaic Life Documentation Site
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: Mosaic Stories
+    url: https://github.com/mosaic-stories

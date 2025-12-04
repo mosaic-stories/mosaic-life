@@ -1,0 +1,34 @@
+# Production-specific values for docs
+
+replicaCount: 2
+
+image:
+  tag: "latest"
+
+ingress:
+  annotations:
+    alb.ingress.kubernetes.io/group.name: mosaic-life-main
+    alb.ingress.kubernetes.io/group.order: "30"
+  hosts:
+    - host: docs.mosaiclife.me
+      paths:
+        - path: /
+          pathType: Prefix
+
+externalDns:
+  hostname: docs.mosaiclife.me
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
+autoscaling:
+  enabled: false

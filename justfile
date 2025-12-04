@@ -767,6 +767,86 @@ restart:
     @echo "✓ Docker Compose stack restarted"
 
 # ============================================================
+# Code Quality & Validation
+# ============================================================
+
+# Run ruff linting on backend code
+lint-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running ruff linting on services/core-api..."
+    cd services/core-api
+    uv run ruff check app/
+    echo "✓ Ruff linting passed"
+
+# Check ruff formatting on backend code
+format-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Checking ruff formatting on services/core-api..."
+    cd services/core-api
+    uv run ruff format --check app/
+    echo "✓ Ruff formatting check passed"
+
+# Run mypy type checking on backend code
+typecheck-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running mypy type checking on services/core-api..."
+    cd services/core-api
+    uv run mypy app/
+    echo "✓ MyPy type checking passed"
+
+# Run all backend validation (ruff lint + format + mypy)
+validate-backend: lint-backend format-backend typecheck-backend
+    @echo ""
+    @echo "════════════════════════════════════════════════"
+    @echo "✓ All backend validation checks passed!"
+    @echo "════════════════════════════════════════════════"
+
+# Run ruff linting with auto-fix and formatting
+lint-fix-backend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running ruff with auto-fix and formatting on services/core-api..."
+    cd services/core-api
+    uv run ruff check --fix app/
+    uv run ruff format app/
+    echo "✓ Ruff auto-fix and formatting completed"
+
+# Run frontend linting
+lint-frontend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running ESLint on apps/web..."
+    cd apps/web
+    npm run lint
+    echo "✓ ESLint passed"
+
+# Run frontend type checking
+typecheck-frontend:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    echo "Running TypeScript type checking on apps/web..."
+    cd apps/web
+    npx tsc --noEmit
+    echo "✓ TypeScript type checking passed"
+
+# Run all frontend validation (lint + typecheck)
+validate-frontend: lint-frontend typecheck-frontend
+    @echo ""
+    @echo "════════════════════════════════════════════════"
+    @echo "✓ All frontend validation checks passed!"
+    @echo "════════════════════════════════════════════════"
+
+# Run all validation checks (backend + frontend)
+validate-all: validate-backend validate-frontend
+    @echo ""
+    @echo "════════════════════════════════════════════════"
+    @echo "✓ ALL validation checks passed!"
+    @echo "════════════════════════════════════════════════"
+
+# ============================================================
 # Cluster Information
 # ============================================================
 
@@ -1003,6 +1083,38 @@ clean-images:
 # Clean everything (images, volumes, networks)
 clean-all:
     docker system prune -af --volumes
+
+# ============================================================
+# Documentation
+# ============================================================
+
+# Serve documentation locally with hot reload
+docs-serve:
+    cd apps/docs && uv run mkdocs serve
+
+# Build documentation (includes OpenAPI and TypeDoc generation)
+docs-build:
+    cd apps/docs && bash scripts/build.sh
+
+# Generate OpenAPI specification only
+docs-generate-openapi:
+    cd apps/docs && bash scripts/generate-openapi.sh
+
+# Generate TypeScript documentation only
+docs-generate-typedoc:
+    cd apps/docs && bash scripts/generate-typedoc.sh
+
+# Build docs Docker image
+docs-docker-build:
+    docker compose -f infra/compose/docker-compose.yml --profile docs build docs
+
+# Start docs service in Docker
+docs-docker-up:
+    docker compose -f infra/compose/docker-compose.yml --profile docs up docs -d
+
+# Stop docs service in Docker
+docs-docker-down:
+    docker compose -f infra/compose/docker-compose.yml --profile docs down
 
 # ============================================================
 # Utilities
