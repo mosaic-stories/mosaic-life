@@ -209,8 +209,9 @@ jobs:
             echo "  tag: \"\"" >> ${{ steps.env.outputs.values_file }}
           fi
 
-          # Update the image tag
-          yq e '.image.tag = "${{ github.sha }}"' -i ${{ steps.env.outputs.values_file }}
+          # Update the image tag using short SHA (7 chars) to match Docker tag format
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          yq e ".image.tag = \"${SHORT_SHA}\"" -i ${{ steps.env.outputs.values_file }}
 
       - name: Commit and push
         working-directory: gitops
@@ -218,7 +219,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add .
-          git diff --staged --quiet || git commit -m "chore(docs): update image tag to ${{ github.sha }}
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          git diff --staged --quiet || git commit -m "chore(docs): update image tag to ${SHORT_SHA}
 
           Triggered by: ${{ github.event_name }}
           Branch: ${{ github.ref_name }}
