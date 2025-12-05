@@ -125,8 +125,6 @@ services:
       interval: 30s
       timeout: 3s
       retries: 3
-    profiles:
-      - docs
 
 volumes:
   postgres-data:

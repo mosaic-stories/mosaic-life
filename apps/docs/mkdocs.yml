@@ -109,6 +109,7 @@ nav:
     - Creating Stories: user-guide/creating-stories.md
     - Sharing Memories: user-guide/sharing-memories.md
   - Developer Guide:
+    - Environment Setup: developer-guide/environment-setup.md
     - Local Setup: developer-guide/local-setup.md
     - Architecture: developer-guide/architecture.md
     - Contributing: developer-guide/contributing.md
