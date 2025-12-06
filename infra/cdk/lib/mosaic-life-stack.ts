@@ -499,21 +499,29 @@ export class MosaicLifeStack extends cdk.Stack {
     // ============================================================
 
     const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
+    const oidcProviderArn = `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
+    const oidcProviderUrl = `oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
 
     // Role for core-api to access S3, Secrets Manager, SQS/SNS
+    // Allows both the main environment namespace and preview-* namespaces
     const coreApiRole = new iam.Role(this, 'CoreApiRole', {
       roleName: `mosaic-${environment}-core-api-role`,
-      assumedBy: new iam.WebIdentityPrincipal(
-        `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`,
+      assumedBy: new iam.FederatedPrincipal(
+        oidcProviderArn,
         {
           StringEquals: {
-            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]:
-              `system:serviceaccount:mosaic-${environment}:core-api`,
-            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]: 'sts.amazonaws.com',
+            [`${oidcProviderUrl}:aud`]: 'sts.amazonaws.com',
           },
-        }
+          StringLike: {
+            [`${oidcProviderUrl}:sub`]: [
+              `system:serviceaccount:mosaic-${environment}:core-api`,
+              'system:serviceaccount:preview-*:core-api',
+            ],
+          },
+        },
+        'sts:AssumeRoleWithWebIdentity'
       ),
-      description: 'IAM role for core-api service in EKS',
+      description: 'IAM role for core-api service in EKS (includes preview environments)',
     });
 
     // Grant permissions to core-api role
