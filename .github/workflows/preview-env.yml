@@ -190,6 +190,10 @@ jobs:
             --set "coreApi.extraEnv[3].value=https://${API_HOST}" \
             --set "coreApi.extraEnv[4].name=TARGET_ENV" \
             --set "coreApi.extraEnv[4].value=${TARGET_ENV}" \
+            --set "coreApi.extraEnv[5].name=S3_MEDIA_BUCKET" \
+            --set "coreApi.extraEnv[5].value=${S3_MEDIA_BUCKET}" \
+            --set "coreApi.extraEnv[6].name=S3_BACKUP_BUCKET" \
+            --set "coreApi.extraEnv[6].value=${S3_BACKUP_BUCKET}" \
             --wait \
             --timeout 5m
 
