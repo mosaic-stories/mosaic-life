@@ -27,6 +27,11 @@ jobs:
       namespace: ${{ steps.vars.outputs.namespace }}
       web-hostname: ${{ steps.vars.outputs.web-hostname }}
       api-hostname: ${{ steps.vars.outputs.api-hostname }}
+      target-env: ${{ steps.vars.outputs.target-env }}
+      db-secret-key: ${{ steps.vars.outputs.db-secret-key }}
+      session-secret-key: ${{ steps.vars.outputs.session-secret-key }}
+      s3-media-bucket: ${{ steps.vars.outputs.s3-media-bucket }}
+      s3-backup-bucket: ${{ steps.vars.outputs.s3-backup-bucket }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -45,6 +50,21 @@ jobs:
           echo "web-hostname=pr-${PR_NUMBER}.${BASE_DOMAIN}" >> $GITHUB_OUTPUT
           echo "api-hostname=pr-${PR_NUMBER}-api.${BASE_DOMAIN}" >> $GITHUB_OUTPUT
           echo "image-tag=${SAFE_BRANCH}-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+          # Determine target environment based on base branch
+          TARGET_BRANCH="${{ github.base_ref }}"
+          if [ "${TARGET_BRANCH}" == "main" ]; then
+            TARGET_ENV="prod"
+          else
+            TARGET_ENV="staging"
+          fi
+          echo "target-env=${TARGET_ENV}" >> $GITHUB_OUTPUT
+
+          # Set environment-specific resource references
+          echo "db-secret-key=mosaic/${TARGET_ENV}/rds/credentials" >> $GITHUB_OUTPUT
+          echo "session-secret-key=mosaic/${TARGET_ENV}/session/secret-key" >> $GITHUB_OUTPUT
+          echo "s3-media-bucket=mosaic-${TARGET_ENV}-media-033691785857" >> $GITHUB_OUTPUT
+          echo "s3-backup-bucket=mosaic-${TARGET_ENV}-backups-033691785857" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials (ECR Push Role)
         uses: aws-actions/configure-aws-credentials@v4
@@ -109,6 +129,7 @@ jobs:
             type=preview \
             pr=${{ needs.build-preview-images.outputs.pr-number }} \
             branch=${{ needs.build-preview-images.outputs.branch-name }} \
+            target-env=${{ needs.build-preview-images.outputs.target-env }} \
             --overwrite
 
       - name: Install Helm
@@ -129,6 +150,11 @@ jobs:
           WEB_HOST: ${{ needs.build-preview-images.outputs.web-hostname }}
           API_HOST: ${{ needs.build-preview-images.outputs.api-hostname }}
           PR_NUMBER: ${{ needs.build-preview-images.outputs.pr-number }}
+          TARGET_ENV: ${{ needs.build-preview-images.outputs.target-env }}
+          DB_SECRET_KEY: ${{ needs.build-preview-images.outputs.db-secret-key }}
+          SESSION_SECRET_KEY: ${{ needs.build-preview-images.outputs.session-secret-key }}
+          S3_MEDIA_BUCKET: ${{ needs.build-preview-images.outputs.s3-media-bucket }}
+          S3_BACKUP_BUCKET: ${{ needs.build-preview-images.outputs.s3-backup-bucket }}
         run: |
           helm upgrade --install mosaic-life-pr-${PR_NUMBER} \
             ./infra/helm/mosaic-life \
@@ -138,7 +164,12 @@ jobs:
             --values ./infra/helm/mosaic-life/values-preview.yaml \
             --set global.imageTag=${IMAGE_TAG} \
             --set global.environment=preview \
+            --set global.targetEnv=${TARGET_ENV} \
             --set global.domain=${WEB_HOST} \
+            --set "externalSecrets.database.secretKey=${DB_SECRET_KEY}" \
+            --set "externalSecrets.session.secretKey=${SESSION_SECRET_KEY}" \
+            --set "global.s3.mediaBucket=${S3_MEDIA_BUCKET}" \
+            --set "global.s3.backupBucket=${S3_BACKUP_BUCKET}" \
             --set "web.ingress.hosts[0].host=${WEB_HOST}" \
             --set "web.ingress.hosts[0].paths[0].path=/" \
             --set "web.ingress.hosts[0].paths[0].pathType=Prefix" \
@@ -157,6 +188,8 @@ jobs:
             --set "coreApi.extraEnv[2].value=https://${WEB_HOST}" \
             --set "coreApi.extraEnv[3].name=API_URL" \
             --set "coreApi.extraEnv[3].value=https://${API_HOST}" \
+            --set "coreApi.extraEnv[4].name=TARGET_ENV" \
+            --set "coreApi.extraEnv[4].value=${TARGET_ENV}" \
             --wait \
             --timeout 5m
 
@@ -184,6 +217,8 @@ jobs:
             const webUrl = 'https://${{ needs.build-preview-images.outputs.web-hostname }}';
             const apiUrl = 'https://${{ needs.build-preview-images.outputs.api-hostname }}';
             const namespace = '${{ needs.build-preview-images.outputs.namespace }}';
+            const targetEnv = '${{ needs.build-preview-images.outputs.target-env }}';
+            const targetEnvLabel = targetEnv === 'prod' ? '🔴 Production' : '🟡 Staging';
 
             const comment = `## 🚀 Preview Environment Deployed
 
@@ -196,6 +231,12 @@ jobs:
             **Kubernetes:**
             - Namespace: \`${namespace}\`
             - Image Tag: \`${{ needs.build-preview-images.outputs.image-tag }}\`
+
+            **External Resources (${targetEnvLabel}):**
+            - Database: \`${{ needs.build-preview-images.outputs.db-secret-key }}\`
+            - S3 Media: \`${{ needs.build-preview-images.outputs.s3-media-bucket }}\`
+
+            ⚠️ *This preview uses **${targetEnv}** database and S3. Be cautious with data modifications.*
 
             **Status:**
             - Web: ${{ steps.status.outputs.web-status }}

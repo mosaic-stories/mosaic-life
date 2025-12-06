@@ -56,9 +56,9 @@ coreApi:
 networkPolicy:
   enabled: false
 
-# External Secrets - use the same ClusterSecretStore
-# Preview environments share the production secrets for now
-# TODO: Create separate preview secrets in AWS Secrets Manager if needed
+# External Secrets - dynamically configured based on target branch
+# PRs targeting 'main' use prod credentials, PRs targeting 'develop' use stage credentials
+# These values are overridden at deploy time by the preview-env.yml workflow
 externalSecrets:
   enabled: true
   refreshInterval: "1h"
@@ -66,11 +66,15 @@ externalSecrets:
     name: aws-secretsmanager
     kind: ClusterSecretStore
   database:
-    # Use production database for preview (read operations are safe)
-    # For write-heavy testing, create a separate preview database
-    secretKey: "mosaic/prod/rds/credentials"
+    # Dynamically set by workflow based on target branch:
+    # - PRs to main: mosaic/prod/rds/credentials
+    # - PRs to develop: mosaic/staging/rds/credentials
+    secretKey: ""  # Set via --set externalSecrets.database.secretKey
   session:
-    secretKey: "mosaic/prod/session/secret-key"
+    # Dynamically set by workflow based on target branch:
+    # - PRs to main: mosaic/prod/session/secret-key
+    # - PRs to develop: mosaic/staging/session/secret-key
+    secretKey: ""  # Set via --set externalSecrets.session.secretKey
 
 # Service Account for preview - reuse the prod IRSA role
 # This allows preview environments to access S3 and other AWS resources
