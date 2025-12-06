@@ -152,7 +152,7 @@ jobs:
             --set "coreApi.extraEnv[0].name=ENVIRONMENT" \
             --set "coreApi.extraEnv[0].value=preview" \
             --set "coreApi.extraEnv[1].name=PR_NUMBER" \
-            --set "coreApi.extraEnv[1].value=${PR_NUMBER}" \
+            --set-string "coreApi.extraEnv[1].value=${PR_NUMBER}" \
             --set "coreApi.extraEnv[2].name=APP_URL" \
             --set "coreApi.extraEnv[2].value=https://${WEB_HOST}" \
             --set "coreApi.extraEnv[3].name=API_URL" \
