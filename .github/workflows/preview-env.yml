@@ -32,6 +32,7 @@ jobs:
       session-secret-key: ${{ steps.vars.outputs.session-secret-key }}
       s3-media-bucket: ${{ steps.vars.outputs.s3-media-bucket }}
       s3-backup-bucket: ${{ steps.vars.outputs.s3-backup-bucket }}
+      iam-role-arn: ${{ steps.vars.outputs.iam-role-arn }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -65,6 +66,7 @@ jobs:
           echo "session-secret-key=mosaic/${TARGET_ENV}/session/secret-key" >> $GITHUB_OUTPUT
           echo "s3-media-bucket=mosaic-${TARGET_ENV}-media-033691785857" >> $GITHUB_OUTPUT
           echo "s3-backup-bucket=mosaic-${TARGET_ENV}-backups-033691785857" >> $GITHUB_OUTPUT
+          echo "iam-role-arn=arn:aws:iam::033691785857:role/mosaic-${TARGET_ENV}-core-api-role" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials (ECR Push Role)
         uses: aws-actions/configure-aws-credentials@v4
@@ -155,6 +157,7 @@ jobs:
           SESSION_SECRET_KEY: ${{ needs.build-preview-images.outputs.session-secret-key }}
           S3_MEDIA_BUCKET: ${{ needs.build-preview-images.outputs.s3-media-bucket }}
           S3_BACKUP_BUCKET: ${{ needs.build-preview-images.outputs.s3-backup-bucket }}
+          IAM_ROLE_ARN: ${{ needs.build-preview-images.outputs.iam-role-arn }}
         run: |
           helm upgrade --install mosaic-life-pr-${PR_NUMBER} \
             ./infra/helm/mosaic-life \
@@ -170,6 +173,7 @@ jobs:
             --set "externalSecrets.session.secretKey=${SESSION_SECRET_KEY}" \
             --set "global.s3.mediaBucket=${S3_MEDIA_BUCKET}" \
             --set "global.s3.backupBucket=${S3_BACKUP_BUCKET}" \
+            --set "coreApi.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${IAM_ROLE_ARN}" \
             --set "web.ingress.hosts[0].host=${WEB_HOST}" \
             --set "web.ingress.hosts[0].paths[0].path=/" \
             --set "web.ingress.hosts[0].paths[0].pathType=Prefix" \

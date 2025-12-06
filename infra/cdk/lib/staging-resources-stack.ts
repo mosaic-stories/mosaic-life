@@ -76,6 +76,8 @@ export class StagingResourcesStack extends cdk.Stack {
           allowedOrigins: [
             `https://stage.${domainName}`,
             `https://stage-api.${domainName}`,
+            // Allow preview environment origins (PR previews)
+            `https://*.${domainName}`,
             'http://localhost:5173',
           ],
           allowedHeaders: ['*'],
@@ -153,21 +155,14 @@ export class StagingResourcesStack extends cdk.Stack {
 
     // ============================================================
     // IAM Role for Staging core-api (IRSA)
+    // Allows both staging namespace and preview-pr-* namespaces
     // ============================================================
     const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
+    const oidcProvider = `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
 
     this.coreApiRole = new iam.Role(this, 'StagingCoreApiRole', {
       roleName: `mosaic-${environment}-core-api-role`,
-      assumedBy: new iam.WebIdentityPrincipal(
-        `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`,
-        {
-          StringEquals: {
-            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]:
-              `system:serviceaccount:mosaic-${environment}:core-api`,
-            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]: 'sts.amazonaws.com',
-          },
-        }
-      ),
+      assumedBy: new iam.FederatedPrincipal(oidcProvider, {}),
       description: 'IAM role for staging core-api service in EKS (S3, Secrets, SES)',
       inlinePolicies: {
         'SESEmailSendPolicy': new iam.PolicyDocument({
@@ -192,6 +187,32 @@ export class StagingResourcesStack extends cdk.Stack {
           ],
         }),
       },
+    });
+
+    // Override the trust policy to allow both staging and preview namespaces
+    const cfnRole = this.coreApiRole.node.defaultChild as cdk.CfnResource;
+    cfnRole.addPropertyOverride('AssumeRolePolicyDocument', {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: {
+            Federated: oidcProvider,
+          },
+          Action: 'sts:AssumeRoleWithWebIdentity',
+          Condition: {
+            StringEquals: {
+              [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]: 'sts.amazonaws.com',
+            },
+            StringLike: {
+              [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]: [
+                `system:serviceaccount:mosaic-${environment}:core-api`,
+                'system:serviceaccount:preview-pr-*:core-api',
+              ],
+            },
+          },
+        },
+      ],
     });
 
     // Grant S3 access
