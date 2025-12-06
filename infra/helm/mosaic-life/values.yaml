@@ -198,6 +198,9 @@ coreApi:
       value: "mosaic-prod-media-033691785857"
     - name: S3_BACKUP_BUCKET
       value: "mosaic-prod-backups-033691785857"
+    # Note: For preview/staging, these are overridden via coreApi.extraEnv
+    # The template filters out base env vars when extraEnv provides an override
+    
     # Database URL from External Secrets
     - name: DB_URL
       valueFrom:

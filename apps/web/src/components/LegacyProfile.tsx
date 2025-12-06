@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Globe, Heart, Lock, Loader2, MessageSquare, MoreVertical, Pencil, Plus, Share2, Sparkles, Trash2, Users, AlertCircle, UserPlus } from 'lucide-react';
+import { ArrowLeft, Calendar, Globe, Heart, Lock, Loader2, MessageSquare, MoreVertical, Pencil, Plus, Share2, Sparkles, Trash2, Users, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
@@ -288,17 +288,6 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
                   <Users className="size-4" />
                   <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
                 </button>
-                {isMember && currentUserRole !== 'admirer' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowMemberDrawer(true)}
-                    className="text-[rgb(var(--theme-primary))] border-[rgb(var(--theme-accent))] hover:bg-[rgb(var(--theme-accent-light))]"
-                  >
-                    <UserPlus className="size-4 mr-1" />
-                    Invite
-                  </Button>
-                )}
                 {legacy.creator_name && (
                   <div className="text-neutral-500">
                     Created by {legacy.creator_name}
