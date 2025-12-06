@@ -34,6 +34,9 @@ spec:
           protocol: TCP
         env:
         {{- toYaml .Values.coreApi.env | nindent 8 }}
+        {{- if .Values.coreApi.extraEnv }}
+        {{- toYaml .Values.coreApi.extraEnv | nindent 8 }}
+        {{- end }}
         {{- if .Values.coreApi.envFrom }}
         envFrom:
         {{- toYaml .Values.coreApi.envFrom | nindent 8 }}

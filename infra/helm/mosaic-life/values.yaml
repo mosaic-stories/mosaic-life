@@ -336,3 +336,5 @@ externalSecrets:
     secretKey: "mosaic/prod/rds/credentials"
   session:
     secretKey: "mosaic/prod/session/secret-key"
+  googleOAuth:
+    secretKey: "mosaic/prod/google-oauth"
