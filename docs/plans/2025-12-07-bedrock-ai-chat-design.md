@@ -267,9 +267,58 @@ data: {"type": "error", "message": "Rate limit exceeded", "retryable": true}
 
 ### Infrastructure Requirements
 
-1. IAM role/policy for Bedrock `InvokeModelWithResponseStream`
-2. Environment variable: `AWS_REGION` for Bedrock client
-3. Service account annotation for IRSA (existing EKS pattern)
+> **Note:** Infrastructure changes must be applied to the `mosaic-stories/infrastructure` repository.
+> See the implementation plan (Task 13) for detailed steps.
+
+**1. IAM Policy for Bedrock Access**
+
+The EKS service account role needs the following policy to invoke Bedrock models:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "BedrockInvoke",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-*"
+      ]
+    }
+  ]
+}
+```
+
+**Policy Details:**
+- `bedrock:InvokeModel` - For synchronous requests (future use)
+- `bedrock:InvokeModelWithResponseStream` - For streaming responses (Phase 1)
+- Resource pattern `anthropic.claude-*` covers all Claude model variants (Sonnet, Haiku, Opus)
+- Cross-region inference models use the `us.anthropic.claude-*` prefix in model IDs but the ARN remains as shown
+
+**2. Environment Variable Configuration**
+
+Add to Helm values (`infra/helm/core-api/values.yaml`):
+
+```yaml
+env:
+  AWS_REGION: "us-east-1"
+```
+
+**3. Service Account IRSA Annotation**
+
+The existing service account in `infra/helm/core-api/values.yaml` already has IRSA configured:
+
+```yaml
+serviceAccount:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::033691785857:role/mosaic-prod-core-api-secrets-role
+```
+
+The Bedrock policy must be attached to this role (`mosaic-prod-core-api-secrets-role`).
 
 ---
 

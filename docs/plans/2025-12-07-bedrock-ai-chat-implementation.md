@@ -3086,12 +3086,34 @@ git commit -m "feat: complete Bedrock AI chat integration Phase 1"
 
 ## Task 13: Infrastructure - IAM Policy for Bedrock
 
-**Files:**
-- Modify: Infrastructure repo or CDK stack
+> **REQUIRES INFRASTRUCTURE CHANGES**
+>
+> This task involves modifying the infrastructure repository (`mosaic-stories/infrastructure`).
+> Local path: `/apps/mosaic-life-infrastructure`
+>
+> **Status:** Documented - pending infrastructure deployment
 
-**Step 1: Add Bedrock IAM policy**
+**Files to Modify:**
+- `infra/helm/core-api/values.yaml` (this repo) - AWS_REGION env var **[DONE]**
+- Infrastructure repo: IAM policy attachment for Bedrock access **[PENDING]**
 
-The EKS service account needs permission to call Bedrock. Add to the IAM policy:
+---
+
+### Step 1: Add AWS_REGION environment variable (COMPLETED)
+
+The `AWS_REGION` environment variable has been added to the Helm values:
+
+```yaml
+# File: infra/helm/core-api/values.yaml
+env:
+  AWS_REGION: "us-east-1"
+```
+
+---
+
+### Step 2: Add Bedrock IAM policy (REQUIRES INFRASTRUCTURE REPO)
+
+The EKS service account role (`mosaic-prod-core-api-secrets-role`) needs the following policy:
 
 ```json
 {
@@ -3112,24 +3134,46 @@ The EKS service account needs permission to call Bedrock. Add to the IAM policy:
 }
 ```
 
-**Step 2: Add environment variable**
+**Where to add this policy:**
 
-In Helm values or ConfigMap:
+Option A: Add inline policy to existing role in Terraform/CDK
+Option B: Create new managed policy and attach to the role
 
-```yaml
-env:
-  AWS_REGION: "us-east-1"
-```
+**Affected IAM Role:**
+- Role Name: `mosaic-prod-core-api-secrets-role`
+- Role ARN: `arn:aws:iam::033691785857:role/mosaic-prod-core-api-secrets-role`
 
-**Step 3: Deploy and verify**
+---
+
+### Step 3: Deploy and verify
+
+After infrastructure changes are merged and applied:
 
 ```bash
-# Deploy via ArgoCD
+# 1. Verify IAM policy is attached (from AWS CLI or console)
+aws iam get-role-policy --role-name mosaic-prod-core-api-secrets-role --policy-name BedrockAccess
+
+# 2. Deploy application via ArgoCD
 argocd app sync mosaic-core-api
 
-# Verify pod can reach Bedrock
-kubectl exec -it deploy/core-api -- python -c "import boto3; print(boto3.client('bedrock-runtime', region_name='us-east-1').list_foundation_models())"
+# 3. Verify pod can reach Bedrock
+kubectl exec -it deploy/core-api -- python -c "
+import boto3
+client = boto3.client('bedrock-runtime', region_name='us-east-1')
+print('Bedrock client created successfully')
+"
 ```
+
+---
+
+### Production Deployment Checklist
+
+- [ ] Merge infrastructure changes to add Bedrock IAM policy
+- [ ] Verify IAM policy is attached to `mosaic-prod-core-api-secrets-role`
+- [ ] Merge this PR with application code + Helm changes
+- [ ] ArgoCD syncs application deployment
+- [ ] Verify Bedrock connectivity from pod
+- [ ] Test AI chat endpoint with curl/frontend
 
 ---
 
