@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import RootLayout from './RootLayout';
 import ProtectedRoute from './ProtectedRoute';
 import { withSharedProps, withLegacyProps, withStoryProps } from './PageWrapper';
+import ErrorPage from '@/components/ErrorPage';
 
 // Lazy load page components for code splitting
 const HomepageBase = lazy(() => import('@/components/Homepage'));
@@ -25,6 +26,7 @@ const LegacyEditBase = lazy(() => import('@/components/LegacyEdit'));
 const MediaGalleryBase = lazy(() => import('@/components/MediaGallery'));
 const AIAgentChatBase = lazy(() => import('@/components/AIAgentChat'));
 const AIAgentChatMinimalBase = lazy(() => import('@/components/AIAgentChatMinimal'));
+const AIAgentPanelBase = lazy(() => import('@/components/AIAgentPanel'));
 const InviteAcceptPageBase = lazy(() => import('@/components/InviteAcceptPage'));
 const NotificationHistoryBase = lazy(() => import('@/components/NotificationHistory'));
 
@@ -50,6 +52,7 @@ const LegacyProfileMinimal = withLegacyProps(LegacyProfileMinimalBase);
 const MediaGallery = withLegacyProps(MediaGalleryBase);
 const AIAgentChat = withLegacyProps(AIAgentChatBase);
 const AIAgentChatMinimal = withLegacyProps(AIAgentChatMinimalBase);
+const AIAgentPanel = withLegacyProps(AIAgentPanelBase);
 
 // Components that need legacyId and optionally storyId
 const StoryCreation = withStoryProps(StoryCreationBase);
@@ -73,6 +76,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
+    errorElement: <ErrorPage />,
     children: [
       // Public routes
       {
@@ -212,6 +216,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <LazyPage><AIAgentChatMinimal /></LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'legacy/:legacyId/ai-panel',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><AIAgentPanel /></LazyPage>
           </ProtectedRoute>
         ),
       },

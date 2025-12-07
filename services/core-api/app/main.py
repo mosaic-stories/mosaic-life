@@ -17,6 +17,7 @@ from .observability.tracing import configure_tracing
 from .health import router as health_router
 from .auth.router import router as auth_router
 from .auth.middleware import SessionMiddleware
+from .routes.ai import router as ai_router
 from .routes.legacy import router as legacy_router
 from .routes.story import router as story_router
 from .routes.media import router as media_router, local_router as media_local_router
@@ -82,6 +83,7 @@ def metrics() -> Response:
 
 app.include_router(health_router)
 app.include_router(auth_router, prefix="/api")
+app.include_router(ai_router)
 app.include_router(legacy_router)
 app.include_router(story_router)
 app.include_router(media_router)
