@@ -1,44 +1,99 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Heart, Search, Send, Users } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  ArrowLeft,
+  BookOpen,
+  Heart,
+  Search,
+  Send,
+  Users,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+} from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
-import { legacies, aiAgents } from '../lib/mockData';
+import { useAIChat, usePersonas } from '@/hooks/useAIChat';
+import type { Persona } from '@/lib/api/ai';
+import type { ChatMessage } from '@/stores/aiChatStore';
+import { legacies } from '../lib/mockData';
 import ThemeSelector from './ThemeSelector';
 
 interface AIAgentChatProps {
   onNavigate: (view: string) => void;
-  legacyId: string;
+  legacyId?: string;
   currentTheme: string;
   onThemeChange: (themeId: string) => void;
 }
 
-interface Message {
-  id: string;
-  sender: 'user' | 'agent';
-  content: string;
-  timestamp: string;
-}
+// Phase 1 only includes Biographer and Friend personas
+const ALLOWED_PERSONAS = ['biographer', 'friend'];
 
-export default function AIAgentChat({ onNavigate, legacyId, currentTheme, onThemeChange }: AIAgentChatProps) {
+export default function AIAgentChat({
+  onNavigate: _onNavigate,
+  legacyId: propLegacyId,
+  currentTheme,
+  onThemeChange,
+}: AIAgentChatProps) {
   const navigate = useNavigate();
-  const [selectedAgent, setSelectedAgent] = useState(aiAgents[0]);
+  const params = useParams();
+
+  // Get legacyId from route params or props
+  const legacyId = propLegacyId || params.legacyId || '';
+
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string>('biographer');
   const [inputMessage, setInputMessage] = useState('');
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      sender: 'agent',
-      content: "Hello! I'm here to help you organize and explore Margaret's life story. I've noticed you have several stories about her cooking and garden. Would you like me to help connect these themes?",
-      timestamp: '2:34 PM'
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Fetch personas from API
+  const {
+    data: allPersonas,
+    isLoading: personasLoading,
+    error: personasError,
+  } = usePersonas();
+
+  // Filter to only allowed personas for Phase 1
+  const personas = useMemo(
+    () => allPersonas?.filter((p) => ALLOWED_PERSONAS.includes(p.id)) || [],
+    [allPersonas]
+  );
+
+  // Use the AI chat hook
+  const {
+    messages,
+    isLoading,
+    isStreaming,
+    error,
+    sendMessage,
+    retryLastMessage,
+    clearError,
+  } = useAIChat({
+    legacyId,
+    personaId: selectedPersonaId,
+  });
+
+  // Get legacy info (still using mock for now until legacy API is integrated)
+  const legacy = legacies.find((l) => l.id === legacyId) || legacies[0];
+
+  // Get selected persona
+  const selectedPersona = personas.find((p) => p.id === selectedPersonaId);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Set initial persona when personas load
+  useEffect(() => {
+    if (personas.length > 0 && !personas.find((p) => p.id === selectedPersonaId)) {
+      setSelectedPersonaId(personas[0].id);
     }
-  ]);
+  }, [personas, selectedPersonaId]);
 
-  const legacy = legacies.find(l => l.id === legacyId) || legacies[0];
-
-  const getAgentIcon = (iconName: string) => {
+  const getPersonaIcon = (iconName: string) => {
     switch (iconName) {
       case 'BookOpen':
         return <BookOpen className="size-5 text-blue-600" />;
@@ -53,40 +108,141 @@ export default function AIAgentChat({ onNavigate, legacyId, currentTheme, onThem
     }
   };
 
-  const handleSendMessage = () => {
-    if (!inputMessage.trim()) return;
+  const getPersonaColor = (personaId: string) => {
+    switch (personaId) {
+      case 'biographer':
+        return 'bg-blue-100';
+      case 'reporter':
+        return 'bg-emerald-100';
+      case 'friend':
+        return 'bg-rose-100';
+      case 'twin':
+        return 'bg-purple-100';
+      default:
+        return 'bg-blue-100';
+    }
+  };
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      sender: 'user',
-      content: inputMessage,
-      timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-    };
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isStreaming) return;
 
-    setMessages([...messages, newMessage]);
+    const content = inputMessage.trim();
     setInputMessage('');
-
-    // Simulate agent response
-    setTimeout(() => {
-      const agentResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        sender: 'agent',
-        content: getAgentResponse(selectedAgent.id, inputMessage),
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-      };
-      setMessages(prev => [...prev, agentResponse]);
-    }, 1000);
+    await sendMessage(content);
   };
 
-  const getAgentResponse = (agentId: string, _userMessage: string) => {
-    const responses: { [key: string]: string } = {
-      'biographer': "That's a wonderful detail. I notice this story connects to the theme of 'nurturing' that appears in several other memories. Would you like me to create a thematic collection around this?",
-      'reporter': "Can you tell me more about that specific moment? What time of day was it? What did the room look like? What sounds do you remember?",
-      'friend': "It sounds like that memory holds a lot of meaning for you. Take your time - there's no rush to capture everything at once.",
-      'twin': "Based on the stories shared, Margaret might have said something like: 'The secret isn't in the recipe, it's in the love you fold into each dumpling.'"
-    };
-    return responses[agentId] || "Thank you for sharing that. Tell me more.";
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
   };
+
+  const formatTimestamp = (isoString: string) => {
+    return new Date(isoString).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  };
+
+  const renderMessage = (message: ChatMessage) => {
+    const isUser = message.role === 'user';
+    const isStreamingMessage = message.status === 'streaming';
+    const hasError = message.status === 'error';
+
+    return (
+      <div
+        key={message.id}
+        className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+      >
+        {!isUser && (
+          <Avatar className="size-8 flex-shrink-0">
+            <AvatarFallback className="bg-amber-100 text-amber-700 text-sm">
+              AI
+            </AvatarFallback>
+          </Avatar>
+        )}
+        <div
+          className={`flex flex-col gap-1 max-w-lg ${isUser ? 'items-end' : 'items-start'}`}
+        >
+          <Card
+            className={`p-4 ${
+              isUser
+                ? 'bg-amber-600 text-white border-amber-600'
+                : hasError
+                  ? 'bg-red-50 border-red-200'
+                  : 'bg-white'
+            }`}
+          >
+            <p className={isUser ? 'text-white' : hasError ? 'text-red-700' : 'text-neutral-700'}>
+              {message.content}
+              {isStreamingMessage && (
+                <span className="inline-block w-2 h-4 ml-1 bg-amber-500 animate-pulse" />
+              )}
+            </p>
+            {hasError && message.error && (
+              <div className="mt-2 pt-2 border-t border-red-200">
+                <div className="flex items-center gap-2 text-red-600 text-sm">
+                  <AlertCircle className="size-4" />
+                  <span>{message.error}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={retryLastMessage}
+                  className="mt-2 text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  <RefreshCw className="size-3 mr-1" />
+                  Retry
+                </Button>
+              </div>
+            )}
+          </Card>
+          <span className="text-xs text-neutral-500 px-1">
+            {formatTimestamp(message.created_at)}
+          </span>
+        </div>
+        {isUser && (
+          <Avatar className="size-8 flex-shrink-0">
+            <AvatarFallback className="bg-neutral-200 text-neutral-700 text-sm">
+              You
+            </AvatarFallback>
+          </Avatar>
+        )}
+      </div>
+    );
+  };
+
+  // Show loading state while personas are loading
+  if (personasLoading) {
+    return (
+      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="size-8 animate-spin text-amber-600" />
+          <p className="text-neutral-600">Loading AI agents...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state if personas failed to load
+  if (personasError) {
+    return (
+      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4 max-w-md text-center">
+          <AlertCircle className="size-12 text-red-500" />
+          <h2 className="text-xl font-semibold text-neutral-900">Failed to load AI agents</h2>
+          <p className="text-neutral-600">
+            We couldn&apos;t load the AI agents. Please try refreshing the page.
+          </p>
+          <Button onClick={() => window.location.reload()}>
+            <RefreshCw className="size-4 mr-2" />
+            Refresh Page
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300 flex flex-col">
@@ -94,7 +250,7 @@ export default function AIAgentChat({ onNavigate, legacyId, currentTheme, onThem
       <header className="bg-white/90 backdrop-blur-sm border-b z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <button 
+            <button
               onClick={() => navigate(`/legacy/${legacyId}`)}
               className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
             >
@@ -103,11 +259,14 @@ export default function AIAgentChat({ onNavigate, legacyId, currentTheme, onThem
             </button>
             <div className="flex items-center gap-3">
               <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-              <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+              <Badge
+                variant="outline"
+                className="bg-blue-50 text-blue-700 border-blue-200"
+              >
                 Chat Interface
               </Badge>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="sm"
                 onClick={() => navigate(`/legacy/${legacyId}/ai-panel`)}
               >
@@ -117,6 +276,21 @@ export default function AIAgentChat({ onNavigate, legacyId, currentTheme, onThem
           </div>
         </div>
       </header>
+
+      {/* Global error banner */}
+      {error && (
+        <div className="bg-red-50 border-b border-red-200 px-6 py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertCircle className="size-5" />
+              <span>{error}</span>
+            </div>
+            <Button variant="ghost" size="sm" onClick={clearError} className="text-red-700">
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
 
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
         {/* Agent Selector Sidebar */}
@@ -129,30 +303,26 @@ export default function AIAgentChat({ onNavigate, legacyId, currentTheme, onThem
           </div>
 
           <div className="space-y-3">
-            {aiAgents.map((agent) => (
+            {personas.map((persona: Persona) => (
               <Card
-                key={agent.id}
+                key={persona.id}
                 className={`p-4 cursor-pointer transition-all ${
-                  selectedAgent.id === agent.id
+                  selectedPersonaId === persona.id
                     ? 'border-amber-300 bg-amber-50 shadow-sm'
                     : 'hover:border-neutral-300 hover:shadow-sm'
                 }`}
-                onClick={() => setSelectedAgent(agent)}
+                onClick={() => setSelectedPersonaId(persona.id)}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`size-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    agent.id === 'biographer' ? 'bg-blue-100' :
-                    agent.id === 'reporter' ? 'bg-emerald-100' :
-                    agent.id === 'friend' ? 'bg-rose-100' :
-                    'bg-purple-100'
-                  }`}>
-                    {getAgentIcon(agent.icon)}
+                  <div
+                    className={`size-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getPersonaColor(persona.id)}`}
+                  >
+                    {getPersonaIcon(persona.icon)}
                   </div>
                   <div className="space-y-1 flex-1">
-                    <h3 className="text-neutral-900">{agent.name}</h3>
-                    <p className="text-xs text-neutral-500">{agent.role}</p>
+                    <h3 className="text-neutral-900">{persona.name}</h3>
                     <p className="text-sm text-neutral-600 leading-relaxed">
-                      {agent.description}
+                      {persona.description}
                     </p>
                   </div>
                 </div>
@@ -166,56 +336,55 @@ export default function AIAgentChat({ onNavigate, legacyId, currentTheme, onThem
           {/* Chat Header */}
           <div className="bg-white border-b px-6 py-4">
             <div className="flex items-center gap-3">
-              <div className={`size-10 rounded-lg flex items-center justify-center ${
-                selectedAgent.id === 'biographer' ? 'bg-blue-100' :
-                selectedAgent.id === 'reporter' ? 'bg-emerald-100' :
-                selectedAgent.id === 'friend' ? 'bg-rose-100' :
-                'bg-purple-100'
-              }`}>
-                {getAgentIcon(selectedAgent.icon)}
+              <div
+                className={`size-10 rounded-lg flex items-center justify-center ${getPersonaColor(selectedPersonaId)}`}
+              >
+                {selectedPersona && getPersonaIcon(selectedPersona.icon)}
               </div>
               <div>
-                <h3 className="text-neutral-900">{selectedAgent.name}</h3>
-                <p className="text-sm text-neutral-500">{selectedAgent.role}</p>
+                <h3 className="text-neutral-900">{selectedPersona?.name || 'AI Agent'}</h3>
+                <p className="text-sm text-neutral-500">{selectedPersona?.description}</p>
               </div>
+              {isStreaming && (
+                <Badge variant="outline" className="ml-auto bg-amber-50 text-amber-700 border-amber-200">
+                  <Loader2 className="size-3 mr-1 animate-spin" />
+                  Thinking...
+                </Badge>
+              )}
             </div>
           </div>
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex gap-3 ${message.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-              >
-                {message.sender === 'agent' && (
-                  <Avatar className="size-8 flex-shrink-0">
-                    <AvatarFallback className="bg-amber-100 text-amber-700 text-sm">
-                      AI
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-                <div className={`flex flex-col gap-1 max-w-lg ${message.sender === 'user' ? 'items-end' : 'items-start'}`}>
-                  <Card className={`p-4 ${
-                    message.sender === 'user'
-                      ? 'bg-amber-600 text-white border-amber-600'
-                      : 'bg-white'
-                  }`}>
-                    <p className={message.sender === 'user' ? 'text-white' : 'text-neutral-700'}>
-                      {message.content}
-                    </p>
-                  </Card>
-                  <span className="text-xs text-neutral-500 px-1">{message.timestamp}</span>
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="size-8 animate-spin text-amber-600" />
+                  <p className="text-neutral-600">Loading conversation...</p>
                 </div>
-                {message.sender === 'user' && (
-                  <Avatar className="size-8 flex-shrink-0">
-                    <AvatarFallback className="bg-neutral-200 text-neutral-700 text-sm">
-                      You
-                    </AvatarFallback>
-                  </Avatar>
-                )}
               </div>
-            ))}
+            ) : messages.length === 0 ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center max-w-md">
+                  <div
+                    className={`size-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${getPersonaColor(selectedPersonaId)}`}
+                  >
+                    {selectedPersona && getPersonaIcon(selectedPersona.icon)}
+                  </div>
+                  <h3 className="text-lg font-medium text-neutral-900 mb-2">
+                    Start a conversation with {selectedPersona?.name}
+                  </h3>
+                  <p className="text-neutral-600">
+                    {selectedPersona?.description}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {messages.map(renderMessage)}
+                <div ref={messagesEndRef} />
+              </>
+            )}
           </div>
 
           {/* Input Area */}
@@ -224,12 +393,25 @@ export default function AIAgentChat({ onNavigate, legacyId, currentTheme, onThem
               <Input
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                placeholder={`Ask ${selectedAgent.name} anything...`}
+                onKeyPress={handleKeyPress}
+                placeholder={
+                  isStreaming
+                    ? 'Please wait...'
+                    : `Ask ${selectedPersona?.name || 'the agent'} anything...`
+                }
                 className="flex-1"
+                disabled={isStreaming || isLoading}
               />
-              <Button onClick={handleSendMessage} className="gap-2">
-                <Send className="size-4" />
+              <Button
+                onClick={handleSendMessage}
+                className="gap-2"
+                disabled={isStreaming || isLoading || !inputMessage.trim()}
+              >
+                {isStreaming ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Send className="size-4" />
+                )}
                 Send
               </Button>
             </div>
