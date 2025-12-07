@@ -1,7 +1,5 @@
 """Tests for persona configuration loader."""
 
-import pytest
-
 from app.config.personas import (
     PersonaConfig,
     build_system_prompt,

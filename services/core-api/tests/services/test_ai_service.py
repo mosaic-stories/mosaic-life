@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai import AIConversation, AIMessage
-from app.models.legacy import Legacy, LegacyMember
+from app.models.legacy import Legacy
 from app.models.user import User
 from app.schemas.ai import ConversationCreate
 from app.services import ai as ai_service

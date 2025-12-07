@@ -1,7 +1,7 @@
 """Tests for Bedrock adapter."""
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -72,15 +72,26 @@ class TestBedrockAdapter:
         assert formatted == []
 
     @pytest.mark.asyncio
-    async def test_stream_generate_yields_chunks(
-        self, adapter: BedrockAdapter
-    ) -> None:
+    async def test_stream_generate_yields_chunks(self, adapter: BedrockAdapter) -> None:
         """Test stream_generate yields content chunks."""
+
         # Create a mock async iterator for the response body
         async def mock_body_iterator():
             events = [
-                {"chunk": {"bytes": json.dumps({"contentBlockDelta": {"delta": {"text": "Hello"}}}).encode()}},
-                {"chunk": {"bytes": json.dumps({"contentBlockDelta": {"delta": {"text": " world"}}}).encode()}},
+                {
+                    "chunk": {
+                        "bytes": json.dumps(
+                            {"contentBlockDelta": {"delta": {"text": "Hello"}}}
+                        ).encode()
+                    }
+                },
+                {
+                    "chunk": {
+                        "bytes": json.dumps(
+                            {"contentBlockDelta": {"delta": {"text": " world"}}}
+                        ).encode()
+                    }
+                },
                 {"chunk": {"bytes": json.dumps({"messageStop": {}}).encode()}},
             ]
             for event in events:
@@ -113,14 +124,25 @@ class TestBedrockAdapter:
             assert len(chunks) == 2
 
     @pytest.mark.asyncio
-    async def test_stream_generate_with_metadata(
-        self, adapter: BedrockAdapter
-    ) -> None:
+    async def test_stream_generate_with_metadata(self, adapter: BedrockAdapter) -> None:
         """Test stream_generate handles metadata events."""
+
         async def mock_body_iterator():
             events = [
-                {"chunk": {"bytes": json.dumps({"contentBlockDelta": {"delta": {"text": "Test"}}}).encode()}},
-                {"chunk": {"bytes": json.dumps({"metadata": {"usage": {"outputTokens": 42}}}).encode()}},
+                {
+                    "chunk": {
+                        "bytes": json.dumps(
+                            {"contentBlockDelta": {"delta": {"text": "Test"}}}
+                        ).encode()
+                    }
+                },
+                {
+                    "chunk": {
+                        "bytes": json.dumps(
+                            {"metadata": {"usage": {"outputTokens": 42}}}
+                        ).encode()
+                    }
+                },
                 {"chunk": {"bytes": json.dumps({"messageStop": {}}).encode()}},
             ]
             for event in events:
@@ -155,9 +177,16 @@ class TestBedrockAdapter:
         self, adapter: BedrockAdapter
     ) -> None:
         """Test stream_generate uses custom max_tokens."""
+
         async def mock_body_iterator():
             events = [
-                {"chunk": {"bytes": json.dumps({"contentBlockDelta": {"delta": {"text": "OK"}}}).encode()}},
+                {
+                    "chunk": {
+                        "bytes": json.dumps(
+                            {"contentBlockDelta": {"delta": {"text": "OK"}}}
+                        ).encode()
+                    }
+                },
                 {"chunk": {"bytes": json.dumps({"messageStop": {}}).encode()}},
             ]
             for event in events:
@@ -202,6 +231,7 @@ class TestGetBedrockAdapter:
         """Test get_bedrock_adapter returns an instance."""
         # Reset singleton for test
         import app.adapters.bedrock as bedrock_module
+
         bedrock_module._adapter = None
 
         adapter = get_bedrock_adapter()
@@ -211,6 +241,7 @@ class TestGetBedrockAdapter:
     def test_get_adapter_returns_same_instance(self) -> None:
         """Test get_bedrock_adapter returns singleton."""
         import app.adapters.bedrock as bedrock_module
+
         bedrock_module._adapter = None
 
         adapter1 = get_bedrock_adapter()
@@ -220,6 +251,7 @@ class TestGetBedrockAdapter:
     def test_get_adapter_with_custom_region(self) -> None:
         """Test get_bedrock_adapter with custom region."""
         import app.adapters.bedrock as bedrock_module
+
         bedrock_module._adapter = None
 
         adapter = get_bedrock_adapter(region="us-west-2")

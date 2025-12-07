@@ -1,7 +1,5 @@
 """Tests for AI routes."""
 
-from datetime import datetime, timedelta, timezone
-
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -486,7 +484,9 @@ class TestSendMessage:
         # The endpoint should return a streaming response
         # In tests, Bedrock isn't configured so it will return an error event
         # We verify the response is at least attempting to stream (content-type)
-        assert response.headers.get("content-type") == "text/event-stream; charset=utf-8"
+        assert (
+            response.headers.get("content-type") == "text/event-stream; charset=utf-8"
+        )
 
     @pytest.mark.asyncio
     async def test_send_message_requires_auth(
