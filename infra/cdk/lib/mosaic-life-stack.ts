@@ -531,6 +531,26 @@ export class MosaicLifeStack extends cdk.Stack {
     domainEventsTopic.grantPublish(coreApiRole);
     eventsQueue.grantConsumeMessages(coreApiRole);
 
+    // Grant Bedrock access for AI chat feature
+    coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowBedrockInvoke',
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'bedrock:InvokeModel',
+          'bedrock:InvokeModelWithResponseStream',
+        ],
+        resources: [
+          // Allow access to Claude models (Anthropic) via inference profiles
+          `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/us.anthropic.*`,
+          `arn:aws:bedrock:${this.region}::foundation-model/anthropic.*`,
+          // Allow cross-region inference profiles
+          `arn:aws:bedrock:us-east-1:${this.account}:inference-profile/us.anthropic.*`,
+          `arn:aws:bedrock:us-west-2:${this.account}:inference-profile/us.anthropic.*`,
+        ],
+      })
+    );
+
     // ============================================================
     // Outputs
     // ============================================================

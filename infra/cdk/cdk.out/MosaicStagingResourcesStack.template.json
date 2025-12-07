@@ -28,6 +28,7 @@
        "AllowedOrigins": [
         "https://stage.mosaiclife.me",
         "https://stage-api.mosaiclife.me",
+        "https://*.mosaiclife.me",
         "http://localhost:5173"
        ],
        "ExposedHeaders": [
@@ -562,16 +563,21 @@
     "AssumeRolePolicyDocument": {
      "Statement": [
       {
-       "Action": "sts:AssumeRoleWithWebIdentity",
-       "Condition": {
-        "StringEquals": {
-         "oidc.eks.us-east-1.amazonaws.com/id/D491975E1999961E7BBAAE1A77332FBA:sub": "system:serviceaccount:mosaic-staging:core-api",
-         "oidc.eks.us-east-1.amazonaws.com/id/D491975E1999961E7BBAAE1A77332FBA:aud": "sts.amazonaws.com"
-        }
-       },
        "Effect": "Allow",
        "Principal": {
         "Federated": "arn:aws:iam::033691785857:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/D491975E1999961E7BBAAE1A77332FBA"
+       },
+       "Action": "sts:AssumeRoleWithWebIdentity",
+       "Condition": {
+        "StringEquals": {
+         "oidc.eks.us-east-1.amazonaws.com/id/D491975E1999961E7BBAAE1A77332FBA:aud": "sts.amazonaws.com"
+        },
+        "StringLike": {
+         "oidc.eks.us-east-1.amazonaws.com/id/D491975E1999961E7BBAAE1A77332FBA:sub": [
+          "system:serviceaccount:mosaic-staging:core-api",
+          "system:serviceaccount:preview-pr-*:core-api"
+         ]
+        }
        }
       }
      ],
@@ -705,6 +711,19 @@
          "Arn"
         ]
        }
+      },
+      {
+       "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        "arn:aws:bedrock:us-east-1:033691785857:inference-profile/us.anthropic.*",
+        "arn:aws:bedrock:us-east-1::foundation-model/anthropic.*",
+        "arn:aws:bedrock:us-west-2:033691785857:inference-profile/us.anthropic.*"
+       ],
+       "Sid": "AllowBedrockInvoke"
       }
      ],
      "Version": "2012-10-17"
