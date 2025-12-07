@@ -721,7 +721,10 @@
        "Resource": [
         "arn:aws:bedrock:us-east-1:033691785857:inference-profile/us.anthropic.*",
         "arn:aws:bedrock:us-east-1::foundation-model/anthropic.*",
-        "arn:aws:bedrock:us-west-2:033691785857:inference-profile/us.anthropic.*"
+        "arn:aws:bedrock:us-east-2:033691785857:inference-profile/us.anthropic.*",
+        "arn:aws:bedrock:us-east-2::foundation-model/anthropic.*",
+        "arn:aws:bedrock:us-west-2:033691785857:inference-profile/us.anthropic.*",
+        "arn:aws:bedrock:us-west-2::foundation-model/anthropic.*"
        ],
        "Sid": "AllowBedrockInvoke"
       }
