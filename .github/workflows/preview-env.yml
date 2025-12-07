@@ -50,7 +50,7 @@ jobs:
           echo "namespace=${NAMESPACE}" >> $GITHUB_OUTPUT
           echo "web-hostname=pr-${PR_NUMBER}.${BASE_DOMAIN}" >> $GITHUB_OUTPUT
           echo "api-hostname=pr-${PR_NUMBER}-api.${BASE_DOMAIN}" >> $GITHUB_OUTPUT
-          echo "image-tag=${SAFE_BRANCH}-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          echo "image-tag=pr-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
 
           # Determine target environment based on base branch
           TARGET_BRANCH="${{ github.base_ref }}"

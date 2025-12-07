@@ -43,13 +43,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Determine image tag prefix
+        id: tag-prefix
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "prefix=prod" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "prefix=staging" >> $GITHUB_OUTPUT
+          else
+            echo "prefix=feature" >> $GITHUB_OUTPUT
+          fi
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.ECR_REGISTRY }}/mosaic-life/web
           tags: |
-            type=sha,format=short,prefix=
+            type=sha,format=short,prefix=${{ steps.tag-prefix.outputs.prefix }}-
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=raw,value=latest,enable={{is_default_branch}}
@@ -113,13 +124,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Determine image tag prefix
+        id: tag-prefix
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "prefix=prod" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == "refs/heads/develop" ]]; then
+            echo "prefix=staging" >> $GITHUB_OUTPUT
+          else
+            echo "prefix=feature" >> $GITHUB_OUTPUT
+          fi
+
       - name: Docker meta
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.ECR_REGISTRY }}/mosaic-life/core-api
           tags: |
-            type=sha,format=short,prefix=
+            type=sha,format=short,prefix=${{ steps.tag-prefix.outputs.prefix }}-
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=raw,value=latest,enable={{is_default_branch}}
@@ -215,13 +237,15 @@ jobs:
         run: |
           # Extract short SHA (first 7 characters)
           SHORT_SHA=${COMMIT_SHA:0:7}
+          # Image tag includes environment prefix
+          IMAGE_TAG="${ENVIRONMENT}-${SHORT_SHA}"
           
           echo "Updating ${ENVIRONMENT} environment:"
-          echo "  Image tag (SHA): ${SHORT_SHA}"
+          echo "  Image tag: ${IMAGE_TAG}"
           echo "  Full commit: ${COMMIT_SHA}"
           
           # Update image tag in values file
-          yq eval ".global.imageTag = \"${SHORT_SHA}\"" -i "environments/${ENVIRONMENT}/values.yaml"
+          yq eval ".global.imageTag = \"${IMAGE_TAG}\"" -i "environments/${ENVIRONMENT}/values.yaml"
           
           # Show the changes
           echo ""
@@ -234,6 +258,7 @@ jobs:
           COMMIT_SHA: ${{ github.sha }}
         run: |
           SHORT_SHA=${COMMIT_SHA:0:7}
+          IMAGE_TAG="${ENVIRONMENT}-${SHORT_SHA}"
           
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -245,19 +270,19 @@ jobs:
             exit 0
           fi
           
-          git commit -m "deploy(${ENVIRONMENT}): update image tag to ${SHORT_SHA}" \
+          git commit -m "deploy(${ENVIRONMENT}): update image tag to ${IMAGE_TAG}" \
             -m "Triggered by: ${{ github.event_name }}" \
             -m "Branch: ${{ github.ref_name }}" \
             -m "Commit: ${{ github.sha }}" \
             -m "Actor: ${{ github.actor }}" \
             -m "" \
             -m "This will deploy:" \
-            -m "- mosaic-life/web:${SHORT_SHA}" \
-            -m "- mosaic-life/core-api:${SHORT_SHA}"
+            -m "- mosaic-life/web:${IMAGE_TAG}" \
+            -m "- mosaic-life/core-api:${IMAGE_TAG}"
           
           git push origin main
           
           echo ""
           echo "✅ GitOps repository updated successfully"
-          echo "📦 Deployed SHA: ${SHORT_SHA}"
+          echo "📦 Deployed image tag: ${IMAGE_TAG}"
           echo "🚀 ArgoCD will automatically sync the ${ENVIRONMENT} environment"
