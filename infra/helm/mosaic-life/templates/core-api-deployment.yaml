@@ -33,7 +33,30 @@ spec:
           containerPort: {{ .Values.coreApi.service.targetPort }}
           protocol: TCP
         env:
-        {{- toYaml .Values.coreApi.env | nindent 8 }}
+        {{- /* Build list of env var names from extraEnv for deduplication */ -}}
+        {{- $extraEnvNames := dict }}
+        {{- if .Values.coreApi.extraEnv }}
+        {{- range .Values.coreApi.extraEnv }}
+        {{- $_ := set $extraEnvNames .name true }}
+        {{- end }}
+        {{- end }}
+        {{- /* Render base env vars, excluding any that are overridden in extraEnv */ -}}
+        {{- range .Values.coreApi.env }}
+        {{- if not (hasKey $extraEnvNames .name) }}
+        - name: {{ .name }}
+          {{- if .value }}
+          value: {{ .value | quote }}
+          {{- end }}
+          {{- if .valueFrom }}
+          valueFrom:
+            {{- toYaml .valueFrom | nindent 12 }}
+          {{- end }}
+        {{- end }}
+        {{- end }}
+        {{- /* Render extraEnv vars (these take precedence) */ -}}
+        {{- if .Values.coreApi.extraEnv }}
+        {{- toYaml .Values.coreApi.extraEnv | nindent 8 }}
+        {{- end }}
         {{- if .Values.coreApi.envFrom }}
         envFrom:
         {{- toYaml .Values.coreApi.envFrom | nindent 8 }}

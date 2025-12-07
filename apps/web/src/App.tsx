@@ -4,6 +4,7 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { router } from '@/routes';
 import { useEffect } from 'react';
 import { applyTheme } from '@/lib/themeUtils';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 // Create a client for TanStack Query
 const queryClient = new QueryClient({
@@ -23,10 +24,12 @@ export default function App() {
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

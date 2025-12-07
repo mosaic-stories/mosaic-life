@@ -2,10 +2,8 @@ name: Preview Environment
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
     branches: [main, develop]
-  pull_request_review:
-    types: [submitted]
 
 env:
   AWS_REGION: us-east-1
@@ -17,7 +15,8 @@ jobs:
   build-preview-images:
     name: Build Preview Images
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-preview')
+    # Only build when PR is opened/updated, not when closed
+    if: github.event.action != 'closed' && !contains(github.event.pull_request.labels.*.name, 'skip-preview')
     permissions:
       id-token: write
       contents: read
@@ -28,6 +27,12 @@ jobs:
       namespace: ${{ steps.vars.outputs.namespace }}
       web-hostname: ${{ steps.vars.outputs.web-hostname }}
       api-hostname: ${{ steps.vars.outputs.api-hostname }}
+      target-env: ${{ steps.vars.outputs.target-env }}
+      db-secret-key: ${{ steps.vars.outputs.db-secret-key }}
+      session-secret-key: ${{ steps.vars.outputs.session-secret-key }}
+      s3-media-bucket: ${{ steps.vars.outputs.s3-media-bucket }}
+      s3-backup-bucket: ${{ steps.vars.outputs.s3-backup-bucket }}
+      iam-role-arn: ${{ steps.vars.outputs.iam-role-arn }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -46,6 +51,22 @@ jobs:
           echo "web-hostname=pr-${PR_NUMBER}.${BASE_DOMAIN}" >> $GITHUB_OUTPUT
           echo "api-hostname=pr-${PR_NUMBER}-api.${BASE_DOMAIN}" >> $GITHUB_OUTPUT
           echo "image-tag=${SAFE_BRANCH}-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+          # Determine target environment based on base branch
+          TARGET_BRANCH="${{ github.base_ref }}"
+          if [ "${TARGET_BRANCH}" == "main" ]; then
+            TARGET_ENV="prod"
+          else
+            TARGET_ENV="staging"
+          fi
+          echo "target-env=${TARGET_ENV}" >> $GITHUB_OUTPUT
+
+          # Set environment-specific resource references
+          echo "db-secret-key=mosaic/${TARGET_ENV}/rds/credentials" >> $GITHUB_OUTPUT
+          echo "session-secret-key=mosaic/${TARGET_ENV}/session/secret-key" >> $GITHUB_OUTPUT
+          echo "s3-media-bucket=mosaic-${TARGET_ENV}-media-033691785857" >> $GITHUB_OUTPUT
+          echo "s3-backup-bucket=mosaic-${TARGET_ENV}-backups-033691785857" >> $GITHUB_OUTPUT
+          echo "iam-role-arn=arn:aws:iam::033691785857:role/mosaic-${TARGET_ENV}-core-api-role" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials (ECR Push Role)
         uses: aws-actions/configure-aws-credentials@v4
@@ -110,6 +131,7 @@ jobs:
             type=preview \
             pr=${{ needs.build-preview-images.outputs.pr-number }} \
             branch=${{ needs.build-preview-images.outputs.branch-name }} \
+            target-env=${{ needs.build-preview-images.outputs.target-env }} \
             --overwrite
 
       - name: Install Helm
@@ -117,48 +139,80 @@ jobs:
         with:
           version: '3.13.0'
 
+      - name: Validate Helm chart
+        run: |
+          helm lint ./infra/helm/mosaic-life \
+            --values ./infra/helm/mosaic-life/values.yaml \
+            --values ./infra/helm/mosaic-life/values-preview.yaml
+
       - name: Deploy preview environment
         env:
           NAMESPACE: ${{ needs.build-preview-images.outputs.namespace }}
           IMAGE_TAG: ${{ needs.build-preview-images.outputs.image-tag }}
           WEB_HOST: ${{ needs.build-preview-images.outputs.web-hostname }}
           API_HOST: ${{ needs.build-preview-images.outputs.api-hostname }}
+          PR_NUMBER: ${{ needs.build-preview-images.outputs.pr-number }}
+          TARGET_ENV: ${{ needs.build-preview-images.outputs.target-env }}
+          DB_SECRET_KEY: ${{ needs.build-preview-images.outputs.db-secret-key }}
+          SESSION_SECRET_KEY: ${{ needs.build-preview-images.outputs.session-secret-key }}
+          S3_MEDIA_BUCKET: ${{ needs.build-preview-images.outputs.s3-media-bucket }}
+          S3_BACKUP_BUCKET: ${{ needs.build-preview-images.outputs.s3-backup-bucket }}
+          IAM_ROLE_ARN: ${{ needs.build-preview-images.outputs.iam-role-arn }}
         run: |
-          helm upgrade --install mosaic-life-pr-${{ needs.build-preview-images.outputs.pr-number }} \
+          helm upgrade --install mosaic-life-pr-${PR_NUMBER} \
             ./infra/helm/mosaic-life \
             --namespace ${NAMESPACE} \
             --create-namespace \
+            --values ./infra/helm/mosaic-life/values.yaml \
+            --values ./infra/helm/mosaic-life/values-preview.yaml \
             --set global.imageTag=${IMAGE_TAG} \
             --set global.environment=preview \
-            --set web.ingress.hosts[0].host=${WEB_HOST} \
-            --set coreApi.ingress.hosts[0].host=${API_HOST} \
-            --set web.replicaCount=1 \
-            --set coreApi.replicaCount=1 \
-            --set web.autoscaling.enabled=false \
-            --set coreApi.autoscaling.enabled=false \
-            --set web.resources.requests.cpu=100m \
-            --set web.resources.requests.memory=128Mi \
-            --set coreApi.resources.requests.cpu=200m \
-            --set coreApi.resources.requests.memory=256Mi \
-            --set coreApi.env[0].name=ENVIRONMENT \
-            --set coreApi.env[0].value=preview \
-            --set coreApi.env[1].name=PR_NUMBER \
-            --set coreApi.env[1].value=${{ needs.build-preview-images.outputs.pr-number }} \
+            --set global.targetEnv=${TARGET_ENV} \
+            --set global.domain=${WEB_HOST} \
+            --set "externalSecrets.database.secretKey=${DB_SECRET_KEY}" \
+            --set "externalSecrets.session.secretKey=${SESSION_SECRET_KEY}" \
+            --set "global.s3.mediaBucket=${S3_MEDIA_BUCKET}" \
+            --set "global.s3.backupBucket=${S3_BACKUP_BUCKET}" \
+            --set "coreApi.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${IAM_ROLE_ARN}" \
+            --set "web.ingress.hosts[0].host=${WEB_HOST}" \
+            --set "web.ingress.hosts[0].paths[0].path=/" \
+            --set "web.ingress.hosts[0].paths[0].pathType=Prefix" \
+            --set "coreApi.ingress.hosts[0].host=${API_HOST}" \
+            --set "coreApi.ingress.hosts[0].paths[0].path=/" \
+            --set "coreApi.ingress.hosts[0].paths[0].pathType=Prefix" \
+            --set "web.ingress.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname=${WEB_HOST}" \
+            --set "coreApi.ingress.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname=${API_HOST}" \
+            --set "web.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/group\\.name=mosaic-life-preview-${PR_NUMBER}" \
+            --set "coreApi.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/group\\.name=mosaic-life-preview-${PR_NUMBER}" \
+            --set "coreApi.extraEnv[0].name=ENVIRONMENT" \
+            --set "coreApi.extraEnv[0].value=preview" \
+            --set "coreApi.extraEnv[1].name=PR_NUMBER" \
+            --set-string "coreApi.extraEnv[1].value=${PR_NUMBER}" \
+            --set "coreApi.extraEnv[2].name=APP_URL" \
+            --set "coreApi.extraEnv[2].value=https://${WEB_HOST}" \
+            --set "coreApi.extraEnv[3].name=API_URL" \
+            --set "coreApi.extraEnv[3].value=https://${API_HOST}" \
+            --set "coreApi.extraEnv[4].name=TARGET_ENV" \
+            --set "coreApi.extraEnv[4].value=${TARGET_ENV}" \
+            --set "coreApi.extraEnv[5].name=S3_MEDIA_BUCKET" \
+            --set "coreApi.extraEnv[5].value=${S3_MEDIA_BUCKET}" \
+            --set "coreApi.extraEnv[6].name=S3_BACKUP_BUCKET" \
+            --set "coreApi.extraEnv[6].value=${S3_BACKUP_BUCKET}" \
             --wait \
             --timeout 5m
 
       - name: Wait for deployment
         run: |
           kubectl wait --for=condition=available --timeout=300s \
-            deployment/mosaic-life-web \
-            deployment/mosaic-life-core-api \
+            deployment/web \
+            deployment/core-api \
             -n ${{ needs.build-preview-images.outputs.namespace }}
 
       - name: Get deployment status
         id: status
         run: |
-          WEB_STATUS=$(kubectl get deployment mosaic-life-web -n ${{ needs.build-preview-images.outputs.namespace }} -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
-          API_STATUS=$(kubectl get deployment mosaic-life-core-api -n ${{ needs.build-preview-images.outputs.namespace }} -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
+          WEB_STATUS=$(kubectl get deployment web -n ${{ needs.build-preview-images.outputs.namespace }} -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
+          API_STATUS=$(kubectl get deployment core-api -n ${{ needs.build-preview-images.outputs.namespace }} -o jsonpath='{.status.conditions[?(@.type=="Available")].status}')
 
           echo "web-status=${WEB_STATUS}" >> $GITHUB_OUTPUT
           echo "api-status=${API_STATUS}" >> $GITHUB_OUTPUT
@@ -171,6 +225,8 @@ jobs:
             const webUrl = 'https://${{ needs.build-preview-images.outputs.web-hostname }}';
             const apiUrl = 'https://${{ needs.build-preview-images.outputs.api-hostname }}';
             const namespace = '${{ needs.build-preview-images.outputs.namespace }}';
+            const targetEnv = '${{ needs.build-preview-images.outputs.target-env }}';
+            const targetEnvLabel = targetEnv === 'prod' ? '🔴 Production' : '🟡 Staging';
 
             const comment = `## 🚀 Preview Environment Deployed
 
@@ -183,6 +239,12 @@ jobs:
             **Kubernetes:**
             - Namespace: \`${namespace}\`
             - Image Tag: \`${{ needs.build-preview-images.outputs.image-tag }}\`
+
+            **External Resources (${targetEnvLabel}):**
+            - Database: \`${{ needs.build-preview-images.outputs.db-secret-key }}\`
+            - S3 Media: \`${{ needs.build-preview-images.outputs.s3-media-bucket }}\`
+
+            ⚠️ *This preview uses **${targetEnv}** database and S3. Be cautious with data modifications.*
 
             **Status:**
             - Web: ${{ steps.status.outputs.web-status }}
@@ -225,7 +287,8 @@ jobs:
   cleanup-preview:
     name: Cleanup Preview Environment
     runs-on: ubuntu-latest
-    if: github.event.pull_request.state == 'closed'
+    # Only run cleanup when PR is closed (merged or not)
+    if: github.event.action == 'closed'
     permissions:
       id-token: write
       contents: read
@@ -249,6 +312,20 @@ jobs:
       - name: Configure kubectl
         run: |
           aws eks update-kubeconfig --name ${{ env.EKS_CLUSTER }} --region ${{ env.AWS_REGION }}
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: '3.13.0'
+
+      - name: Uninstall Helm release
+        run: |
+          if helm status mosaic-life-pr-${{ steps.vars.outputs.pr-number }} -n ${{ steps.vars.outputs.namespace }} 2>/dev/null; then
+            helm uninstall mosaic-life-pr-${{ steps.vars.outputs.pr-number }} -n ${{ steps.vars.outputs.namespace }} --wait --timeout 3m
+            echo "Helm release uninstalled successfully"
+          else
+            echo "Helm release does not exist or already removed"
+          fi
 
       - name: Delete preview namespace
         run: |

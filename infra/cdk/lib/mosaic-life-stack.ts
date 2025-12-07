@@ -499,21 +499,29 @@ export class MosaicLifeStack extends cdk.Stack {
     // ============================================================
 
     const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
+    const oidcProviderArn = `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
+    const oidcProviderUrl = `oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
 
     // Role for core-api to access S3, Secrets Manager, SQS/SNS
+    // Allows both the main environment namespace and preview-* namespaces
     const coreApiRole = new iam.Role(this, 'CoreApiRole', {
       roleName: `mosaic-${environment}-core-api-role`,
-      assumedBy: new iam.WebIdentityPrincipal(
-        `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`,
+      assumedBy: new iam.FederatedPrincipal(
+        oidcProviderArn,
         {
           StringEquals: {
-            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]:
-              `system:serviceaccount:mosaic-${environment}:core-api`,
-            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]: 'sts.amazonaws.com',
+            [`${oidcProviderUrl}:aud`]: 'sts.amazonaws.com',
           },
-        }
+          StringLike: {
+            [`${oidcProviderUrl}:sub`]: [
+              `system:serviceaccount:mosaic-${environment}:core-api`,
+              'system:serviceaccount:preview-*:core-api',
+            ],
+          },
+        },
+        'sts:AssumeRoleWithWebIdentity'
       ),
-      description: 'IAM role for core-api service in EKS',
+      description: 'IAM role for core-api service in EKS (includes preview environments)',
     });
 
     // Grant permissions to core-api role
@@ -522,6 +530,30 @@ export class MosaicLifeStack extends cdk.Stack {
     cognitoSecret.grantRead(coreApiRole);
     domainEventsTopic.grantPublish(coreApiRole);
     eventsQueue.grantConsumeMessages(coreApiRole);
+
+    // Grant Bedrock access for AI chat feature
+    // Cross-region inference (us.* model IDs) may route to any US region
+    coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowBedrockInvoke',
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'bedrock:InvokeModel',
+          'bedrock:InvokeModelWithResponseStream',
+        ],
+        resources: [
+          // Allow access to Claude foundation models in all US regions
+          // Cross-region inference may route to any of these
+          'arn:aws:bedrock:us-east-1::foundation-model/anthropic.*',
+          'arn:aws:bedrock:us-east-2::foundation-model/anthropic.*',
+          'arn:aws:bedrock:us-west-2::foundation-model/anthropic.*',
+          // Allow cross-region inference profiles
+          `arn:aws:bedrock:us-east-1:${this.account}:inference-profile/us.anthropic.*`,
+          `arn:aws:bedrock:us-east-2:${this.account}:inference-profile/us.anthropic.*`,
+          `arn:aws:bedrock:us-west-2:${this.account}:inference-profile/us.anthropic.*`,
+        ],
+      })
+    );
 
     // ============================================================
     // Outputs

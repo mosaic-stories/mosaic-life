@@ -1,0 +1,81 @@
+# Preview Environment Values
+# These values are merged with the base values.yaml for preview deployments
+
+global:
+  environment: "preview"
+
+# Frontend - minimal resources for preview
+web:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+  podDisruptionBudget:
+    enabled: false
+  ingress:
+    annotations:
+      # Preview environments get their own ALB group (set dynamically)
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/healthcheck-path: /
+      alb.ingress.kubernetes.io/tags: "Environment=preview,Project=MosaicLife"
+
+# Core API - minimal resources for preview
+coreApi:
+  replicaCount: 1
+  autoscaling:
+    enabled: false
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 200m
+      memory: 256Mi
+  podDisruptionBudget:
+    enabled: false
+  ingress:
+    annotations:
+      # Preview environments get their own ALB group (set dynamically)
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/ssl-redirect: "443"
+      alb.ingress.kubernetes.io/healthcheck-path: /healthz
+      alb.ingress.kubernetes.io/tags: "Environment=preview,Project=MosaicLife"
+
+# Network policies can be relaxed for preview
+networkPolicy:
+  enabled: false
+
+# External Secrets - dynamically configured based on target branch
+# PRs targeting 'main' use prod credentials, PRs targeting 'develop' use stage credentials
+# These values are overridden at deploy time by the preview-env.yml workflow
+externalSecrets:
+  enabled: true
+  refreshInterval: "1h"
+  secretStoreRef:
+    name: aws-secretsmanager
+    kind: ClusterSecretStore
+  database:
+    # Dynamically set by workflow based on target branch:
+    # - PRs to main: mosaic/prod/rds/credentials
+    # - PRs to develop: mosaic/staging/rds/credentials
+    secretKey: ""  # Set via --set externalSecrets.database.secretKey
+  session:
+    # Dynamically set by workflow based on target branch:
+    # - PRs to main: mosaic/prod/session/secret-key
+    # - PRs to develop: mosaic/staging/session/secret-key
+    secretKey: ""  # Set via --set externalSecrets.session.secretKey
+
+# Service Account for preview - reuse the prod IRSA role
+# This allows preview environments to access S3 and other AWS resources
+# Consider creating a separate preview-specific role if isolation is needed
