@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Heart, Search, Sparkles, Users } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -21,6 +22,7 @@ interface Interaction {
 }
 
 export default function AIAgentPanel({ onNavigate, legacyId, currentTheme, onThemeChange }: AIAgentPanelProps) {
+  const navigate = useNavigate();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const legacy = legacies.find(l => l.id === legacyId) || legacies[0];
 
@@ -169,7 +171,7 @@ export default function AIAgentPanel({ onNavigate, legacyId, currentTheme, onThe
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <button 
-              onClick={() => onNavigate('profile')}
+              onClick={() => navigate(`/legacy/${legacyId}`)}
               className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
             >
               <ArrowLeft className="size-4" />
@@ -183,7 +185,7 @@ export default function AIAgentPanel({ onNavigate, legacyId, currentTheme, onThe
               <Button 
                 variant="ghost" 
                 size="sm"
-                onClick={() => onNavigate('ai-chat')}
+                onClick={() => navigate(`/legacy/${legacyId}/ai-chat`)}
               >
                 Switch to Chat
               </Button>

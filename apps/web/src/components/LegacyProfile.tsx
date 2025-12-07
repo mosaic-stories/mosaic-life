@@ -455,7 +455,7 @@ export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onTh
 
               <Card
                 className="p-6 space-y-4 cursor-pointer hover:shadow-lg transition-shadow group"
-                onClick={() => onNavigate('ai-panel')}
+                onClick={() => navigate(`/legacy/${legacyId}/ai-panel`)}
               >
                 <div className="flex items-start justify-between">
                   <div className="size-12 rounded-lg bg-purple-100 flex items-center justify-center">
