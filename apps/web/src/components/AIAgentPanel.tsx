@@ -21,7 +21,7 @@ interface Interaction {
   action: string;
 }
 
-export default function AIAgentPanel({ onNavigate, legacyId, currentTheme, onThemeChange }: AIAgentPanelProps) {
+export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, currentTheme, onThemeChange }: AIAgentPanelProps) {
   const navigate = useNavigate();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const legacy = legacies.find(l => l.id === legacyId) || legacies[0];

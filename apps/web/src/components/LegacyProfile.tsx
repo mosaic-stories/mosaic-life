@@ -98,7 +98,7 @@ function StoryCard({ story, onClick }: { story: StorySummary; onClick?: () => vo
   );
 }
 
-export default function LegacyProfile({ legacyId, onNavigate, currentTheme, onThemeChange, user }: LegacyProfileProps) {
+export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, currentTheme, onThemeChange, user }: LegacyProfileProps) {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<'stories' | 'media' | 'ai'>('stories');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
