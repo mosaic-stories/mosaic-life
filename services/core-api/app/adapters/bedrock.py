@@ -114,13 +114,19 @@ class BedrockAdapter:
                         accept="application/json",
                         body=json.dumps(request_body),
                     )
-                    logger.info("bedrock.got_response", extra={"response_keys": list(response.keys())})
+                    logger.info(
+                        "bedrock.got_response",
+                        extra={"response_keys": list(response.keys())},
+                    )
 
                     total_tokens = 0
                     chunk_count = 0
                     event_stream = response.get("body")
-                    logger.info("bedrock.event_stream_type", extra={"stream_type": str(type(event_stream))})
-                    
+                    logger.info(
+                        "bedrock.event_stream_type",
+                        extra={"stream_type": str(type(event_stream))},
+                    )
+
                     async for event in event_stream:
                         chunk = json.loads(event["chunk"]["bytes"])
                         chunk_count += 1
@@ -136,7 +142,10 @@ class BedrockAdapter:
 
                         # Handle message_stop event
                         elif chunk_type == "message_stop":
-                            logger.info("bedrock.message_stop", extra={"chunk_count": chunk_count})
+                            logger.info(
+                                "bedrock.message_stop",
+                                extra={"chunk_count": chunk_count},
+                            )
 
                         # Handle message_delta for usage stats
                         elif chunk_type == "message_delta":
