@@ -57,10 +57,13 @@ class TestBedrockAdapter:
 
         assert len(formatted) == 3
         assert formatted[0]["role"] == "user"
+        assert formatted[0]["content"][0]["type"] == "text"
         assert formatted[0]["content"][0]["text"] == "Hello"
         assert formatted[1]["role"] == "assistant"
+        assert formatted[1]["content"][0]["type"] == "text"
         assert formatted[1]["content"][0]["text"] == "Hi there!"
         assert formatted[2]["role"] == "user"
+        assert formatted[2]["content"][0]["type"] == "text"
         assert formatted[2]["content"][0]["text"] == "How are you?"
 
     def test_format_messages_empty_list(self, adapter: BedrockAdapter) -> None:

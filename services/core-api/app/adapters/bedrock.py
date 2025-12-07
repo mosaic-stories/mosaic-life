@@ -56,7 +56,7 @@ class BedrockAdapter:
         return [
             {
                 "role": msg["role"],
-                "content": [{"text": msg["content"]}],
+                "content": [{"type": "text", "text": msg["content"]}],
             }
             for msg in messages
         ]
@@ -95,30 +95,61 @@ class BedrockAdapter:
                 "messages": formatted_messages,
             }
 
+            logger.info(
+                "bedrock.request",
+                extra={
+                    "model_id": model_id,
+                    "message_count": len(formatted_messages),
+                    "max_tokens": max_tokens,
+                    "system_prompt_length": len(system_prompt) if system_prompt else 0,
+                },
+            )
+
             try:
                 async with self._get_client() as client:
+                    logger.info("bedrock.calling_api", extra={"model_id": model_id})
                     response = await client.invoke_model_with_response_stream(
                         modelId=model_id,
                         contentType="application/json",
                         accept="application/json",
                         body=json.dumps(request_body),
                     )
+                    logger.info("bedrock.got_response", extra={"response_keys": list(response.keys())})
 
                     total_tokens = 0
-                    async for event in response["body"]:
+                    chunk_count = 0
+                    event_stream = response.get("body")
+                    logger.info("bedrock.event_stream_type", extra={"stream_type": str(type(event_stream))})
+                    
+                    async for event in event_stream:
                         chunk = json.loads(event["chunk"]["bytes"])
+                        chunk_count += 1
+                        chunk_type = chunk.get("type", "")
 
-                        if "contentBlockDelta" in chunk:
+                        # Handle content_block_delta events (streaming text)
+                        if chunk_type == "content_block_delta":
+                            delta = chunk.get("delta", {})
+                            if delta.get("type") == "text_delta":
+                                text = delta.get("text", "")
+                                if text:
+                                    yield text
+
+                        # Handle message_stop event
+                        elif chunk_type == "message_stop":
+                            logger.info("bedrock.message_stop", extra={"chunk_count": chunk_count})
+
+                        # Handle message_delta for usage stats
+                        elif chunk_type == "message_delta":
+                            usage = chunk.get("usage", {})
+                            total_tokens = usage.get("output_tokens", 0)
+
+                        # Legacy format support: contentBlockDelta
+                        elif "contentBlockDelta" in chunk:
                             delta = chunk["contentBlockDelta"]["delta"]
                             if "text" in delta:
                                 yield delta["text"]
 
-                        elif "messageStop" in chunk:
-                            # End of message
-                            pass
-
                         elif "metadata" in chunk:
-                            # Token usage info
                             usage = chunk["metadata"].get("usage", {})
                             total_tokens = usage.get("outputTokens", 0)
 

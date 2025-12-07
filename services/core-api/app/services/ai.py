@@ -295,7 +295,12 @@ async def get_context_messages(
 
         span.set_attribute("message_count", len(messages))
 
-        return [{"role": m.role, "content": m.content} for m in messages]
+        # Filter out empty messages to avoid Bedrock API validation errors
+        return [
+            {"role": m.role, "content": m.content}
+            for m in messages
+            if m.content and m.content.strip()
+        ]
 
 
 async def save_message(

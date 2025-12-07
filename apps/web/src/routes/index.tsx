@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import RootLayout from './RootLayout';
 import ProtectedRoute from './ProtectedRoute';
 import { withSharedProps, withLegacyProps, withStoryProps } from './PageWrapper';
+import ErrorPage from '@/components/ErrorPage';
 
 // Lazy load page components for code splitting
 const HomepageBase = lazy(() => import('@/components/Homepage'));
@@ -75,6 +76,7 @@ export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
+    errorElement: <ErrorPage />,
     children: [
       // Public routes
       {

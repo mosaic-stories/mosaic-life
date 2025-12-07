@@ -46,6 +46,8 @@ services:
       - ../../services/core-api/tests:/app/tests:ro
       # Media storage volume for local development
       - media-data:/app/media
+      # Mount AWS credentials for Bedrock access (uses host's STS credentials)
+      - ~/.aws:/root/.aws:ro
 
     depends_on:
       postgres:
