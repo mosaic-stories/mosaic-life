@@ -366,3 +366,52 @@ class TestGuardrailIntegration:
             # Verify guardrail params were NOT passed
             assert "guardrailIdentifier" not in captured_kwargs
             assert "guardrailVersion" not in captured_kwargs
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_guardrail_intervention(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test stream_generate raises error when guardrail intervenes."""
+
+        async def mock_body_iterator():
+            events = [
+                # Guardrail intervention event
+                {
+                    "chunk": {
+                        "bytes": json.dumps(
+                            {
+                                "type": "amazon-bedrock-guardrailAction",
+                                "action": "INTERVENED",
+                            }
+                        ).encode()
+                    }
+                },
+            ]
+            for event in events:
+                yield event
+
+        mock_response = {"body": mock_body_iterator()}
+
+        with patch.object(adapter, "_get_client") as mock_get_client:
+            mock_client = AsyncMock()
+            mock_client.invoke_model_with_response_stream = AsyncMock(
+                return_value=mock_response
+            )
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_client.return_value = mock_context
+
+            with pytest.raises(BedrockError) as exc_info:
+                async for _ in adapter.stream_generate(
+                    messages=[{"role": "user", "content": "Harmful content"}],
+                    system_prompt="You are helpful.",
+                    model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                    guardrail_id="gr-abc123",
+                    guardrail_version="1",
+                ):
+                    pass
+
+            assert "filtered for safety" in exc_info.value.message
+            assert exc_info.value.retryable is False

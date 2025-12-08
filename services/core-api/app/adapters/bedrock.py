@@ -183,7 +183,28 @@ class BedrockAdapter:
                             usage = chunk["metadata"].get("usage", {})
                             total_tokens = usage.get("outputTokens", 0)
 
+                        # Handle guardrail intervention
+                        elif chunk_type == "amazon-bedrock-guardrailAction":
+                            action = chunk.get("action")
+                            if action == "INTERVENED":
+                                logger.warning(
+                                    "bedrock.guardrail_intervened",
+                                    extra={
+                                        "guardrail_id": guardrail_id,
+                                        "chunk_count": chunk_count,
+                                    },
+                                )
+                                span.set_attribute("guardrail_intervened", True)
+                                raise BedrockError(
+                                    "Your message was filtered for safety. Please rephrase.",
+                                    retryable=False,
+                                )
+
                     span.set_attribute("output_tokens", total_tokens)
+
+            except BedrockError:
+                # Re-raise BedrockError (e.g., from guardrail intervention)
+                raise
 
             except ClientError as e:
                 error_code = e.response.get("Error", {}).get("Code", "")
