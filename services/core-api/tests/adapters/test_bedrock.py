@@ -256,3 +256,113 @@ class TestGetBedrockAdapter:
 
         adapter = get_bedrock_adapter(region="us-west-2")
         assert adapter.region == "us-west-2"
+
+
+class TestGuardrailIntegration:
+    """Tests for guardrail integration."""
+
+    @pytest.fixture
+    def adapter(self) -> BedrockAdapter:
+        """Create adapter instance."""
+        return BedrockAdapter(region="us-east-1")
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_with_guardrail(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test stream_generate passes guardrail params to API."""
+
+        async def mock_body_iterator():
+            events = [
+                {
+                    "chunk": {
+                        "bytes": json.dumps(
+                            {"contentBlockDelta": {"delta": {"text": "OK"}}}
+                        ).encode()
+                    }
+                },
+                {"chunk": {"bytes": json.dumps({"messageStop": {}}).encode()}},
+            ]
+            for event in events:
+                yield event
+
+        mock_response = {"body": mock_body_iterator()}
+        captured_kwargs: dict = {}
+
+        async def capture_invoke(*args, **kwargs):
+            nonlocal captured_kwargs
+            captured_kwargs = kwargs
+            return mock_response
+
+        with patch.object(adapter, "_get_client") as mock_get_client:
+            mock_client = AsyncMock()
+            mock_client.invoke_model_with_response_stream = capture_invoke
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_client.return_value = mock_context
+
+            chunks = []
+            async for chunk in adapter.stream_generate(
+                messages=[{"role": "user", "content": "Hi"}],
+                system_prompt="You are helpful.",
+                model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                guardrail_id="gr-abc123",
+                guardrail_version="1",
+            ):
+                chunks.append(chunk)
+
+            # Verify guardrail params were passed
+            assert captured_kwargs.get("guardrailIdentifier") == "gr-abc123"
+            assert captured_kwargs.get("guardrailVersion") == "1"
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_without_guardrail(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test stream_generate works without guardrail params."""
+
+        async def mock_body_iterator():
+            events = [
+                {
+                    "chunk": {
+                        "bytes": json.dumps(
+                            {"contentBlockDelta": {"delta": {"text": "OK"}}}
+                        ).encode()
+                    }
+                },
+                {"chunk": {"bytes": json.dumps({"messageStop": {}}).encode()}},
+            ]
+            for event in events:
+                yield event
+
+        mock_response = {"body": mock_body_iterator()}
+        captured_kwargs: dict = {}
+
+        async def capture_invoke(*args, **kwargs):
+            nonlocal captured_kwargs
+            captured_kwargs = kwargs
+            return mock_response
+
+        with patch.object(adapter, "_get_client") as mock_get_client:
+            mock_client = AsyncMock()
+            mock_client.invoke_model_with_response_stream = capture_invoke
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_client.return_value = mock_context
+
+            chunks = []
+            async for chunk in adapter.stream_generate(
+                messages=[{"role": "user", "content": "Hi"}],
+                system_prompt="You are helpful.",
+                model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                # No guardrail params
+            ):
+                chunks.append(chunk)
+
+            # Verify guardrail params were NOT passed
+            assert "guardrailIdentifier" not in captured_kwargs
+            assert "guardrailVersion" not in captured_kwargs
