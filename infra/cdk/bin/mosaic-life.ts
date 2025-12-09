@@ -14,9 +14,6 @@ const env = {
   region: process.env.CDK_DEFAULT_REGION || 'us-east-1',
 };
 
-// Get environment from context (default to 'prod')
-const environment = app.node.tryGetContext('environment') || 'prod';
-
 // Domain configuration
 const domainName = 'mosaiclife.me';
 // Use existing hosted zone from MosaicDnsCertificateStack
@@ -25,7 +22,11 @@ const hostedZoneId = process.env.HOSTED_ZONE_ID || 'Z039487930F6987CJO4W9';
 // Use existing VPC from MosaicLifeInfrastructureStack
 const vpcId = process.env.VPC_ID || 'vpc-0cda4cc7432deca33';
 
-// Full application stack (Cognito, S3, ECR, etc.)
+// MosaicLifeStack is always the production stack
+// Staging-specific resources are in MosaicStagingResourcesStack
+const prodEnvironment = 'prod';
+
+// Full application stack (Cognito, S3, ECR, etc.) - ALWAYS production
 const appStack = new MosaicLifeStack(app, 'MosaicLifeStack', {
   env,
   config: {
@@ -35,10 +36,10 @@ const appStack = new MosaicLifeStack(app, 'MosaicLifeStack', {
     existingUserPoolId: 'us-east-1_JLppKC09m',
     existingEcrRepos: true,
     existingS3Buckets: true,
-    environment,
+    environment: prodEnvironment,
     tags: {
       Project: 'MosaicLife',
-      Environment: environment,
+      Environment: prodEnvironment,
       ManagedBy: 'CDK',
       Component: 'Application',
     },
@@ -49,7 +50,7 @@ const appStack = new MosaicLifeStack(app, 'MosaicLifeStack', {
 new DatabaseStack(app, 'MosaicDatabaseStack', {
   env,
   vpc: appStack.vpc,
-  environment,
+  environment: prodEnvironment,
 });
 
 // Staging Resources Stack - S3 buckets, IAM roles, secrets for staging
