@@ -18,7 +18,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-deploy-role-033691785857-us-east-1",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::033691785857:role/cdk-hnb659fds-cfn-exec-role-033691785857-us-east-1",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/2b4534d3984e89ee1040973416577295a2dd409ed0813ecaccbd199412fab274.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-033691785857-us-east-1/bd3c7f83636bf3c9113a17d9ca393b0d2b46d9fc5912bbd3378b81f4fd77fcaf.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -438,6 +438,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "coreApiRepositoryUri"
+          }
+        ],
+        "/MosaicLifeStack/docsRepositoryUri": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "docsRepositoryUri"
           }
         ],
         "/MosaicLifeStack/CDKMetadata/Default": [

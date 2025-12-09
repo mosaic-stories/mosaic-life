@@ -638,6 +638,24 @@
    "Export": {
     "Name": "mosaic-prod-ecr-coreApi"
    }
+  },
+  "docsRepositoryUri": {
+   "Description": "ECR repository URI for docs",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "033691785857.dkr.ecr.us-east-1.",
+      {
+       "Ref": "AWS::URLSuffix"
+      },
+      "/mosaic-life/docs"
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "mosaic-prod-ecr-docs"
+   }
   }
  },
  "Parameters": {
