@@ -113,3 +113,6 @@ infra/cdk/lib/*.js
 infra/cdk/lib/*.d.ts
 infra/cdk/bin/*.js
 infra/cdk/bin/*.d.ts
+
+# CDK Synthesized Output (regenerated on cdk synth)
+infra/cdk/cdk.out/
