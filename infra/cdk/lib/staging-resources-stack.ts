@@ -7,6 +7,7 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as sns_subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import { Construct } from 'constructs';
+import { AIChatGuardrail } from './guardrail-construct';
 
 export interface StagingResourcesStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
@@ -259,6 +260,27 @@ export class StagingResourcesStack extends cdk.Stack {
       })
     );
 
+    // ============================================================
+    // Bedrock Guardrail for AI Chat (Staging)
+    // ============================================================
+    const aiGuardrail = new AIChatGuardrail(this, 'AIChatGuardrail', {
+      environment,
+    });
+
+    // Grant permission to apply the staging guardrail
+    this.coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowBedrockGuardrail',
+        effect: iam.Effect.ALLOW,
+        actions: ['bedrock:ApplyGuardrail'],
+        resources: [aiGuardrail.guardrailArn],
+      })
+    );
+
+    // Store guardrail info for outputs
+    const guardrailId = aiGuardrail.guardrailId;
+    const guardrailVersion = aiGuardrail.guardrailVersion;
+
     cdk.Tags.of(this.coreApiRole).add('Environment', environment);
     cdk.Tags.of(this.coreApiRole).add('Component', 'IAM');
 
@@ -293,6 +315,18 @@ export class StagingResourcesStack extends cdk.Stack {
       value: domainEventsTopic.topicArn,
       description: 'SNS topic for staging domain events',
       exportName: `mosaic-${environment}-domain-events-topic`,
+    });
+
+    new cdk.CfnOutput(this, 'AIGuardrailId', {
+      value: guardrailId,
+      description: 'Bedrock Guardrail ID for AI chat',
+      exportName: `mosaic-${environment}-ai-guardrail-id`,
+    });
+
+    new cdk.CfnOutput(this, 'AIGuardrailVersion', {
+      value: guardrailVersion,
+      description: 'Bedrock Guardrail Version for AI chat',
+      exportName: `mosaic-${environment}-ai-guardrail-version`,
     });
   }
 }
