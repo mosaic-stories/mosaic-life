@@ -107,6 +107,8 @@ jobs:
   update-gitops:
     name: Update GitOps with Guardrail Config
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     needs: cdk-deploy
     # Only run if guardrail outputs exist
     if: needs.cdk-deploy.outputs.guardrail-id != ''
