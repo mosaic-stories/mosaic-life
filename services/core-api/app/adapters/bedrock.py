@@ -67,6 +67,8 @@ class BedrockAdapter:
         system_prompt: str,
         model_id: str,
         max_tokens: int = 1024,
+        guardrail_id: str | None = None,
+        guardrail_version: str | None = None,
     ) -> AsyncGenerator[str, None]:
         """Stream generate a response from Bedrock.
 
@@ -75,6 +77,8 @@ class BedrockAdapter:
             system_prompt: System prompt for the model.
             model_id: Bedrock model identifier.
             max_tokens: Maximum tokens to generate.
+            guardrail_id: Optional Bedrock Guardrail ID.
+            guardrail_version: Optional Bedrock Guardrail version.
 
         Yields:
             Content chunks as they arrive.
@@ -108,11 +112,28 @@ class BedrockAdapter:
             try:
                 async with self._get_client() as client:
                     logger.info("bedrock.calling_api", extra={"model_id": model_id})
+
+                    invoke_params = {
+                        "modelId": model_id,
+                        "contentType": "application/json",
+                        "accept": "application/json",
+                        "body": json.dumps(request_body),
+                    }
+
+                    # Add guardrail if configured
+                    if guardrail_id and guardrail_version:
+                        invoke_params["guardrailIdentifier"] = guardrail_id
+                        invoke_params["guardrailVersion"] = guardrail_version
+                        logger.info(
+                            "bedrock.using_guardrail",
+                            extra={
+                                "guardrail_id": guardrail_id,
+                                "guardrail_version": guardrail_version,
+                            },
+                        )
+
                     response = await client.invoke_model_with_response_stream(
-                        modelId=model_id,
-                        contentType="application/json",
-                        accept="application/json",
-                        body=json.dumps(request_body),
+                        **invoke_params
                     )
                     logger.info(
                         "bedrock.got_response",
@@ -162,7 +183,28 @@ class BedrockAdapter:
                             usage = chunk["metadata"].get("usage", {})
                             total_tokens = usage.get("outputTokens", 0)
 
+                        # Handle guardrail intervention
+                        elif chunk_type == "amazon-bedrock-guardrailAction":
+                            action = chunk.get("action")
+                            if action == "INTERVENED":
+                                logger.warning(
+                                    "bedrock.guardrail_intervened",
+                                    extra={
+                                        "guardrail_id": guardrail_id,
+                                        "chunk_count": chunk_count,
+                                    },
+                                )
+                                span.set_attribute("guardrail_intervened", True)
+                                raise BedrockError(
+                                    "Your message was filtered for safety. Please rephrase.",
+                                    retryable=False,
+                                )
+
                     span.set_attribute("output_tokens", total_tokens)
+
+            except BedrockError:
+                # Re-raise BedrockError (e.g., from guardrail intervention)
+                raise
 
             except ClientError as e:
                 error_code = e.response.get("Error", {}).get("Code", "")

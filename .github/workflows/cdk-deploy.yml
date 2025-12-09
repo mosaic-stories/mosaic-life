@@ -1,0 +1,184 @@
+name: CDK Deploy
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'infra/cdk/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy (staging or prod)'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - prod
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  cdk-deploy:
+    name: Deploy CDK Stack
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # For OIDC
+      contents: read
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      guardrail-id: ${{ steps.outputs.outputs.guardrail-id }}
+      guardrail-version: ${{ steps.outputs.outputs.guardrail-version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine environment
+        id: env
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            ENVIRONMENT="${{ github.event.inputs.environment }}"
+          elif [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            ENVIRONMENT="prod"
+          else
+            ENVIRONMENT="staging"
+          fi
+          echo "environment=${ENVIRONMENT}" >> $GITHUB_OUTPUT
+          echo "Deploying to: ${ENVIRONMENT}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: infra/cdk/package-lock.json
+
+      - name: Install CDK dependencies
+        run: |
+          cd infra/cdk
+          npm ci
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-cdk-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: CDK Synth
+        run: |
+          cd infra/cdk
+          npx cdk synth -c environment=${{ steps.env.outputs.environment }}
+
+      - name: CDK Deploy
+        run: |
+          cd infra/cdk
+          npx cdk deploy --all \
+            -c environment=${{ steps.env.outputs.environment }} \
+            --require-approval never \
+            --outputs-file cdk-outputs.json
+
+      - name: Extract CDK Outputs
+        id: outputs
+        run: |
+          cd infra/cdk
+
+          # Extract guardrail outputs from CDK outputs file
+          GUARDRAIL_ID=$(jq -r '.MosaicLifeStack.AIGuardrailId // empty' cdk-outputs.json)
+          GUARDRAIL_VERSION=$(jq -r '.MosaicLifeStack.AIGuardrailVersion // empty' cdk-outputs.json)
+
+          if [ -n "$GUARDRAIL_ID" ] && [ -n "$GUARDRAIL_VERSION" ]; then
+            echo "guardrail-id=${GUARDRAIL_ID}" >> $GITHUB_OUTPUT
+            echo "guardrail-version=${GUARDRAIL_VERSION}" >> $GITHUB_OUTPUT
+            echo "Guardrail ID: ${GUARDRAIL_ID}"
+            echo "Guardrail Version: ${GUARDRAIL_VERSION}"
+          else
+            echo "No guardrail outputs found (this is OK if guardrails are not configured)"
+            echo "guardrail-id=" >> $GITHUB_OUTPUT
+            echo "guardrail-version=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Upload CDK Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: cdk-outputs-${{ steps.env.outputs.environment }}
+          path: infra/cdk/cdk-outputs.json
+
+  update-gitops:
+    name: Update GitOps with Guardrail Config
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    needs: cdk-deploy
+    # Only run if guardrail outputs exist
+    if: needs.cdk-deploy.outputs.guardrail-id != ''
+    steps:
+      - name: Checkout GitOps repo
+        uses: actions/checkout@v4
+        with:
+          repository: mosaic-stories/gitops
+          token: ${{ secrets.GITOPS_PAT }}
+          ref: main
+
+      - name: Install yq
+        run: |
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
+
+      - name: Update Guardrail environment variables
+        env:
+          ENVIRONMENT: ${{ needs.cdk-deploy.outputs.environment }}
+          GUARDRAIL_ID: ${{ needs.cdk-deploy.outputs.guardrail-id }}
+          GUARDRAIL_VERSION: ${{ needs.cdk-deploy.outputs.guardrail-version }}
+        run: |
+          VALUES_FILE="environments/${ENVIRONMENT}/values.yaml"
+
+          echo "Updating ${VALUES_FILE} with guardrail configuration:"
+          echo "  BEDROCK_GUARDRAIL_ID: ${GUARDRAIL_ID}"
+          echo "  BEDROCK_GUARDRAIL_VERSION: ${GUARDRAIL_VERSION}"
+
+          # Check if BEDROCK_GUARDRAIL_ID already exists in coreApi.env
+          if yq eval '.coreApi.env[] | select(.name == "BEDROCK_GUARDRAIL_ID")' "${VALUES_FILE}" | grep -q "BEDROCK_GUARDRAIL_ID"; then
+            # Update existing entries
+            yq eval --inplace '(.coreApi.env[] | select(.name == "BEDROCK_GUARDRAIL_ID")).value = env(GUARDRAIL_ID)' "${VALUES_FILE}"
+            yq eval --inplace '(.coreApi.env[] | select(.name == "BEDROCK_GUARDRAIL_VERSION")).value = env(GUARDRAIL_VERSION)' "${VALUES_FILE}"
+            echo "Updated existing guardrail env vars"
+          else
+            # Add new entries to coreApi.env array
+            yq eval --inplace '.coreApi.env += [{"name": "BEDROCK_GUARDRAIL_ID", "value": env(GUARDRAIL_ID)}]' "${VALUES_FILE}"
+            yq eval --inplace '.coreApi.env += [{"name": "BEDROCK_GUARDRAIL_VERSION", "value": env(GUARDRAIL_VERSION)}]' "${VALUES_FILE}"
+            echo "Added new guardrail env vars"
+          fi
+
+          echo ""
+          echo "Updated coreApi.env section:"
+          yq eval '.coreApi.env' "${VALUES_FILE}"
+
+      - name: Commit and push changes
+        env:
+          ENVIRONMENT: ${{ needs.cdk-deploy.outputs.environment }}
+          GUARDRAIL_ID: ${{ needs.cdk-deploy.outputs.guardrail-id }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add environments/${ENVIRONMENT}/values.yaml
+
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "deploy(${ENVIRONMENT}): update Bedrock guardrail config" \
+            -m "Guardrail ID: ${GUARDRAIL_ID}" \
+            -m "" \
+            -m "Triggered by: ${{ github.event_name }}" \
+            -m "Branch: ${{ github.ref_name }}" \
+            -m "Commit: ${{ github.sha }}" \
+            -m "Actor: ${{ github.actor }}"
+
+          git push origin main
+
+          echo ""
+          echo "GitOps repository updated successfully"
+          echo "ArgoCD will automatically sync the ${ENVIRONMENT} environment"

@@ -33,6 +33,8 @@ jobs:
       s3-media-bucket: ${{ steps.vars.outputs.s3-media-bucket }}
       s3-backup-bucket: ${{ steps.vars.outputs.s3-backup-bucket }}
       iam-role-arn: ${{ steps.vars.outputs.iam-role-arn }}
+      guardrail-id: ${{ steps.guardrail.outputs.guardrail-id }}
+      guardrail-version: ${{ steps.guardrail.outputs.guardrail-version }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,6 +78,32 @@ jobs:
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Get Guardrail config from CloudFormation
+        id: guardrail
+        env:
+          TARGET_ENV: ${{ steps.vars.outputs.target-env }}
+        run: |
+          # Fetch guardrail outputs from CDK stack
+          GUARDRAIL_ID=$(aws cloudformation describe-stacks \
+            --stack-name MosaicLifeStack \
+            --query "Stacks[0].Outputs[?OutputKey=='AIGuardrailId'].OutputValue" \
+            --output text 2>/dev/null || echo "")
+
+          GUARDRAIL_VERSION=$(aws cloudformation describe-stacks \
+            --stack-name MosaicLifeStack \
+            --query "Stacks[0].Outputs[?OutputKey=='AIGuardrailVersion'].OutputValue" \
+            --output text 2>/dev/null || echo "")
+
+          if [ -n "$GUARDRAIL_ID" ] && [ "$GUARDRAIL_ID" != "None" ]; then
+            echo "guardrail-id=${GUARDRAIL_ID}" >> $GITHUB_OUTPUT
+            echo "guardrail-version=${GUARDRAIL_VERSION}" >> $GITHUB_OUTPUT
+            echo "Found guardrail config: ID=${GUARDRAIL_ID}, Version=${GUARDRAIL_VERSION}"
+          else
+            echo "guardrail-id=" >> $GITHUB_OUTPUT
+            echo "guardrail-version=" >> $GITHUB_OUTPUT
+            echo "No guardrail config found (this is OK if guardrails are not deployed yet)"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -158,6 +186,8 @@ jobs:
           S3_MEDIA_BUCKET: ${{ needs.build-preview-images.outputs.s3-media-bucket }}
           S3_BACKUP_BUCKET: ${{ needs.build-preview-images.outputs.s3-backup-bucket }}
           IAM_ROLE_ARN: ${{ needs.build-preview-images.outputs.iam-role-arn }}
+          GUARDRAIL_ID: ${{ needs.build-preview-images.outputs.guardrail-id }}
+          GUARDRAIL_VERSION: ${{ needs.build-preview-images.outputs.guardrail-version }}
         run: |
           helm upgrade --install mosaic-life-pr-${PR_NUMBER} \
             ./infra/helm/mosaic-life \
@@ -198,6 +228,10 @@ jobs:
             --set "coreApi.extraEnv[5].value=${S3_MEDIA_BUCKET}" \
             --set "coreApi.extraEnv[6].name=S3_BACKUP_BUCKET" \
             --set "coreApi.extraEnv[6].value=${S3_BACKUP_BUCKET}" \
+            ${GUARDRAIL_ID:+--set "coreApi.extraEnv[7].name=BEDROCK_GUARDRAIL_ID"} \
+            ${GUARDRAIL_ID:+--set "coreApi.extraEnv[7].value=${GUARDRAIL_ID}"} \
+            ${GUARDRAIL_VERSION:+--set "coreApi.extraEnv[8].name=BEDROCK_GUARDRAIL_VERSION"} \
+            ${GUARDRAIL_VERSION:+--set "coreApi.extraEnv[8].value=${GUARDRAIL_VERSION}"} \
             --wait \
             --timeout 5m
 

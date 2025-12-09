@@ -11,6 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..adapters.bedrock import BedrockError, get_bedrock_adapter
+from ..config.settings import get_settings
 from ..auth.middleware import require_auth
 from ..config.personas import build_system_prompt, get_persona, get_personas
 from ..database import get_db
@@ -224,11 +225,14 @@ async def send_message(
             token_count: int | None = None
 
             try:
+                settings = get_settings()
                 async for chunk in adapter.stream_generate(
                     messages=context,
                     system_prompt=system_prompt,
                     model_id=persona.model_id,
                     max_tokens=persona.max_tokens,
+                    guardrail_id=settings.bedrock_guardrail_id,
+                    guardrail_version=settings.bedrock_guardrail_version,
                 ):
                     full_response += chunk
                     event = SSEChunkEvent(content=chunk)

@@ -11,6 +11,7 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
+import { AIChatGuardrail } from './guardrail-construct';
 
 export interface MosaicLifeStackProps extends cdk.StackProps {
   config: {
@@ -558,6 +559,23 @@ export class MosaicLifeStack extends cdk.Stack {
     );
 
     // ============================================================
+    // Bedrock Guardrail for AI Chat
+    // ============================================================
+    const aiGuardrail = new AIChatGuardrail(this, 'AIChatGuardrail', {
+      environment,
+    });
+
+    // Grant permission to apply guardrail
+    coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowBedrockGuardrail',
+        effect: iam.Effect.ALLOW,
+        actions: ['bedrock:ApplyGuardrail'],
+        resources: [aiGuardrail.guardrailArn],
+      })
+    );
+
+    // ============================================================
     // Outputs
     // ============================================================
     new cdk.CfnOutput(this, 'VpcId', {
@@ -612,6 +630,18 @@ export class MosaicLifeStack extends cdk.Stack {
         description: `ECR repository URI for ${name}`,
         exportName: `mosaic-${environment}-ecr-${name}`,
       });
+    });
+
+    new cdk.CfnOutput(this, 'AIGuardrailId', {
+      value: aiGuardrail.guardrailId,
+      description: 'Bedrock Guardrail ID for AI chat',
+      exportName: `mosaic-${environment}-ai-guardrail-id`,
+    });
+
+    new cdk.CfnOutput(this, 'AIGuardrailVersion', {
+      value: aiGuardrail.guardrailVersion,
+      description: 'Bedrock Guardrail Version for AI chat',
+      exportName: `mosaic-${environment}-ai-guardrail-version`,
     });
   }
 
