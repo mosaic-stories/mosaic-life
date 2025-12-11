@@ -45,6 +45,10 @@ class Settings(BaseModel):
     ses_from_email: str | None = os.getenv("SES_FROM_EMAIL")
     ses_region: str = os.getenv("SES_REGION", "us-east-1")
 
+    # Bedrock Guardrails (optional - disabled if not set)
+    bedrock_guardrail_id: str | None = os.getenv("BEDROCK_GUARDRAIL_ID")
+    bedrock_guardrail_version: str | None = os.getenv("BEDROCK_GUARDRAIL_VERSION")
+
     # Storage Configuration
     storage_backend: str = os.getenv("STORAGE_BACKEND", "local")
     local_media_path: str = os.getenv("LOCAL_MEDIA_PATH", "/app/media")

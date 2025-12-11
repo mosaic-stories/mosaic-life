@@ -11,6 +11,7 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
+import { AIChatGuardrail } from './guardrail-construct';
 
 export interface MosaicLifeStackProps extends cdk.StackProps {
   config: {
@@ -457,12 +458,14 @@ export class MosaicLifeStack extends cdk.Stack {
       this.repositories = {
         web: ecr.Repository.fromRepositoryName(this, 'webRepository', 'mosaic-life/web'),
         coreApi: ecr.Repository.fromRepositoryName(this, 'coreApiRepository', 'mosaic-life/core-api'),
+        docs: ecr.Repository.fromRepositoryName(this, 'docsRepository', 'mosaic-life/docs'),
       };
     } else {
       // Create new ECR repositories
       this.repositories = {
         web: this.createEcrRepository('web', 'Frontend web application'),
         coreApi: this.createEcrRepository('core-api', 'Core backend API'),
+        docs: this.createEcrRepository('docs', 'Documentation site'),
       };
     }
 
@@ -556,6 +559,23 @@ export class MosaicLifeStack extends cdk.Stack {
     );
 
     // ============================================================
+    // Bedrock Guardrail for AI Chat
+    // ============================================================
+    const aiGuardrail = new AIChatGuardrail(this, 'AIChatGuardrail', {
+      environment,
+    });
+
+    // Grant permission to apply guardrail
+    coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowBedrockGuardrail',
+        effect: iam.Effect.ALLOW,
+        actions: ['bedrock:ApplyGuardrail'],
+        resources: [aiGuardrail.guardrailArn],
+      })
+    );
+
+    // ============================================================
     // Outputs
     // ============================================================
     new cdk.CfnOutput(this, 'VpcId', {
@@ -611,6 +631,18 @@ export class MosaicLifeStack extends cdk.Stack {
         exportName: `mosaic-${environment}-ecr-${name}`,
       });
     });
+
+    new cdk.CfnOutput(this, 'AIGuardrailId', {
+      value: aiGuardrail.guardrailId,
+      description: 'Bedrock Guardrail ID for AI chat',
+      exportName: `mosaic-${environment}-ai-guardrail-id`,
+    });
+
+    new cdk.CfnOutput(this, 'AIGuardrailVersion', {
+      value: aiGuardrail.guardrailVersion,
+      description: 'Bedrock Guardrail Version for AI chat',
+      exportName: `mosaic-${environment}-ai-guardrail-version`,
+    });
   }
 
   private createEcrRepository(name: string, description: string): ecr.Repository {
@@ -621,9 +653,43 @@ export class MosaicLifeStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       lifecycleRules: [
         {
-          description: 'Keep last 10 images',
-          maxImageCount: 10,
+          description: 'Keep last 5 production images (prod-* tags)',
+          maxImageCount: 5,
           rulePriority: 1,
+          tagStatus: ecr.TagStatus.TAGGED,
+          tagPrefixList: ['prod-'],
+        },
+        {
+          description: 'Keep last 3 staging images (staging-* tags)',
+          maxImageCount: 3,
+          rulePriority: 2,
+          tagStatus: ecr.TagStatus.TAGGED,
+          tagPrefixList: ['staging-'],
+        },
+        {
+          description: 'Expire PR images after 7 days (pr-* tags)',
+          maxImageAge: cdk.Duration.days(7),
+          rulePriority: 3,
+          tagStatus: ecr.TagStatus.TAGGED,
+          tagPrefixList: ['pr-'],
+        },
+        {
+          description: 'Expire feature images after 7 days (feature-* tags)',
+          maxImageAge: cdk.Duration.days(7),
+          rulePriority: 4,
+          tagStatus: ecr.TagStatus.TAGGED,
+          tagPrefixList: ['feature-'],
+        },
+        {
+          description: 'Keep last 10 untagged images (signatures/cache)',
+          maxImageCount: 10,
+          rulePriority: 5,
+          tagStatus: ecr.TagStatus.UNTAGGED,
+        },
+        {
+          description: 'Keep last 20 remaining images (branch names, semver, latest)',
+          maxImageCount: 20,
+          rulePriority: 6,
           tagStatus: ecr.TagStatus.ANY,
         },
       ],
