@@ -85,15 +85,38 @@ async def create_conversation(
     )
 
 
+@router.post(
+    "/conversations/new",
+    response_model=ConversationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create new conversation",
+    description="Always creates a new conversation, even if one exists for this legacy/persona.",
+)
+async def create_new_conversation(
+    data: ConversationCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> ConversationResponse:
+    """Create a new conversation (always new, never returns existing)."""
+    session = require_auth(request)
+    return await ai_service.create_conversation(
+        db=db,
+        user_id=session.user_id,
+        data=data,
+    )
+
+
 @router.get(
     "/conversations",
     response_model=list[ConversationSummary],
     summary="List conversations",
-    description="List user's AI conversations, optionally filtered by legacy.",
+    description="List user's AI conversations, optionally filtered by legacy and persona.",
 )
 async def list_conversations(
     request: Request,
     legacy_id: UUID | None = Query(None, description="Filter by legacy"),
+    persona_id: str | None = Query(None, description="Filter by persona"),
+    limit: int = Query(10, ge=1, le=50, description="Maximum conversations to return"),
     db: AsyncSession = Depends(get_db),
 ) -> list[ConversationSummary]:
     """List user's conversations."""
@@ -102,6 +125,8 @@ async def list_conversations(
         db=db,
         user_id=session.user_id,
         legacy_id=legacy_id,
+        persona_id=persona_id,
+        limit=limit,
     )
 
 
@@ -207,13 +232,14 @@ async def send_message(
                 detail="Failed to build system prompt",
             )
 
-        # Save user message
-        await ai_service.save_message(
+        # Save user message BEFORE streaming starts and capture its ID
+        user_message = await ai_service.save_message(
             db=db,
             conversation_id=conversation_id,
             role="user",
             content=data.content,
         )
+        user_message_id = user_message.id
 
         # Get context messages
         context = await ai_service.get_context_messages(db, conversation_id)
@@ -272,6 +298,11 @@ async def send_message(
                         "retryable": e.retryable,
                     },
                 )
+
+                # Mark user message as blocked if guardrail intervened
+                if "filtered for safety" in e.message:
+                    await ai_service.mark_message_blocked(db, user_message_id)
+
                 error_event = SSEErrorEvent(
                     message=e.message,
                     retryable=e.retryable,

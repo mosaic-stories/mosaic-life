@@ -86,6 +86,10 @@ class MessageResponse(BaseModel):
     content: str
     token_count: int | None
     created_at: datetime
+    blocked: bool = Field(
+        default=False,
+        description="Whether message was blocked by guardrail",
+    )
 
     model_config = {"from_attributes": True}
 

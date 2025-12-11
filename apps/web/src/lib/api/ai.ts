@@ -42,6 +42,7 @@ export interface Message {
   content: string;
   token_count: number | null;
   created_at: string;
+  blocked: boolean;
 }
 
 export interface MessageListResponse {
@@ -100,13 +101,30 @@ export async function createConversation(
 }
 
 /**
+ * Create a new conversation (always creates new, never returns existing).
+ */
+export async function createNewConversation(
+  data: CreateConversationInput
+): Promise<Conversation> {
+  return apiPost<Conversation>('/api/ai/conversations/new', data);
+}
+
+/**
  * List user's conversations.
  */
 export async function listConversations(
-  legacyId?: string
+  legacyId?: string,
+  personaId?: string,
+  limit: number = 10
 ): Promise<ConversationSummary[]> {
-  const params = legacyId ? `?legacy_id=${legacyId}` : '';
-  return apiGet<ConversationSummary[]>(`/api/ai/conversations${params}`);
+  const params = new URLSearchParams();
+  if (legacyId) params.append('legacy_id', legacyId);
+  if (personaId) params.append('persona_id', personaId);
+  params.append('limit', String(limit));
+  const queryString = params.toString();
+  return apiGet<ConversationSummary[]>(
+    `/api/ai/conversations${queryString ? `?${queryString}` : ''}`
+  );
 }
 
 /**

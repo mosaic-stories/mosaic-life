@@ -10,17 +10,24 @@ import {
   Loader2,
   RefreshCw,
   AlertCircle,
+  Plus,
+  History,
+  ShieldAlert,
+  Trash2,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
-import { useAIChat, usePersonas } from '@/hooks/useAIChat';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { useAIChat, usePersonas, useConversationList, useDeleteConversation } from '@/hooks/useAIChat';
+import { cn } from './ui/utils';
 import type { Persona } from '@/lib/api/ai';
 import type { ChatMessage } from '@/stores/aiChatStore';
 import { legacies } from '../lib/mockData';
 import ThemeSelector from './ThemeSelector';
+import { usePrevious } from '@/hooks/usePrevious';
 
 interface AIAgentChatProps {
   onNavigate: (view: string) => void;
@@ -46,7 +53,10 @@ export default function AIAgentChat({
 
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>('biographer');
   const [inputMessage, setInputMessage] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Fetch personas from API
   const {
@@ -61,6 +71,12 @@ export default function AIAgentChat({
     [allPersonas]
   );
 
+  // Fetch conversation list for selected persona
+  const { data: conversationList } = useConversationList(legacyId, selectedPersonaId);
+
+  // Delete conversation mutation
+  const deleteConversationMutation = useDeleteConversation(legacyId, selectedPersonaId);
+
   // Use the AI chat hook
   const {
     messages,
@@ -70,9 +86,11 @@ export default function AIAgentChat({
     sendMessage,
     retryLastMessage,
     clearError,
+    startNewConversation,
   } = useAIChat({
     legacyId,
     personaId: selectedPersonaId,
+    conversationId: selectedConversationId,
   });
 
   // Get legacy info (still using mock for now until legacy API is integrated)
@@ -85,6 +103,24 @@ export default function AIAgentChat({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Restore focus to input when streaming completes
+  const wasStreaming = usePrevious(isStreaming);
+  useEffect(() => {
+    if (wasStreaming && !isStreaming && !isLoading) {
+      // Streaming just finished, refocus the input after the browser paints
+      // Use requestAnimationFrame to wait for React's re-render, then setTimeout
+      // to ensure the disabled attribute has been removed
+      const rafId = requestAnimationFrame(() => {
+        setTimeout(() => {
+          if (inputRef.current && !inputRef.current.disabled) {
+            inputRef.current.focus();
+          }
+        }, 0);
+      });
+      return () => cancelAnimationFrame(rafId);
+    }
+  }, [isStreaming, isLoading, wasStreaming]);
 
   // Set initial persona when personas load
   useEffect(() => {
@@ -138,11 +174,54 @@ export default function AIAgentChat({
     }
   };
 
+  const handleNewChat = async () => {
+    try {
+      const newConversationId = await startNewConversation();
+      setSelectedConversationId(newConversationId);
+    } catch (err) {
+      console.error('Failed to start new conversation:', err);
+    }
+  };
+
+  const handleDeleteConversation = async (conversationId: string, e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent selecting the conversation when clicking delete
+
+    try {
+      await deleteConversationMutation.mutateAsync(conversationId);
+      // If we deleted the currently selected conversation, clear the selection
+      if (selectedConversationId === conversationId) {
+        setSelectedConversationId(null);
+      }
+    } catch (err) {
+      console.error('Failed to delete conversation:', err);
+    }
+  };
+
   const formatTimestamp = (isoString: string) => {
     return new Date(isoString).toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit',
     });
+  };
+
+  const formatDate = (isoString: string) => {
+    return new Date(isoString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    });
+  };
+
+  const formatRelativeTime = (isoString: string | null) => {
+    if (!isoString) return 'No messages';
+    const date = new Date(isoString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
   };
 
   const renderMessage = (message: ChatMessage) => {
@@ -180,6 +259,12 @@ export default function AIAgentChat({
                 <span className="inline-block w-2 h-4 ml-1 bg-amber-500 animate-pulse" />
               )}
             </p>
+            {message.blocked && (
+              <Badge variant="outline" className="text-xs text-red-500 border-red-200 mt-1">
+                <ShieldAlert className="size-3 mr-1" />
+                Excluded from context
+              </Badge>
+            )}
             {hasError && message.error && (
               <div className="mt-2 pt-2 border-t border-red-200">
                 <div className="flex items-center gap-2 text-red-600 text-sm">
@@ -346,11 +431,79 @@ export default function AIAgentChat({
                 <p className="text-sm text-neutral-500">{selectedPersona?.description}</p>
               </div>
               {isStreaming && (
-                <Badge variant="outline" className="ml-auto bg-amber-50 text-amber-700 border-amber-200">
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
                   <Loader2 className="size-3 mr-1 animate-spin" />
                   Thinking...
                 </Badge>
               )}
+              <div className="flex items-center gap-2 ml-auto">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNewChat}
+                  disabled={isStreaming}
+                >
+                  <Plus className="size-4 mr-1" />
+                  New Chat
+                </Button>
+
+                <Popover open={showHistory} onOpenChange={setShowHistory}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <History className="size-4 mr-1" />
+                      History
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80" align="end">
+                    <div className="space-y-2">
+                      <h4 className="font-medium">Recent Conversations</h4>
+                      {conversationList?.length === 0 && (
+                        <p className="text-sm text-neutral-500">No previous conversations</p>
+                      )}
+                      {conversationList?.map((conv) => (
+                        <div
+                          key={conv.id}
+                          className={cn(
+                            "flex items-center gap-2 p-2 rounded hover:bg-neutral-100 group",
+                            selectedConversationId === conv.id && "bg-amber-50"
+                          )}
+                        >
+                          <button
+                            onClick={() => {
+                              setSelectedConversationId(conv.id);
+                              setShowHistory(false);
+                            }}
+                            className="flex-1 text-left min-w-0"
+                          >
+                            <p className="text-sm font-medium truncate">
+                              {conv.title || `Chat from ${formatDate(conv.created_at)}`}
+                            </p>
+                            <p className="text-xs text-neutral-500">
+                              {conv.message_count} messages · {formatRelativeTime(conv.last_message_at)}
+                            </p>
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteConversation(conv.id, e)}
+                            disabled={deleteConversationMutation.isPending}
+                            className={cn(
+                              "p-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity",
+                              "text-neutral-400 hover:text-red-600 hover:bg-red-50",
+                              "disabled:opacity-50 disabled:cursor-not-allowed"
+                            )}
+                            title="Delete conversation"
+                          >
+                            {deleteConversationMutation.isPending ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="size-4" />
+                            )}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
           </div>
 
@@ -391,6 +544,7 @@ export default function AIAgentChat({
           <div className="bg-white border-t px-6 py-4">
             <div className="flex gap-3">
               <Input
+                ref={inputRef}
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 onKeyPress={handleKeyPress}

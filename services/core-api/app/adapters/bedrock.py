@@ -14,6 +14,41 @@ logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.bedrock")
 
 
+def _extract_triggered_filters(guardrail_trace: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract list of triggered filters from guardrail trace data.
+
+    Args:
+        guardrail_trace: Guardrail trace data from Bedrock response.
+
+    Returns:
+        List of triggered filters with type, confidence, and other details.
+    """
+    triggered_filters = []
+    input_assessment = guardrail_trace.get("input", {})
+
+    for assessment in input_assessment.values():
+        if "contentPolicy" in assessment:
+            for f in assessment["contentPolicy"].get("filters", []):
+                if f.get("action") == "BLOCKED":
+                    triggered_filters.append(
+                        {
+                            "type": f.get("type"),
+                            "confidence": f.get("confidence"),
+                        }
+                    )
+        if "topicPolicy" in assessment:
+            for t in assessment["topicPolicy"].get("topics", []):
+                if t.get("action") == "BLOCKED":
+                    triggered_filters.append(
+                        {
+                            "type": "TOPIC",
+                            "name": t.get("name"),
+                        }
+                    )
+
+    return triggered_filters
+
+
 class BedrockError(Exception):
     """Exception raised for Bedrock API errors."""
 
@@ -124,6 +159,9 @@ class BedrockAdapter:
                     if guardrail_id and guardrail_version:
                         invoke_params["guardrailIdentifier"] = guardrail_id
                         invoke_params["guardrailVersion"] = guardrail_version
+                        invoke_params["trace"] = (
+                            "ENABLED"  # Enable trace for guardrail details
+                        )
                         logger.info(
                             "bedrock.using_guardrail",
                             extra={
@@ -142,6 +180,7 @@ class BedrockAdapter:
 
                     total_tokens = 0
                     chunk_count = 0
+                    guardrail_trace_data: dict[str, Any] = {}  # Accumulate trace data
                     event_stream = response.get("body")
                     logger.info(
                         "bedrock.event_stream_type",
@@ -183,18 +222,47 @@ class BedrockAdapter:
                             usage = chunk["metadata"].get("usage", {})
                             total_tokens = usage.get("outputTokens", 0)
 
+                        # Handle guardrail trace data (may arrive before guardrailAction)
+                        elif chunk_type == "amazon-bedrock-trace":
+                            # Accumulate trace data - may arrive before guardrailAction
+                            trace_content = chunk.get("trace", {})
+                            if "guardrail" in trace_content:
+                                guardrail_trace_data = trace_content["guardrail"]
+                                logger.debug(
+                                    "bedrock.trace_received",
+                                    extra={"chunk_count": chunk_count},
+                                )
+
                         # Handle guardrail intervention
                         elif chunk_type == "amazon-bedrock-guardrailAction":
                             action = chunk.get("action")
                             if action == "INTERVENED":
+                                # Use accumulated trace data (trace may have arrived in previous chunk)
+                                # Also check if trace is embedded in this chunk (some API versions)
+                                if not guardrail_trace_data:
+                                    trace_data = chunk.get("amazon-bedrock-trace", {})
+                                    guardrail_trace_data = trace_data.get(
+                                        "guardrail", {}
+                                    )
+
+                                # Extract which filters triggered
+                                triggered_filters = _extract_triggered_filters(
+                                    guardrail_trace_data
+                                )
+
                                 logger.warning(
                                     "bedrock.guardrail_intervened",
                                     extra={
                                         "guardrail_id": guardrail_id,
                                         "chunk_count": chunk_count,
+                                        "triggered_filters": triggered_filters,
+                                        "trace": guardrail_trace_data,
                                     },
                                 )
                                 span.set_attribute("guardrail_intervened", True)
+                                span.set_attribute(
+                                    "guardrail_filters", str(triggered_filters)
+                                )
                                 raise BedrockError(
                                     "Your message was filtered for safety. Please rephrase.",
                                     retryable=False,

@@ -4,11 +4,14 @@
  */
 
 import { useCallback, useEffect, useRef } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import {
   createConversation,
+  createNewConversation,
+  deleteConversation,
   getMessages,
   getPersonas,
+  listConversations,
   streamMessage,
 } from '@/lib/api/ai';
 import { useAIChatStore, type ChatMessage } from '@/stores/aiChatStore';
@@ -21,11 +24,14 @@ export const aiChatKeys = {
   conversation: (id: string) => [...aiChatKeys.conversations(), id] as const,
   messages: (conversationId: string) =>
     [...aiChatKeys.conversation(conversationId), 'messages'] as const,
+  conversationList: (legacyId: string, personaId: string) =>
+    [...aiChatKeys.all, 'list', legacyId, personaId] as const,
 };
 
 interface UseAIChatOptions {
   legacyId: string;
   personaId: string;
+  conversationId?: string | null;
 }
 
 interface UseAIChatReturn {
@@ -40,6 +46,7 @@ interface UseAIChatReturn {
   sendMessage: (content: string) => Promise<void>;
   retryLastMessage: () => Promise<void>;
   clearError: () => void;
+  startNewConversation: () => Promise<string>;
 }
 
 /**
@@ -54,12 +61,51 @@ export function usePersonas() {
 }
 
 /**
+ * Hook for conversation list.
+ */
+export function useConversationList(legacyId: string, personaId: string) {
+  return useQuery({
+    queryKey: aiChatKeys.conversationList(legacyId, personaId),
+    queryFn: () => listConversations(legacyId, personaId, 10),
+    staleTime: 1000 * 30, // 30 seconds
+  });
+}
+
+/**
+ * Hook for deleting a conversation.
+ */
+export function useDeleteConversation(legacyId: string, personaId: string) {
+  const queryClient = useQueryClient();
+  const { clearConversation, activeConversationId, setActiveConversation } = useAIChatStore();
+
+  return useMutation({
+    mutationFn: (conversationId: string) => deleteConversation(conversationId),
+    onSuccess: (_data, conversationId) => {
+      // Clear from Zustand store
+      clearConversation(conversationId);
+
+      // If the deleted conversation was active, clear the active conversation
+      if (activeConversationId === conversationId) {
+        setActiveConversation(null);
+      }
+
+      // Invalidate the conversation list to refresh UI
+      queryClient.invalidateQueries({
+        queryKey: aiChatKeys.conversationList(legacyId, personaId),
+      });
+    },
+  });
+}
+
+/**
  * Main hook for AI chat functionality.
  */
 export function useAIChat({
   legacyId,
   personaId,
+  conversationId,
 }: UseAIChatOptions): UseAIChatReturn {
+  const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
   const lastUserMessageRef = useRef<string | null>(null);
 
@@ -89,6 +135,27 @@ export function useAIChat({
     let mounted = true;
 
     async function initConversation() {
+      // If a specific conversationId is provided, load it directly
+      if (conversationId) {
+        setConversationLoading(conversationId, true);
+        setActiveConversation(conversationId);
+
+        try {
+          const { messages: existingMessages } = await getMessages(conversationId);
+          if (!mounted) return;
+
+          setMessages(conversationId, existingMessages);
+          setConversationLoading(conversationId, false);
+        } catch (err) {
+          if (!mounted) return;
+          console.error('Failed to load conversation:', err);
+          setError('Failed to load conversation. Please try again.');
+          setConversationLoading(conversationId, false);
+        }
+        return;
+      }
+
+      // Otherwise, use existing get_or_create behavior
       // Generate a stable key for this legacy/persona combination
       const key = `${legacyId}-${personaId}`;
 
@@ -129,7 +196,7 @@ export function useAIChat({
       // Cancel any in-flight stream
       abortControllerRef.current?.abort();
     };
-  }, [legacyId, personaId, setActiveConversation, setConversation, setMessages, setConversationLoading, setError]);
+  }, [legacyId, personaId, conversationId, setActiveConversation, setConversation, setMessages, setConversationLoading, setError]);
 
   // Send message
   const sendMessage = useCallback(
@@ -148,6 +215,7 @@ export function useAIChat({
         content,
         token_count: null,
         created_at: new Date().toISOString(),
+        blocked: false,
         status: 'complete',
       };
       addMessage(conversationId, userMessage);
@@ -160,6 +228,7 @@ export function useAIChat({
         content: '',
         token_count: null,
         created_at: new Date().toISOString(),
+        blocked: false,
         status: 'streaming',
       };
       addMessage(conversationId, assistantMessage);
@@ -222,6 +291,24 @@ export function useAIChat({
     setError(null);
   }, [setError]);
 
+  // Start new conversation
+  const startNewConversation = useCallback(async () => {
+    const conversation = await createNewConversation({
+      legacy_id: legacyId,
+      persona_id: personaId,
+    });
+    setConversation(conversation.id, conversation);
+    setActiveConversation(conversation.id);
+    // Clear messages for this new conversation
+    setMessages(conversation.id, []);
+    // Invalidate the conversation list to show the new conversation
+    queryClient.invalidateQueries({
+      queryKey: aiChatKeys.conversationList(legacyId, personaId),
+    });
+    // Return the new conversation ID so the component can update its state
+    return conversation.id;
+  }, [legacyId, personaId, setConversation, setActiveConversation, setMessages, queryClient]);
+
   return {
     messages,
     isLoading,
@@ -231,5 +318,6 @@ export function useAIChat({
     sendMessage,
     retryLastMessage,
     clearError,
+    startNewConversation,
   };
 }
