@@ -246,6 +246,10 @@ async def send_message(
 
         async def generate_stream() -> AsyncGenerator[str, None]:
             """Generate SSE stream."""
+            # Send an immediate ping to establish the stream and prevent proxy buffering
+            # This forces ALB/nginx to recognize this as a streaming response
+            yield ": ping\n\n"
+
             adapter = get_bedrock_adapter()
             full_response = ""
             token_count: int | None = None
