@@ -28,7 +28,7 @@ import { useAIChat, usePersonas, useConversationList, useDeleteConversation } fr
 import { cn } from './ui/utils';
 import type { Persona } from '@/lib/api/ai';
 import type { ChatMessage } from '@/stores/aiChatStore';
-import { legacies } from '../lib/mockData';
+import { useLegacy } from '@/lib/hooks/useLegacies';
 import ThemeSelector from './ThemeSelector';
 import { usePrevious } from '@/hooks/usePrevious';
 
@@ -97,8 +97,8 @@ export default function AIAgentChat({
     conversationId: selectedConversationId,
   });
 
-  // Get legacy info (still using mock for now until legacy API is integrated)
-  const legacy = legacies.find((l) => l.id === legacyId) || legacies[0];
+  // Get legacy info from the API
+  const { data: legacy } = useLegacy(legacyId);
 
   // Get selected persona
   const selectedPersona = personas.find((p) => p.id === selectedPersonaId);
@@ -346,7 +346,7 @@ export default function AIAgentChat({
               <ArrowLeft className="size-4 flex-shrink-0" />
               <span className="truncate">
                 <span className="hidden sm:inline">Back to </span>
-                {legacy.name}
+                {legacy?.name || 'Legacy'}
               </span>
             </button>
             <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">

@@ -4,7 +4,8 @@ import { ArrowLeft, BookOpen, Heart, Search, Sparkles, Users } from 'lucide-reac
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import { legacies, aiAgents } from '../lib/mockData';
+import { aiAgents } from '../lib/mockData';
+import { useLegacy } from '@/lib/hooks/useLegacies';
 import ThemeSelector from './ThemeSelector';
 
 interface AIAgentPanelProps {
@@ -24,7 +25,9 @@ interface Interaction {
 export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, currentTheme, onThemeChange }: AIAgentPanelProps) {
   const navigate = useNavigate();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
-  const legacy = legacies.find(l => l.id === legacyId) || legacies[0];
+  
+  // Get legacy info from the API
+  const { data: legacy } = useLegacy(legacyId);
 
   const agentInteractions: { [key: string]: Interaction[] } = {
     'biographer': [
@@ -175,7 +178,7 @@ export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, curren
               className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
             >
               <ArrowLeft className="size-4" />
-              <span>Back to {legacy.name}</span>
+              <span>Back to {legacy?.name || 'Legacy'}</span>
             </button>
             <div className="flex items-center gap-3">
               <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
@@ -201,7 +204,7 @@ export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, curren
           <div className="max-w-3xl space-y-3">
             <h1 className="text-neutral-900">AI Agents</h1>
             <p className="text-neutral-600">
-              Each agent offers specialized capabilities to help you preserve and interact with {legacy.name}'s legacy. Select an agent to explore what they can do.
+              Each agent offers specialized capabilities to help you preserve and interact with {legacy?.name ? `${legacy.name}'s` : 'this'} legacy. Select an agent to explore what they can do.
             </p>
           </div>
 
