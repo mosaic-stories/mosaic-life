@@ -14,6 +14,8 @@ import {
   History,
   ShieldAlert,
   Trash2,
+  Menu,
+  ChevronDown,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -21,6 +23,7 @@ import { Input } from './ui/input';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Badge } from './ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from './ui/sheet';
 import { useAIChat, usePersonas, useConversationList, useDeleteConversation } from '@/hooks/useAIChat';
 import { cn } from './ui/utils';
 import type { Persona } from '@/lib/api/ai';
@@ -55,6 +58,7 @@ export default function AIAgentChat({
   const [inputMessage, setInputMessage] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [mobileAgentSelectorOpen, setMobileAgentSelectorOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -232,20 +236,20 @@ export default function AIAgentChat({
     return (
       <div
         key={message.id}
-        className={`flex gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
+        className={`flex gap-2 md:gap-3 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}
       >
         {!isUser && (
-          <Avatar className="size-8 flex-shrink-0">
-            <AvatarFallback className="bg-amber-100 text-amber-700 text-sm">
+          <Avatar className="size-7 md:size-8 flex-shrink-0">
+            <AvatarFallback className="bg-amber-100 text-amber-700 text-xs md:text-sm">
               AI
             </AvatarFallback>
           </Avatar>
         )}
         <div
-          className={`flex flex-col gap-1 max-w-lg ${isUser ? 'items-end' : 'items-start'}`}
+          className={`flex flex-col gap-1 max-w-[85%] sm:max-w-md md:max-w-lg ${isUser ? 'items-end' : 'items-start'}`}
         >
           <Card
-            className={`p-4 ${
+            className={`p-3 md:p-4 ${
               isUser
                 ? 'bg-amber-600 text-white border-amber-600'
                 : hasError
@@ -288,8 +292,8 @@ export default function AIAgentChat({
           </span>
         </div>
         {isUser && (
-          <Avatar className="size-8 flex-shrink-0">
-            <AvatarFallback className="bg-neutral-200 text-neutral-700 text-sm">
+          <Avatar className="size-7 md:size-8 flex-shrink-0">
+            <AvatarFallback className="bg-neutral-200 text-neutral-700 text-xs md:text-sm">
               You
             </AvatarFallback>
           </Avatar>
@@ -333,20 +337,23 @@ export default function AIAgentChat({
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300 flex flex-col">
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-sm border-b z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
+          <div className="flex items-center justify-between gap-2">
             <button
               onClick={() => navigate(`/legacy/${legacyId}`)}
-              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors min-w-0"
             >
-              <ArrowLeft className="size-4" />
-              <span>Back to {legacy.name}</span>
+              <ArrowLeft className="size-4 flex-shrink-0" />
+              <span className="truncate">
+                <span className="hidden sm:inline">Back to </span>
+                {legacy.name}
+              </span>
             </button>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
               <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
               <Badge
                 variant="outline"
-                className="bg-blue-50 text-blue-700 border-blue-200"
+                className="bg-blue-50 text-blue-700 border-blue-200 hidden md:inline-flex"
               >
                 Chat Interface
               </Badge>
@@ -354,6 +361,7 @@ export default function AIAgentChat({
                 variant="ghost"
                 size="sm"
                 onClick={() => navigate(`/legacy/${legacyId}/ai-panel`)}
+                className="hidden sm:inline-flex"
               >
                 Switch to Panel
               </Button>
@@ -364,13 +372,13 @@ export default function AIAgentChat({
 
       {/* Global error banner */}
       {error && (
-        <div className="bg-red-50 border-b border-red-200 px-6 py-3">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            <div className="flex items-center gap-2 text-red-700">
-              <AlertCircle className="size-5" />
-              <span>{error}</span>
+        <div className="bg-red-50 border-b border-red-200 px-4 md:px-6 py-2 md:py-3">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-red-700 min-w-0">
+              <AlertCircle className="size-4 md:size-5 flex-shrink-0" />
+              <span className="text-sm md:text-base truncate">{error}</span>
             </div>
-            <Button variant="ghost" size="sm" onClick={clearError} className="text-red-700">
+            <Button variant="ghost" size="sm" onClick={clearError} className="text-red-700 flex-shrink-0">
               Dismiss
             </Button>
           </div>
@@ -378,8 +386,50 @@ export default function AIAgentChat({
       )}
 
       <div className="flex-1 flex max-w-7xl w-full mx-auto">
-        {/* Agent Selector Sidebar */}
-        <aside className="w-80 bg-white border-r p-6 space-y-6">
+        {/* Mobile Agent Selector Sheet */}
+        <Sheet open={mobileAgentSelectorOpen} onOpenChange={setMobileAgentSelectorOpen}>
+          <SheetContent side="left" className="w-80 p-0">
+            <SheetHeader className="p-6 pb-2">
+              <SheetTitle>Select an Agent</SheetTitle>
+              <SheetDescription>
+                Each agent brings a unique perspective to help you preserve memories
+              </SheetDescription>
+            </SheetHeader>
+            <div className="p-6 pt-4 space-y-3 overflow-y-auto">
+              {personas.map((persona: Persona) => (
+                <Card
+                  key={persona.id}
+                  className={`p-4 cursor-pointer transition-all ${
+                    selectedPersonaId === persona.id
+                      ? 'border-amber-300 bg-amber-50 shadow-sm'
+                      : 'hover:border-neutral-300 hover:shadow-sm'
+                  }`}
+                  onClick={() => {
+                    setSelectedPersonaId(persona.id);
+                    setMobileAgentSelectorOpen(false);
+                  }}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`size-10 rounded-lg flex items-center justify-center flex-shrink-0 ${getPersonaColor(persona.id)}`}
+                    >
+                      {getPersonaIcon(persona.icon)}
+                    </div>
+                    <div className="space-y-1 flex-1">
+                      <h3 className="text-neutral-900">{persona.name}</h3>
+                      <p className="text-sm text-neutral-600 leading-relaxed">
+                        {persona.description}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* Agent Selector Sidebar - Desktop only */}
+        <aside className="hidden md:block w-80 bg-white border-r p-6 space-y-6">
           <div className="space-y-2">
             <h2 className="text-neutral-900">Select an Agent</h2>
             <p className="text-sm text-neutral-600">
@@ -419,39 +469,90 @@ export default function AIAgentChat({
         {/* Chat Area */}
         <main className="flex-1 flex flex-col bg-neutral-50">
           {/* Chat Header */}
-          <div className="bg-white border-b px-6 py-4">
-            <div className="flex items-center gap-3">
+          <div className="bg-white border-b px-4 md:px-6 py-3 md:py-4">
+            <div className="flex items-center gap-2 md:gap-3">
+              {/* Mobile menu button to open agent selector */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="md:hidden p-2"
+                onClick={() => setMobileAgentSelectorOpen(true)}
+              >
+                <Menu className="size-5" />
+              </Button>
+
+              {/* Agent selector trigger - mobile (compact) */}
+              <button
+                className="md:hidden flex items-center gap-2 min-w-0"
+                onClick={() => setMobileAgentSelectorOpen(true)}
+              >
+                <div
+                  className={`size-8 rounded-lg flex items-center justify-center flex-shrink-0 ${getPersonaColor(selectedPersonaId)}`}
+                >
+                  {selectedPersona && getPersonaIcon(selectedPersona.icon)}
+                </div>
+                <span className="text-neutral-900 font-medium truncate">
+                  {selectedPersona?.name || 'AI Agent'}
+                </span>
+                <ChevronDown className="size-4 text-neutral-500 flex-shrink-0" />
+              </button>
+
+              {/* Agent info - desktop */}
               <div
-                className={`size-10 rounded-lg flex items-center justify-center ${getPersonaColor(selectedPersonaId)}`}
+                className={`hidden md:flex size-10 rounded-lg items-center justify-center ${getPersonaColor(selectedPersonaId)}`}
               >
                 {selectedPersona && getPersonaIcon(selectedPersona.icon)}
               </div>
-              <div>
+              <div className="hidden md:block">
                 <h3 className="text-neutral-900">{selectedPersona?.name || 'AI Agent'}</h3>
                 <p className="text-sm text-neutral-500">{selectedPersona?.description}</p>
               </div>
+
               {isStreaming && (
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 hidden sm:flex">
                   <Loader2 className="size-3 mr-1 animate-spin" />
                   Thinking...
                 </Badge>
               )}
-              <div className="flex items-center gap-2 ml-auto">
+              {/* Mobile streaming indicator (icon only) */}
+              {isStreaming && (
+                <Loader2 className="size-4 animate-spin text-amber-600 sm:hidden" />
+              )}
+
+              <div className="flex items-center gap-1 md:gap-2 ml-auto">
+                {/* New Chat - full button on desktop, icon on mobile */}
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleNewChat}
                   disabled={isStreaming}
+                  className="hidden sm:flex"
                 >
                   <Plus className="size-4 mr-1" />
                   New Chat
                 </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={handleNewChat}
+                  disabled={isStreaming}
+                  className="sm:hidden size-9"
+                  title="New Chat"
+                >
+                  <Plus className="size-4" />
+                </Button>
 
                 <Popover open={showHistory} onOpenChange={setShowHistory}>
+                  {/* History - full button on desktop, icon on mobile */}
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" className="hidden sm:flex">
                       <History className="size-4 mr-1" />
                       History
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="icon" className="sm:hidden size-9" title="History">
+                      <History className="size-4" />
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-80" align="end">
@@ -508,7 +609,7 @@ export default function AIAgentChat({
           </div>
 
           {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+          <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 md:py-6 space-y-4 md:space-y-6">
             {isLoading ? (
               <div className="flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-4">
@@ -517,17 +618,17 @@ export default function AIAgentChat({
                 </div>
               </div>
             ) : messages.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-full px-4">
                 <div className="text-center max-w-md">
                   <div
-                    className={`size-16 rounded-2xl flex items-center justify-center mx-auto mb-4 ${getPersonaColor(selectedPersonaId)}`}
+                    className={`size-12 md:size-16 rounded-2xl flex items-center justify-center mx-auto mb-3 md:mb-4 ${getPersonaColor(selectedPersonaId)}`}
                   >
                     {selectedPersona && getPersonaIcon(selectedPersona.icon)}
                   </div>
-                  <h3 className="text-lg font-medium text-neutral-900 mb-2">
+                  <h3 className="text-base md:text-lg font-medium text-neutral-900 mb-2">
                     Start a conversation with {selectedPersona?.name}
                   </h3>
-                  <p className="text-neutral-600">
+                  <p className="text-sm md:text-base text-neutral-600">
                     {selectedPersona?.description}
                   </p>
                 </div>
@@ -541,8 +642,8 @@ export default function AIAgentChat({
           </div>
 
           {/* Input Area */}
-          <div className="bg-white border-t px-6 py-4">
-            <div className="flex gap-3">
+          <div className="bg-white border-t px-4 md:px-6 py-3 md:py-4">
+            <div className="flex gap-2 md:gap-3">
               <Input
                 ref={inputRef}
                 value={inputMessage}
