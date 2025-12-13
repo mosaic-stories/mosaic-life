@@ -252,13 +252,6 @@ async def send_message(
 
         async def generate_stream() -> AsyncGenerator[str, None]:
             """Generate SSE stream."""
-            # Send a large initial ping to force ALB to start transmitting immediately
-            # Some load balancers buffer until minimum payload size is reached
-            # SSE comments (lines starting with :) are ignored by clients
-            yield ": ping" + " " * 2048 + "\n\n"
-            # Force flush through ALB before starting Bedrock call
-            await asyncio.sleep(0.01)
-
             adapter = get_bedrock_adapter()
             full_response = ""
             token_count: int | None = None
@@ -276,9 +269,6 @@ async def send_message(
                     full_response += chunk
                     event = SSEChunkEvent(content=chunk)
                     yield f"data: {event.model_dump_json()}\n\n"
-                    # Small delay to force ALB to flush each chunk
-                    # asyncio.sleep(0) wasn't enough - ALB coalesces rapid packets
-                    await asyncio.sleep(0.01)  # 10ms
 
                 # Save assistant message
                 message = await ai_service.save_message(

@@ -8,263 +8,120 @@
 
 ## Solution Summary
 
-The root cause was **Bedrock Guardrails in synchronous mode**. The `invoke_model_with_response_stream` API only supports sync guardrails, which buffer the entire response before streaming. The fix was migrating to `converse_stream` API with `streamProcessingMode: "async"`.
+The root cause was **Bedrock Guardrails in synchronous mode**. The `invoke_model_with_response_stream` API only supports sync guardrails, which buffer the entire response before streaming to apply content filtering. The fix was migrating to the `converse_stream` API with `streamProcessingMode: "async"`, which streams chunks immediately while guardrails scan asynchronously in the background.
 
-**Files Changed:**
-- `services/core-api/app/adapters/bedrock.py` - Migrated to `converse_stream` API
-- `services/core-api/tests/adapters/test_bedrock.py` - Updated tests for new API
+**Key Insight:** The buffering was NOT caused by ALB, nginx, or network configuration. It was caused by the Bedrock API itself when guardrails are enabled in sync mode.
+
+## Files Changed
+
+| File | Change |
+|------|--------|
+| `services/core-api/app/adapters/bedrock.py` | Migrated from `invoke_model_with_response_stream` to `converse_stream` API |
+| `services/core-api/tests/adapters/test_bedrock.py` | Updated tests for new Converse API format |
 
 ## Problem Description
 
-Server-Sent Events (SSE) streaming works correctly in local development (Docker Compose) but responses are buffered in staging/production environments. Instead of seeing the AI response stream character-by-character in real-time, users see nothing until the complete response arrives all at once.
+Server-Sent Events (SSE) streaming worked correctly in local development (Docker Compose without guardrails) but responses were buffered in staging/production (with Bedrock Guardrails enabled). Instead of seeing the AI response stream character-by-character in real-time, users saw nothing until the complete response arrived all at once.
 
 ### Expected Behavior
 - User sends a message
 - AI response streams in real-time, showing text as it's generated
 - Similar to ChatGPT's typing effect
 
-### Actual Behavior
+### Actual Behavior (Before Fix)
 - User sends a message
 - Input shows "Please wait..." with no visible response
-- After several seconds, the complete response appears all at once
+- After several seconds (5+ seconds), the complete response appears all at once
 
 ## Architecture Overview
 
 ```
-Browser → ALB (HTTP/2) → Web nginx → core-api (FastAPI/uvicorn)
-                    ↘
-                      → core-api directly (stage-api.mosaiclife.me)
+Browser → ALB (HTTP/2) → Web nginx → core-api (FastAPI/uvicorn) → Bedrock
 ```
 
-### Key Components
+## Root Cause Analysis
 
-1. **Frontend (React):** Uses `fetch` API with `ReadableStream` reader to process SSE chunks
-2. **Web nginx:** Proxies `/api/*` requests to core-api service
-3. **AWS ALB:** Application Load Balancer with shared ingress group
-4. **Core API (FastAPI):** Uses `StreamingResponse` with async generator for SSE
+### Discovery Process
 
-## Troubleshooting Steps Attempted
+1. **Initial hypothesis:** Proxy/load balancer buffering
+   - Tried: ALB idle timeout, HTTP/1.1 backend protocol, nginx proxy_buffering off
+   - Result: None of these fixed the issue
 
-### 1. ALB Idle Timeout (Partial)
+2. **Diagnostic test:** Added timing logs to SSE stream
+   - Finding: Initial ping arrived immediately (~164ms)
+   - Finding: First Bedrock content arrived after ~5 seconds
+   - Conclusion: Delay was in Bedrock processing, not network layer
 
-**File:** `/apps/mosaic-life-gitops/environments/staging/values.yaml`
+3. **Root cause identified:** Bedrock Guardrails in sync mode
+   - Local dev: No guardrails → streams immediately
+   - Staging: Guardrails enabled → buffers until scan complete
 
-Added ALB annotation for extended timeout:
-```yaml
-alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600
-```
+### Technical Explanation
 
-**Result:** Did not resolve buffering issue. This setting affects connection timeout, not response buffering.
+The `invoke_model_with_response_stream` API only supports synchronous guardrail processing:
 
-### 2. ALB Backend Protocol Version
-
-**File:** `/apps/mosaic-life-gitops/environments/staging/values.yaml`
-
-Added annotation to use HTTP/1.1 for backend connections:
-```yaml
-alb.ingress.kubernetes.io/backend-protocol-version: HTTP1
-```
-
-**Result:** Did not resolve issue. This only affects ALB-to-backend communication, not client-to-ALB which still uses HTTP/2.
-
-### 3. Nginx Proxy Buffering Disabled
-
-**File:** `/apps/mosaic-life/apps/web/nginx.conf`
-
-Added buffering disable directives to `/api/` location:
-```nginx
-location /api/ {
-    # ... existing config ...
-
-    # SSE/Streaming support - disable buffering for real-time responses
-    proxy_buffering off;
-    proxy_cache off;
-    chunked_transfer_encoding on;
-}
-```
-
-**Result:** Did not resolve issue. Nginx is correctly configured but buffering occurs elsewhere.
-
-### 4. FastAPI Response Headers
-
-**File:** `/apps/mosaic-life/services/core-api/app/routes/ai.py`
-
-StreamingResponse includes headers:
 ```python
-return StreamingResponse(
-    generate_stream(),
-    media_type="text/event-stream",
-    headers={
-        "Cache-Control": "no-cache",
-        "Connection": "keep-alive",
-        "X-Accel-Buffering": "no",
-    },
+# OLD API - guardrails buffer the entire response
+response = await client.invoke_model_with_response_stream(
+    modelId=model_id,
+    guardrailIdentifier=guardrail_id,  # Forces sync mode
+    guardrailVersion=guardrail_version,
+    ...
 )
 ```
 
-**Result:** Headers are correct but `X-Accel-Buffering` only works for nginx, not AWS ALB.
+The `converse_stream` API supports asynchronous guardrail processing:
 
-### 5. SSE Ping/Canary Message
-
-**File:** `/apps/mosaic-life/services/core-api/app/routes/ai.py`
-
-Added immediate SSE comment at stream start to force proxy recognition:
 ```python
-async def generate_stream() -> AsyncGenerator[str, None]:
-    # Send an immediate ping to establish the stream and prevent proxy buffering
-    yield ": ping\n\n"
-    # ... rest of stream generation
+# NEW API - guardrails scan asynchronously
+response = await client.converse_stream(
+    modelId=model_id,
+    guardrailConfig={
+        "guardrailIdentifier": guardrail_id,
+        "guardrailVersion": guardrail_version,
+        "streamProcessingMode": "async",  # Stream immediately!
+        "trace": "enabled",
+    },
+    ...
+)
 ```
 
-**Result:** Did not resolve issue. ALB still buffers despite immediate data.
+## Trade-offs with Async Guardrails
 
-## Current Configuration
+Per AWS documentation:
+- **Pro:** No streaming latency - chunks stream immediately
+- **Con:** User may see partial content before guardrail intervenes (if content is blocked mid-stream)
+- **Con:** Sensitive information masking not supported in async mode
 
-### Staging Ingress Annotations (core-api)
-```yaml
-alb.ingress.kubernetes.io/backend-protocol-version: HTTP1
-alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600
-alb.ingress.kubernetes.io/scheme: internet-facing
-alb.ingress.kubernetes.io/target-type: ip
-```
+For our use case, the trade-off is acceptable since guardrail interventions are rare and the UX improvement is significant.
 
-### Nginx Configuration
-```nginx
-location /api/ {
-    proxy_pass http://core-api:8080/api/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_read_timeout 3600;
-    proxy_send_timeout 3600;
-    proxy_buffering off;
-    proxy_cache off;
-    chunked_transfer_encoding on;
-    # ... CORS headers ...
-}
-```
+## Troubleshooting Steps Attempted (Did Not Resolve)
 
-## Diagnostic Findings
+These configurations were correct but did not fix the root cause:
 
-### HTTP/2 on Client Connection
-```bash
-curl -v https://stage-api.mosaiclife.me/api/ai/personas
-# Output shows:
-# * ALPN: server accepted h2
-# * using HTTP/2
-```
-
-The ALB accepts HTTP/2 from clients. HTTP/2 multiplexes streams differently and may contribute to buffering behavior.
-
-### Local Streaming Works
-When testing via `kubectl port-forward` directly to the core-api pod, streaming works correctly. This confirms the issue is in the proxy/load balancer layer, not the application code.
-
-### No GZip Middleware
-Verified FastAPI has no GZip middleware that could buffer responses:
-```
-Middleware:
-  BaseHTTPMiddleware (metrics)
-  SessionMiddleware
-  CORSMiddleware
-```
-
-## Debug SSE Probe Endpoint
-
-To simplify testing without Google auth, we added an internal-only SSE probe that shares the same FastAPI router/middleware stack as the chat endpoint.
-
-- **Route:** `GET /api/ai/debug/stream`
-- **Auth:** Requires `X-Debug-SSE-Token` header; bypasses Google OAuth.
-- **Enablement:** Controlled via `DEBUG_SSE_ENABLED=true` and `DEBUG_SSE_TOKEN` env vars.
-- **Secret management:** `debug-sse` `ExternalSecret` pulls a `token` value from AWS Secrets Manager when `externalSecrets.debugSse.secretKey` is set in the Helm values. Reference the resulting secret via `coreApi.extraEnv`:
-
-```yaml
-coreApi:
-  extraEnv:
-    - name: DEBUG_SSE_ENABLED
-      value: "true"
-    - name: DEBUG_SSE_TOKEN
-      valueFrom:
-        secretKeyRef:
-          name: debug-sse
-          key: token
-```
-
-### Usage
-
-```bash
-curl -N \
-  -H "Accept: text/event-stream" \
-  -H "X-Debug-SSE-Token: $DEBUG_SSE_TOKEN" \
-  https://stage-api.mosaiclife.me/api/ai/debug/stream
-```
-
-The stream emits JSON payloads every 250ms plus a `debug-done` marker after ~60s. Repeat the test with `--http2` and `--http1.1` to see where buffering begins.
-
-## Potential Next Steps
-
-### Option A: Force HTTP/1.1 on ALB Frontend
-AWS ALB doesn't have a direct setting to disable HTTP/2 for client connections. May need to:
-- Use NLB (Network Load Balancer) instead of ALB
-- Use CloudFront with HTTP/1.1 origin protocol
-
-### Option B: Bypass Web Nginx for API
-Currently the frontend makes API calls to `/api/*` which nginx proxies. Could configure frontend to call `stage-api.mosaiclife.me` directly for SSE endpoints, bypassing one proxy layer.
-
-**Changes required:**
-1. Update CSP `connect-src` to allow `stage-api.mosaiclife.me`
-2. Modify `streamMessage()` in `/apps/web/src/lib/api/ai.ts` to use absolute URL for SSE endpoint
-3. Handle CORS for cross-origin SSE requests
-
-### Option C: WebSockets Instead of SSE
-WebSockets have better proxy support than SSE. Would require:
-1. Add WebSocket endpoint to FastAPI
-2. Update frontend to use WebSocket for chat
-3. Configure ALB for WebSocket support (already supported)
-
-### Option D: Long Polling Fallback
-Implement a fallback mechanism:
-1. Try SSE first
-2. If no data received within timeout, fall back to polling
-3. Less elegant but reliable through any proxy
-
-### Option E: CloudFront Investigation
-Check if CloudFront is in front of the ALB (check DNS). If so, CloudFront has its own buffering behavior that needs configuration.
-
-```bash
-dig stage.mosaiclife.me
-# Check if it points to CloudFront distribution or directly to ALB
-```
-
-## Related Resources
-
-- [AWS re:Post - SSE with NextJS](https://repost.aws/questions/QUvIgdC_HUTJiP6R0VxdqSQA/server-sent-events-sse-nextjs-in-amazon)
-- [DEV Community - SSE Production Issues](https://dev.to/miketalbot/server-sent-events-are-still-not-production-ready-after-a-decade-a-lesson-for-me-a-warning-for-you-2gie)
-- [AWS Service Connect SSE Debugging](https://www.oliverio.dev/blog/aws-service-connect-sse)
-- [ALB HTTP/2 Streaming Support Discussion](https://repost.aws/questions/QUiAoVzdJsQgWP77c0A1aXZg/alb-http-2-streaming-support-to-the-targets)
-
-## Files Modified During Troubleshooting
-
-| File | Change |
-|------|--------|
-| `/apps/mosaic-life-gitops/environments/staging/values.yaml` | Added ALB annotations |
-| `/apps/mosaic-life/apps/web/nginx.conf` | Added proxy_buffering off |
-| `/apps/mosaic-life/services/core-api/app/routes/ai.py` | Added SSE ping comment |
+1. **ALB idle timeout** - Extended to 3600s (affects connection timeout, not buffering)
+2. **ALB backend protocol** - Set to HTTP1 (only affects ALB-to-backend, not Bedrock)
+3. **Nginx proxy_buffering off** - Correct config but buffering was in Bedrock
+4. **SSE ping/canary message** - Large 2KB ping to force ALB flush (Bedrock was the bottleneck)
+5. **asyncio.sleep(0.01)** between yields - Helped packet coalescing but not the root cause
 
 ## Verification Commands
 
 ```bash
-# Check ingress annotations are applied
-kubectl describe ingress core-api -n mosaic-staging
-
-# Check nginx config in deployed container
-kubectl exec -n mosaic-staging deployment/web -- cat /etc/nginx/conf.d/default.conf
-
-# Test streaming directly to pod (bypassing all proxies)
+# Test streaming directly to pod (bypassing proxies)
 kubectl port-forward -n mosaic-staging svc/core-api 8080:8080
-# Then test with curl in another terminal
 
-# Check if HTTP/2 is being used
-curl -v https://stage-api.mosaiclife.me/healthz 2>&1 | grep -i http
+# Monitor Bedrock response timing in logs
+kubectl logs -n mosaic-staging -l app=core-api -f | grep bedrock
+
+# Verify streaming works end-to-end
+curl -N -H "Authorization: Bearer $TOKEN" \
+  https://stage-api.mosaiclife.me/api/ai/conversations/{id}/messages \
+  -d '{"content": "Hello"}' -H "Content-Type: application/json"
 ```
+
+## Related Resources
+
+- [AWS Bedrock Converse API Documentation](https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ConverseStream.html)
+- [Bedrock Guardrails Streaming Modes](https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-streaming.html)
+- [AWS re:Post - SSE with NextJS](https://repost.aws/questions/QUvIgdC_HUTJiP6R0VxdqSQA/server-sent-events-sse-nextjs-in-amazon)
