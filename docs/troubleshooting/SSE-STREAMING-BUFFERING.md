@@ -1,9 +1,18 @@
 # SSE Streaming Buffering Issue in Staging/Production
 
-**Status:** Unresolved
+**Status:** Resolved
 **Created:** 2025-12-12
+**Resolved:** 2025-12-13
 **Environment:** Staging (stage.mosaiclife.me)
 **Affected Feature:** AI Chat streaming responses
+
+## Solution Summary
+
+The root cause was **Bedrock Guardrails in synchronous mode**. The `invoke_model_with_response_stream` API only supports sync guardrails, which buffer the entire response before streaming. The fix was migrating to `converse_stream` API with `streamProcessingMode: "async"`.
+
+**Files Changed:**
+- `services/core-api/app/adapters/bedrock.py` - Migrated to `converse_stream` API
+- `services/core-api/tests/adapters/test_bedrock.py` - Updated tests for new API
 
 ## Problem Description
 
