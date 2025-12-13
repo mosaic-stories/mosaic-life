@@ -346,9 +346,17 @@ async def send_message(
 
 @router.get(
     "/debug/stream",
-    summary="Debug SSE probe",
+    summary="Debug SSE probe (GET)",
     description=(
         "Internal-only endpoint for validating streaming behavior through upstream proxies. "
+        "Requires the X-Debug-SSE-Token header."
+    ),
+)
+@router.post(
+    "/debug/stream",
+    summary="Debug SSE probe (POST)",
+    description=(
+        "POST version of debug SSE probe to test if POST requests behave differently. "
         "Requires the X-Debug-SSE-Token header."
     ),
 )
