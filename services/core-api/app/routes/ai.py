@@ -273,9 +273,9 @@ async def send_message(
                     full_response += chunk
                     event = SSEChunkEvent(content=chunk)
                     yield f"data: {event.model_dump_json()}\n\n"
-                    # Yield control to event loop to flush chunk immediately
-                    # This prevents TCP/network-level coalescing of small chunks
-                    await asyncio.sleep(0)
+                    # Small delay to force ALB to flush each chunk
+                    # asyncio.sleep(0) wasn't enough - ALB coalesces rapid packets
+                    await asyncio.sleep(0.01)  # 10ms
 
                 # Save assistant message
                 message = await ai_service.save_message(
