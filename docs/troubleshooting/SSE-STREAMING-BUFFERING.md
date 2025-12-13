@@ -161,6 +161,38 @@ Middleware:
   CORSMiddleware
 ```
 
+## Debug SSE Probe Endpoint
+
+To simplify testing without Google auth, we added an internal-only SSE probe that shares the same FastAPI router/middleware stack as the chat endpoint.
+
+- **Route:** `GET /api/ai/debug/stream`
+- **Auth:** Requires `X-Debug-SSE-Token` header; bypasses Google OAuth.
+- **Enablement:** Controlled via `DEBUG_SSE_ENABLED=true` and `DEBUG_SSE_TOKEN` env vars.
+- **Secret management:** `debug-sse` `ExternalSecret` pulls a `token` value from AWS Secrets Manager when `externalSecrets.debugSse.secretKey` is set in the Helm values. Reference the resulting secret via `coreApi.extraEnv`:
+
+```yaml
+coreApi:
+  extraEnv:
+    - name: DEBUG_SSE_ENABLED
+      value: "true"
+    - name: DEBUG_SSE_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: debug-sse
+          key: token
+```
+
+### Usage
+
+```bash
+curl -N \
+  -H "Accept: text/event-stream" \
+  -H "X-Debug-SSE-Token: $DEBUG_SSE_TOKEN" \
+  https://stage-api.mosaiclife.me/api/ai/debug/stream
+```
+
+The stream emits JSON payloads every 250ms plus a `debug-done` marker after ~60s. Repeat the test with `--http2` and `--http1.1` to see where buffering begins.
+
 ## Potential Next Steps
 
 ### Option A: Force HTTP/1.1 on ALB Frontend

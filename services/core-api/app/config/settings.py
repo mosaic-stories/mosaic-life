@@ -3,6 +3,12 @@ from functools import lru_cache
 from pydantic import BaseModel
 
 
+def _as_bool(value: str | None, default: bool = False) -> bool:
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
 class Settings(BaseModel):
     env: str = os.getenv("ENV", "dev")
     port: int = int(os.getenv("PORT", "8080"))
@@ -68,6 +74,12 @@ class Settings(BaseModel):
 
     # Observability
     otel_exporter_otlp_endpoint: str | None = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+
+    # Debug SSE probe (disabled by default)
+    debug_sse_enabled: bool = _as_bool(os.getenv("DEBUG_SSE_ENABLED"), False)
+    debug_sse_token: str | None = os.getenv("DEBUG_SSE_TOKEN")
+    debug_sse_interval_ms: int = int(os.getenv("DEBUG_SSE_INTERVAL_MS", "250"))
+    debug_sse_max_seconds: int = int(os.getenv("DEBUG_SSE_MAX_SECONDS", "60"))
 
 
 @lru_cache
