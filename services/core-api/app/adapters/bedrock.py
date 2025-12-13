@@ -148,7 +148,7 @@ class BedrockAdapter:
                 async with self._get_client() as client:
                     logger.info("bedrock.calling_api", extra={"model_id": model_id})
 
-                    invoke_params = {
+                    invoke_params: dict[str, Any] = {
                         "modelId": model_id,
                         "contentType": "application/json",
                         "accept": "application/json",
@@ -162,11 +162,17 @@ class BedrockAdapter:
                         invoke_params["trace"] = (
                             "ENABLED"  # Enable trace for guardrail details
                         )
+                        # Use async mode to stream chunks immediately while
+                        # guardrails scan in background (sync mode buffers all chunks)
+                        invoke_params["guardrailConfig"] = {
+                            "streamProcessingMode": "async"
+                        }
                         logger.info(
                             "bedrock.using_guardrail",
                             extra={
                                 "guardrail_id": guardrail_id,
                                 "guardrail_version": guardrail_version,
+                                "stream_mode": "async",
                             },
                         )
 
