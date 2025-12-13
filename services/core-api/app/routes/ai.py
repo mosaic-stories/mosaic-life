@@ -252,10 +252,11 @@ async def send_message(
 
         async def generate_stream() -> AsyncGenerator[str, None]:
             """Generate SSE stream."""
-            # Send an immediate ping to establish the stream and prevent proxy buffering
-            # This forces ALB/nginx to recognize this as a streaming response
-            yield ": ping\n\n"
-            # Force flush the ping through ALB before starting Bedrock call
+            # Send a large initial ping to force ALB to start transmitting immediately
+            # Some load balancers buffer until minimum payload size is reached
+            # SSE comments (lines starting with :) are ignored by clients
+            yield ": ping" + " " * 2048 + "\n\n"
+            # Force flush through ALB before starting Bedrock call
             await asyncio.sleep(0.01)
 
             adapter = get_bedrock_adapter()
