@@ -14,7 +14,7 @@ spec:
   sources:
     # Source 1: Helm chart from application repository
     - repoURL: https://github.com/mosaic-stories/mosaic-life
-      targetRevision: main
+      targetRevision: develop
       path: infra/helm/mosaic-life
       helm:
         valueFiles:
