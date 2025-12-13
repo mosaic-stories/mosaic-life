@@ -255,6 +255,8 @@ async def send_message(
             # Send an immediate ping to establish the stream and prevent proxy buffering
             # This forces ALB/nginx to recognize this as a streaming response
             yield ": ping\n\n"
+            # Force flush the ping through ALB before starting Bedrock call
+            await asyncio.sleep(0.01)
 
             adapter = get_bedrock_adapter()
             full_response = ""
