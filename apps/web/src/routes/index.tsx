@@ -30,6 +30,14 @@ const AIAgentPanelBase = lazy(() => import('@/components/AIAgentPanel'));
 const InviteAcceptPageBase = lazy(() => import('@/components/InviteAcceptPage'));
 const NotificationHistoryBase = lazy(() => import('@/components/NotificationHistory'));
 
+// Settings components
+const SettingsLayout = lazy(() => import('@/components/settings/SettingsLayout'));
+const ProfileSettings = lazy(() => import('@/components/settings/ProfileSettings'));
+const AppearanceSettings = lazy(() => import('@/components/settings/AppearanceSettings'));
+const AIPreferencesSettings = lazy(() => import('@/components/settings/AIPreferencesSettings'));
+const UsageStats = lazy(() => import('@/components/settings/UsageStats'));
+const AccountSettings = lazy(() => import('@/components/settings/AccountSettings'));
+
 // Wrapped components with shared props
 const Homepage = withSharedProps(HomepageBase);
 const HomePageMinimal = withSharedProps(HomePageMinimalBase);
@@ -226,6 +234,42 @@ export const router = createBrowserRouter([
             <LazyPage><AIAgentPanel /></LazyPage>
           </ProtectedRoute>
         ),
+      },
+      {
+        path: 'settings',
+        element: (
+          <ProtectedRoute>
+            <LazyPage>
+              <SettingsLayout />
+            </LazyPage>
+          </ProtectedRoute>
+        ),
+        children: [
+          {
+            index: true,
+            element: <Navigate to="profile" replace />,
+          },
+          {
+            path: 'profile',
+            element: <LazyPage><ProfileSettings /></LazyPage>,
+          },
+          {
+            path: 'appearance',
+            element: <LazyPage><AppearanceSettings /></LazyPage>,
+          },
+          {
+            path: 'ai',
+            element: <LazyPage><AIPreferencesSettings /></LazyPage>,
+          },
+          {
+            path: 'usage',
+            element: <LazyPage><UsageStats /></LazyPage>,
+          },
+          {
+            path: 'account',
+            element: <LazyPage><AccountSettings /></LazyPage>,
+          },
+        ],
       },
 
       // Catch-all redirect
