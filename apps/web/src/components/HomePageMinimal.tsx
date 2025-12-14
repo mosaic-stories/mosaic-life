@@ -1,9 +1,8 @@
-import { BookHeart, Users, ArrowRight, ImageIcon, Sparkles } from 'lucide-react';
+import { Users, ArrowRight, ImageIcon, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import ThemeSelector from './ThemeSelector';
-import UserProfileDropdown from './UserProfileDropdown';
-import { NotificationBell } from './notifications';
 import DogearToggle from './DogearToggle';
+import { HeaderSlot } from '@/components/header';
 
 interface HomePageMinimalProps {
   onNavigate: (view: string) => void;
@@ -15,68 +14,24 @@ interface HomePageMinimalProps {
   onSignOut: () => void;
 }
 
-export default function HomePageMinimal({ 
-  onNavigate, 
-  onSelectLegacy: _onSelectLegacy, 
-  currentTheme, 
+export default function HomePageMinimal({
+  onNavigate,
+  onSelectLegacy: _onSelectLegacy,
+  currentTheme,
   onThemeChange,
-  user,
+  user: _user,
   onAuthClick,
-  onSignOut
+  onSignOut: _onSignOut
 }: HomePageMinimalProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-[rgb(var(--theme-bg))]">
       {/* Dogear Toggle */}
       <DogearToggle isSimpleView={true} onToggle={() => onNavigate('home')} />
-      
-      {/* Navigation */}
-      <nav className="border-b bg-white/90 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button 
-            onClick={() => onNavigate('home-minimal')}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          >
-            <BookHeart className="size-6 text-[rgb(var(--theme-primary))]" />
-            <span className="tracking-tight">Mosaic Life</span>
-          </button>
-          
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => onNavigate('my-legacies-minimal')}
-              className="text-sm text-neutral-600 hover:text-[rgb(var(--theme-primary))]"
-            >
-              My Tributes
-            </button>
-            <button 
-              onClick={() => onNavigate('explore-minimal')}
-              className="text-sm text-neutral-600 hover:text-[rgb(var(--theme-primary))]"
-            >
-              Explore
-            </button>
-            <button 
-              onClick={() => onNavigate('community-minimal')}
-              className="text-sm text-neutral-600 hover:text-[rgb(var(--theme-primary))]"
-            >
-              Communities
-            </button>
-            <button
-              onClick={() => onNavigate('home')}
-              className="text-xs px-3 py-1.5 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 transition-colors"
-            >
-              Full Version
-            </button>
-            <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-            {user ? (
-              <>
-                <NotificationBell />
-                <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
-              </>
-            ) : (
-              <Button onClick={onAuthClick} size="sm" variant="outline">Sign In</Button>
-            )}
-          </div>
-        </div>
-      </nav>
+
+      {/* Header Slot - Theme Selector on HomePageMinimal */}
+      <HeaderSlot>
+        <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
+      </HeaderSlot>
 
       {/* Hero */}
       <div className="max-w-4xl mx-auto px-6 pt-32 pb-20 text-center">

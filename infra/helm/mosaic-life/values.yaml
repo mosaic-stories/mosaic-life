@@ -157,6 +157,9 @@ coreApi:
       value: "info"
     - name: AWS_REGION
       value: "us-east-1"
+    # Debug SSE probe is disabled by default; override via coreApi.extraEnv when needed
+    - name: DEBUG_SSE_ENABLED
+      value: "false"
     
     # Google OAuth Configuration
     - name: GOOGLE_CLIENT_ID
@@ -341,3 +344,7 @@ externalSecrets:
     secretKey: "mosaic/prod/session/secret-key"
   googleOAuth:
     secretKey: "mosaic/prod/google-oauth"
+  debugSse:
+    # Optional: set to AWS Secrets Manager path containing {token: "<shared secret>"}
+    secretKey: ""
+    property: "token"

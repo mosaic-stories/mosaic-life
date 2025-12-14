@@ -1,6 +1,5 @@
 """AWS Bedrock adapter for AI chat."""
 
-import json
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -12,6 +11,41 @@ from opentelemetry import trace
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.bedrock")
+
+
+def _extract_triggered_filters(guardrail_trace: dict[str, Any]) -> list[dict[str, Any]]:
+    """Extract list of triggered filters from guardrail trace data.
+
+    Args:
+        guardrail_trace: Guardrail trace data from Bedrock response.
+
+    Returns:
+        List of triggered filters with type, confidence, and other details.
+    """
+    triggered_filters = []
+    input_assessment = guardrail_trace.get("input", {})
+
+    for assessment in input_assessment.values():
+        if "contentPolicy" in assessment:
+            for f in assessment["contentPolicy"].get("filters", []):
+                if f.get("action") == "BLOCKED":
+                    triggered_filters.append(
+                        {
+                            "type": f.get("type"),
+                            "confidence": f.get("confidence"),
+                        }
+                    )
+        if "topicPolicy" in assessment:
+            for t in assessment["topicPolicy"].get("topics", []):
+                if t.get("action") == "BLOCKED":
+                    triggered_filters.append(
+                        {
+                            "type": "TOPIC",
+                            "name": t.get("name"),
+                        }
+                    )
+
+    return triggered_filters
 
 
 class BedrockError(Exception):
@@ -45,18 +79,18 @@ class BedrockAdapter:
             yield client
 
     def _format_messages(self, messages: list[dict[str, str]]) -> list[dict[str, Any]]:
-        """Format messages for Bedrock Anthropic API.
+        """Format messages for Bedrock Converse API.
 
         Args:
             messages: List of {"role": str, "content": str} dicts.
 
         Returns:
-            Messages formatted for Bedrock API.
+            Messages formatted for Converse API.
         """
         return [
             {
                 "role": msg["role"],
-                "content": [{"type": "text", "text": msg["content"]}],
+                "content": [{"text": msg["content"]}],
             }
             for msg in messages
         ]
@@ -70,7 +104,9 @@ class BedrockAdapter:
         guardrail_id: str | None = None,
         guardrail_version: str | None = None,
     ) -> AsyncGenerator[str, None]:
-        """Stream generate a response from Bedrock.
+        """Stream generate a response from Bedrock using Converse API.
+
+        Uses converse_stream for real-time streaming with async guardrails.
 
         Args:
             messages: Conversation history.
@@ -92,13 +128,6 @@ class BedrockAdapter:
 
             formatted_messages = self._format_messages(messages)
 
-            request_body = {
-                "anthropic_version": "bedrock-2023-05-31",
-                "max_tokens": max_tokens,
-                "system": system_prompt,
-                "messages": formatted_messages,
-            }
-
             logger.info(
                 "bedrock.request",
                 extra={
@@ -113,28 +142,34 @@ class BedrockAdapter:
                 async with self._get_client() as client:
                     logger.info("bedrock.calling_api", extra={"model_id": model_id})
 
-                    invoke_params = {
+                    # Build converse_stream parameters
+                    converse_params: dict[str, Any] = {
                         "modelId": model_id,
-                        "contentType": "application/json",
-                        "accept": "application/json",
-                        "body": json.dumps(request_body),
+                        "messages": formatted_messages,
+                        "system": [{"text": system_prompt}],
+                        "inferenceConfig": {
+                            "maxTokens": max_tokens,
+                        },
                     }
 
-                    # Add guardrail if configured
+                    # Add guardrail config with async streaming mode
                     if guardrail_id and guardrail_version:
-                        invoke_params["guardrailIdentifier"] = guardrail_id
-                        invoke_params["guardrailVersion"] = guardrail_version
+                        converse_params["guardrailConfig"] = {
+                            "guardrailIdentifier": guardrail_id,
+                            "guardrailVersion": guardrail_version,
+                            "streamProcessingMode": "async",
+                            "trace": "enabled",
+                        }
                         logger.info(
                             "bedrock.using_guardrail",
                             extra={
                                 "guardrail_id": guardrail_id,
                                 "guardrail_version": guardrail_version,
+                                "stream_mode": "async",
                             },
                         )
 
-                    response = await client.invoke_model_with_response_stream(
-                        **invoke_params
-                    )
+                    response = await client.converse_stream(**converse_params)
                     logger.info(
                         "bedrock.got_response",
                         extra={"response_keys": list(response.keys())},
@@ -142,56 +177,39 @@ class BedrockAdapter:
 
                     total_tokens = 0
                     chunk_count = 0
-                    event_stream = response.get("body")
-                    logger.info(
-                        "bedrock.event_stream_type",
-                        extra={"stream_type": str(type(event_stream))},
-                    )
+                    stop_reason: str | None = None
+                    guardrail_trace_data: dict[str, Any] = {}
+                    event_stream = response.get("stream")
 
                     async for event in event_stream:
-                        chunk = json.loads(event["chunk"]["bytes"])
                         chunk_count += 1
-                        chunk_type = chunk.get("type", "")
 
-                        # Handle content_block_delta events (streaming text)
-                        if chunk_type == "content_block_delta":
-                            delta = chunk.get("delta", {})
-                            if delta.get("type") == "text_delta":
-                                text = delta.get("text", "")
-                                if text:
-                                    yield text
+                        # Handle text content chunks
+                        if "contentBlockDelta" in event:
+                            delta = event["contentBlockDelta"].get("delta", {})
+                            text = delta.get("text", "")
+                            if text:
+                                yield text
 
-                        # Handle message_stop event
-                        elif chunk_type == "message_stop":
+                        # Handle message stop with stop reason
+                        elif "messageStop" in event:
+                            stop_reason = event["messageStop"].get("stopReason")
                             logger.info(
                                 "bedrock.message_stop",
-                                extra={"chunk_count": chunk_count},
+                                extra={
+                                    "chunk_count": chunk_count,
+                                    "stop_reason": stop_reason,
+                                },
                             )
 
-                        # Handle message_delta for usage stats
-                        elif chunk_type == "message_delta":
-                            usage = chunk.get("usage", {})
-                            total_tokens = usage.get("output_tokens", 0)
-
-                        # Legacy format support: contentBlockDelta
-                        elif "contentBlockDelta" in chunk:
-                            delta = chunk["contentBlockDelta"]["delta"]
-                            if "text" in delta:
-                                yield delta["text"]
-
-                        elif "metadata" in chunk:
-                            usage = chunk["metadata"].get("usage", {})
-                            total_tokens = usage.get("outputTokens", 0)
-
-                        # Handle guardrail intervention
-                        elif chunk_type == "amazon-bedrock-guardrailAction":
-                            action = chunk.get("action")
-                            if action == "INTERVENED":
+                            # Check for guardrail intervention
+                            if stop_reason == "guardrail_intervened":
                                 logger.warning(
                                     "bedrock.guardrail_intervened",
                                     extra={
                                         "guardrail_id": guardrail_id,
                                         "chunk_count": chunk_count,
+                                        "trace": guardrail_trace_data,
                                     },
                                 )
                                 span.set_attribute("guardrail_intervened", True)
@@ -200,7 +218,30 @@ class BedrockAdapter:
                                     retryable=False,
                                 )
 
+                        # Handle metadata with usage stats and guardrail trace
+                        elif "metadata" in event:
+                            metadata = event["metadata"]
+                            usage = metadata.get("usage", {})
+                            total_tokens = usage.get("outputTokens", 0)
+
+                            # Capture guardrail trace if present
+                            trace_data = metadata.get("trace", {})
+                            if "guardrail" in trace_data:
+                                guardrail_trace_data = trace_data["guardrail"]
+
+                        # Log other event types for debugging
+                        elif "messageStart" in event:
+                            logger.debug(
+                                "bedrock.message_start",
+                                extra={"role": event["messageStart"].get("role")},
+                            )
+                        elif "contentBlockStart" in event:
+                            logger.debug("bedrock.content_block_start")
+                        elif "contentBlockStop" in event:
+                            logger.debug("bedrock.content_block_stop")
+
                     span.set_attribute("output_tokens", total_tokens)
+                    span.set_attribute("stop_reason", stop_reason or "unknown")
 
             except BedrockError:
                 # Re-raise BedrockError (e.g., from guardrail intervention)

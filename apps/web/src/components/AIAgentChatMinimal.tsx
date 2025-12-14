@@ -4,7 +4,7 @@ import { Textarea } from './ui/textarea';
 import ThemeSelector from './ThemeSelector';
 import UserProfileDropdown from './UserProfileDropdown';
 import { NotificationBell } from './notifications';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
 interface AIAgentChatMinimalProps {
   onNavigate: (view: string) => void;
@@ -37,6 +37,7 @@ export default function AIAgentChatMinimal({
     }
   ]);
   const [input, setInput] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSend = () => {
     if (!input.trim()) return;
@@ -52,6 +53,8 @@ export default function AIAgentChatMinimal({
         content: "I'd be happy to help with that! Here's a suggestion: Start by thinking about a specific moment that stands out. What do you remember most vividly?"
       };
       setMessages(prev => [...prev, aiResponse]);
+      // Refocus the textarea after AI response
+      textareaRef.current?.focus();
     }, 500);
 
     setInput('');
@@ -166,6 +169,7 @@ export default function AIAgentChatMinimal({
         <div className="bg-white rounded-2xl border border-[rgb(var(--theme-border))] p-4">
           <div className="flex gap-3">
             <Textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {

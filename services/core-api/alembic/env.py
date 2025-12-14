@@ -9,7 +9,16 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.database import Base
-from app.models import User, Legacy, LegacyMember, Media, Invitation, Notification  # noqa: F401
+from app.models import (  # noqa: F401
+    AIConversation,
+    AIMessage,
+    Invitation,
+    Legacy,
+    LegacyMember,
+    Media,
+    Notification,
+    User,
+)
 
 config = context.config
 if config.config_file_name is not None:

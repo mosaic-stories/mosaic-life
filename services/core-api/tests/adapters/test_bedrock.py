@@ -1,6 +1,5 @@
 """Tests for Bedrock adapter."""
 
-import json
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -46,7 +45,7 @@ class TestBedrockAdapter:
         assert adapter.region == "us-east-1"
 
     def test_format_messages(self, adapter: BedrockAdapter) -> None:
-        """Test message formatting for Bedrock API."""
+        """Test message formatting for Bedrock Converse API."""
         messages = [
             {"role": "user", "content": "Hello"},
             {"role": "assistant", "content": "Hi there!"},
@@ -57,13 +56,10 @@ class TestBedrockAdapter:
 
         assert len(formatted) == 3
         assert formatted[0]["role"] == "user"
-        assert formatted[0]["content"][0]["type"] == "text"
         assert formatted[0]["content"][0]["text"] == "Hello"
         assert formatted[1]["role"] == "assistant"
-        assert formatted[1]["content"][0]["type"] == "text"
         assert formatted[1]["content"][0]["text"] == "Hi there!"
         assert formatted[2]["role"] == "user"
-        assert formatted[2]["content"][0]["type"] == "text"
         assert formatted[2]["content"][0]["text"] == "How are you?"
 
     def test_format_messages_empty_list(self, adapter: BedrockAdapter) -> None:
@@ -75,35 +71,25 @@ class TestBedrockAdapter:
     async def test_stream_generate_yields_chunks(self, adapter: BedrockAdapter) -> None:
         """Test stream_generate yields content chunks."""
 
-        # Create a mock async iterator for the response body
-        async def mock_body_iterator():
+        # Create a mock async iterator for converse_stream events
+        async def mock_stream_iterator():
             events = [
-                {
-                    "chunk": {
-                        "bytes": json.dumps(
-                            {"contentBlockDelta": {"delta": {"text": "Hello"}}}
-                        ).encode()
-                    }
-                },
-                {
-                    "chunk": {
-                        "bytes": json.dumps(
-                            {"contentBlockDelta": {"delta": {"text": " world"}}}
-                        ).encode()
-                    }
-                },
-                {"chunk": {"bytes": json.dumps({"messageStop": {}}).encode()}},
+                {"messageStart": {"role": "assistant"}},
+                {"contentBlockStart": {"start": {}}},
+                {"contentBlockDelta": {"delta": {"text": "Hello"}}},
+                {"contentBlockDelta": {"delta": {"text": " world"}}},
+                {"contentBlockStop": {}},
+                {"messageStop": {"stopReason": "end_turn"}},
+                {"metadata": {"usage": {"outputTokens": 10}}},
             ]
             for event in events:
                 yield event
 
-        mock_response = {"body": mock_body_iterator()}
+        mock_response = {"stream": mock_stream_iterator()}
 
         with patch.object(adapter, "_get_client") as mock_get_client:
             mock_client = AsyncMock()
-            mock_client.invoke_model_with_response_stream = AsyncMock(
-                return_value=mock_response
-            )
+            mock_client.converse_stream = AsyncMock(return_value=mock_response)
 
             # Set up context manager
             mock_context = AsyncMock()
@@ -127,34 +113,21 @@ class TestBedrockAdapter:
     async def test_stream_generate_with_metadata(self, adapter: BedrockAdapter) -> None:
         """Test stream_generate handles metadata events."""
 
-        async def mock_body_iterator():
+        async def mock_stream_iterator():
             events = [
-                {
-                    "chunk": {
-                        "bytes": json.dumps(
-                            {"contentBlockDelta": {"delta": {"text": "Test"}}}
-                        ).encode()
-                    }
-                },
-                {
-                    "chunk": {
-                        "bytes": json.dumps(
-                            {"metadata": {"usage": {"outputTokens": 42}}}
-                        ).encode()
-                    }
-                },
-                {"chunk": {"bytes": json.dumps({"messageStop": {}}).encode()}},
+                {"messageStart": {"role": "assistant"}},
+                {"contentBlockDelta": {"delta": {"text": "Test"}}},
+                {"messageStop": {"stopReason": "end_turn"}},
+                {"metadata": {"usage": {"outputTokens": 42}}},
             ]
             for event in events:
                 yield event
 
-        mock_response = {"body": mock_body_iterator()}
+        mock_response = {"stream": mock_stream_iterator()}
 
         with patch.object(adapter, "_get_client") as mock_get_client:
             mock_client = AsyncMock()
-            mock_client.invoke_model_with_response_stream = AsyncMock(
-                return_value=mock_response
-            )
+            mock_client.converse_stream = AsyncMock(return_value=mock_response)
 
             mock_context = AsyncMock()
             mock_context.__aenter__ = AsyncMock(return_value=mock_client)
@@ -178,31 +151,25 @@ class TestBedrockAdapter:
     ) -> None:
         """Test stream_generate uses custom max_tokens."""
 
-        async def mock_body_iterator():
+        async def mock_stream_iterator():
             events = [
-                {
-                    "chunk": {
-                        "bytes": json.dumps(
-                            {"contentBlockDelta": {"delta": {"text": "OK"}}}
-                        ).encode()
-                    }
-                },
-                {"chunk": {"bytes": json.dumps({"messageStop": {}}).encode()}},
+                {"contentBlockDelta": {"delta": {"text": "OK"}}},
+                {"messageStop": {"stopReason": "end_turn"}},
             ]
             for event in events:
                 yield event
 
-        mock_response = {"body": mock_body_iterator()}
-        captured_body = None
+        mock_response = {"stream": mock_stream_iterator()}
+        captured_kwargs: dict = {}
 
-        async def capture_invoke(*args, **kwargs):
-            nonlocal captured_body
-            captured_body = kwargs.get("body")
+        async def capture_converse(*args, **kwargs):
+            nonlocal captured_kwargs
+            captured_kwargs = kwargs
             return mock_response
 
         with patch.object(adapter, "_get_client") as mock_get_client:
             mock_client = AsyncMock()
-            mock_client.invoke_model_with_response_stream = capture_invoke
+            mock_client.converse_stream = capture_converse
 
             mock_context = AsyncMock()
             mock_context.__aenter__ = AsyncMock(return_value=mock_client)
@@ -218,10 +185,9 @@ class TestBedrockAdapter:
             ):
                 chunks.append(chunk)
 
-            # Verify max_tokens was included in request
-            assert captured_body is not None
-            body_dict = json.loads(captured_body)
-            assert body_dict["max_tokens"] == 2048
+            # Verify max_tokens was included in inferenceConfig
+            assert "inferenceConfig" in captured_kwargs
+            assert captured_kwargs["inferenceConfig"]["maxTokens"] == 2048
 
 
 class TestGetBedrockAdapter:
@@ -270,33 +236,27 @@ class TestGuardrailIntegration:
     async def test_stream_generate_with_guardrail(
         self, adapter: BedrockAdapter
     ) -> None:
-        """Test stream_generate passes guardrail params to API."""
+        """Test stream_generate passes guardrail config with async mode."""
 
-        async def mock_body_iterator():
+        async def mock_stream_iterator():
             events = [
-                {
-                    "chunk": {
-                        "bytes": json.dumps(
-                            {"contentBlockDelta": {"delta": {"text": "OK"}}}
-                        ).encode()
-                    }
-                },
-                {"chunk": {"bytes": json.dumps({"messageStop": {}}).encode()}},
+                {"contentBlockDelta": {"delta": {"text": "OK"}}},
+                {"messageStop": {"stopReason": "end_turn"}},
             ]
             for event in events:
                 yield event
 
-        mock_response = {"body": mock_body_iterator()}
+        mock_response = {"stream": mock_stream_iterator()}
         captured_kwargs: dict = {}
 
-        async def capture_invoke(*args, **kwargs):
+        async def capture_converse(*args, **kwargs):
             nonlocal captured_kwargs
             captured_kwargs = kwargs
             return mock_response
 
         with patch.object(adapter, "_get_client") as mock_get_client:
             mock_client = AsyncMock()
-            mock_client.invoke_model_with_response_stream = capture_invoke
+            mock_client.converse_stream = capture_converse
 
             mock_context = AsyncMock()
             mock_context.__aenter__ = AsyncMock(return_value=mock_client)
@@ -313,9 +273,13 @@ class TestGuardrailIntegration:
             ):
                 chunks.append(chunk)
 
-            # Verify guardrail params were passed
-            assert captured_kwargs.get("guardrailIdentifier") == "gr-abc123"
-            assert captured_kwargs.get("guardrailVersion") == "1"
+            # Verify guardrail config was passed with async mode
+            assert "guardrailConfig" in captured_kwargs
+            guardrail_config = captured_kwargs["guardrailConfig"]
+            assert guardrail_config["guardrailIdentifier"] == "gr-abc123"
+            assert guardrail_config["guardrailVersion"] == "1"
+            assert guardrail_config["streamProcessingMode"] == "async"
+            assert guardrail_config["trace"] == "enabled"
 
     @pytest.mark.asyncio
     async def test_stream_generate_without_guardrail(
@@ -323,31 +287,25 @@ class TestGuardrailIntegration:
     ) -> None:
         """Test stream_generate works without guardrail params."""
 
-        async def mock_body_iterator():
+        async def mock_stream_iterator():
             events = [
-                {
-                    "chunk": {
-                        "bytes": json.dumps(
-                            {"contentBlockDelta": {"delta": {"text": "OK"}}}
-                        ).encode()
-                    }
-                },
-                {"chunk": {"bytes": json.dumps({"messageStop": {}}).encode()}},
+                {"contentBlockDelta": {"delta": {"text": "OK"}}},
+                {"messageStop": {"stopReason": "end_turn"}},
             ]
             for event in events:
                 yield event
 
-        mock_response = {"body": mock_body_iterator()}
+        mock_response = {"stream": mock_stream_iterator()}
         captured_kwargs: dict = {}
 
-        async def capture_invoke(*args, **kwargs):
+        async def capture_converse(*args, **kwargs):
             nonlocal captured_kwargs
             captured_kwargs = kwargs
             return mock_response
 
         with patch.object(adapter, "_get_client") as mock_get_client:
             mock_client = AsyncMock()
-            mock_client.invoke_model_with_response_stream = capture_invoke
+            mock_client.converse_stream = capture_converse
 
             mock_context = AsyncMock()
             mock_context.__aenter__ = AsyncMock(return_value=mock_client)
@@ -363,9 +321,8 @@ class TestGuardrailIntegration:
             ):
                 chunks.append(chunk)
 
-            # Verify guardrail params were NOT passed
-            assert "guardrailIdentifier" not in captured_kwargs
-            assert "guardrailVersion" not in captured_kwargs
+            # Verify guardrailConfig was NOT passed
+            assert "guardrailConfig" not in captured_kwargs
 
     @pytest.mark.asyncio
     async def test_stream_generate_guardrail_intervention(
@@ -373,30 +330,21 @@ class TestGuardrailIntegration:
     ) -> None:
         """Test stream_generate raises error when guardrail intervenes."""
 
-        async def mock_body_iterator():
+        async def mock_stream_iterator():
             events = [
-                # Guardrail intervention event
-                {
-                    "chunk": {
-                        "bytes": json.dumps(
-                            {
-                                "type": "amazon-bedrock-guardrailAction",
-                                "action": "INTERVENED",
-                            }
-                        ).encode()
-                    }
-                },
+                # Some content may have streamed before intervention
+                {"contentBlockDelta": {"delta": {"text": "I"}}},
+                # Guardrail intervention via stopReason
+                {"messageStop": {"stopReason": "guardrail_intervened"}},
             ]
             for event in events:
                 yield event
 
-        mock_response = {"body": mock_body_iterator()}
+        mock_response = {"stream": mock_stream_iterator()}
 
         with patch.object(adapter, "_get_client") as mock_get_client:
             mock_client = AsyncMock()
-            mock_client.invoke_model_with_response_stream = AsyncMock(
-                return_value=mock_response
-            )
+            mock_client.converse_stream = AsyncMock(return_value=mock_response)
 
             mock_context = AsyncMock()
             mock_context.__aenter__ = AsyncMock(return_value=mock_client)

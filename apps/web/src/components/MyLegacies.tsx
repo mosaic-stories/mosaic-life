@@ -1,17 +1,16 @@
-import { ArrowLeft, BookHeart, Plus, Loader2, AlertCircle, Users, Globe, Lock } from 'lucide-react';
+import { BookHeart, Plus, Loader2, AlertCircle, Users, Globe, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import ThemeSelector from './ThemeSelector';
+import { HeaderSlot } from '@/components/header';
+import SearchBar from './SearchBar';
 import { useLegacies } from '@/lib/hooks/useLegacies';
 import { formatLegacyDates, getLegacyContext, type Legacy } from '@/lib/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 
 interface MyLegaciesProps {
   onNavigate: (view: string) => void;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
 }
 
 const contextLabels: Record<string, string> = {
@@ -78,7 +77,7 @@ function LegacyCard({ legacy, onClick }: { legacy: Legacy; onClick: () => void }
   );
 }
 
-export default function MyLegacies({ onNavigate, currentTheme, onThemeChange }: MyLegaciesProps) {
+export default function MyLegacies({ onNavigate }: MyLegaciesProps) {
   const navigate = useNavigate();
   const { data: legacies, isLoading, error } = useLegacies();
 
@@ -88,31 +87,30 @@ export default function MyLegacies({ onNavigate, currentTheme, onThemeChange }: 
 
   const handleCreateLegacy = () => {
     // For now, navigate to a create page (will need to be implemented)
-    onNavigate('story');
+    onNavigate('create-legacy');
+  };
+
+  const handleSearchSelect = (type: string, id: string) => {
+    if (type === 'legacy') {
+      navigate(`/legacy/${id}`);
+    } else if (type === 'community') {
+      navigate(`/community/${id}`);
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
-      <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate('/')}
-              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-            >
-              <ArrowLeft className="size-4" />
-              <span>Back to home</span>
-            </button>
-            <div className="flex items-center gap-3">
-              <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-              <Button size="sm" onClick={handleCreateLegacy}>
-                <Plus className="size-4 mr-2" />
-                Create Legacy
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+    <>
+      <HeaderSlot>
+        <SearchBar onSelectResult={handleSearchSelect} compact />
+        <Button
+          onClick={handleCreateLegacy}
+          size="sm"
+          className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
+        >
+          <Plus className="size-4" />
+          <span className="hidden sm:inline">Create Legacy</span>
+        </Button>
+      </HeaderSlot>
 
       <main className="max-w-7xl mx-auto px-6 py-12">
         <div className="space-y-8">
@@ -179,6 +177,6 @@ export default function MyLegacies({ onNavigate, currentTheme, onThemeChange }: 
           )}
         </div>
       </main>
-    </div>
+    </>
   );
 }

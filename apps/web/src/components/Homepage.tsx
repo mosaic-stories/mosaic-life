@@ -5,11 +5,9 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import ThemeSelector from './ThemeSelector';
-import UserProfileDropdown from './UserProfileDropdown';
-import { NotificationBell } from './notifications';
 import Footer from './Footer';
-import SearchBar from './SearchBar';
 import DogearToggle from './DogearToggle';
+import { HeaderSlot } from '@/components/header';
 import { useLegacies, useExploreLegacies } from '@/lib/hooks/useLegacies';
 import { formatLegacyDates, getLegacyContext } from '@/lib/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
@@ -24,7 +22,7 @@ interface HomepageProps {
   onSignOut: () => void;
 }
 
-export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onThemeChange, user, onAuthClick, onSignOut }: HomepageProps) {
+export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onThemeChange, user, onAuthClick, onSignOut: _onSignOut }: HomepageProps) {
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
 
   // useLegacies for authenticated users' personal legacies (requires auth)
@@ -42,111 +40,15 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onT
     'living-tribute': 'bg-purple-100 text-purple-800 border-purple-200'
   };
 
-  const handleSearchSelect = (type: string, id: string) => {
-    if (type === 'legacy') {
-      onSelectLegacy(id);
-    } else if (type === 'community') {
-      onNavigate('community');
-    } else if (type === 'story') {
-      onSelectLegacy(id); // Navigate to the legacy containing this story
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col">
       {/* Dogear Toggle */}
       <DogearToggle isSimpleView={false} onToggle={() => onNavigate('home-minimal')} />
 
-      {/* Navigation */}
-      <nav className="border-b bg-white/90 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-4">
-          <button 
-            onClick={() => onNavigate('home')}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0"
-          >
-            <BookHeart className="size-6 text-[rgb(var(--theme-primary))]" />
-            <span className="tracking-tight">Mosaic Life</span>
-          </button>
-          
-          {/* Search Bar - Center */}
-          <div className="flex-1 max-w-2xl hidden md:block">
-            <SearchBar onSelectResult={handleSearchSelect} compact />
-          </div>
-          
-          {/* Not Logged In State */}
-          {!user && (
-            <div className="flex items-center gap-4 flex-shrink-0">
-              <button 
-                onClick={() => onNavigate('home')}
-                className="text-neutral-600 hover:text-neutral-900 transition-colors hidden md:block"
-              >
-                Home
-              </button>
-              <button 
-                onClick={() => onNavigate('about')}
-                className="text-neutral-600 hover:text-neutral-900 transition-colors hidden md:block"
-              >
-                About
-              </button>
-              <button 
-                onClick={() => onNavigate('how-it-works')}
-                className="text-neutral-600 hover:text-neutral-900 transition-colors hidden md:block"
-              >
-                How It Works
-              </button>
-              <button 
-                onClick={() => onNavigate('community')}
-                className="text-neutral-600 hover:text-neutral-900 transition-colors hidden md:block"
-              >
-                Community
-              </button>
-              <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-              <Button onClick={onAuthClick} size="sm">Sign In</Button>
-            </div>
-          )}
-          
-          {/* Logged In State */}
-          {user && (
-            <div className="flex items-center gap-4 flex-shrink-0">
-              <button 
-                onClick={() => onNavigate('home')}
-                className="text-neutral-600 hover:text-neutral-900 transition-colors hidden md:block"
-              >
-                Home
-              </button>
-              <button 
-                onClick={() => onNavigate('my-legacies')}
-                className="text-neutral-600 hover:text-neutral-900 transition-colors hidden md:block"
-              >
-                My Legacies
-              </button>
-              <button 
-                onClick={() => onNavigate('how-it-works')}
-                className="text-neutral-600 hover:text-neutral-900 transition-colors hidden md:block"
-              >
-                How It Works
-              </button>
-              <button 
-                onClick={() => onNavigate('community')}
-                className="text-neutral-600 hover:text-neutral-900 transition-colors hidden md:block"
-              >
-                Community
-              </button>
-              <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-              <Button 
-                onClick={() => onNavigate('story')}
-                size="sm"
-                className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
-              >
-                <Plus className="size-4" />
-                <span className="hidden sm:inline">Create Legacy</span>
-              </Button>
-              <NotificationBell />
-              <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
-            </div>
-          )}
-        </div>
-      </nav>
+      {/* Header Slot - Theme Selector on Homepage */}
+      <HeaderSlot>
+        <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
+      </HeaderSlot>
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-6 py-20">

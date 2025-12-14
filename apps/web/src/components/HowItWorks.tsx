@@ -1,10 +1,10 @@
-import { 
-  BookHeart, 
-  Plus, 
-  Users, 
-  MessageSquare, 
-  Sparkles, 
-  Shield, 
+import {
+  BookHeart,
+  Plus,
+  Users,
+  MessageSquare,
+  Sparkles,
+  Shield,
   Edit3,
   Camera,
   Bot,
@@ -19,11 +19,7 @@ import {
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import ThemeSelector from './ThemeSelector';
-import UserProfileDropdown from './UserProfileDropdown';
-import { NotificationBell } from './notifications';
 import Footer from './Footer';
-import SearchBar from './SearchBar';
 
 interface HowItWorksProps {
   onNavigate: (view: string) => void;
@@ -35,17 +31,7 @@ interface HowItWorksProps {
   onSignOut: () => void;
 }
 
-export default function HowItWorks({ onNavigate, onSelectLegacy, currentTheme, onThemeChange, user, onAuthClick, onSignOut }: HowItWorksProps) {
-  const handleSearchSelect = (type: string, id: string) => {
-    if (type === 'legacy' && onSelectLegacy) {
-      onSelectLegacy(id);
-    } else if (type === 'community') {
-      onNavigate('community');
-    } else if (type === 'story' && onSelectLegacy) {
-      onSelectLegacy(id);
-    }
-  };
-
+export default function HowItWorks({ onNavigate, user, onAuthClick }: HowItWorksProps) {
   const features = [
     {
       icon: BookHeart,
@@ -194,65 +180,6 @@ export default function HowItWorks({ onNavigate, onSelectLegacy, currentTheme, o
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300 flex flex-col">
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <button 
-              onClick={() => onNavigate('home')}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0"
-            >
-              <BookHeart className="size-6 text-[rgb(var(--theme-primary))]" />
-              <span className="tracking-tight text-neutral-900">Mosaic Life</span>
-            </button>
-
-            <div className="flex-1 max-w-md hidden md:block">
-              <SearchBar onSelectResult={handleSearchSelect} compact />
-            </div>
-            
-            <div className="flex items-center gap-6 flex-shrink-0">
-              <nav className="hidden md:flex items-center gap-4">
-                <button 
-                  onClick={() => onNavigate('home')}
-                  className="text-neutral-600 hover:text-neutral-900 transition-colors"
-                >
-                  Home
-                </button>
-                <button 
-                  onClick={() => onNavigate('about')}
-                  className="text-neutral-600 hover:text-neutral-900 transition-colors"
-                >
-                  About
-                </button>
-                <button 
-                  onClick={() => onNavigate('how-it-works')}
-                  className="text-neutral-900"
-                >
-                  How It Works
-                </button>
-                <button 
-                  onClick={() => onNavigate('community')}
-                  className="text-neutral-600 hover:text-neutral-900 transition-colors"
-                >
-                  Community
-                </button>
-              </nav>
-              <div className="flex items-center gap-3">
-                <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-                {user ? (
-                  <>
-                    <NotificationBell />
-                    <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
-                  </>
-                ) : (
-                  <Button size="sm" onClick={onAuthClick}>Sign In</Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <main className="flex-1">
         {/* Hero Section */}
         <section className="max-w-5xl mx-auto px-6 py-16">

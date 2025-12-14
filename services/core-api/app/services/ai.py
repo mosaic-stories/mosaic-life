@@ -64,6 +64,62 @@ async def check_legacy_access(
         )
 
 
+async def create_conversation(
+    db: AsyncSession,
+    user_id: UUID,
+    data: ConversationCreate,
+) -> ConversationResponse:
+    """Create a new conversation (always creates new).
+
+    Unlike get_or_create_conversation, this always creates a new conversation
+    even if one exists for the user+legacy+persona combination.
+
+    Args:
+        db: Database session.
+        user_id: User ID.
+        data: Conversation creation data.
+
+    Returns:
+        Conversation response.
+
+    Raises:
+        HTTPException: 403 if not a member, 400 if invalid persona.
+    """
+    with tracer.start_as_current_span("ai.conversation.create") as span:
+        span.set_attribute("user_id", str(user_id))
+        span.set_attribute("legacy_id", str(data.legacy_id))
+        span.set_attribute("persona_id", data.persona_id)
+
+        # Check access
+        await check_legacy_access(db, user_id, data.legacy_id)
+
+        # Check persona exists
+        from ..config.personas import get_persona
+
+        if not get_persona(data.persona_id):
+            raise HTTPException(status_code=400, detail="Invalid persona")
+
+        # Create new conversation
+        conversation = AIConversation(
+            user_id=user_id,
+            legacy_id=data.legacy_id,
+            persona_id=data.persona_id,
+        )
+        db.add(conversation)
+        await db.commit()
+        await db.refresh(conversation)
+
+        logger.info(
+            "ai.conversation.created",
+            extra={
+                "conversation_id": str(conversation.id),
+                "persona_id": data.persona_id,
+            },
+        )
+
+        return ConversationResponse.model_validate(conversation)
+
+
 async def get_or_create_conversation(
     db: AsyncSession,
     user_id: UUID,
@@ -96,13 +152,16 @@ async def get_or_create_conversation(
         if not get_persona(data.persona_id):
             raise HTTPException(status_code=400, detail="Invalid persona")
 
-        # Look for existing conversation
+        # Look for existing conversation (get most recent if multiple exist)
         result = await db.execute(
-            select(AIConversation).where(
+            select(AIConversation)
+            .where(
                 AIConversation.user_id == user_id,
                 AIConversation.legacy_id == data.legacy_id,
                 AIConversation.persona_id == data.persona_id,
             )
+            .order_by(AIConversation.updated_at.desc())
+            .limit(1)
         )
         conversation = result.scalar_one_or_none()
 
@@ -138,6 +197,8 @@ async def list_conversations(
     db: AsyncSession,
     user_id: UUID,
     legacy_id: UUID | None = None,
+    persona_id: str | None = None,
+    limit: int = 10,
 ) -> list[ConversationSummary]:
     """List user's conversations.
 
@@ -145,35 +206,53 @@ async def list_conversations(
         db: Database session.
         user_id: User ID.
         legacy_id: Optional filter by legacy.
+        persona_id: Optional filter by persona.
+        limit: Maximum conversations to return (default 10).
 
     Returns:
         List of conversation summaries.
     """
-    query = select(AIConversation).where(AIConversation.user_id == user_id)
+    # Create subquery for message count and last_message_at
+    # This optimizes from N+2 queries to a single query
+    msg_count_subq = (
+        select(
+            AIMessage.conversation_id,
+            func.count(AIMessage.id).label("message_count"),
+            func.max(AIMessage.created_at).label("last_message_at"),
+        )
+        .group_by(AIMessage.conversation_id)
+        .subquery()
+    )
+
+    # Main query with join to subquery
+    query = (
+        select(
+            AIConversation,
+            func.coalesce(msg_count_subq.c.message_count, 0).label("message_count"),
+            msg_count_subq.c.last_message_at,
+        )
+        .outerjoin(
+            msg_count_subq, AIConversation.id == msg_count_subq.c.conversation_id
+        )
+        .where(AIConversation.user_id == user_id)
+    )
 
     if legacy_id:
         query = query.where(AIConversation.legacy_id == legacy_id)
 
-    query = query.order_by(AIConversation.updated_at.desc())
+    if persona_id:
+        query = query.where(AIConversation.persona_id == persona_id)
+
+    query = query.order_by(AIConversation.updated_at.desc()).limit(limit)
 
     result = await db.execute(query)
-    conversations = result.scalars().all()
+    rows = result.all()
 
     summaries = []
-    for conv in conversations:
-        # Get message count and last message time
-        count_result = await db.execute(
-            select(func.count(AIMessage.id)).where(AIMessage.conversation_id == conv.id)
-        )
-        message_count = count_result.scalar() or 0
-
-        last_msg_result = await db.execute(
-            select(AIMessage.created_at)
-            .where(AIMessage.conversation_id == conv.id)
-            .order_by(AIMessage.created_at.desc())
-            .limit(1)
-        )
-        last_message_at = last_msg_result.scalar_one_or_none()
+    for row in rows:
+        conv = row[0]  # AIConversation object
+        message_count = row[1]  # message_count from query
+        last_message_at = row[2]  # last_message_at from query
 
         summaries.append(
             ConversationSummary(
@@ -287,7 +366,10 @@ async def get_context_messages(
     with tracer.start_as_current_span("ai.chat.context_load") as span:
         result = await db.execute(
             select(AIMessage)
-            .where(AIMessage.conversation_id == conversation_id)
+            .where(
+                AIMessage.conversation_id == conversation_id,
+                ~AIMessage.blocked,
+            )
             .order_by(AIMessage.created_at.desc())
             .limit(MAX_CONTEXT_MESSAGES)
         )
@@ -309,6 +391,7 @@ async def save_message(
     role: str,
     content: str,
     token_count: int | None = None,
+    blocked: bool = False,
 ) -> AIMessage:
     """Save a message to the conversation.
 
@@ -318,6 +401,7 @@ async def save_message(
         role: Message role (user/assistant).
         content: Message content.
         token_count: Optional token count.
+        blocked: Whether message was blocked by guardrail.
 
     Returns:
         Saved message.
@@ -327,6 +411,7 @@ async def save_message(
         role=role,
         content=content,
         token_count=token_count,
+        blocked=blocked,
     )
     db.add(message)
 
@@ -347,6 +432,7 @@ async def save_message(
             "conversation_id": str(conversation_id),
             "role": role,
             "token_count": token_count,
+            "blocked": blocked,
         },
     )
 
@@ -376,3 +462,28 @@ async def delete_conversation(
         "ai.conversation.deleted",
         extra={"conversation_id": str(conversation_id)},
     )
+
+
+async def mark_message_blocked(
+    db: AsyncSession,
+    message_id: UUID,
+) -> None:
+    """Mark a message as blocked by guardrail.
+
+    Args:
+        db: Database session.
+        message_id: Message ID to mark as blocked.
+    """
+    result = await db.execute(select(AIMessage).where(AIMessage.id == message_id))
+    message = result.scalar_one_or_none()
+    if message:
+        message.blocked = True
+        await db.commit()
+
+        logger.info(
+            "ai.message.marked_blocked",
+            extra={
+                "message_id": str(message_id),
+                "conversation_id": str(message.conversation_id),
+            },
+        )
