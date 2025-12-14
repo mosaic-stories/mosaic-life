@@ -171,7 +171,7 @@ export default function AIAgentChat({
     await sendMessage(content);
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
@@ -646,9 +646,14 @@ export default function AIAgentChat({
             <div className="flex gap-2 md:gap-3">
               <Input
                 ref={inputRef}
+                type="text"
+                inputMode="text"
+                autoComplete="off"
+                autoCorrect="on"
+                enterKeyHint="send"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyDown}
                 placeholder={
                   isStreaming
                     ? 'Please wait...'
