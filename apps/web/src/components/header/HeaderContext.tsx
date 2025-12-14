@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 
 interface HeaderContextValue {
   slotContent: ReactNode;
@@ -27,4 +27,19 @@ export function HeaderProvider({ children }: HeaderProviderProps) {
       {children}
     </HeaderContext.Provider>
   );
+}
+
+interface HeaderSlotProps {
+  children: ReactNode;
+}
+
+export function HeaderSlot({ children }: HeaderSlotProps) {
+  const { setSlotContent } = useHeaderContext();
+
+  useEffect(() => {
+    setSlotContent(children);
+    return () => setSlotContent(null);
+  }, [children, setSlotContent]);
+
+  return null;
 }
