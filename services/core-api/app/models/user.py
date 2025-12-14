@@ -13,6 +13,7 @@ from ..database import Base
 
 if TYPE_CHECKING:
     from .support_request import SupportRequest
+    from .user_session import UserSession
 
 
 class User(Base):
@@ -56,6 +57,9 @@ class User(Base):
     # Relationships
     support_requests: Mapped[list["SupportRequest"]] = relationship(
         "SupportRequest", back_populates="user", cascade="all, delete-orphan"
+    )
+    sessions: Mapped[list["UserSession"]] = relationship(
+        "UserSession", back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

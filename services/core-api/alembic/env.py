@@ -20,6 +20,7 @@ from app.models import (  # noqa: F401
     Story,
     SupportRequest,
     User,
+    UserSession,
 )
 
 config = context.config

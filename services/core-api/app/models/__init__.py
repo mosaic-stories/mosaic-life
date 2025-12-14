@@ -8,11 +8,13 @@ from .notification import Notification
 from .story import Story
 from .support_request import SupportRequest
 from .user import User
+from .user_session import UserSession
 
 __all__ = [
     "AIConversation",
     "AIMessage",
     "User",
+    "UserSession",
     "Legacy",
     "LegacyMember",
     "Media",
