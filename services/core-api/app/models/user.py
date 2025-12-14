@@ -1,14 +1,18 @@
 """User model for Google OAuth authentication."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from ..database import Base
+
+if TYPE_CHECKING:
+    from .support_request import SupportRequest
 
 
 class User(Base):
@@ -47,6 +51,11 @@ class User(Base):
         DateTime(timezone=True),
         server_default=func.current_timestamp(),
         nullable=False,
+    )
+
+    # Relationships
+    support_requests: Mapped[list["SupportRequest"]] = relationship(
+        "SupportRequest", back_populates="user", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:

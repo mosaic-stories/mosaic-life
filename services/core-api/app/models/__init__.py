@@ -5,6 +5,8 @@ from .invitation import Invitation
 from .legacy import Legacy, LegacyMember
 from .media import Media
 from .notification import Notification
+from .story import Story
+from .support_request import SupportRequest
 from .user import User
 
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "Media",
     "Invitation",
     "Notification",
+    "Story",
+    "SupportRequest",
 ]
