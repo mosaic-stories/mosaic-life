@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { applyTheme } from '@/lib/themeUtils';
 import AuthModal from '@/components/AuthModal';
+import { HeaderProvider, AppHeader } from '@/components/header';
 
 export interface SharedPageProps {
   onNavigate: (view: string) => void;
@@ -107,13 +108,21 @@ export default function RootLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
-      <Outlet context={sharedProps} />
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-        onAuthenticate={handleAuthenticate}
-      />
-    </div>
+    <HeaderProvider>
+      <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+        <AppHeader
+          user={sharedProps.user}
+          onNavigate={handleNavigate}
+          onAuthClick={handleAuthClick}
+          onSignOut={handleSignOut}
+        />
+        <Outlet context={sharedProps} />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          onAuthenticate={handleAuthenticate}
+        />
+      </div>
+    </HeaderProvider>
   );
 }
