@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { applyTheme } from '@/lib/themeUtils';
 import AuthModal from '@/components/AuthModal';
 import { HeaderProvider, AppHeader } from '@/components/header';
+import { usePreferences } from '@/lib/hooks/useSettings';
 
 export interface SharedPageProps {
   onNavigate: (view: string) => void;
@@ -21,6 +22,7 @@ export default function RootLayout() {
   const { user, logout, login } = useAuth();
   const [currentTheme, setCurrentTheme] = useState<string>('warm-amber');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const { data: preferences } = usePreferences();
 
   // Check if we should show auth modal (redirected from protected route)
   useEffect(() => {
@@ -44,6 +46,15 @@ export default function RootLayout() {
     }
     document.title = 'Mosaic Life - Honoring lives through shared stories';
   }, []);
+
+  // Sync theme from backend on login
+  useEffect(() => {
+    if (preferences?.theme) {
+      setCurrentTheme(preferences.theme);
+      localStorage.setItem('mosaic-theme', preferences.theme);
+      applyTheme(preferences.theme);
+    }
+  }, [preferences?.theme]);
 
   // Save theme when it changes
   const handleThemeChange = useCallback((theme: string) => {
