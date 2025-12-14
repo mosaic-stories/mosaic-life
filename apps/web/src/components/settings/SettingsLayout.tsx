@@ -5,7 +5,7 @@
 import { ChevronLeft, Palette, Settings, User, BarChart3, Shield } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/components/ui/utils';
 
 const sidebarItems = [
   { path: 'profile', label: 'Profile', icon: User },
