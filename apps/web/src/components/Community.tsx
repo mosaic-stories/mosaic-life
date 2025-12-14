@@ -1,8 +1,7 @@
-import { 
-  BookHeart, 
-  Plus, 
-  Users, 
-  Lock, 
+import {
+  Plus,
+  Users,
+  Lock,
   Globe,
   MessageCircle,
   Search,
@@ -19,12 +18,8 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { useState } from 'react';
-import ThemeSelector from './ThemeSelector';
-import UserProfileDropdown from './UserProfileDropdown';
-import { NotificationBell } from './notifications';
 import Footer from './Footer';
 import CreateCommunityModal from './CreateCommunityModal';
-import SearchBar from './SearchBar';
 
 interface CommunityProps {
   onNavigate: (view: string) => void;
@@ -48,16 +43,7 @@ interface CommunityItem {
   image?: string;
 }
 
-export default function Community({ onNavigate, onSelectLegacy, currentTheme, onThemeChange, user, onAuthClick, onSignOut }: CommunityProps) {
-  const handleSearchSelect = (type: string, id: string) => {
-    if (type === 'legacy' && onSelectLegacy) {
-      onSelectLegacy(id);
-    } else if (type === 'community') {
-      onNavigate('community');
-    } else if (type === 'story' && onSelectLegacy) {
-      onSelectLegacy(id);
-    }
-  };
+export default function Community({ onNavigate }: CommunityProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'all' | 'joined' | 'discover'>('all');
@@ -167,65 +153,6 @@ export default function Community({ onNavigate, onSelectLegacy, currentTheme, on
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300 flex flex-col">
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between gap-4">
-            <button 
-              onClick={() => onNavigate('home')}
-              className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0"
-            >
-              <BookHeart className="size-6 text-[rgb(var(--theme-primary))]" />
-              <span className="tracking-tight text-neutral-900">Mosaic Life</span>
-            </button>
-
-            <div className="flex-1 max-w-md hidden md:block">
-              <SearchBar onSelectResult={handleSearchSelect} compact />
-            </div>
-            
-            <div className="flex items-center gap-6 flex-shrink-0">
-              <nav className="hidden md:flex items-center gap-4">
-                <button 
-                  onClick={() => onNavigate('home')}
-                  className="text-neutral-600 hover:text-neutral-900 transition-colors"
-                >
-                  Home
-                </button>
-                <button 
-                  onClick={() => onNavigate('about')}
-                  className="text-neutral-600 hover:text-neutral-900 transition-colors"
-                >
-                  About
-                </button>
-                <button 
-                  onClick={() => onNavigate('how-it-works')}
-                  className="text-neutral-600 hover:text-neutral-900 transition-colors"
-                >
-                  How It Works
-                </button>
-                <button 
-                  onClick={() => onNavigate('community')}
-                  className="text-neutral-900"
-                >
-                  Community
-                </button>
-              </nav>
-              <div className="flex items-center gap-3">
-                <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-                {user ? (
-                  <>
-                    <NotificationBell />
-                    <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
-                  </>
-                ) : (
-                  <Button size="sm" onClick={onAuthClick}>Sign In</Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
       <main className="flex-1">
         {/* Hero Section */}
         <section className="bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))] py-12">

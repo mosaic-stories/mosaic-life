@@ -1,10 +1,7 @@
-import { Search, BookHeart, MessageSquare, Image } from 'lucide-react';
-import { Button } from './ui/button';
+import { Search, MessageSquare, Image } from 'lucide-react';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
-import ThemeSelector from './ThemeSelector';
-import UserProfileDropdown from './UserProfileDropdown';
-import { NotificationBell } from './notifications';
+import { HeaderSlot } from '@/components/header';
 import { legacies } from '../lib/mockData';
 import { useState } from 'react';
 
@@ -21,11 +18,7 @@ interface ExploreMinimalProps {
 export default function ExploreMinimal({
   onNavigate,
   onSelectLegacy,
-  currentTheme,
-  onThemeChange,
   user,
-  onAuthClick,
-  onSignOut
 }: ExploreMinimalProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<string>('all');
@@ -51,48 +44,18 @@ export default function ExploreMinimal({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-white to-[rgb(var(--theme-bg))]">
-      {/* Navigation */}
-      <nav className="border-b bg-white/90 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button 
-            onClick={() => onNavigate('home-minimal')}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity"
-          >
-            <BookHeart className="size-6 text-[rgb(var(--theme-primary))]" />
-            <span className="tracking-tight">Mosaic Life</span>
-          </button>
-          
-          <div className="flex items-center gap-4">
-            <button 
-              onClick={() => onNavigate('my-legacies-minimal')}
-              className="text-sm text-neutral-600 hover:text-[rgb(var(--theme-primary))]"
-            >
-              My Tributes
-            </button>
-            <button 
-              onClick={() => onNavigate('community-minimal')}
-              className="text-sm text-neutral-600 hover:text-[rgb(var(--theme-primary))]"
-            >
-              Communities
-            </button>
-            <button
-              onClick={() => onNavigate('home')}
-              className="text-xs px-3 py-1.5 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 transition-colors"
-            >
-              Full Version
-            </button>
-            <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-            {user ? (
-              <>
-                <NotificationBell />
-                <UserProfileDropdown user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
-              </>
-            ) : (
-              <Button onClick={onAuthClick} size="sm">Sign In</Button>
-            )}
-          </div>
+      {/* Header Slot with Search */}
+      <HeaderSlot>
+        <div className="relative w-full max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-neutral-400" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tributes..."
+            className="pl-10 bg-white"
+          />
         </div>
-      </nav>
+      </HeaderSlot>
 
       {/* Content */}
       <div className="max-w-6xl mx-auto px-6 py-12">

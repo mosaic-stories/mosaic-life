@@ -23,7 +23,7 @@ import {
 import { getThemeClasses } from '../lib/themes';
 import MediaUploader from './MediaUploader';
 import MediaGalleryInline from './MediaGalleryInline';
-import ThemeSelector from './ThemeSelector';
+import { HeaderSlot } from '@/components/header';
 import { useLegacyWithFallback, useDeleteLegacy } from '@/lib/hooks/useLegacies';
 import { useStoriesWithFallback } from '@/lib/hooks/useStories';
 import { formatLegacyDates } from '@/lib/api/legacies';
@@ -37,6 +37,65 @@ interface LegacyProfileProps {
   currentTheme: string;
   onThemeChange: (themeId: string) => void;
   user: { name: string; email: string; avatarUrl?: string } | null;
+}
+
+// HeaderControls component for the slot
+function LegacyHeaderControls({
+  legacyId,
+  user,
+  onAddStory,
+  onDelete
+}: {
+  legacyId: string;
+  user: { name: string; email: string; avatarUrl?: string } | null;
+  onAddStory: () => void;
+  onDelete: () => void;
+}) {
+  const navigate = useNavigate();
+
+  return (
+    <div className="flex items-center gap-2">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => navigate('/my-legacies')}
+        className="gap-2 text-neutral-600 hover:text-neutral-900"
+      >
+        <ArrowLeft className="size-4" />
+        <span className="hidden sm:inline">Back</span>
+      </Button>
+      <Button variant="ghost" size="sm">
+        <Share2 className="size-4" />
+      </Button>
+      {user && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm">
+              <MoreVertical className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => navigate(`/legacy/${legacyId}/edit`)}>
+              <Pencil className="size-4" />
+              Edit Legacy
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={onDelete}
+            >
+              <Trash2 className="size-4" />
+              Delete Legacy
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      <Button size="sm" onClick={onAddStory} className="bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]">
+        <Plus className="size-4 mr-2" />
+        <span className="hidden sm:inline">Add Story</span>
+      </Button>
+    </div>
+  );
 }
 
 function DemoBadge() {
@@ -98,7 +157,7 @@ function StoryCard({ story, onClick }: { story: StorySummary; onClick?: () => vo
   );
 }
 
-export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, currentTheme, onThemeChange, user }: LegacyProfileProps) {
+export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, currentTheme, onThemeChange: _onThemeChange, user }: LegacyProfileProps) {
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<'stories' | 'media' | 'ai'>('stories');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -192,53 +251,15 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate('/my-legacies')}
-              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-            >
-              <ArrowLeft className="size-4" />
-              <span>Back to my legacies</span>
-            </button>
-            <div className="flex items-center gap-3">
-              <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-              <Button variant="ghost" size="sm">
-                <Share2 className="size-4" />
-              </Button>
-              {user && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <MoreVertical className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => navigate(`/legacy/${legacyId}/edit`)}>
-                      <Pencil className="size-4" />
-                      Edit Legacy
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => setShowDeleteDialog(true)}
-                    >
-                      <Trash2 className="size-4" />
-                      Delete Legacy
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-              <Button size="sm" onClick={handleAddStory} className="bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]">
-                <Plus className="size-4 mr-2" />
-                Add Story
-              </Button>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Header Slot with contextual controls */}
+      <HeaderSlot>
+        <LegacyHeaderControls
+          legacyId={legacyId}
+          user={user}
+          onAddStory={handleAddStory}
+          onDelete={() => setShowDeleteDialog(true)}
+        />
+      </HeaderSlot>
 
       {/* Profile Header */}
       <section className="bg-white border-b">
