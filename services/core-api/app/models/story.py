@@ -1,6 +1,7 @@
 """Story model for legacy stories."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
@@ -9,12 +10,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from ..database import Base
-from .legacy import Legacy
-from .user import User
+
+if TYPE_CHECKING:
+    from .associations import StoryLegacy
+    from .user import User
 
 
 class Story(Base):
-    """Story model for user-written stories about a legacy."""
+    """Story model for user-written stories about legacies."""
 
     __tablename__ = "stories"
 
@@ -22,13 +25,6 @@ class Story(Base):
         PG_UUID(as_uuid=True),
         primary_key=True,
         default=uuid4,
-    )
-
-    legacy_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("legacies.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
     )
 
     author_id: Mapped[UUID] = mapped_column(
@@ -63,8 +59,12 @@ class Story(Base):
     )
 
     # Relationships
-    legacy: Mapped["Legacy"] = relationship("Legacy", foreign_keys=[legacy_id])
     author: Mapped["User"] = relationship("User", foreign_keys=[author_id])
+    legacy_associations: Mapped[list["StoryLegacy"]] = relationship(
+        "StoryLegacy",
+        cascade="all, delete-orphan",
+        order_by="StoryLegacy.position",
+    )
 
     def __repr__(self) -> str:
         return (
