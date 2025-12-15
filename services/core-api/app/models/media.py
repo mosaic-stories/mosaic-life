@@ -12,7 +12,7 @@ from sqlalchemy.sql import func
 from ..database import Base
 
 if TYPE_CHECKING:
-    from .legacy import Legacy
+    from .associations import MediaLegacy
     from .user import User
 
 
@@ -27,9 +27,9 @@ class Media(Base):
         default=uuid4,
     )
 
-    legacy_id: Mapped[UUID] = mapped_column(
+    owner_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
-        ForeignKey("legacies.id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -39,13 +39,6 @@ class Media(Base):
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
 
-    uploaded_by: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.current_timestamp(),
@@ -54,8 +47,12 @@ class Media(Base):
     )
 
     # Relationships
-    legacy: Mapped["Legacy"] = relationship("Legacy", foreign_keys=[legacy_id])
-    uploader: Mapped["User"] = relationship("User", foreign_keys=[uploaded_by])
+    owner: Mapped["User"] = relationship("User", foreign_keys=[owner_id])
+    legacy_associations: Mapped[list["MediaLegacy"]] = relationship(
+        "MediaLegacy",
+        cascade="all, delete-orphan",
+        order_by="MediaLegacy.position",
+    )
 
     def __repr__(self) -> str:
         return f"<Media(id={self.id}, filename={self.filename})>"
