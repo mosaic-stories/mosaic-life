@@ -12,8 +12,10 @@ from sqlalchemy.orm import selectinload
 
 from ..adapters.storage import get_storage_adapter
 from ..config import get_settings
-from ..models.legacy import Legacy
+from ..models.associations import MediaLegacy
+from ..models.legacy import Legacy, LegacyMember
 from ..models.media import Media
+from ..schemas.associations import LegacyAssociationResponse
 from ..schemas.media import (
     MediaConfirmResponse,
     MediaDetail,
@@ -21,7 +23,6 @@ from ..schemas.media import (
     UploadUrlRequest,
     UploadUrlResponse,
 )
-from .legacy import check_legacy_access
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,41 @@ logger = logging.getLogger(__name__)
 def get_file_extension(filename: str) -> str:
     """Extract file extension from filename."""
     return Path(filename).suffix.lower()
+
+
+def generate_storage_path(user_id: UUID, media_id: UUID, ext: str) -> str:
+    """Generate user-scoped storage path.
+
+    Args:
+        user_id: User ID who owns the media
+        media_id: Media ID
+        ext: File extension (including dot)
+
+    Returns:
+        Storage path in format: users/{user_id}/{media_id}{ext}
+    """
+    return f"users/{user_id}/{media_id}{ext}"
+
+
+async def _get_legacy_names(
+    db: AsyncSession, legacy_ids: list[UUID]
+) -> dict[UUID, str]:
+    """Fetch legacy names by IDs.
+
+    Args:
+        db: Database session
+        legacy_ids: List of legacy IDs
+
+    Returns:
+        Mapping of legacy ID to legacy name
+    """
+    if not legacy_ids:
+        return {}
+
+    result = await db.execute(
+        select(Legacy.id, Legacy.name).where(Legacy.id.in_(legacy_ids))
+    )
+    return {row[0]: row[1] for row in result.all()}
 
 
 def validate_upload_request(data: UploadUrlRequest) -> None:
@@ -55,17 +91,49 @@ def validate_upload_request(data: UploadUrlRequest) -> None:
 async def request_upload_url(
     db: AsyncSession,
     user_id: UUID,
-    legacy_id: UUID,
     data: UploadUrlRequest,
 ) -> UploadUrlResponse:
-    """Generate presigned upload URL and create pending media record."""
-    # Check user has access to legacy
-    await check_legacy_access(
-        db=db,
-        user_id=user_id,
-        legacy_id=legacy_id,
-        required_role="member",
-    )
+    """Generate presigned upload URL and create pending media record.
+
+    Media is now owned by users and can be associated with multiple legacies.
+    If legacies are provided, user must be a member of at least one.
+
+    Args:
+        db: Database session
+        user_id: User requesting upload
+        data: Upload request data with optional legacy associations
+
+    Returns:
+        Upload URL and media metadata
+
+    Raises:
+        HTTPException: 403 if user not a member of any provided legacy
+    """
+    # If legacies provided, verify user is a member of at least one
+    if data.legacies:
+        legacy_ids = [leg.legacy_id for leg in data.legacies]
+
+        member_result = await db.execute(
+            select(LegacyMember).where(
+                LegacyMember.user_id == user_id,
+                LegacyMember.legacy_id.in_(legacy_ids),
+                LegacyMember.role != "pending",
+            )
+        )
+        member = member_result.scalar_one_or_none()
+
+        if not member:
+            logger.warning(
+                "media.upload_denied",
+                extra={
+                    "user_id": str(user_id),
+                    "legacy_ids": [str(lid) for lid in legacy_ids],
+                },
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Must be a member of at least one legacy to upload media",
+            )
 
     # Validate request
     validate_upload_request(data)
@@ -73,19 +141,31 @@ async def request_upload_url(
     # Generate storage path
     media_id = uuid4()
     ext = get_file_extension(data.filename)
-    storage_path = f"legacy/{legacy_id}/{media_id}{ext}"
+    storage_path = generate_storage_path(user_id, media_id, ext)
 
-    # Create media record (pending)
+    # Create media record (user-owned)
     media = Media(
         id=media_id,
-        legacy_id=legacy_id,
+        owner_id=user_id,
         filename=data.filename,
         content_type=data.content_type,
         size_bytes=data.size_bytes,
         storage_path=storage_path,
-        uploaded_by=user_id,
     )
     db.add(media)
+    await db.flush()  # Get media.id without committing
+
+    # Create legacy associations if provided
+    if data.legacies:
+        for leg_data in data.legacies:
+            association = MediaLegacy(
+                media_id=media_id,
+                legacy_id=leg_data.legacy_id,
+                role=leg_data.role,
+                position=leg_data.position,
+            )
+            db.add(association)
+
     await db.commit()
 
     # Generate upload URL
@@ -96,9 +176,9 @@ async def request_upload_url(
         "media.upload_url_generated",
         extra={
             "media_id": str(media_id),
-            "legacy_id": str(legacy_id),
             "user_id": str(user_id),
             "media_filename": data.filename,
+            "legacy_count": len(data.legacies) if data.legacies else 0,
         },
     )
 
@@ -112,24 +192,30 @@ async def request_upload_url(
 async def confirm_upload(
     db: AsyncSession,
     user_id: UUID,
-    legacy_id: UUID,
     media_id: UUID,
 ) -> MediaConfirmResponse:
-    """Confirm upload completed and verify file exists."""
+    """Confirm upload completed and verify file exists.
+
+    Args:
+        db: Database session
+        user_id: User confirming upload
+        media_id: Media ID to confirm
+
+    Returns:
+        Confirmed media metadata
+
+    Raises:
+        HTTPException: 404 if not found, 403 if not owner
+    """
     # Load media record
-    result = await db.execute(
-        select(Media).where(
-            Media.id == media_id,
-            Media.legacy_id == legacy_id,
-        )
-    )
+    result = await db.execute(select(Media).where(Media.id == media_id))
     media = result.scalar_one_or_none()
 
     if not media:
         raise HTTPException(status_code=404, detail="Media not found")
 
-    # Check user is the uploader
-    if media.uploaded_by != user_id:
+    # Check user is the owner
+    if media.owner_id != user_id:
         raise HTTPException(status_code=403, detail="Not authorized")
 
     # Verify file exists in storage
@@ -144,7 +230,6 @@ async def confirm_upload(
         "media.upload_confirmed",
         extra={
             "media_id": str(media_id),
-            "legacy_id": str(legacy_id),
             "user_id": str(user_id),
         },
     )
@@ -163,22 +248,53 @@ async def list_legacy_media(
     user_id: UUID,
     legacy_id: UUID,
 ) -> list[MediaSummary]:
-    """List all media for a legacy."""
-    # Check user has access to legacy
-    await check_legacy_access(
-        db=db,
-        user_id=user_id,
-        legacy_id=legacy_id,
-        required_role="member",
-    )
+    """List all media associated with a legacy.
 
+    Uses union access: user must be a member of the legacy to view media.
+
+    Args:
+        db: Database session
+        user_id: User requesting media list
+        legacy_id: Legacy ID to filter by
+
+    Returns:
+        List of media associated with the legacy
+    """
+    # Check if user is a member (not pending)
+    member_result = await db.execute(
+        select(LegacyMember).where(
+            LegacyMember.legacy_id == legacy_id,
+            LegacyMember.user_id == user_id,
+            LegacyMember.role != "pending",
+        )
+    )
+    member = member_result.scalar_one_or_none()
+
+    if not member:
+        raise HTTPException(
+            status_code=403,
+            detail="Must be a member of the legacy to view media",
+        )
+
+    # Get media associated with this legacy
     result = await db.execute(
         select(Media)
-        .options(selectinload(Media.uploader))
-        .where(Media.legacy_id == legacy_id)
+        .options(
+            selectinload(Media.owner),
+            selectinload(Media.legacy_associations),
+        )
+        .join(MediaLegacy, Media.id == MediaLegacy.media_id)
+        .where(MediaLegacy.legacy_id == legacy_id)
         .order_by(Media.created_at.desc())
     )
-    media_list = result.scalars().all()
+    media_list = result.scalars().unique().all()
+
+    # Get all unique legacy IDs from all media
+    all_legacy_ids: set[UUID] = set()
+    for media in media_list:
+        all_legacy_ids.update(assoc.legacy_id for assoc in media.legacy_associations)
+
+    legacy_names = await _get_legacy_names(db, list(all_legacy_ids))
 
     storage = get_storage_adapter()
 
@@ -189,8 +305,17 @@ async def list_legacy_media(
             content_type=m.content_type,
             size_bytes=m.size_bytes,
             download_url=storage.generate_download_url(m.storage_path),
-            uploaded_by=m.uploaded_by,
-            uploader_name=m.uploader.name,
+            uploaded_by=m.owner_id,
+            uploader_name=m.owner.name,
+            legacies=[
+                LegacyAssociationResponse(
+                    legacy_id=assoc.legacy_id,
+                    legacy_name=legacy_names.get(assoc.legacy_id, "Unknown"),
+                    role=assoc.role,
+                    position=assoc.position,
+                )
+                for assoc in sorted(m.legacy_associations, key=lambda a: a.position)
+            ],
             created_at=m.created_at,
         )
         for m in media_list
@@ -200,43 +325,81 @@ async def list_legacy_media(
 async def get_media_detail(
     db: AsyncSession,
     user_id: UUID,
-    legacy_id: UUID,
     media_id: UUID,
 ) -> MediaDetail:
-    """Get single media item with download URL."""
-    # Check user has access to legacy
-    await check_legacy_access(
-        db=db,
-        user_id=user_id,
-        legacy_id=legacy_id,
-        required_role="member",
-    )
+    """Get single media item with download URL.
 
+    Uses union access: user can view media if they are a member of ANY
+    legacy the media is associated with.
+
+    Args:
+        db: Database session
+        user_id: User requesting media
+        media_id: Media ID
+
+    Returns:
+        Media details with download URL
+
+    Raises:
+        HTTPException: 404 if not found, 403 if no access
+    """
+    # Load media with associations
     result = await db.execute(
         select(Media)
-        .options(selectinload(Media.uploader))
-        .where(
-            Media.id == media_id,
-            Media.legacy_id == legacy_id,
+        .options(
+            selectinload(Media.owner),
+            selectinload(Media.legacy_associations),
         )
+        .where(Media.id == media_id)
     )
     media = result.scalar_one_or_none()
 
     if not media:
         raise HTTPException(status_code=404, detail="Media not found")
 
+    # Check union access: user must be member of at least one associated legacy
+    if media.legacy_associations:
+        legacy_ids = [assoc.legacy_id for assoc in media.legacy_associations]
+
+        member_result = await db.execute(
+            select(LegacyMember).where(
+                LegacyMember.user_id == user_id,
+                LegacyMember.legacy_id.in_(legacy_ids),
+                LegacyMember.role != "pending",
+            )
+        )
+        member = member_result.scalar_one_or_none()
+
+        if not member:
+            raise HTTPException(
+                status_code=403,
+                detail="Must be a member of an associated legacy to view media",
+            )
+
+    # Get legacy names
+    legacy_ids = [assoc.legacy_id for assoc in media.legacy_associations]
+    legacy_names = await _get_legacy_names(db, legacy_ids)
+
     storage = get_storage_adapter()
 
     return MediaDetail(
         id=media.id,
-        legacy_id=media.legacy_id,
         filename=media.filename,
         content_type=media.content_type,
         size_bytes=media.size_bytes,
         storage_path=media.storage_path,
         download_url=storage.generate_download_url(media.storage_path),
-        uploaded_by=media.uploaded_by,
-        uploader_name=media.uploader.name,
+        uploaded_by=media.owner_id,
+        uploader_name=media.owner.name,
+        legacies=[
+            LegacyAssociationResponse(
+                legacy_id=assoc.legacy_id,
+                legacy_name=legacy_names.get(assoc.legacy_id, "Unknown"),
+                role=assoc.role,
+                position=assoc.position,
+            )
+            for assoc in sorted(media.legacy_associations, key=lambda a: a.position)
+        ],
         created_at=media.created_at,
     )
 
@@ -244,44 +407,38 @@ async def get_media_detail(
 async def delete_media(
     db: AsyncSession,
     user_id: UUID,
-    legacy_id: UUID,
     media_id: UUID,
 ) -> None:
-    """Delete media file and record."""
-    # Check user has access as creator or editor
-    await check_legacy_access(
-        db=db,
-        user_id=user_id,
-        legacy_id=legacy_id,
-        required_role="member",
-    )
+    """Delete media file and record.
 
-    result = await db.execute(
-        select(Media).where(
-            Media.id == media_id,
-            Media.legacy_id == legacy_id,
-        )
-    )
+    Only the owner can delete their media.
+
+    Args:
+        db: Database session
+        user_id: User requesting deletion
+        media_id: Media ID to delete
+
+    Raises:
+        HTTPException: 404 if not found, 403 if not owner
+    """
+    result = await db.execute(select(Media).where(Media.id == media_id))
     media = result.scalar_one_or_none()
 
     if not media:
         raise HTTPException(status_code=404, detail="Media not found")
 
-    # Only uploader or legacy creator can delete
-    legacy_result = await db.execute(select(Legacy).where(Legacy.id == legacy_id))
-    legacy = legacy_result.scalar_one()
-
-    if media.uploaded_by != user_id and legacy.created_by != user_id:
+    # Only owner can delete
+    if media.owner_id != user_id:
         raise HTTPException(
             status_code=403,
-            detail="Only uploader or legacy creator can delete",
+            detail="Only the owner can delete media",
         )
 
     # Delete from storage
     storage = get_storage_adapter()
     storage.delete_file(media.storage_path)
 
-    # Delete record
+    # Delete record (cascade will handle associations)
     await db.delete(media)
     await db.commit()
 
@@ -289,7 +446,6 @@ async def delete_media(
         "media.deleted",
         extra={
             "media_id": str(media_id),
-            "legacy_id": str(legacy_id),
             "user_id": str(user_id),
         },
     )
@@ -301,25 +457,45 @@ async def set_profile_image(
     legacy_id: UUID,
     media_id: UUID,
 ) -> None:
-    """Set legacy profile image from existing media."""
-    # Check user is creator or editor
-    await check_legacy_access(
-        db=db,
-        user_id=user_id,
-        legacy_id=legacy_id,
-        required_role="editor",
-    )
+    """Set legacy profile image from existing media.
 
-    # Verify media exists and belongs to legacy
-    media_result = await db.execute(
-        select(Media).where(
-            Media.id == media_id,
-            Media.legacy_id == legacy_id,
+    Media must be associated with the legacy. User must be an editor or creator.
+
+    Args:
+        db: Database session
+        user_id: User setting the profile image
+        legacy_id: Legacy ID
+        media_id: Media ID to use as profile image
+
+    Raises:
+        HTTPException: 404 if media not found or not associated, 403 if no access
+    """
+    # Check user is creator or editor
+    member_result = await db.execute(
+        select(LegacyMember).where(
+            LegacyMember.legacy_id == legacy_id,
+            LegacyMember.user_id == user_id,
+            LegacyMember.role.in_(["creator", "editor"]),
         )
     )
-    media = media_result.scalar_one_or_none()
+    member = member_result.scalar_one_or_none()
 
-    if not media:
+    if not member:
+        raise HTTPException(
+            status_code=403,
+            detail="Must be creator or editor to set profile image",
+        )
+
+    # Verify media is associated with this legacy
+    assoc_result = await db.execute(
+        select(MediaLegacy).where(
+            MediaLegacy.media_id == media_id,
+            MediaLegacy.legacy_id == legacy_id,
+        )
+    )
+    association = assoc_result.scalar_one_or_none()
+
+    if not association:
         raise HTTPException(
             status_code=404,
             detail="Media not found in this legacy",

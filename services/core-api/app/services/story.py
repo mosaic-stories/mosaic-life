@@ -73,7 +73,9 @@ def create_content_preview(content: str, max_length: int = PREVIEW_MAX_LENGTH) -
     return truncated.rstrip(".,;:!?") + "..."
 
 
-async def _get_legacy_names(db: AsyncSession, legacy_ids: list[UUID]) -> dict[UUID, str]:
+async def _get_legacy_names(
+    db: AsyncSession, legacy_ids: list[UUID]
+) -> dict[UUID, str]:
     """Fetch legacy names by IDs.
 
     Args:
@@ -544,9 +546,7 @@ async def update_story(
             )
 
         # Delete existing associations
-        await db.execute(
-            select(StoryLegacy).where(StoryLegacy.story_id == story_id)
-        )
+        await db.execute(select(StoryLegacy).where(StoryLegacy.story_id == story_id))
         for assoc in story.legacy_associations:
             await db.delete(assoc)
 
