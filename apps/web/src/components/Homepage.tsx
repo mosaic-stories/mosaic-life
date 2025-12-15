@@ -19,7 +19,7 @@ interface HomepageProps {
   onSignOut: () => void;
 }
 
-export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onThemeChange, user, onAuthClick, onSignOut: _onSignOut }: HomepageProps) {
+export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _currentTheme, onThemeChange: _onThemeChange, user, onAuthClick, onSignOut: _onSignOut }: HomepageProps) {
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
 
   // useLegacies for authenticated users' personal legacies (requires auth)

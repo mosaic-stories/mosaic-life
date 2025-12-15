@@ -39,6 +39,8 @@ describe('AppHeader', () => {
         onNavigate={() => {}}
         onAuthClick={() => {}}
         onSignOut={() => {}}
+        currentTheme="default"
+        onThemeChange={() => {}}
       />
     );
 
@@ -52,6 +54,8 @@ describe('AppHeader', () => {
         onNavigate={() => {}}
         onAuthClick={() => {}}
         onSignOut={() => {}}
+        currentTheme="default"
+        onThemeChange={() => {}}
       />
     );
 
@@ -65,6 +69,8 @@ describe('AppHeader', () => {
         onNavigate={() => {}}
         onAuthClick={() => {}}
         onSignOut={() => {}}
+        currentTheme="default"
+        onThemeChange={() => {}}
       />
     );
 
