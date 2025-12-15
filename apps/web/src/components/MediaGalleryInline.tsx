@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
-import { useLegacyMedia, useDeleteMedia, useSetProfileImage } from '@/lib/hooks/useMedia';
+import { useMedia, useDeleteMedia, useSetProfileImage } from '@/lib/hooks/useMedia';
 import type { MediaItem } from '@/lib/api/media';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 
@@ -24,7 +24,7 @@ export default function MediaGalleryInline({
   profileImageId,
   canEdit = false,
 }: MediaGalleryInlineProps) {
-  const { data: media, isLoading, error } = useLegacyMedia(legacyId);
+  const { data: media, isLoading, error } = useMedia(legacyId);
   const deleteMedia = useDeleteMedia(legacyId);
   const setProfileImage = useSetProfileImage(legacyId);
 
