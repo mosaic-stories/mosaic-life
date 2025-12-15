@@ -5,7 +5,7 @@ import logging
 from pathlib import Path
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,45 +16,45 @@ from ..schemas.media import (
     MediaConfirmResponse,
     MediaDetail,
     MediaSummary,
-    SetProfileImageRequest,
     UploadUrlRequest,
     UploadUrlResponse,
 )
 from ..services import media as media_service
 
-router = APIRouter(prefix="/api/legacies", tags=["media"])
+router = APIRouter(prefix="/api/media", tags=["media"])
 logger = logging.getLogger(__name__)
 
 
 @router.post(
-    "/{legacy_id}/media/upload-url",
+    "/upload-url",
     response_model=UploadUrlResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Request upload URL",
 )
 async def request_upload_url(
-    legacy_id: UUID,
     data: UploadUrlRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> UploadUrlResponse:
-    """Request a presigned URL for uploading media."""
+    """Request a presigned URL for uploading media.
+
+    Media is user-owned and can optionally be associated with legacies
+    via the 'legacies' field in the request body.
+    """
     session = require_auth(request)
     return await media_service.request_upload_url(
         db=db,
         user_id=session.user_id,
-        legacy_id=legacy_id,
         data=data,
     )
 
 
 @router.post(
-    "/{legacy_id}/media/{media_id}/confirm",
+    "/{media_id}/confirm",
     response_model=MediaConfirmResponse,
     summary="Confirm upload",
 )
 async def confirm_upload(
-    legacy_id: UUID,
     media_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -64,90 +64,81 @@ async def confirm_upload(
     return await media_service.confirm_upload(
         db=db,
         user_id=session.user_id,
-        legacy_id=legacy_id,
         media_id=media_id,
     )
 
 
 @router.get(
-    "/{legacy_id}/media",
+    "/",
     response_model=list[MediaSummary],
-    summary="List legacy media",
+    summary="List media",
 )
 async def list_media(
-    legacy_id: UUID,
     request: Request,
+    legacy_id: UUID | None = Query(None, description="Filter by legacy"),
     db: AsyncSession = Depends(get_db),
 ) -> list[MediaSummary]:
-    """List all media for a legacy."""
+    """List media.
+
+    If legacy_id is provided, returns media associated with that legacy.
+    User must be a member of the legacy to view its media.
+    """
     session = require_auth(request)
-    return await media_service.list_legacy_media(
-        db=db,
-        user_id=session.user_id,
-        legacy_id=legacy_id,
+    if legacy_id is not None:
+        return await media_service.list_legacy_media(
+            db=db,
+            user_id=session.user_id,
+            legacy_id=legacy_id,
+        )
+    # TODO: Implement list_user_media for listing all user's media
+    # For now, require legacy_id
+    raise HTTPException(
+        status_code=400,
+        detail="legacy_id query parameter is required",
     )
 
 
 @router.get(
-    "/{legacy_id}/media/{media_id}",
+    "/{media_id}",
     response_model=MediaDetail,
     summary="Get media details",
 )
 async def get_media(
-    legacy_id: UUID,
     media_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> MediaDetail:
-    """Get single media item with download URL."""
+    """Get single media item with download URL.
+
+    User must be a member of at least one legacy the media is associated with.
+    """
     session = require_auth(request)
     return await media_service.get_media_detail(
         db=db,
         user_id=session.user_id,
-        legacy_id=legacy_id,
         media_id=media_id,
     )
 
 
 @router.delete(
-    "/{legacy_id}/media/{media_id}",
+    "/{media_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete media",
 )
 async def delete_media(
-    legacy_id: UUID,
     media_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """Delete media file and record."""
+    """Delete media file and record.
+
+    Only the owner can delete their media.
+    """
     session = require_auth(request)
     await media_service.delete_media(
         db=db,
         user_id=session.user_id,
-        legacy_id=legacy_id,
         media_id=media_id,
-    )
-
-
-@router.patch(
-    "/{legacy_id}/profile-image",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Set profile image",
-)
-async def set_profile_image(
-    legacy_id: UUID,
-    data: SetProfileImageRequest,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-) -> None:
-    """Set legacy profile image from existing media."""
-    session = require_auth(request)
-    await media_service.set_profile_image(
-        db=db,
-        user_id=session.user_id,
-        legacy_id=legacy_id,
-        media_id=data.media_id,
     )
 
 

@@ -15,8 +15,10 @@ from ..schemas.legacy import (
     LegacySearchResponse,
     LegacyUpdate,
 )
+from ..schemas.media import SetProfileImageRequest
 from ..services import legacy as legacy_service
 from ..services import member as member_service
+from ..services import media as media_service
 from pydantic import BaseModel
 
 
@@ -381,4 +383,30 @@ async def remove_member(
         legacy_id=legacy_id,
         target_user_id=user_id,
         actor_id=session.user_id,
+    )
+
+
+@router.patch(
+    "/{legacy_id}/profile-image",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Set profile image",
+    description="Set legacy profile image from existing media. User must be creator or editor.",
+)
+async def set_profile_image(
+    legacy_id: UUID,
+    data: SetProfileImageRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Set legacy profile image from existing media.
+
+    Media must be associated with the legacy.
+    Only creators and editors can set the profile image.
+    """
+    session = require_auth(request)
+    await media_service.set_profile_image(
+        db=db,
+        user_id=session.user_id,
+        legacy_id=legacy_id,
+        media_id=data.media_id,
     )
