@@ -90,7 +90,8 @@ export async function listMedia(legacyId?: string): Promise<MediaItem[]> {
   const params = new URLSearchParams();
   if (legacyId) params.append('legacy_id', legacyId);
   const queryString = params.toString();
-  return apiGet<MediaItem[]>(`/api/media${queryString ? `?${queryString}` : ''}`);
+  // Use trailing slash to avoid 307 redirect that may use http:// behind proxy
+  return apiGet<MediaItem[]>(`/api/media/${queryString ? `?${queryString}` : ''}`);
 }
 
 export async function getMedia(
