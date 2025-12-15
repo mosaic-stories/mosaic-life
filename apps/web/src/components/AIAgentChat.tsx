@@ -543,16 +543,11 @@ export default function AIAgentChat({
                 </Button>
 
                 <Popover open={showHistory} onOpenChange={setShowHistory}>
-                  {/* History - full button on desktop, icon on mobile */}
+                  {/* History - single responsive trigger */}
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="hidden sm:flex">
-                      <History className="size-4 mr-1" />
-                      History
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="icon" className="sm:hidden size-9" title="History">
+                    <Button variant="outline" size="sm" className="gap-1 h-9 px-2 sm:px-3" title="History">
                       <History className="size-4" />
+                      <span className="hidden sm:inline">History</span>
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-80" align="end">

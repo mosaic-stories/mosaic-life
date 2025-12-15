@@ -1,4 +1,4 @@
-import { ArrowLeft, Sparkles, Save, X } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { Input } from './ui/input';
@@ -28,16 +28,6 @@ export default function StoryCreationMinimal({
 }: StoryCreationMinimalProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [showAI, setShowAI] = useState(false);
-  const [aiSuggestion, setAiSuggestion] = useState('');
-
-  const handleAISuggest = () => {
-    setShowAI(true);
-    // Mock AI suggestion
-    setTimeout(() => {
-      setAiSuggestion("Consider starting with 'I remember when...' to make the story more personal and engaging.");
-    }, 500);
-  };
 
   const handleSave = () => {
     // Mock save
@@ -49,14 +39,14 @@ export default function StoryCreationMinimal({
       {/* Navigation */}
       <nav className="border-b bg-white/90 backdrop-blur-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <button 
+          <button
             onClick={() => onNavigate('profile-minimal')}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
             <ArrowLeft className="size-5" />
             <span className="text-sm">Back</span>
           </button>
-          
+
           <div className="flex items-center gap-4">
             <button
               onClick={() => onNavigate('story')}
@@ -102,20 +92,9 @@ export default function StoryCreationMinimal({
 
           {/* Content */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm text-neutral-700">
-                Your Story
-              </label>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleAISuggest}
-                className="gap-2"
-              >
-                <Sparkles className="size-4" />
-                AI Help
-              </Button>
-            </div>
+            <label className="block text-sm text-neutral-700 mb-2">
+              Your Story
+            </label>
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
@@ -123,44 +102,6 @@ export default function StoryCreationMinimal({
               className="w-full min-h-[300px] resize-none"
             />
           </div>
-
-          {/* AI Suggestion Panel */}
-          {showAI && (
-            <div className="bg-[rgb(var(--theme-bg))] border border-[rgb(var(--theme-primary))] rounded-xl p-4">
-              <div className="flex items-start gap-3">
-                <div className="size-8 rounded-lg bg-[rgb(var(--theme-primary))] text-white flex items-center justify-center flex-shrink-0">
-                  <Sparkles className="size-4" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm text-neutral-700 mb-3">{aiSuggestion}</p>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setContent(prev => prev + (prev ? ' ' : '') + aiSuggestion);
-                        setShowAI(false);
-                      }}
-                    >
-                      Apply
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setShowAI(false)}
-                    >
-                      Dismiss
-                    </Button>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowAI(false)}
-                  className="text-neutral-400 hover:text-neutral-600"
-                >
-                  <X className="size-4" />
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Actions */}
           <div className="flex items-center gap-3 pt-4">
@@ -180,17 +121,15 @@ export default function StoryCreationMinimal({
             </Button>
           </div>
 
-          {/* AI Tips */}
+          {/* Writing Tips */}
           <div className="bg-white rounded-xl p-6 border border-[rgb(var(--theme-border))]">
-            <h3 className="text-sm text-neutral-900 mb-3 flex items-center gap-2">
-              <Sparkles className="size-4 text-[rgb(var(--theme-primary))]" />
+            <h3 className="text-sm text-neutral-900 mb-3">
               Writing Tips
             </h3>
             <ul className="space-y-2 text-sm text-neutral-600">
-              <li>• Start with a specific moment or detail</li>
-              <li>• Include emotions and sensory details</li>
-              <li>• Keep it personal and authentic</li>
-              <li>• Ask AI for help refining your story</li>
+              <li>Start with a specific moment or detail</li>
+              <li>Include emotions and sensory details</li>
+              <li>Keep it personal and authentic</li>
             </ul>
           </div>
         </div>

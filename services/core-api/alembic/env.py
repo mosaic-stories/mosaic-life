@@ -17,7 +17,10 @@ from app.models import (  # noqa: F401
     LegacyMember,
     Media,
     Notification,
+    Story,
+    SupportRequest,
     User,
+    UserSession,
 )
 
 config = context.config

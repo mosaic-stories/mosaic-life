@@ -1,5 +1,7 @@
-import { User, BookOpen, Settings, HelpCircle, LogOut, Bell, Check } from 'lucide-react';
+import { BookOpen, Settings, HelpCircle, LogOut, Bell, Check } from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import HelpSupportDialog from '@/components/HelpSupportDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -33,6 +35,7 @@ export default function HeaderUserMenu({ user, onNavigate, onSignOut }: HeaderUs
   const { data: notifications, refetch } = useNotifications(false);
   const updateStatus = useUpdateNotificationStatus();
   const markAllRead = useMarkAllAsRead();
+  const [helpDialogOpen, setHelpDialogOpen] = useState(false);
 
   const unreadCount = unreadData?.count ?? 0;
   const recentNotifications = (notifications ?? []).slice(0, 3);
@@ -57,7 +60,8 @@ export default function HeaderUserMenu({ user, onNavigate, onSignOut }: HeaderUs
   };
 
   return (
-    <DropdownMenu onOpenChange={handleOpenChange}>
+    <>
+      <DropdownMenu onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <button className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-[rgb(var(--theme-primary))] focus:ring-offset-2 transition-all">
           <Avatar className="size-9 cursor-pointer hover:ring-2 hover:ring-neutral-300 transition-all">
@@ -135,22 +139,17 @@ export default function HeaderUserMenu({ user, onNavigate, onSignOut }: HeaderUs
         <DropdownMenuSeparator />
 
         {/* Navigation Items */}
-        <DropdownMenuItem onClick={() => onNavigate('my-profile')} className="cursor-pointer py-2">
-          <User className="size-4 mr-3 text-neutral-500" />
-          <span>My Profile</span>
-        </DropdownMenuItem>
-
-        <DropdownMenuItem onClick={() => onNavigate('my-legacies')} className="cursor-pointer py-2">
+        <DropdownMenuItem onClick={() => navigate('/my-legacies')} className="cursor-pointer py-2">
           <BookOpen className="size-4 mr-3 text-neutral-500" />
           <span>My Legacies</span>
         </DropdownMenuItem>
 
-        <DropdownMenuItem onClick={() => onNavigate('settings')} className="cursor-pointer py-2">
+        <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer py-2">
           <Settings className="size-4 mr-3 text-neutral-500" />
           <span>Settings</span>
         </DropdownMenuItem>
 
-        <DropdownMenuItem onClick={() => onNavigate('help')} className="cursor-pointer py-2">
+        <DropdownMenuItem onClick={() => setHelpDialogOpen(true)} className="cursor-pointer py-2">
           <HelpCircle className="size-4 mr-3 text-neutral-500" />
           <span>Help & Support</span>
         </DropdownMenuItem>
@@ -165,6 +164,11 @@ export default function HeaderUserMenu({ user, onNavigate, onSignOut }: HeaderUs
           <span>Sign Out</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
-    </DropdownMenu>
+      </DropdownMenu>
+      <HelpSupportDialog
+        open={helpDialogOpen}
+        onOpenChange={setHelpDialogOpen}
+      />
+    </>
   );
 }
