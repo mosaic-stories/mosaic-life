@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from .associations import LegacyAssociationCreate, LegacyAssociationResponse
+
 
 # ============================================================================
 # Persona Schemas
@@ -27,10 +29,14 @@ class PersonaResponse(BaseModel):
 
 
 class ConversationCreate(BaseModel):
-    """Schema for creating a new conversation."""
+    """Schema for creating a conversation."""
 
-    legacy_id: UUID = Field(..., description="Legacy this conversation is about")
-    persona_id: str = Field(..., description="Persona to chat with")
+    persona_id: str = Field(..., description="AI persona ID")
+    legacies: list[LegacyAssociationCreate] = Field(
+        ...,
+        min_length=1,
+        description="Legacies this conversation is about",
+    )
 
 
 class ConversationResponse(BaseModel):
@@ -38,9 +44,9 @@ class ConversationResponse(BaseModel):
 
     id: UUID
     user_id: UUID
-    legacy_id: UUID
     persona_id: str
     title: str | None
+    legacies: list[LegacyAssociationResponse]
     created_at: datetime
     updated_at: datetime
 
@@ -51,9 +57,9 @@ class ConversationSummary(BaseModel):
     """Schema for conversation list item."""
 
     id: UUID
-    legacy_id: UUID
     persona_id: str
     title: str | None
+    legacies: list[LegacyAssociationResponse]
     message_count: int = Field(default=0)
     last_message_at: datetime | None = None
     created_at: datetime
