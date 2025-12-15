@@ -1,11 +1,11 @@
 """User model for Google OAuth authentication."""
 
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, String
-from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
+from sqlalchemy import JSON, DateTime, String
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -36,8 +36,8 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    preferences: Mapped[dict] = mapped_column(
-        JSONB,
+    preferences: Mapped[dict[str, Any]] = mapped_column(
+        JSON,
         nullable=False,
         default=dict,
         server_default="{}",
