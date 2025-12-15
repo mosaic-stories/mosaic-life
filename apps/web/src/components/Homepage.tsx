@@ -6,7 +6,6 @@ import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import ThemeSelector from './ThemeSelector';
 import Footer from './Footer';
-import DogearToggle from './DogearToggle';
 import { HeaderSlot } from '@/components/header';
 import { useLegacies, useExploreLegacies } from '@/lib/hooks/useLegacies';
 import { formatLegacyDates, getLegacyContext } from '@/lib/api/legacies';
@@ -42,9 +41,6 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onT
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Dogear Toggle */}
-      <DogearToggle isSimpleView={false} onToggle={() => onNavigate('home-minimal')} />
-
       {/* Header Slot - Theme Selector on Homepage */}
       <HeaderSlot>
         <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
