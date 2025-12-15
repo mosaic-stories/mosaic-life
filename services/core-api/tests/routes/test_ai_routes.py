@@ -5,6 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai import AIConversation, AIMessage
+from app.models.associations import ConversationLegacy
 from app.models.legacy import Legacy
 from app.models.user import User
 from tests.conftest import create_auth_headers_for_user
@@ -60,8 +61,10 @@ class TestCreateConversation:
         response = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )
@@ -69,7 +72,8 @@ class TestCreateConversation:
         assert response.status_code == 201
         data = response.json()
         assert data["persona_id"] == "biographer"
-        assert data["legacy_id"] == str(test_legacy.id)
+        assert len(data["legacies"]) == 1
+        assert data["legacies"][0]["legacy_id"] == str(test_legacy.id)
         assert "id" in data
         assert "created_at" in data
 
@@ -85,8 +89,10 @@ class TestCreateConversation:
         response1 = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )
@@ -97,8 +103,10 @@ class TestCreateConversation:
         response2 = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )
@@ -117,8 +125,10 @@ class TestCreateConversation:
         response = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
         )
 
@@ -137,8 +147,10 @@ class TestCreateConversation:
         response = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=headers,
         )
@@ -156,8 +168,10 @@ class TestCreateConversation:
         response = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "invalid_persona",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )
@@ -195,8 +209,10 @@ class TestListConversations:
         create_resp = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )
@@ -225,8 +241,10 @@ class TestListConversations:
         await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )
@@ -240,7 +258,10 @@ class TestListConversations:
 
         assert response.status_code == 200
         data = response.json()
-        assert all(c["legacy_id"] == str(test_legacy.id) for c in data)
+        assert all(
+            any(leg["legacy_id"] == str(test_legacy.id) for leg in c["legacies"])
+            for c in data
+        )
 
 
 class TestGetMessages:
@@ -258,8 +279,10 @@ class TestGetMessages:
         create_resp = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )
@@ -289,10 +312,19 @@ class TestGetMessages:
         # Create conversation via DB
         conversation = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conversation)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conversation.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.flush()
 
         # Add messages
@@ -351,10 +383,19 @@ class TestGetMessages:
         # Create conversation for user 1
         conversation = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conversation)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conversation.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.commit()
 
         # Try to access as user 2
@@ -382,8 +423,10 @@ class TestDeleteConversation:
         create_resp = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )
@@ -434,10 +477,19 @@ class TestDeleteConversation:
         # Create conversation for user 1
         conversation = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conversation)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conversation.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.commit()
 
         # Try to delete as user 2
@@ -465,8 +517,10 @@ class TestSendMessage:
         create_resp = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )
@@ -500,10 +554,19 @@ class TestSendMessage:
         # Create conversation
         conversation = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conversation)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conversation.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.commit()
 
         response = await client.post(
@@ -543,8 +606,10 @@ class TestSendMessage:
         create_resp = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )
@@ -581,8 +646,10 @@ class TestAIWorkflow:
         create_resp = await client.post(
             "/api/ai/conversations",
             json={
-                "legacy_id": str(test_legacy.id),
                 "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
             headers=auth_headers,
         )

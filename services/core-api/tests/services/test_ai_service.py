@@ -5,9 +5,11 @@ from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai import AIConversation, AIMessage
+from app.models.associations import ConversationLegacy
 from app.models.legacy import Legacy
 from app.models.user import User
 from app.schemas.ai import ConversationCreate
+from app.schemas.associations import LegacyAssociationCreate
 from app.services import ai as ai_service
 
 
@@ -94,8 +96,12 @@ class TestGetOrCreateConversation:
     ):
         """Test creating a new conversation."""
         data = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="biographer",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
 
         conversation = await ai_service.get_or_create_conversation(
@@ -106,8 +112,9 @@ class TestGetOrCreateConversation:
 
         assert conversation.id is not None
         assert conversation.user_id == test_user.id
-        assert conversation.legacy_id == test_legacy.id
         assert conversation.persona_id == "biographer"
+        assert len(conversation.legacies) == 1
+        assert conversation.legacies[0].legacy_id == test_legacy.id
 
     @pytest.mark.asyncio
     async def test_returns_existing_conversation(
@@ -119,8 +126,12 @@ class TestGetOrCreateConversation:
         """Test returning existing conversation."""
         # Create first conversation
         data = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="biographer",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
         conv1 = await ai_service.get_or_create_conversation(
             db=db_session, user_id=test_user.id, data=data
@@ -142,12 +153,20 @@ class TestGetOrCreateConversation:
     ):
         """Test separate conversations for different personas."""
         data1 = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="biographer",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
         data2 = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="friend",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
 
         conv1 = await ai_service.get_or_create_conversation(
@@ -170,8 +189,12 @@ class TestGetOrCreateConversation:
     ):
         """Test that non-members cannot create conversations."""
         data = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="biographer",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
 
         with pytest.raises(HTTPException) as exc:
@@ -192,8 +215,12 @@ class TestGetOrCreateConversation:
     ):
         """Test that invalid persona IDs are rejected."""
         data = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="invalid_persona",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
 
         with pytest.raises(HTTPException) as exc:
@@ -233,8 +260,12 @@ class TestListConversations:
         """Test listing user's conversations."""
         # Create conversations
         data = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="biographer",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
         await ai_service.get_or_create_conversation(
             db=db_session, user_id=test_user.id, data=data
@@ -258,8 +289,12 @@ class TestListConversations:
         """Test filtering by legacy ID."""
         # Create conversation
         data = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="biographer",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
         await ai_service.get_or_create_conversation(
             db=db_session, user_id=test_user.id, data=data
@@ -299,8 +334,12 @@ class TestGetConversation:
         """Test getting a conversation by ID."""
         # Create conversation
         data = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="biographer",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
         created = await ai_service.get_or_create_conversation(
             db=db_session, user_id=test_user.id, data=data
@@ -325,8 +364,12 @@ class TestGetConversation:
         """Test that users cannot access others' conversations."""
         # Create conversation for user 1
         data = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="biographer",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
         created = await ai_service.get_or_create_conversation(
             db=db_session, user_id=test_user.id, data=data
@@ -357,10 +400,19 @@ class TestSaveMessage:
         # Create conversation first
         conv = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conv)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conv.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.commit()
 
         message = await ai_service.save_message(
@@ -384,10 +436,19 @@ class TestSaveMessage:
         """Test saving an assistant message with token count."""
         conv = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conv)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conv.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.commit()
 
         message = await ai_service.save_message(
@@ -415,10 +476,19 @@ class TestGetConversationMessages:
         """Test messages returned in chronological order."""
         conv = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conv)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conv.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.flush()
 
         # Add messages
@@ -451,10 +521,19 @@ class TestGetConversationMessages:
         """Test message pagination."""
         conv = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conv)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conv.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.flush()
 
         # Add messages
@@ -494,10 +573,19 @@ class TestGetContextMessages:
 
         conv = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conv)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conv.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.flush()
 
         # Add messages with explicit timestamps to ensure ordering
@@ -538,10 +626,19 @@ class TestGetContextMessages:
         """Test that context is limited to MAX_CONTEXT_MESSAGES."""
         conv = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conv)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conv.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.flush()
 
         # Add more than MAX_CONTEXT_MESSAGES
@@ -573,8 +670,12 @@ class TestDeleteConversation:
         """Test deleting a conversation."""
         # Create conversation
         data = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="biographer",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
         created = await ai_service.get_or_create_conversation(
             db=db_session, user_id=test_user.id, data=data
@@ -608,8 +709,12 @@ class TestDeleteConversation:
         """Test that users cannot delete others' conversations."""
         # Create conversation for user 1
         data = ConversationCreate(
-            legacy_id=test_legacy.id,
             persona_id="biographer",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
         created = await ai_service.get_or_create_conversation(
             db=db_session, user_id=test_user.id, data=data
