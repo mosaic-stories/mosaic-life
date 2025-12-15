@@ -128,6 +128,8 @@ export default function RootLayout() {
           onNavigate={handleNavigate}
           onAuthClick={handleAuthClick}
           onSignOut={handleSignOut}
+          currentTheme={currentTheme}
+          onThemeChange={handleThemeChange}
         />
         <Outlet context={sharedProps} />
         <AuthModal

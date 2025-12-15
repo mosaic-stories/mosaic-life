@@ -57,15 +57,6 @@ function LegacyHeaderControls({
 
   return (
     <div className="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate('/my-legacies')}
-        className="gap-2 text-neutral-600 hover:text-neutral-900"
-      >
-        <ArrowLeft className="size-4" />
-        <span className="hidden sm:inline">Back</span>
-      </Button>
       <Button variant="ghost" size="sm" onClick={onShare}>
         <Share2 className="size-4" />
       </Button>
