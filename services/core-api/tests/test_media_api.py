@@ -10,23 +10,27 @@ from app.models.user import User
 
 
 class TestRequestUploadUrl:
-    """Tests for POST /api/legacies/{legacy_id}/media/upload-url."""
+    """Tests for POST /api/media/upload-url."""
 
     @pytest.mark.asyncio
     async def test_success(
         self,
         client: AsyncClient,
         auth_headers: dict[str, str],
+        test_user: User,
         test_legacy: Legacy,
     ):
         """Test requesting upload URL."""
         response = await client.post(
-            f"/api/legacies/{test_legacy.id}/media/upload-url",
+            "/api/media/upload-url",
             headers=auth_headers,
             json={
                 "filename": "photo.jpg",
                 "content_type": "image/jpeg",
                 "size_bytes": 1024,
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
         )
         assert response.status_code == 201
@@ -34,7 +38,7 @@ class TestRequestUploadUrl:
         assert "upload_url" in data
         assert "media_id" in data
         assert "storage_path" in data
-        assert data["storage_path"].startswith(f"legacy/{test_legacy.id}/")
+        assert data["storage_path"].startswith(f"users/{test_user.id}/")
 
     @pytest.mark.asyncio
     async def test_requires_auth(
@@ -44,11 +48,14 @@ class TestRequestUploadUrl:
     ):
         """Test upload URL requires authentication."""
         response = await client.post(
-            f"/api/legacies/{test_legacy.id}/media/upload-url",
+            "/api/media/upload-url",
             json={
                 "filename": "photo.jpg",
                 "content_type": "image/jpeg",
                 "size_bytes": 1024,
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
         )
         assert response.status_code == 401
@@ -62,12 +69,15 @@ class TestRequestUploadUrl:
     ):
         """Test upload URL rejected for oversized file."""
         response = await client.post(
-            f"/api/legacies/{test_legacy.id}/media/upload-url",
+            "/api/media/upload-url",
             headers=auth_headers,
             json={
                 "filename": "large.jpg",
                 "content_type": "image/jpeg",
                 "size_bytes": 20 * 1024 * 1024,  # 20 MB
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
         )
         assert response.status_code == 400
@@ -82,12 +92,15 @@ class TestRequestUploadUrl:
     ):
         """Test upload URL rejected for invalid content type."""
         response = await client.post(
-            f"/api/legacies/{test_legacy.id}/media/upload-url",
+            "/api/media/upload-url",
             headers=auth_headers,
             json={
                 "filename": "doc.pdf",
                 "content_type": "application/pdf",
                 "size_bytes": 1024,
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
         )
         assert response.status_code == 400
@@ -100,7 +113,7 @@ class TestRequestUploadUrl:
         test_legacy: Legacy,
         test_user_2: User,
     ):
-        """Test upload URL rejected for non-members."""
+        """Test upload URL rejected for non-members when associating with a legacy."""
         from app.auth.middleware import create_session_cookie
         from app.auth.models import SessionData
         from app.config import get_settings
@@ -120,19 +133,22 @@ class TestRequestUploadUrl:
         headers = {"Cookie": f"{cookie_name}={cookie_value}"}
 
         response = await client.post(
-            f"/api/legacies/{test_legacy.id}/media/upload-url",
+            "/api/media/upload-url",
             headers=headers,
             json={
                 "filename": "photo.jpg",
                 "content_type": "image/jpeg",
                 "size_bytes": 1024,
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
             },
         )
         assert response.status_code == 403
 
 
 class TestListMedia:
-    """Tests for GET /api/legacies/{legacy_id}/media."""
+    """Tests for GET /api/media."""
 
     @pytest.mark.asyncio
     async def test_success(
@@ -144,7 +160,8 @@ class TestListMedia:
     ):
         """Test listing legacy media."""
         response = await client.get(
-            f"/api/legacies/{test_legacy.id}/media",
+            "/api/media/",
+            params={"legacy_id": str(test_legacy.id)},
             headers=auth_headers,
         )
         assert response.status_code == 200
@@ -162,7 +179,8 @@ class TestListMedia:
     ):
         """Test listing media requires authentication."""
         response = await client.get(
-            f"/api/legacies/{test_legacy.id}/media",
+            "/api/media/",
+            params={"legacy_id": str(test_legacy.id)},
         )
         assert response.status_code == 401
 
@@ -175,7 +193,8 @@ class TestListMedia:
     ):
         """Test listing media returns empty list when none exist."""
         response = await client.get(
-            f"/api/legacies/{test_legacy.id}/media",
+            "/api/media/",
+            params={"legacy_id": str(test_legacy.id)},
             headers=auth_headers,
         )
         assert response.status_code == 200
@@ -184,7 +203,7 @@ class TestListMedia:
 
 
 class TestGetMedia:
-    """Tests for GET /api/legacies/{legacy_id}/media/{media_id}."""
+    """Tests for GET /api/media/{media_id}."""
 
     @pytest.mark.asyncio
     async def test_success(
@@ -196,7 +215,7 @@ class TestGetMedia:
     ):
         """Test getting media details."""
         response = await client.get(
-            f"/api/legacies/{test_legacy.id}/media/{test_media.id}",
+            f"/api/media/{test_media.id}",
             headers=auth_headers,
         )
         assert response.status_code == 200
@@ -218,14 +237,14 @@ class TestGetMedia:
 
         fake_id = uuid.uuid4()
         response = await client.get(
-            f"/api/legacies/{test_legacy.id}/media/{fake_id}",
+            f"/api/media/{fake_id}",
             headers=auth_headers,
         )
         assert response.status_code == 404
 
 
 class TestDeleteMedia:
-    """Tests for DELETE /api/legacies/{legacy_id}/media/{media_id}."""
+    """Tests for DELETE /api/media/{media_id}."""
 
     @pytest.mark.asyncio
     async def test_requires_auth(
@@ -236,7 +255,7 @@ class TestDeleteMedia:
     ):
         """Test deleting media requires authentication."""
         response = await client.delete(
-            f"/api/legacies/{test_legacy.id}/media/{test_media.id}",
+            f"/api/media/{test_media.id}",
         )
         assert response.status_code == 401
 
