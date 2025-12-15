@@ -1,9 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookOpen, Heart, Search, Sparkles, Users } from 'lucide-react';
+import { ArrowLeft, BookOpen, Heart, Search, Sparkles, Users, Rocket } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import { aiAgents } from '../lib/mockData';
 import { useLegacy } from '@/lib/hooks/useLegacies';
 import ThemeSelector from './ThemeSelector';
@@ -25,9 +33,16 @@ interface Interaction {
 export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, currentTheme, onThemeChange }: AIAgentPanelProps) {
   const navigate = useNavigate();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
+  const [comingSoonDialogOpen, setComingSoonDialogOpen] = useState(false);
+  const [selectedInteraction, setSelectedInteraction] = useState<Interaction | null>(null);
   
   // Get legacy info from the API
   const { data: legacy } = useLegacy(legacyId);
+
+  const handleInteractionClick = (interaction: Interaction) => {
+    setSelectedInteraction(interaction);
+    setComingSoonDialogOpen(true);
+  };
 
   const agentInteractions: { [key: string]: Interaction[] } = {
     'biographer': [
@@ -253,7 +268,15 @@ export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, curren
                                   <p className="text-neutral-900">{interaction.title}</p>
                                   <p className="text-sm text-neutral-600">{interaction.description}</p>
                                 </div>
-                                <Button size="sm" variant="outline" className="flex-shrink-0">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="flex-shrink-0"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleInteractionClick(interaction);
+                                  }}
+                                >
                                   {interaction.action}
                                 </Button>
                               </div>
@@ -284,6 +307,40 @@ export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, curren
           </Card>
         </div>
       </main>
+
+      {/* Coming Soon Dialog */}
+      <Dialog open={comingSoonDialogOpen} onOpenChange={setComingSoonDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-amber-100">
+              <Rocket className="size-6 text-amber-600" />
+            </div>
+            <DialogTitle className="text-center">Coming Soon!</DialogTitle>
+            <DialogDescription className="text-center">
+              {selectedInteraction && (
+                <>
+                  <strong className="text-neutral-700">{selectedInteraction.title}</strong> is a feature we're 
+                  actively working on. This capability will help you {selectedInteraction.description.toLowerCase()}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg bg-amber-50 border border-amber-200 p-4 text-center">
+            <p className="text-sm text-amber-800">
+              We're building something special here. Stay tuned for updates as we continue to enhance 
+              Mosaic's AI capabilities!
+            </p>
+          </div>
+          <DialogFooter className="sm:justify-center">
+            <Button
+              variant="outline"
+              onClick={() => setComingSoonDialogOpen(false)}
+            >
+              Got it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UserPlus, MoreVertical, Mail, Clock } from 'lucide-react';
+import { UserPlus, MoreVertical, Mail, Clock, Link, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   Sheet,
@@ -41,6 +41,8 @@ interface MemberDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   currentUserRole: string;
+  visibility?: 'public' | 'private';
+  isMember?: boolean;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -69,9 +71,12 @@ export default function MemberDrawer({
   isOpen,
   onClose,
   currentUserRole,
+  visibility = 'private',
+  isMember = true,
 }: MemberDrawerProps) {
   const { user } = useAuth();
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const { data: members = [], isLoading: membersLoading } = useMembers(legacyId);
   const { data: invitations = [], isLoading: _invitationsLoading } = useInvitations(legacyId);
@@ -108,6 +113,17 @@ export default function MemberDrawer({
     }
   };
 
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}/legacy/${legacyId}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy link:', err);
+    }
+  };
+
   const getManageableRoles = () => {
     const roles = ['admirer', 'advocate', 'admin', 'creator'];
     return roles.filter(role => ROLE_LEVELS[role] <= currentUserLevel);
@@ -122,18 +138,52 @@ export default function MemberDrawer({
         <SheetContent className="w-full sm:max-w-md overflow-y-auto">
           <SheetHeader className="flex flex-row items-center justify-between">
             <SheetTitle>Members</SheetTitle>
-            {canInvite && (
-              <Button
-                size="sm"
-                onClick={() => setShowInviteModal(true)}
-              >
-                <UserPlus className="size-4 mr-2" />
-                Invite
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {canInvite && isMember && (
+                <Button
+                  size="sm"
+                  onClick={() => setShowInviteModal(true)}
+                >
+                  <UserPlus className="size-4 mr-2" />
+                  Invite
+                </Button>
+              )}
+            </div>
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
+            {/* Copy Link for Public Legacies */}
+            {visibility === 'public' && (
+              <div className="p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-green-800 dark:text-green-200">
+                    <Link className="size-4" />
+                    <span>This legacy is public</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleCopyLink}
+                    className="border-green-300 dark:border-green-700 hover:bg-green-100 dark:hover:bg-green-800"
+                  >
+                    {linkCopied ? (
+                      <>
+                        <Check className="size-4 mr-2" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Link className="size-4 mr-2" />
+                        Copy Link
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <p className="text-xs text-green-600 dark:text-green-400 mt-2">
+                  Anyone with this link can view this legacy without being a member.
+                </p>
+              </div>
+            )}
             {/* Members List */}
             <div className="space-y-3">
               {membersLoading ? (

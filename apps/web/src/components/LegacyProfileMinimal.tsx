@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { ArrowLeft, Share2, Plus, MessageSquare, Sparkles, Users, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
@@ -8,6 +9,7 @@ import { NotificationBell } from './notifications';
 import { useLegacyWithFallback } from '@/lib/hooks/useLegacies';
 import { useStoriesWithFallback } from '@/lib/hooks/useStories';
 import { formatLegacyDates } from '@/lib/api/legacies';
+import MemberDrawer from './MemberDrawer';
 
 interface LegacyProfileMinimalProps {
   legacyId: string;
@@ -28,6 +30,8 @@ export default function LegacyProfileMinimal({
   onAuthClick,
   onSignOut
 }: LegacyProfileMinimalProps) {
+  const [showMemberDrawer, setShowMemberDrawer] = useState(false);
+
   // Use fallback hooks that try private endpoint first, then fall back to public
   const legacyQuery = useLegacyWithFallback(legacyId, !!user);
   const storiesQuery = useStoriesWithFallback(legacyId, !!user);
@@ -38,6 +42,15 @@ export default function LegacyProfileMinimal({
   const stories = storiesQuery.data;
   const storiesLoading = storiesQuery.isLoading;
   const storiesError = storiesQuery.error;
+
+  // Find current user's membership and role
+  const currentUserMember = useMemo(() => {
+    if (!user || !legacy?.members) return null;
+    return legacy.members.find(m => m.email === user.email);
+  }, [user, legacy?.members]);
+
+  const currentUserRole = currentUserMember?.role || 'admirer';
+  const isMember = !!currentUserMember;
 
   const dates = legacy ? formatLegacyDates(legacy) : '';
 
@@ -124,7 +137,12 @@ export default function LegacyProfileMinimal({
                   <Plus className="size-4" />
                   Add Story
                 </Button>
-                <Button size="sm" variant="outline" className="gap-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="gap-2"
+                  onClick={() => setShowMemberDrawer(true)}
+                >
                   <Share2 className="size-4" />
                   Share
                 </Button>
@@ -229,6 +247,16 @@ export default function LegacyProfileMinimal({
           </button>
         </div>
       </div>
+
+      {/* Member Management Drawer */}
+      <MemberDrawer
+        legacyId={legacyId}
+        isOpen={showMemberDrawer}
+        onClose={() => setShowMemberDrawer(false)}
+        currentUserRole={currentUserRole}
+        visibility={legacy.visibility}
+        isMember={isMember}
+      />
     </div>
   );
 }
