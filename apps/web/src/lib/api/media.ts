@@ -1,6 +1,19 @@
 // Media API client
 import { apiGet, apiPost, apiDelete, apiPatch } from './client';
 
+export interface LegacyAssociation {
+  legacy_id: string;
+  legacy_name: string;
+  role: 'primary' | 'secondary';
+  position: number;
+}
+
+export interface LegacyAssociationInput {
+  legacy_id: string;
+  role?: 'primary' | 'secondary';
+  position?: number;
+}
+
 export interface UploadUrlResponse {
   upload_url: string;
   media_id: string;
@@ -15,11 +28,11 @@ export interface MediaItem {
   download_url: string;
   uploaded_by: string;
   uploader_name: string;
+  legacies: LegacyAssociation[];
   created_at: string;
 }
 
 export interface MediaDetail extends MediaItem {
-  legacy_id: string;
   storage_path: string;
 }
 
@@ -37,15 +50,16 @@ export function validateFile(file: File): string | null {
 }
 
 export async function requestUploadUrl(
-  legacyId: string,
-  file: File
+  file: File,
+  legacies?: LegacyAssociationInput[]
 ): Promise<UploadUrlResponse> {
   return apiPost<UploadUrlResponse>(
-    `/api/legacies/${legacyId}/media/upload-url`,
+    `/api/media/upload-url`,
     {
       filename: file.name,
       content_type: file.type,
       size_bytes: file.size,
+      legacies,
     }
   );
 }
@@ -65,30 +79,30 @@ export async function uploadFile(url: string, file: File): Promise<void> {
 }
 
 export async function confirmUpload(
-  legacyId: string,
   mediaId: string
 ): Promise<MediaItem> {
   return apiPost<MediaItem>(
-    `/api/legacies/${legacyId}/media/${mediaId}/confirm`
+    `/api/media/${mediaId}/confirm`
   );
 }
 
-export async function listMedia(legacyId: string): Promise<MediaItem[]> {
-  return apiGet<MediaItem[]>(`/api/legacies/${legacyId}/media`);
+export async function listMedia(legacyId?: string): Promise<MediaItem[]> {
+  const params = new URLSearchParams();
+  if (legacyId) params.append('legacy_id', legacyId);
+  const queryString = params.toString();
+  return apiGet<MediaItem[]>(`/api/media${queryString ? `?${queryString}` : ''}`);
 }
 
 export async function getMedia(
-  legacyId: string,
   mediaId: string
 ): Promise<MediaDetail> {
-  return apiGet<MediaDetail>(`/api/legacies/${legacyId}/media/${mediaId}`);
+  return apiGet<MediaDetail>(`/api/media/${mediaId}`);
 }
 
 export async function deleteMedia(
-  legacyId: string,
   mediaId: string
 ): Promise<void> {
-  return apiDelete(`/api/legacies/${legacyId}/media/${mediaId}`);
+  return apiDelete(`/api/media/${mediaId}`);
 }
 
 export async function setProfileImage(

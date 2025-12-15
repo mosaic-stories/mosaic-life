@@ -1,9 +1,22 @@
 // Stories API functions
 import { apiGet, apiPost, apiPut, apiDelete } from './client';
 
+export interface LegacyAssociation {
+  legacy_id: string;
+  legacy_name: string;
+  role: 'primary' | 'secondary';
+  position: number;
+}
+
+export interface LegacyAssociationInput {
+  legacy_id: string;
+  role?: 'primary' | 'secondary';
+  position?: number;
+}
+
 export interface StorySummary {
   id: string;
-  legacy_id: string;
+  legacies: LegacyAssociation[];
   title: string;
   content_preview: string;
   author_id: string;
@@ -15,8 +28,7 @@ export interface StorySummary {
 
 export interface StoryDetail {
   id: string;
-  legacy_id: string;
-  legacy_name: string;
+  legacies: LegacyAssociation[];
   author_id: string;
   author_name: string;
   author_email: string;
@@ -28,7 +40,7 @@ export interface StoryDetail {
 }
 
 export interface CreateStoryInput {
-  legacy_id: string;
+  legacies: LegacyAssociationInput[];
   title: string;
   content: string;
   visibility?: 'public' | 'private' | 'personal';
@@ -38,19 +50,24 @@ export interface UpdateStoryInput {
   title?: string;
   content?: string;
   visibility?: 'public' | 'private' | 'personal';
+  legacies?: LegacyAssociationInput[];
 }
 
 export interface StoryResponse {
   id: string;
-  legacy_id: string;
+  legacies: LegacyAssociation[];
   title: string;
   visibility: string;
   created_at: string;
   updated_at: string;
 }
 
-export async function getStories(legacyId: string): Promise<StorySummary[]> {
-  return apiGet<StorySummary[]>(`/api/stories/?legacy_id=${legacyId}`);
+export async function getStories(legacyId?: string, orphaned?: boolean): Promise<StorySummary[]> {
+  const params = new URLSearchParams();
+  if (legacyId) params.append('legacy_id', legacyId);
+  if (orphaned !== undefined) params.append('orphaned', String(orphaned));
+  const queryString = params.toString();
+  return apiGet<StorySummary[]>(`/api/stories/${queryString ? `?${queryString}` : ''}`);
 }
 
 export async function getStory(storyId: string): Promise<StoryDetail> {

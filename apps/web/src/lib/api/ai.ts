@@ -15,21 +15,34 @@ export interface Persona {
   description: string;
 }
 
+export interface LegacyAssociation {
+  legacy_id: string;
+  legacy_name: string;
+  role: 'primary' | 'secondary';
+  position: number;
+}
+
+export interface LegacyAssociationInput {
+  legacy_id: string;
+  role?: 'primary' | 'secondary';
+  position?: number;
+}
+
 export interface Conversation {
   id: string;
   user_id: string;
-  legacy_id: string;
   persona_id: string;
   title: string | null;
+  legacies: LegacyAssociation[];
   created_at: string;
   updated_at: string;
 }
 
 export interface ConversationSummary {
   id: string;
-  legacy_id: string;
   persona_id: string;
   title: string | null;
+  legacies: LegacyAssociation[];
   message_count: number;
   last_message_at: string | null;
   created_at: string;
@@ -52,8 +65,8 @@ export interface MessageListResponse {
 }
 
 export interface CreateConversationInput {
-  legacy_id: string;
   persona_id: string;
+  legacies: LegacyAssociationInput[];
 }
 
 export interface SendMessageInput {
