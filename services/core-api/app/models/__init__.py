@@ -1,6 +1,7 @@
 """SQLAlchemy models for the application."""
 
 from .ai import AIConversation, AIMessage
+from .associations import ConversationLegacy, MediaLegacy, StoryLegacy
 from .invitation import Invitation
 from .legacy import Legacy, LegacyMember
 from .media import Media
@@ -13,13 +14,16 @@ from .user_session import UserSession
 __all__ = [
     "AIConversation",
     "AIMessage",
-    "User",
-    "UserSession",
+    "ConversationLegacy",
+    "Invitation",
     "Legacy",
     "LegacyMember",
     "Media",
-    "Invitation",
+    "MediaLegacy",
     "Notification",
     "Story",
+    "StoryLegacy",
     "SupportRequest",
+    "User",
+    "UserSession",
 ]
