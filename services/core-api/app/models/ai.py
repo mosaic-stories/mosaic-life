@@ -1,6 +1,7 @@
 """AI conversation and message models."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
@@ -9,6 +10,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from ..database import Base
+
+if TYPE_CHECKING:
+    from .associations import ConversationLegacy
 
 
 class AIConversation(Base):
@@ -25,13 +29,6 @@ class AIConversation(Base):
     user_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-
-    legacy_id: Mapped[UUID] = mapped_column(
-        PG_UUID(as_uuid=True),
-        ForeignKey("legacies.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
@@ -64,6 +61,11 @@ class AIConversation(Base):
         back_populates="conversation",
         order_by="AIMessage.created_at",
         cascade="all, delete-orphan",
+    )
+    legacy_associations: Mapped[list["ConversationLegacy"]] = relationship(
+        "ConversationLegacy",
+        cascade="all, delete-orphan",
+        order_by="ConversationLegacy.position",
     )
 
     def __repr__(self) -> str:
