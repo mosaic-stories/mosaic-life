@@ -165,8 +165,14 @@ export function useAIChat({
       try {
         // Create or get existing conversation
         const conversation = await createConversation({
-          legacy_id: legacyId,
           persona_id: personaId,
+          legacies: [
+            {
+              legacy_id: legacyId,
+              role: 'primary',
+              position: 0,
+            },
+          ],
         });
 
         if (!mounted) return;
@@ -294,8 +300,14 @@ export function useAIChat({
   // Start new conversation
   const startNewConversation = useCallback(async () => {
     const conversation = await createNewConversation({
-      legacy_id: legacyId,
       persona_id: personaId,
+      legacies: [
+        {
+          legacy_id: legacyId,
+          role: 'primary',
+          position: 0,
+        },
+      ],
     });
     setConversation(conversation.id, conversation);
     setActiveConversation(conversation.id);
