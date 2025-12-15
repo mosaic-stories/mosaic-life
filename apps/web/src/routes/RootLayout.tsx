@@ -38,7 +38,8 @@ export default function RootLayout() {
     applyTheme(currentTheme);
   }, [currentTheme]);
 
-  // Load saved theme from localStorage
+  // Load theme with priority: backend > localStorage > default
+  // This effect handles initial load from localStorage (fast)
   useEffect(() => {
     const savedTheme = localStorage.getItem('mosaic-theme');
     if (savedTheme) {
@@ -47,7 +48,8 @@ export default function RootLayout() {
     document.title = 'Mosaic Life - Honoring lives through shared stories';
   }, []);
 
-  // Sync theme from backend on login
+  // Sync theme from backend - this is authoritative when user is logged in
+  // Backend theme takes precedence over localStorage
   useEffect(() => {
     if (preferences?.theme) {
       setCurrentTheme(preferences.theme);

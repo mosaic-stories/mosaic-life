@@ -35,7 +35,16 @@ export default function AppearanceSettings() {
     localStorage.setItem('mosaic-theme', themeId);
 
     // Persist to backend
-    updatePreferences.mutate({ theme: themeId });
+    updatePreferences.mutate(
+      { theme: themeId },
+      {
+        onError: (error) => {
+          console.error('Failed to save theme preference:', error);
+          // Theme is already applied visually and in localStorage, so no rollback needed
+          // The next page load will use localStorage while the user can try again
+        },
+      }
+    );
   };
 
   if (isLoading) {

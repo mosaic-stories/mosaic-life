@@ -54,12 +54,14 @@ async def update_user_preferences(
         raise ValueError(f"User {user_id} not found")
 
     # Merge with existing preferences
-    current_prefs = user.preferences or {}
+    # Create a NEW dict to ensure SQLAlchemy detects the change
+    current_prefs = dict(user.preferences or {})
     updates = data.model_dump(exclude_none=True)
 
     for key, value in updates.items():
         current_prefs[key] = value
 
+    # Assign the new dict to trigger SQLAlchemy change detection
     user.preferences = current_prefs
     await db.commit()
     await db.refresh(user)
