@@ -69,19 +69,21 @@ async def list_public_stories(
 @router.get(
     "/",
     response_model=list[StorySummary],
-    summary="List stories for a legacy",
-    description="List stories filtered by visibility rules. Requires legacy_id query parameter.",
+    summary="List stories",
+    description="List stories filtered by visibility rules. Filter by legacy_id or use orphaned flag.",
 )
 async def list_stories(
     request: Request,
-    legacy_id: UUID = Query(..., description="Legacy ID to list stories for"),
+    legacy_id: UUID | None = Query(None, description="Filter by legacy"),
+    orphaned: bool = Query(False, description="Return only orphaned stories"),
     db: AsyncSession = Depends(get_db),
 ) -> list[StorySummary]:
-    """List stories for a legacy.
+    """List stories with optional filtering.
 
     Visibility filtering:
     - Members see: public + private + own personal stories
     - Non-members see: only public stories
+    - Orphaned stories: user's stories with no legacy associations
     """
     session = require_auth(request)
 
@@ -89,6 +91,7 @@ async def list_stories(
         db=db,
         user_id=session.user_id,
         legacy_id=legacy_id,
+        orphaned=orphaned,
     )
 
 

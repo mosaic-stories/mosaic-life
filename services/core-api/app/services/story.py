@@ -200,9 +200,10 @@ async def create_story(
 async def list_legacy_stories(
     db: AsyncSession,
     user_id: UUID,
-    legacy_id: UUID,
+    legacy_id: UUID | None = None,
+    orphaned: bool = False,
 ) -> list[StorySummary]:
-    """List stories for a legacy, filtered by visibility.
+    """List stories with visibility filtering.
 
     Visibility rules:
     - Member sees: public + private + own personal stories
@@ -211,44 +212,56 @@ async def list_legacy_stories(
     Args:
         db: Database session
         user_id: Requesting user ID
-        legacy_id: Legacy ID
+        legacy_id: Optional filter by legacy
+        orphaned: If True, return only orphaned stories (no legacy associations)
 
     Returns:
         List of stories visible to the user
     """
-    # Check if user is a member (not pending)
-    member_result = await db.execute(
-        select(LegacyMember).where(
-            LegacyMember.legacy_id == legacy_id,
-            LegacyMember.user_id == user_id,
-            LegacyMember.role != "pending",
-        )
-    )
-    member = member_result.scalar_one_or_none()
-
-    # Build query to find stories associated with this legacy
-    query = (
-        select(Story)
-        .options(
-            selectinload(Story.author),
-            selectinload(Story.legacy_associations),
-        )
-        .join(StoryLegacy, Story.id == StoryLegacy.story_id)
-        .where(StoryLegacy.legacy_id == legacy_id)
+    # Build base query
+    query = select(Story).options(
+        selectinload(Story.author),
+        selectinload(Story.legacy_associations),
     )
 
-    if member:
-        # Member sees: public + private + own personal stories
+    if orphaned:
+        # Find stories with no legacy associations owned by user
         query = query.where(
-            or_(
-                Story.visibility == "public",
-                Story.visibility == "private",
-                and_(Story.visibility == "personal", Story.author_id == user_id),
+            Story.author_id == user_id,
+            ~Story.id.in_(select(StoryLegacy.story_id)),
+        )
+    elif legacy_id:
+        # Check if user is a member (not pending)
+        member_result = await db.execute(
+            select(LegacyMember).where(
+                LegacyMember.legacy_id == legacy_id,
+                LegacyMember.user_id == user_id,
+                LegacyMember.role != "pending",
             )
         )
+        member = member_result.scalar_one_or_none()
+
+        # Filter by specific legacy
+        query = query.join(StoryLegacy, Story.id == StoryLegacy.story_id).where(
+            StoryLegacy.legacy_id == legacy_id
+        )
+
+        if member:
+            # Member sees: public + private + own personal stories
+            query = query.where(
+                or_(
+                    Story.visibility == "public",
+                    Story.visibility == "private",
+                    and_(Story.visibility == "personal", Story.author_id == user_id),
+                )
+            )
+        else:
+            # Non-member sees only public stories
+            query = query.where(Story.visibility == "public")
     else:
-        # Non-member sees only public stories
-        query = query.where(Story.visibility == "public")
+        # No filter specified - this shouldn't happen in normal flow
+        # Return empty list or raise error
+        return []
 
     query = query.order_by(Story.created_at.desc())
 
@@ -265,9 +278,9 @@ async def list_legacy_stories(
     logger.info(
         "story.list",
         extra={
-            "legacy_id": str(legacy_id),
+            "legacy_id": str(legacy_id) if legacy_id else None,
             "user_id": str(user_id),
-            "is_member": member is not None,
+            "orphaned": orphaned,
             "count": len(stories),
         },
     )
