@@ -210,7 +210,9 @@ async def send_message(
             user_id=session.user_id,
         )
 
-        span.set_attribute("legacy_id", str(conversation.legacy_id))
+        # Get primary legacy for system prompt
+        primary_legacy_id = ai_service.get_primary_legacy_id(conversation)
+        span.set_attribute("legacy_id", str(primary_legacy_id))
         span.set_attribute("persona_id", conversation.persona_id)
 
         # Get persona config
@@ -223,7 +225,7 @@ async def send_message(
 
         # Get legacy name for prompt
         legacy_result = await db.execute(
-            select(Legacy).where(Legacy.id == conversation.legacy_id)
+            select(Legacy).where(Legacy.id == primary_legacy_id)
         )
         legacy = legacy_result.scalar_one()
 
