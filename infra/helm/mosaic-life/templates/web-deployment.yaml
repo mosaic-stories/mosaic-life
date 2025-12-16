@@ -31,6 +31,9 @@ spec:
         - name: http
           containerPort: {{ .Values.web.service.targetPort }}
           protocol: TCP
+        env:
+        - name: PRERENDER_HOST
+          value: {{ .Values.web.prerender.host | quote }}
         livenessProbe:
           httpGet:
             path: /

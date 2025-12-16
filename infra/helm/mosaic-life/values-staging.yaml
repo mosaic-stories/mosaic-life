@@ -1,0 +1,25 @@
+# Staging Environment Values
+# These values are merged with the base values.yaml for staging deployments
+
+global:
+  environment: "staging"
+  domain: "stage.mosaiclife.me"
+
+# Frontend - staging configuration
+web:
+  replicaCount: 2
+  # Prerender service for SEO (staging namespace)
+  prerender:
+    host: "prerender-staging.mosaic-staging.svc.cluster.local:3000"
+  ingress:
+    annotations:
+      external-dns.alpha.kubernetes.io/hostname: "stage.mosaiclife.me"
+    hosts:
+      - host: stage.mosaiclife.me
+        paths:
+          - path: /
+            pathType: Prefix
+
+# Core API - staging configuration
+coreApi:
+  replicaCount: 2
