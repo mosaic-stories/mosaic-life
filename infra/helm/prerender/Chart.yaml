@@ -1,0 +1,15 @@
+# infra/helm/prerender/Chart.yaml
+apiVersion: v2
+name: prerender
+description: Prerender.io service for SEO bot rendering
+type: application
+version: 1.0.0
+appVersion: "latest"
+keywords:
+  - prerender
+  - seo
+  - ssr
+home: https://github.com/mosaic-stories/mosaic-life
+maintainers:
+  - name: Mosaic Life Team
+    email: team@mosaiclife.me
