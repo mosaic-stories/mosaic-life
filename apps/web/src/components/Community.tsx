@@ -20,6 +20,7 @@ import { Input } from './ui/input';
 import { useState } from 'react';
 import Footer from './Footer';
 import CreateCommunityModal from './CreateCommunityModal';
+import { SEOHead } from './seo';
 
 interface CommunityProps {
   onNavigate: (view: string) => void;
@@ -153,6 +154,11 @@ export default function Community({ onNavigate }: CommunityProps) {
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300 flex flex-col">
+      <SEOHead
+        title="Community"
+        description="Connect with others, share experiences, and find support in communities dedicated to honoring life's meaningful moments. Join grief support circles, memorial groups, and celebration communities."
+        path="/community"
+      />
       <main className="flex-1">
         {/* Hero Section */}
         <section className="bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))] py-12">

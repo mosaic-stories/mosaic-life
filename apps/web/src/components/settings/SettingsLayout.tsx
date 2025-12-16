@@ -6,6 +6,7 @@ import { ChevronLeft, Palette, Settings, User, BarChart3, Shield } from 'lucide-
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { cn } from '@/components/ui/utils';
+import { SEOHead } from '@/components/seo';
 
 const sidebarItems = [
   { path: 'profile', label: 'Profile', icon: User },
@@ -20,6 +21,11 @@ export default function SettingsLayout() {
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))]">
+      <SEOHead
+        title="Settings"
+        description="Manage your account settings and preferences"
+        noIndex={true}
+      />
       {/* Header */}
       <div className="border-b border-[rgb(var(--theme-primary))]/10 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">

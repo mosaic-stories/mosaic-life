@@ -7,6 +7,9 @@ global:
 # Frontend - minimal resources for preview
 web:
   replicaCount: 1
+  # Prerender service for SEO (preview namespace - dynamically set)
+  prerender:
+    host: "prerender:3000"  # Preview may not have prerender; fallback to no-op
   autoscaling:
     enabled: false
   resources:

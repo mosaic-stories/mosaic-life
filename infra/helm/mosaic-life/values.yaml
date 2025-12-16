@@ -78,6 +78,13 @@ web:
           - path: /
             pathType: Prefix
 
+  # Prerender service configuration for SEO
+  prerender:
+    # Full service hostname including port
+    # For production: prerender-prod.mosaic-prod.svc.cluster.local:3000
+    # For staging: prerender-staging.mosaic-staging.svc.cluster.local:3000
+    host: "prerender-prod.mosaic-prod.svc.cluster.local:3000"
+
   resources:
     limits:
       cpu: 500m

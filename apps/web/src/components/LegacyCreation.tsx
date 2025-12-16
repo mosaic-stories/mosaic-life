@@ -9,6 +9,7 @@ import { Textarea } from './ui/textarea';
 import ThemeSelector from './ThemeSelector';
 import { useCreateLegacy } from '@/lib/hooks/useLegacies';
 import type { LegacyVisibility } from '@/lib/api/legacies';
+import { SEOHead } from '@/components/seo';
 
 interface LegacyCreationProps {
   onNavigate: (view: string) => void;
@@ -55,6 +56,11 @@ export default function LegacyCreation({ onNavigate: _onNavigate, currentTheme, 
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+      <SEOHead
+        title="Create Legacy"
+        description="Create a new digital tribute to preserve stories and memories"
+        noIndex={true}
+      />
       <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">

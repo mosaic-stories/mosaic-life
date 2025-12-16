@@ -1,0 +1,41 @@
+# infra/argocd/applications/prerender-staging.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prerender-staging
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: mosaic-life
+
+  source:
+    repoURL: https://github.com/mosaic-stories/mosaic-life
+    targetRevision: develop
+    path: infra/helm/prerender
+    helm:
+      values: |
+        replicaCount: 1
+        config:
+          allowedDomains: "staging.mosaiclife.me,api-staging.mosaiclife.me,localhost"
+        autoscaling:
+          enabled: true
+          minReplicas: 1
+          maxReplicas: 3
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mosaic-staging
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

@@ -15,6 +15,7 @@ import {
 import { aiAgents } from '../lib/mockData';
 import { useLegacy } from '@/lib/hooks/useLegacies';
 import ThemeSelector from './ThemeSelector';
+import { SEOHead } from '@/components/seo';
 
 interface AIAgentPanelProps {
   onNavigate: (view: string) => void;
@@ -184,6 +185,11 @@ export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, curren
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+      <SEOHead
+        title="AI Agent Panel"
+        description="Interact with AI agents for this legacy"
+        noIndex={true}
+      />
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">

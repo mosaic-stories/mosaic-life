@@ -31,6 +31,7 @@ import type { ChatMessage } from '@/stores/aiChatStore';
 import { useLegacy } from '@/lib/hooks/useLegacies';
 import ThemeSelector from './ThemeSelector';
 import { usePrevious } from '@/hooks/usePrevious';
+import { SEOHead } from '@/components/seo';
 
 interface AIAgentChatProps {
   onNavigate: (view: string) => void;
@@ -340,6 +341,11 @@ export default function AIAgentChat({
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300 flex flex-col">
+      <SEOHead
+        title="AI Chat"
+        description="Chat with AI agents about this legacy"
+        noIndex={true}
+      />
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-sm border-b z-40">
         <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">

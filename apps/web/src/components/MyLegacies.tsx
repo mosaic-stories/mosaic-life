@@ -8,6 +8,7 @@ import SearchBar from './SearchBar';
 import { useLegacies } from '@/lib/hooks/useLegacies';
 import { formatLegacyDates, getLegacyContext, type Legacy } from '@/lib/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
+import { SEOHead } from '@/components/seo';
 
 interface MyLegaciesProps {
   onNavigate: (view: string) => void;
@@ -100,6 +101,11 @@ export default function MyLegacies({ onNavigate }: MyLegaciesProps) {
 
   return (
     <>
+      <SEOHead
+        title="My Legacies"
+        description="Manage your legacies and preserved memories"
+        noIndex={true}
+      />
       <HeaderSlot>
         <SearchBar onSelectResult={handleSearchSelect} compact />
         <Button

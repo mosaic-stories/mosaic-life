@@ -31,6 +31,9 @@ spec:
         - name: http
           containerPort: {{ .Values.web.service.targetPort }}
           protocol: TCP
+        env:
+        - name: PRERENDER_HOST
+          value: {{ .Values.web.prerender.host | quote }}
         livenessProbe:
           httpGet:
             path: /
@@ -54,11 +57,15 @@ spec:
           mountPath: /var/cache/nginx
         - name: nginx-run
           mountPath: /var/run
+        - name: nginx-conf
+          mountPath: /etc/nginx/conf.d
       volumes:
       - name: tmp
         emptyDir: {}
       - name: nginx-cache
         emptyDir: {}
       - name: nginx-run
+        emptyDir: {}
+      - name: nginx-conf
         emptyDir: {}
 {{- end }}

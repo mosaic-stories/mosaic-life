@@ -128,6 +128,25 @@ services:
       timeout: 3s
       retries: 3
 
+  # Prerender Service for SEO (renders pages for bots)
+  prerender:
+    image: tvanro/prerender-alpine:7.2.0
+    ports:
+      - "3000:3000"
+    environment:
+      - CHROME_FLAGS=--no-sandbox --headless --disable-gpu --disable-dev-shm-usage
+      - ALLOWED_DOMAINS=localhost,127.0.0.1
+      - CACHE_MAXSIZE=1000
+      - CACHE_TTL=86400
+    mem_limit: 1g
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
 volumes:
   postgres-data:
     driver: local

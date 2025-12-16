@@ -9,6 +9,7 @@ import ThemeSelector from './ThemeSelector';
 import { useLegacy } from '@/lib/hooks/useLegacies';
 import { useStory, useCreateStory, useUpdateStory } from '@/lib/hooks/useStories';
 import { useAuth } from '@/contexts/AuthContext';
+import { SEOHead } from '@/components/seo';
 
 interface StoryCreationProps {
   onNavigate: (view: string) => void;
@@ -164,6 +165,11 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+      <SEOHead
+        title={isEditMode ? "Edit Story" : "Create Story"}
+        description="Create or edit a story for this legacy"
+        noIndex={true}
+      />
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
         <div className="max-w-4xl mx-auto px-6 py-4">

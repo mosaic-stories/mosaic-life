@@ -8,6 +8,7 @@ import Footer from './Footer';
 import { useLegacies, useExploreLegacies } from '@/lib/hooks/useLegacies';
 import { formatLegacyDates, getLegacyContext } from '@/lib/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
+import { SEOHead, getOrganizationSchema } from '@/components/seo';
 
 interface HomepageProps {
   onNavigate: (view: string) => void;
@@ -39,6 +40,13 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
 
   return (
     <div className="min-h-screen flex flex-col">
+      <SEOHead
+        title="Honoring Lives Through Shared Stories"
+        description="Create meaningful digital tributes for memorials, retirements, graduations, and living legacies. Preserve memories, share stories, and celebrate what makes each person special."
+        path="/"
+        ogType="website"
+        structuredData={getOrganizationSchema()}
+      />
       {/* Header Slot - Empty on Homepage, theme is in AppHeader */}
 
       {/* Hero Section */}

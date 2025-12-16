@@ -1,0 +1,41 @@
+# infra/argocd/applications/prerender-prod.yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prerender-prod
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: mosaic-life
+
+  source:
+    repoURL: https://github.com/mosaic-stories/mosaic-life
+    targetRevision: main
+    path: infra/helm/prerender
+    helm:
+      values: |
+        replicaCount: 2
+        config:
+          allowedDomains: "mosaiclife.me,api.mosaiclife.me"
+        autoscaling:
+          enabled: true
+          minReplicas: 2
+          maxReplicas: 5
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mosaic-prod
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=false
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

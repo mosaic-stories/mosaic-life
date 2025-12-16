@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { X, Bell } from 'lucide-react';
+import { SEOHead } from '@/components/seo';
 
 interface NotificationHistoryProps {
   onNavigate: (view: string) => void;
@@ -49,6 +50,11 @@ export default function NotificationHistory({
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))]">
+      <SEOHead
+        title="Notification History"
+        description="View your notification history"
+        noIndex={true}
+      />
       <div className="max-w-2xl mx-auto px-6 py-12">
         <h1 className="text-2xl font-bold text-neutral-900 mb-6">
           Notification History
