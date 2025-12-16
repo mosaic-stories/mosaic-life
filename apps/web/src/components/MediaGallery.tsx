@@ -6,6 +6,7 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent } from './ui/dialog';
 import { legacies, mediaItems } from '../lib/mockData';
 import ThemeSelector from './ThemeSelector';
+import { SEOHead } from '@/components/seo';
 
 interface MediaGalleryProps {
   onNavigate: (view: string) => void;
@@ -22,6 +23,11 @@ export default function MediaGallery({ onNavigate, legacyId, currentTheme, onThe
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+      <SEOHead
+        title="Media Gallery"
+        description="View and manage media for this legacy"
+        noIndex={true}
+      />
       {/* Header */}
       <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-6 py-4">
