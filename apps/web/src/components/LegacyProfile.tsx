@@ -265,7 +265,7 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
       {legacy && seoSchema && (
         <SEOHead
           title={legacy.name}
-          description={legacy.biography}
+          description={legacy.biography ?? undefined}
           path={`/legacy/${legacyId}`}
           ogImage={legacyImageUrl}
           ogType="profile"
