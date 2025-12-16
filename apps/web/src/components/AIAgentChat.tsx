@@ -133,6 +133,11 @@ export default function AIAgentChat({
     }
   }, [personas, selectedPersonaId]);
 
+  // Reset selected conversation when persona changes (so new persona gets its own conversation)
+  useEffect(() => {
+    setSelectedConversationId(null);
+  }, [selectedPersonaId]);
+
   const getPersonaIcon = (iconName: string) => {
     switch (iconName) {
       case 'BookOpen':

@@ -10,8 +10,10 @@ from sqlalchemy import and_, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from ..models.legacy import LegacyMember
+from ..models.associations import StoryLegacy
+from ..models.legacy import Legacy, LegacyMember
 from ..models.story import Story
+from ..schemas.associations import LegacyAssociationResponse
 from ..schemas.story import (
     StoryCreate,
     StoryDetail,
@@ -19,7 +21,6 @@ from ..schemas.story import (
     StorySummary,
     StoryUpdate,
 )
-from .legacy import check_legacy_access
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,27 @@ def create_content_preview(content: str, max_length: int = PREVIEW_MAX_LENGTH) -
     return truncated.rstrip(".,;:!?") + "..."
 
 
+async def _get_legacy_names(
+    db: AsyncSession, legacy_ids: list[UUID]
+) -> dict[UUID, str]:
+    """Fetch legacy names by IDs.
+
+    Args:
+        db: Database session
+        legacy_ids: List of legacy IDs
+
+    Returns:
+        Mapping of legacy ID to legacy name
+    """
+    if not legacy_ids:
+        return {}
+
+    result = await db.execute(
+        select(Legacy.id, Legacy.name).where(Legacy.id.in_(legacy_ids))
+    )
+    return {row[0]: row[1] for row in result.all()}
+
+
 async def create_story(
     db: AsyncSession,
     user_id: UUID,
@@ -79,7 +101,7 @@ async def create_story(
 ) -> StoryResponse:
     """Create a new story.
 
-    User must be a member of the legacy.
+    User must be a member of at least one of the specified legacies.
 
     Args:
         db: Database session
@@ -90,33 +112,76 @@ async def create_story(
         Created story
 
     Raises:
-        HTTPException: 403 if not a member
+        HTTPException: 403 if not a member of any legacy
     """
-    # Check user is a member of the legacy
-    await check_legacy_access(
-        db=db,
-        user_id=user_id,
-        legacy_id=data.legacy_id,
-        required_role="member",
-    )
+    # Extract legacy IDs from the legacies list
+    legacy_ids = [leg.legacy_id for leg in data.legacies]
 
-    # Create story
+    # Verify user is a member of at least one legacy
+    member_result = await db.execute(
+        select(LegacyMember).where(
+            LegacyMember.user_id == user_id,
+            LegacyMember.legacy_id.in_(legacy_ids),
+            LegacyMember.role != "pending",
+        )
+    )
+    member = member_result.scalar_one_or_none()
+
+    if not member:
+        logger.warning(
+            "story.create_denied",
+            extra={
+                "user_id": str(user_id),
+                "legacy_ids": [str(lid) for lid in legacy_ids],
+            },
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Must be a member of at least one legacy to create a story",
+        )
+
+    # Create story (without legacy_id - using many-to-many)
     story = Story(
-        legacy_id=data.legacy_id,
         author_id=user_id,
         title=data.title,
         content=data.content,
         visibility=data.visibility,
     )
     db.add(story)
+    await db.flush()  # Get story.id without committing
+
+    # Create StoryLegacy associations
+    for leg_assoc in data.legacies:
+        story_legacy = StoryLegacy(
+            story_id=story.id,
+            legacy_id=leg_assoc.legacy_id,
+            role=leg_assoc.role,
+            position=leg_assoc.position,
+        )
+        db.add(story_legacy)
+
     await db.commit()
     await db.refresh(story)
+
+    # Get legacy names for response
+    legacy_names = await _get_legacy_names(db, legacy_ids)
+
+    # Build legacies response
+    legacies = [
+        LegacyAssociationResponse(
+            legacy_id=leg.legacy_id,
+            legacy_name=legacy_names.get(leg.legacy_id, "Unknown"),
+            role=leg.role,
+            position=leg.position,
+        )
+        for leg in sorted(data.legacies, key=lambda x: x.position)
+    ]
 
     logger.info(
         "story.created",
         extra={
             "story_id": str(story.id),
-            "legacy_id": str(data.legacy_id),
+            "legacy_ids": [str(lid) for lid in legacy_ids],
             "author_id": str(user_id),
             "visibility": data.visibility,
         },
@@ -124,9 +189,9 @@ async def create_story(
 
     return StoryResponse(
         id=story.id,
-        legacy_id=story.legacy_id,
         title=story.title,
         visibility=story.visibility,
+        legacies=legacies,
         created_at=story.created_at,
         updated_at=story.updated_at,
     )
@@ -135,9 +200,10 @@ async def create_story(
 async def list_legacy_stories(
     db: AsyncSession,
     user_id: UUID,
-    legacy_id: UUID,
+    legacy_id: UUID | None = None,
+    orphaned: bool = False,
 ) -> list[StorySummary]:
-    """List stories for a legacy, filtered by visibility.
+    """List stories with visibility filtering.
 
     Visibility rules:
     - Member sees: public + private + own personal stories
@@ -146,52 +212,75 @@ async def list_legacy_stories(
     Args:
         db: Database session
         user_id: Requesting user ID
-        legacy_id: Legacy ID
+        legacy_id: Optional filter by legacy
+        orphaned: If True, return only orphaned stories (no legacy associations)
 
     Returns:
         List of stories visible to the user
     """
-    # Check if user is a member (not pending)
-    member_result = await db.execute(
-        select(LegacyMember).where(
-            LegacyMember.legacy_id == legacy_id,
-            LegacyMember.user_id == user_id,
-            LegacyMember.role != "pending",
-        )
-    )
-    member = member_result.scalar_one_or_none()
-
-    # Build query based on membership
-    query = (
-        select(Story)
-        .options(selectinload(Story.author))
-        .where(Story.legacy_id == legacy_id)
+    # Build base query
+    query = select(Story).options(
+        selectinload(Story.author),
+        selectinload(Story.legacy_associations),
     )
 
-    if member:
-        # Member sees: public + private + own personal stories
+    if orphaned:
+        # Find stories with no legacy associations owned by user
         query = query.where(
-            or_(
-                Story.visibility == "public",
-                Story.visibility == "private",
-                and_(Story.visibility == "personal", Story.author_id == user_id),
+            Story.author_id == user_id,
+            ~Story.id.in_(select(StoryLegacy.story_id)),
+        )
+    elif legacy_id:
+        # Check if user is a member (not pending)
+        member_result = await db.execute(
+            select(LegacyMember).where(
+                LegacyMember.legacy_id == legacy_id,
+                LegacyMember.user_id == user_id,
+                LegacyMember.role != "pending",
             )
         )
+        member = member_result.scalar_one_or_none()
+
+        # Filter by specific legacy
+        query = query.join(StoryLegacy, Story.id == StoryLegacy.story_id).where(
+            StoryLegacy.legacy_id == legacy_id
+        )
+
+        if member:
+            # Member sees: public + private + own personal stories
+            query = query.where(
+                or_(
+                    Story.visibility == "public",
+                    Story.visibility == "private",
+                    and_(Story.visibility == "personal", Story.author_id == user_id),
+                )
+            )
+        else:
+            # Non-member sees only public stories
+            query = query.where(Story.visibility == "public")
     else:
-        # Non-member sees only public stories
-        query = query.where(Story.visibility == "public")
+        # No filter specified - this shouldn't happen in normal flow
+        # Return empty list or raise error
+        return []
 
     query = query.order_by(Story.created_at.desc())
 
     story_result = await db.execute(query)
-    stories = story_result.scalars().all()
+    stories = story_result.scalars().unique().all()
+
+    # Get all unique legacy IDs from all stories
+    all_legacy_ids: set[UUID] = set()
+    for story in stories:
+        all_legacy_ids.update(assoc.legacy_id for assoc in story.legacy_associations)
+
+    legacy_names = await _get_legacy_names(db, list(all_legacy_ids))
 
     logger.info(
         "story.list",
         extra={
-            "legacy_id": str(legacy_id),
+            "legacy_id": str(legacy_id) if legacy_id else None,
             "user_id": str(user_id),
-            "is_member": member is not None,
+            "orphaned": orphaned,
             "count": len(stories),
         },
     )
@@ -199,12 +288,20 @@ async def list_legacy_stories(
     return [
         StorySummary(
             id=story.id,
-            legacy_id=story.legacy_id,
             title=story.title,
             content_preview=create_content_preview(story.content),
             author_id=story.author_id,
             author_name=story.author.name,
             visibility=story.visibility,
+            legacies=[
+                LegacyAssociationResponse(
+                    legacy_id=assoc.legacy_id,
+                    legacy_name=legacy_names.get(assoc.legacy_id, "Unknown"),
+                    role=assoc.role,
+                    position=assoc.position,
+                )
+                for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
+            ],
             created_at=story.created_at,
             updated_at=story.updated_at,
         )
@@ -227,14 +324,25 @@ async def list_public_stories(
     """
     query = (
         select(Story)
-        .options(selectinload(Story.author))
-        .where(Story.legacy_id == legacy_id)
+        .options(
+            selectinload(Story.author),
+            selectinload(Story.legacy_associations),
+        )
+        .join(StoryLegacy, Story.id == StoryLegacy.story_id)
+        .where(StoryLegacy.legacy_id == legacy_id)
         .where(Story.visibility == "public")
         .order_by(Story.created_at.desc())
     )
 
     story_result = await db.execute(query)
-    stories = story_result.scalars().all()
+    stories = story_result.scalars().unique().all()
+
+    # Get all unique legacy IDs from all stories
+    all_legacy_ids: set[UUID] = set()
+    for story in stories:
+        all_legacy_ids.update(assoc.legacy_id for assoc in story.legacy_associations)
+
+    legacy_names = await _get_legacy_names(db, list(all_legacy_ids))
 
     logger.info(
         "story.list.public",
@@ -247,12 +355,20 @@ async def list_public_stories(
     return [
         StorySummary(
             id=story.id,
-            legacy_id=story.legacy_id,
             title=story.title,
             content_preview=create_content_preview(story.content),
             author_id=story.author_id,
             author_name=story.author.name,
             visibility=story.visibility,
+            legacies=[
+                LegacyAssociationResponse(
+                    legacy_id=assoc.legacy_id,
+                    legacy_name=legacy_names.get(assoc.legacy_id, "Unknown"),
+                    role=assoc.role,
+                    position=assoc.position,
+                )
+                for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
+            ],
             created_at=story.created_at,
             updated_at=story.updated_at,
         )
@@ -285,7 +401,7 @@ async def get_story_detail(
         select(Story)
         .options(
             selectinload(Story.author),
-            selectinload(Story.legacy),
+            selectinload(Story.legacy_associations),
         )
         .where(Story.id == story_id)
     )
@@ -322,6 +438,10 @@ async def get_story_detail(
             detail="Not authorized to view this story",
         )
 
+    # Get legacy names for response
+    legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
+    legacy_names = await _get_legacy_names(db, legacy_ids)
+
     logger.info(
         "story.detail",
         extra={
@@ -332,14 +452,21 @@ async def get_story_detail(
 
     return StoryDetail(
         id=story.id,
-        legacy_id=story.legacy_id,
-        legacy_name=story.legacy.name,
         author_id=story.author_id,
         author_name=story.author.name,
         author_email=story.author.email,
         title=story.title,
         content=story.content,
         visibility=story.visibility,
+        legacies=[
+            LegacyAssociationResponse(
+                legacy_id=assoc.legacy_id,
+                legacy_name=legacy_names.get(assoc.legacy_id, "Unknown"),
+                role=assoc.role,
+                position=assoc.position,
+            )
+            for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
+        ],
         created_at=story.created_at,
         updated_at=story.updated_at,
     )
@@ -367,8 +494,12 @@ async def update_story(
     Raises:
         HTTPException: 404 if not found, 403 if not author
     """
-    # Load story
-    result = await db.execute(select(Story).where(Story.id == story_id))
+    # Load story with associations
+    result = await db.execute(
+        select(Story)
+        .options(selectinload(Story.legacy_associations))
+        .where(Story.id == story_id)
+    )
     story = result.scalar_one_or_none()
 
     if not story:
@@ -400,10 +531,56 @@ async def update_story(
     if data.visibility is not None:
         story.visibility = data.visibility
 
+    # Update legacy associations if provided
+    if data.legacies is not None:
+        # Verify user is member of at least one new legacy
+        legacy_ids = [leg.legacy_id for leg in data.legacies]
+        member_result = await db.execute(
+            select(LegacyMember).where(
+                LegacyMember.user_id == user_id,
+                LegacyMember.legacy_id.in_(legacy_ids),
+                LegacyMember.role != "pending",
+            )
+        )
+        member = member_result.scalar_one_or_none()
+
+        if not member:
+            logger.warning(
+                "story.update_denied",
+                extra={
+                    "story_id": str(story_id),
+                    "user_id": str(user_id),
+                    "legacy_ids": [str(lid) for lid in legacy_ids],
+                },
+            )
+            raise HTTPException(
+                status_code=403,
+                detail="Must be a member of at least one legacy",
+            )
+
+        # Delete existing associations
+        await db.execute(select(StoryLegacy).where(StoryLegacy.story_id == story_id))
+        for assoc in story.legacy_associations:
+            await db.delete(assoc)
+
+        # Create new associations
+        for leg_assoc in data.legacies:
+            story_legacy = StoryLegacy(
+                story_id=story.id,
+                legacy_id=leg_assoc.legacy_id,
+                role=leg_assoc.role,
+                position=leg_assoc.position,
+            )
+            db.add(story_legacy)
+
     story.updated_at = datetime.now(timezone.utc)
 
     await db.commit()
-    await db.refresh(story)
+    await db.refresh(story, ["legacy_associations"])
+
+    # Get legacy names for response
+    legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
+    legacy_names = await _get_legacy_names(db, legacy_ids)
 
     logger.info(
         "story.updated",
@@ -415,9 +592,17 @@ async def update_story(
 
     return StoryResponse(
         id=story.id,
-        legacy_id=story.legacy_id,
         title=story.title,
         visibility=story.visibility,
+        legacies=[
+            LegacyAssociationResponse(
+                legacy_id=assoc.legacy_id,
+                legacy_name=legacy_names.get(assoc.legacy_id, "Unknown"),
+                role=assoc.role,
+                position=assoc.position,
+            )
+            for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
+        ],
         created_at=story.created_at,
         updated_at=story.updated_at,
     )
@@ -430,7 +615,7 @@ async def delete_story(
 ) -> dict[str, str]:
     """Delete a story.
 
-    Only author or legacy creator can delete.
+    Only author or creator of ANY linked legacy can delete.
 
     Args:
         db: Database session
@@ -443,8 +628,12 @@ async def delete_story(
     Raises:
         HTTPException: 404 if not found, 403 if not authorized
     """
-    # Load story
-    result = await db.execute(select(Story).where(Story.id == story_id))
+    # Load story with associations
+    result = await db.execute(
+        select(Story)
+        .options(selectinload(Story.legacy_associations))
+        .where(Story.id == story_id)
+    )
     story = result.scalar_one_or_none()
 
     if not story:
@@ -456,19 +645,20 @@ async def delete_story(
     # Check if user is author
     is_author = story.author_id == user_id
 
-    # Check if user is legacy creator
+    # Check if user is creator of ANY linked legacy
     is_creator = False
     if not is_author:
-        try:
-            await check_legacy_access(
-                db=db,
-                user_id=user_id,
-                legacy_id=story.legacy_id,
-                required_role="creator",
+        legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
+        if legacy_ids:
+            # Check if user is creator of any linked legacy
+            creator_result = await db.execute(
+                select(Legacy).where(
+                    Legacy.id.in_(legacy_ids),
+                    Legacy.created_by == user_id,
+                )
             )
-            is_creator = True
-        except HTTPException:
-            is_creator = False
+            creator_legacy = creator_result.scalar_one_or_none()
+            is_creator = creator_legacy is not None
 
     if not is_author and not is_creator:
         logger.warning(
@@ -481,10 +671,10 @@ async def delete_story(
         )
         raise HTTPException(
             status_code=403,
-            detail="Only the author or legacy creator can delete this story",
+            detail="Only the author or creator of a linked legacy can delete this story",
         )
 
-    # Delete story
+    # Delete story (associations will cascade)
     await db.delete(story)
     await db.commit()
 
@@ -507,10 +697,12 @@ async def _check_story_visibility(
 ) -> bool:
     """Check if user can view a story based on visibility rules.
 
+    Union access: User can view if member of ANY linked legacy.
+
     Args:
         db: Database session
         user_id: Requesting user ID
-        story: Story to check
+        story: Story to check (must have legacy_associations loaded)
 
     Returns:
         True if authorized, False otherwise
@@ -523,12 +715,20 @@ async def _check_story_visibility(
     if story.visibility == "personal":
         return story.author_id == user_id
 
-    # Private stories are visible to legacy members
+    # Private stories are visible to members of ANY linked legacy (union access)
     if story.visibility == "private":
+        # Get legacy IDs from story associations
+        story_legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
+
+        if not story_legacy_ids:
+            # Story has no legacy associations - only author can view
+            return story.author_id == user_id
+
+        # Check if user is a member of ANY linked legacy
         result = await db.execute(
             select(LegacyMember).where(
-                LegacyMember.legacy_id == story.legacy_id,
                 LegacyMember.user_id == user_id,
+                LegacyMember.legacy_id.in_(story_legacy_ids),
                 LegacyMember.role != "pending",
             )
         )

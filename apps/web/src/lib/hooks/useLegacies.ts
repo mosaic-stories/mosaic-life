@@ -32,10 +32,12 @@ export const memberKeys = {
   list: (legacyId: string) => [...memberKeys.all, 'list', legacyId] as const,
 };
 
-export function useLegacies() {
+export function useLegacies(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: legacyKeys.lists(),
     queryFn: getLegacies,
+    // Only fetch when enabled (defaults to true for backwards compatibility)
+    enabled: options?.enabled ?? true,
   });
 }
 
@@ -134,10 +136,12 @@ export function useLegacyWithFallback(id: string | undefined, isAuthenticated: b
 }
 
 // Member management hooks
-export function useMembers(legacyId: string) {
+export function useMembers(legacyId: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: memberKeys.list(legacyId),
     queryFn: () => listMembers(legacyId),
+    // Only fetch when enabled (defaults to true for backwards compatibility)
+    enabled: options?.enabled ?? true,
   });
 }
 

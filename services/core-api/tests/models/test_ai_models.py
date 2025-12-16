@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.ai import AIConversation, AIMessage
+from app.models.associations import ConversationLegacy
 from app.models.legacy import Legacy
 from app.models.user import User
 
@@ -23,19 +24,36 @@ class TestAIConversation:
         """Test creating an AI conversation."""
         conversation = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
             title="Test Conversation",
         )
         db_session.add(conversation)
-        await db_session.commit()
-        await db_session.refresh(conversation)
+        await db_session.flush()
 
-        assert conversation.id is not None
-        assert conversation.user_id == test_user.id
-        assert conversation.legacy_id == test_legacy.id
-        assert conversation.persona_id == "biographer"
-        assert conversation.created_at is not None
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conversation.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
+        await db_session.commit()
+
+        # Reload with associations
+        result = await db_session.execute(
+            select(AIConversation)
+            .options(selectinload(AIConversation.legacy_associations))
+            .where(AIConversation.id == conversation.id)
+        )
+        loaded_conversation = result.scalar_one()
+
+        assert loaded_conversation.id is not None
+        assert loaded_conversation.user_id == test_user.id
+        assert loaded_conversation.persona_id == "biographer"
+        assert loaded_conversation.created_at is not None
+        assert len(loaded_conversation.legacy_associations) == 1
+        assert loaded_conversation.legacy_associations[0].legacy_id == test_legacy.id
 
 
 class TestAIMessage:
@@ -51,10 +69,19 @@ class TestAIMessage:
         """Test creating an AI message."""
         conversation = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="biographer",
         )
         db_session.add(conversation)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conversation.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.flush()
 
         message = AIMessage(
@@ -83,10 +110,19 @@ class TestAIMessage:
         """Test conversation has messages relationship."""
         conversation = AIConversation(
             user_id=test_user.id,
-            legacy_id=test_legacy.id,
             persona_id="friend",
         )
         db_session.add(conversation)
+        await db_session.flush()
+
+        # Create legacy association
+        assoc = ConversationLegacy(
+            conversation_id=conversation.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(assoc)
         await db_session.flush()
 
         msg1 = AIMessage(conversation_id=conversation.id, role="user", content="Hello")

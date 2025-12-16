@@ -6,6 +6,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..models.associations import MediaLegacy, StoryLegacy
 from ..models.legacy import Legacy, LegacyMember
 from ..models.media import Media
 from ..models.story import Story
@@ -146,24 +147,28 @@ async def get_user_stats(db: AsyncSession, user_id: UUID) -> UserStatsResponse:
 
     # Count stories across user's legacies
     stories_result = await db.execute(
-        select(func.count(Story.id))
-        .join(Legacy, Story.legacy_id == Legacy.id)
+        select(func.count(Story.id.distinct()))
+        .join(StoryLegacy, Story.id == StoryLegacy.story_id)
+        .join(Legacy, StoryLegacy.legacy_id == Legacy.id)
         .where(Legacy.created_by == user_id)
     )
     stories_count = stories_result.scalar() or 0
 
     # Count media items across user's legacies
     media_result = await db.execute(
-        select(func.count(Media.id))
-        .join(Legacy, Media.legacy_id == Legacy.id)
+        select(func.count(Media.id.distinct()))
+        .join(MediaLegacy, Media.id == MediaLegacy.media_id)
+        .join(Legacy, MediaLegacy.legacy_id == Legacy.id)
         .where(Legacy.created_by == user_id)
     )
     media_count = media_result.scalar() or 0
 
     # Calculate storage used (sum of media file sizes)
+    # Note: Media can be associated with multiple legacies, so we need distinct
     storage_result = await db.execute(
-        select(func.coalesce(func.sum(Media.size_bytes), 0))
-        .join(Legacy, Media.legacy_id == Legacy.id)
+        select(func.coalesce(func.sum(Media.size_bytes.distinct()), 0))
+        .join(MediaLegacy, Media.id == MediaLegacy.media_id)
+        .join(Legacy, MediaLegacy.legacy_id == Legacy.id)
         .where(Legacy.created_by == user_id)
     )
     storage_used = storage_result.scalar() or 0

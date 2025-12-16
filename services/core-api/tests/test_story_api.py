@@ -23,10 +23,12 @@ class TestCreateStory:
     ):
         """Test successful story creation."""
         data = {
-            "legacy_id": str(test_legacy.id),
             "title": "My First Memory",
             "content": "# Childhood\n\nI remember when...",
             "visibility": "private",
+            "legacies": [
+                {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+            ],
         }
 
         response = await client.post(
@@ -39,7 +41,8 @@ class TestCreateStory:
         result = response.json()
         assert result["title"] == "My First Memory"
         assert result["visibility"] == "private"
-        assert result["legacy_id"] == str(test_legacy.id)
+        assert len(result["legacies"]) >= 1
+        assert result["legacies"][0]["legacy_id"] == str(test_legacy.id)
 
     @pytest.mark.asyncio
     async def test_create_story_requires_auth(
@@ -49,9 +52,11 @@ class TestCreateStory:
     ):
         """Test that creating story requires authentication."""
         data = {
-            "legacy_id": str(test_legacy.id),
             "title": "Test",
             "content": "Content",
+            "legacies": [
+                {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+            ],
         }
 
         response = await client.post("/api/stories/", json=data)
@@ -86,9 +91,11 @@ class TestCreateStory:
         headers = {"Cookie": f"{cookie_name}={cookie_value}"}
 
         data = {
-            "legacy_id": str(test_legacy.id),
             "title": "Unauthorized Story",
             "content": "Content",
+            "legacies": [
+                {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+            ],
         }
 
         response = await client.post(
@@ -108,9 +115,11 @@ class TestCreateStory:
     ):
         """Test validation error on invalid data."""
         data = {
-            "legacy_id": str(test_legacy.id),
             "title": "",  # Empty title
             "content": "Content",
+            "legacies": [
+                {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+            ],
         }
 
         response = await client.post(
@@ -188,18 +197,21 @@ class TestListStories:
         assert result[0]["visibility"] == "public"
 
     @pytest.mark.asyncio
-    async def test_list_stories_requires_legacy_id(
+    async def test_list_stories_without_filter(
         self,
         client: AsyncClient,
         auth_headers: dict[str, str],
     ):
-        """Test that listing stories requires legacy_id parameter."""
+        """Test that listing stories works without legacy_id filter (shows all user stories)."""
         response = await client.get(
             "/api/stories/",
             headers=auth_headers,
         )
 
-        assert response.status_code == 422
+        assert response.status_code == 200
+        # Should return a list (may be empty)
+        result = response.json()
+        assert isinstance(result, list)
 
 
 class TestGetStory:
@@ -425,10 +437,12 @@ class TestStoryWorkflow:
         """Test complete flow: create → list → get → update → delete."""
         # 1. Create story
         create_data = {
-            "legacy_id": str(test_legacy.id),
             "title": "Integration Test Story",
             "content": "# My Story\n\nThis is the content.",
             "visibility": "private",
+            "legacies": [
+                {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+            ],
         }
 
         create_response = await client.post(
@@ -533,10 +547,12 @@ class TestStoryWorkflow:
 
         # User 1 (member) creates three stories with different visibility
         public_data = {
-            "legacy_id": str(test_legacy.id),
             "title": "Public Story",
             "content": "Public content",
             "visibility": "public",
+            "legacies": [
+                {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+            ],
         }
         public_resp = await client.post(
             "/api/stories/", json=public_data, headers=headers_1
@@ -544,10 +560,12 @@ class TestStoryWorkflow:
         assert public_resp.status_code == 201
 
         private_data = {
-            "legacy_id": str(test_legacy.id),
             "title": "Private Story",
             "content": "Private content",
             "visibility": "private",
+            "legacies": [
+                {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+            ],
         }
         private_resp = await client.post(
             "/api/stories/", json=private_data, headers=headers_1
@@ -555,10 +573,12 @@ class TestStoryWorkflow:
         assert private_resp.status_code == 201
 
         personal_data = {
-            "legacy_id": str(test_legacy.id),
             "title": "Personal Story",
             "content": "Personal content",
             "visibility": "personal",
+            "legacies": [
+                {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+            ],
         }
         personal_resp = await client.post(
             "/api/stories/", json=personal_data, headers=headers_1

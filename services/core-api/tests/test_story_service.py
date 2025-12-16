@@ -4,9 +4,11 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.associations import StoryLegacy
 from app.models.legacy import Legacy
 from app.models.story import Story
 from app.models.user import User
+from app.schemas.associations import LegacyAssociationCreate
 from app.schemas.story import StoryCreate, StoryUpdate
 from app.services import story as story_service
 
@@ -23,10 +25,14 @@ class TestCreateStory:
     ):
         """Test successful story creation."""
         data = StoryCreate(
-            legacy_id=test_legacy.id,
             title="My First Story",
             content="# Heading\n\nThis is the story content.",
             visibility="private",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
 
         story = await story_service.create_story(
@@ -36,7 +42,8 @@ class TestCreateStory:
         )
 
         assert story.title == "My First Story"
-        assert story.legacy_id == test_legacy.id
+        assert len(story.legacies) >= 1
+        assert story.legacies[0].legacy_id == test_legacy.id
         assert story.visibility == "private"
 
     @pytest.mark.asyncio
@@ -48,10 +55,14 @@ class TestCreateStory:
     ):
         """Test that creating story requires legacy membership."""
         data = StoryCreate(
-            legacy_id=test_legacy.id,
             title="Unauthorized Story",
             content="Content",
             visibility="private",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
         )
 
         with pytest.raises(HTTPException) as exc:
@@ -121,24 +132,42 @@ class TestListLegacyStories:
         """Test pending member is treated as non-member."""
         # Create a public story
         public_story = Story(
-            legacy_id=test_legacy_with_pending.id,
             author_id=test_user_2.id,
             title="Public Story",
             content="Content",
             visibility="public",
         )
         db_session.add(public_story)
+        await db_session.flush()
+
+        # Create association with legacy
+        story_legacy_public = StoryLegacy(
+            story_id=public_story.id,
+            legacy_id=test_legacy_with_pending.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(story_legacy_public)
         await db_session.commit()
 
         # Create a private story
         private_story = Story(
-            legacy_id=test_legacy_with_pending.id,
             author_id=test_user_2.id,
             title="Private Story",
             content="Content",
             visibility="private",
         )
         db_session.add(private_story)
+        await db_session.flush()
+
+        # Create association with legacy
+        story_legacy_private = StoryLegacy(
+            story_id=private_story.id,
+            legacy_id=test_legacy_with_pending.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(story_legacy_private)
         await db_session.commit()
 
         # Test that pending member (test_user_2) sees only public
@@ -381,13 +410,22 @@ class TestDeleteStory:
 
         # Create story by user_2
         story = Story(
-            legacy_id=test_legacy.id,
             author_id=user_2.id,
             title="User 2 Story",
             content="Content",
             visibility="public",
         )
         db_session.add(story)
+        await db_session.flush()
+
+        # Create association with legacy
+        story_legacy = StoryLegacy(
+            story_id=story.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(story_legacy)
         await db_session.commit()
         await db_session.refresh(story)
 

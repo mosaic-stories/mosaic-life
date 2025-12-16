@@ -4,10 +4,7 @@ import type { VisibilityFilter } from '@/lib/api/legacies';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import ThemeSelector from './ThemeSelector';
 import Footer from './Footer';
-import DogearToggle from './DogearToggle';
-import { HeaderSlot } from '@/components/header';
 import { useLegacies, useExploreLegacies } from '@/lib/hooks/useLegacies';
 import { formatLegacyDates, getLegacyContext } from '@/lib/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
@@ -22,11 +19,11 @@ interface HomepageProps {
   onSignOut: () => void;
 }
 
-export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onThemeChange, user, onAuthClick, onSignOut: _onSignOut }: HomepageProps) {
+export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _currentTheme, onThemeChange: _onThemeChange, user, onAuthClick, onSignOut: _onSignOut }: HomepageProps) {
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
 
   // useLegacies for authenticated users' personal legacies (requires auth)
-  const { data: myLegacies, isLoading: myLegaciesLoading } = useLegacies();
+  const { data: myLegacies, isLoading: myLegaciesLoading } = useLegacies({ enabled: !!user });
   // useExploreLegacies for public explore section (visibility filter for authenticated users)
   const { data: exploreLegacies, isLoading: exploreLoading } = useExploreLegacies(20, user ? visibilityFilter : undefined);
 
@@ -42,13 +39,7 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onT
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Dogear Toggle */}
-      <DogearToggle isSimpleView={false} onToggle={() => onNavigate('home-minimal')} />
-
-      {/* Header Slot - Theme Selector on Homepage */}
-      <HeaderSlot>
-        <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-      </HeaderSlot>
+      {/* Header Slot - Empty on Homepage, theme is in AppHeader */}
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-6 py-20">
@@ -76,7 +67,11 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onT
               Create a Legacy
               <ArrowRight className="size-4" />
             </Button>
-            <Button size="lg" variant="outline">
+            <Button 
+              size="lg" 
+              variant="outline"
+              onClick={() => document.getElementById('explore-legacies')?.scrollIntoView({ behavior: 'smooth' })}
+            >
               See Examples
             </Button>
           </div>
@@ -183,7 +178,7 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme, onT
       )}
 
       {/* Explore Legacies */}
-      <section className="bg-white py-20">
+      <section id="explore-legacies" className="bg-white py-20">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center space-y-3 mb-8">
             <h2 className="text-neutral-900">Explore Legacies</h2>

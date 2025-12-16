@@ -21,6 +21,7 @@ from app.auth.models import SessionData  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models.associations import MediaLegacy, StoryLegacy  # noqa: E402
 from app.models.legacy import Legacy, LegacyMember  # noqa: E402
 from app.models.media import Media  # noqa: E402
 from app.models.story import Story  # noqa: E402
@@ -232,6 +233,28 @@ async def test_legacy_with_pending(
 
 
 @pytest_asyncio.fixture
+async def test_legacy_2(db_session: AsyncSession, test_user: User) -> Legacy:
+    """Create a second test legacy for multi-legacy scenarios."""
+    legacy = Legacy(
+        name="Second Legacy",
+        created_by=test_user.id,
+        visibility="private",
+    )
+    db_session.add(legacy)
+    await db_session.flush()
+
+    member = LegacyMember(
+        legacy_id=legacy.id,
+        user_id=test_user.id,
+        role="creator",
+    )
+    db_session.add(member)
+    await db_session.commit()
+    await db_session.refresh(legacy)
+    return legacy
+
+
+@pytest_asyncio.fixture
 async def test_story_public(
     db_session: AsyncSession,
     test_user: User,
@@ -239,13 +262,22 @@ async def test_story_public(
 ) -> Story:
     """Create a test story with public visibility."""
     story = Story(
-        legacy_id=test_legacy.id,
         author_id=test_user.id,
         title="Public Test Story",
         content="This is a public test story content in markdown.",
         visibility="public",
     )
     db_session.add(story)
+    await db_session.flush()
+
+    # Create association with legacy
+    story_legacy = StoryLegacy(
+        story_id=story.id,
+        legacy_id=test_legacy.id,
+        role="primary",
+        position=0,
+    )
+    db_session.add(story_legacy)
     await db_session.commit()
     await db_session.refresh(story)
     return story
@@ -259,13 +291,22 @@ async def test_story_private(
 ) -> Story:
     """Create a test story with private visibility."""
     story = Story(
-        legacy_id=test_legacy.id,
         author_id=test_user.id,
         title="Private Test Story",
         content="This is a private test story content.",
         visibility="private",
     )
     db_session.add(story)
+    await db_session.flush()
+
+    # Create association with legacy
+    story_legacy = StoryLegacy(
+        story_id=story.id,
+        legacy_id=test_legacy.id,
+        role="primary",
+        position=0,
+    )
+    db_session.add(story_legacy)
     await db_session.commit()
     await db_session.refresh(story)
     return story
@@ -279,13 +320,22 @@ async def test_story_personal(
 ) -> Story:
     """Create a test story with personal visibility."""
     story = Story(
-        legacy_id=test_legacy.id,
         author_id=test_user.id,
         title="Personal Test Story",
         content="This is a personal test story content.",
         visibility="personal",
     )
     db_session.add(story)
+    await db_session.flush()
+
+    # Create association with legacy
+    story_legacy = StoryLegacy(
+        story_id=story.id,
+        legacy_id=test_legacy.id,
+        role="primary",
+        position=0,
+    )
+    db_session.add(story_legacy)
     await db_session.commit()
     await db_session.refresh(story)
     return story
@@ -299,14 +349,23 @@ async def test_media(
 ) -> Media:
     """Create a test media item."""
     media = Media(
-        legacy_id=test_legacy.id,
+        owner_id=test_user.id,
         filename="test-image.jpg",
         content_type="image/jpeg",
         size_bytes=1024,
-        storage_path=f"legacy/{test_legacy.id}/test-media-id.jpg",
-        uploaded_by=test_user.id,
+        storage_path=f"user/{test_user.id}/test-media-id.jpg",
     )
     db_session.add(media)
+    await db_session.flush()
+
+    # Create association with legacy
+    media_legacy = MediaLegacy(
+        media_id=media.id,
+        legacy_id=test_legacy.id,
+        role="primary",
+        position=0,
+    )
+    db_session.add(media_legacy)
     await db_session.commit()
     await db_session.refresh(media)
     return media

@@ -22,7 +22,8 @@ export default function RootLayout() {
   const { user, logout, login } = useAuth();
   const [currentTheme, setCurrentTheme] = useState<string>('warm-amber');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const { data: preferences } = usePreferences();
+  // Only fetch preferences when user is authenticated
+  const { data: preferences } = usePreferences({ enabled: !!user });
 
   // Check if we should show auth modal (redirected from protected route)
   useEffect(() => {
@@ -128,6 +129,8 @@ export default function RootLayout() {
           onNavigate={handleNavigate}
           onAuthClick={handleAuthClick}
           onSignOut={handleSignOut}
+          currentTheme={currentTheme}
+          onThemeChange={handleThemeChange}
         />
         <Outlet context={sharedProps} />
         <AuthModal

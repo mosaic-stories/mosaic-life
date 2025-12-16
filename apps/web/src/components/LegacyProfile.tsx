@@ -44,27 +44,20 @@ function LegacyHeaderControls({
   legacyId,
   user,
   onAddStory,
-  onDelete
+  onDelete,
+  onShare
 }: {
   legacyId: string;
   user: { name: string; email: string; avatarUrl?: string } | null;
   onAddStory: () => void;
   onDelete: () => void;
+  onShare: () => void;
 }) {
   const navigate = useNavigate();
 
   return (
     <div className="flex items-center gap-2">
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate('/my-legacies')}
-        className="gap-2 text-neutral-600 hover:text-neutral-900"
-      >
-        <ArrowLeft className="size-4" />
-        <span className="hidden sm:inline">Back</span>
-      </Button>
-      <Button variant="ghost" size="sm">
+      <Button variant="ghost" size="sm" onClick={onShare}>
         <Share2 className="size-4" />
       </Button>
       {user && (
@@ -258,6 +251,7 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
           user={user}
           onAddStory={handleAddStory}
           onDelete={() => setShowDeleteDialog(true)}
+          onShare={() => setShowMemberDrawer(true)}
         />
       </HeaderSlot>
 
@@ -426,6 +420,7 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
               legacyId={legacyId}
               profileImageId={legacy.profile_image_id}
               canEdit={!!user}
+              isAuthenticated={!!user}
             />
           </div>
         )}
@@ -543,14 +538,14 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
       </Dialog>
 
       {/* Member Management Drawer */}
-      {isMember && (
-        <MemberDrawer
-          legacyId={legacyId}
-          isOpen={showMemberDrawer}
-          onClose={() => setShowMemberDrawer(false)}
-          currentUserRole={currentUserRole}
-        />
-      )}
+      <MemberDrawer
+        legacyId={legacyId}
+        isOpen={showMemberDrawer}
+        onClose={() => setShowMemberDrawer(false)}
+        currentUserRole={currentUserRole}
+        visibility={legacy.visibility}
+        isMember={isMember}
+      />
     </div>
   );
 }

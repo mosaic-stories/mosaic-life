@@ -103,7 +103,7 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
         });
       } else {
         await createStory.mutateAsync({
-          legacy_id: legacyId,
+          legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
           title: title.trim(),
           content: content.trim(),
           visibility,
