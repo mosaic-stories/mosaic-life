@@ -11,7 +11,7 @@ spec:
 
   source:
     repoURL: https://github.com/mosaic-stories/mosaic-life
-    targetRevision: main
+    targetRevision: develop
     path: infra/helm/prerender
     helm:
       values: |

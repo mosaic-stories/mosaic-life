@@ -3,7 +3,7 @@
 replicaCount: 1
 
 image:
-  repository: prerender/prerender
+  repository: tvanro/prerender-alpine
   tag: latest
   pullPolicy: Always
 
