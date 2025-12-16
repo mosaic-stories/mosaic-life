@@ -24,7 +24,7 @@ def _format_sitemap_date(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d")
 
 
-def _generate_sitemap_xml(urls: list[dict]) -> str:
+def _generate_sitemap_xml(urls: list[dict[str, str]]) -> str:
     """Generate XML sitemap from URL list."""
     xml_parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
