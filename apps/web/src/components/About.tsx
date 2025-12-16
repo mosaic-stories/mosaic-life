@@ -2,6 +2,7 @@ import { Users, Shield, Heart, Sparkles, ArrowRight, Mail } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import Footer from './Footer';
+import { SEOHead } from './seo';
 
 interface AboutProps {
   onNavigate: (view: string) => void;
@@ -16,6 +17,11 @@ interface AboutProps {
 export default function About({ onNavigate, user, onAuthClick }: AboutProps) {
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300 flex flex-col">
+      <SEOHead
+        title="About Mosaic Life"
+        description="Learn about Mosaic Life and our mission to preserve meaningful stories and memories. Discover how we help families and communities honor the people who matter most."
+        path="/about"
+      />
       <main className="flex-1">
         {/* Hero Section */}
         <section className="max-w-4xl mx-auto px-6 py-20">
