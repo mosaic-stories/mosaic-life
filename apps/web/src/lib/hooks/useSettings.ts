@@ -23,7 +23,7 @@ export const settingsKeys = {
 };
 
 // Preferences hooks
-export function usePreferences() {
+export function usePreferences(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: settingsKeys.preferences(),
     queryFn: getPreferences,
@@ -31,6 +31,8 @@ export function usePreferences() {
     // Prevent automatic refetches that could overwrite optimistic updates
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
+    // Only fetch when enabled (defaults to true for backwards compatibility)
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -32,10 +32,12 @@ export const memberKeys = {
   list: (legacyId: string) => [...memberKeys.all, 'list', legacyId] as const,
 };
 
-export function useLegacies() {
+export function useLegacies(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: legacyKeys.lists(),
     queryFn: getLegacies,
+    // Only fetch when enabled (defaults to true for backwards compatibility)
+    enabled: options?.enabled ?? true,
   });
 }
 

@@ -23,7 +23,7 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
 
   // useLegacies for authenticated users' personal legacies (requires auth)
-  const { data: myLegacies, isLoading: myLegaciesLoading } = useLegacies();
+  const { data: myLegacies, isLoading: myLegaciesLoading } = useLegacies({ enabled: !!user });
   // useExploreLegacies for public explore section (visibility filter for authenticated users)
   const { data: exploreLegacies, isLoading: exploreLoading } = useExploreLegacies(20, user ? visibilityFilter : undefined);
 
