@@ -198,7 +198,7 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
   };
 
   // Generate SEO data
-  const legacyImageUrl = legacy?.profile_image_url
+  const profileImageUrl = legacy?.profile_image_url
     ? rewriteBackendUrlForDev(legacy.profile_image_url)
     : undefined;
 
@@ -206,7 +206,7 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
     id: legacy.id,
     name: legacy.name,
     biography: legacy.biography,
-    profileImageUrl: legacyImageUrl,
+    profileImageUrl: profileImageUrl,
     birthDate: legacy.birth_date,
     deathDate: legacy.death_date,
     createdAt: legacy.created_at,
@@ -267,7 +267,7 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
           title={legacy.name}
           description={legacy.biography ?? undefined}
           path={`/legacy/${legacyId}`}
-          ogImage={legacyImageUrl}
+          ogImage={profileImageUrl}
           ogType="profile"
           structuredData={getLegacySchema(seoSchema)}
         />

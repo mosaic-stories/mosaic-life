@@ -67,21 +67,21 @@ describe('truncateDescription', () => {
 
 describe('getCanonicalUrl', () => {
   it('generates URL with leading slash', () => {
-    expect(getCanonicalUrl('/about')).toBe('https://mosaiclife.me/about');
-    expect(getCanonicalUrl('/legacy/123')).toBe('https://mosaiclife.me/legacy/123');
+    expect(getCanonicalUrl('/about')).toBe(`${BASE_URL}/about`);
+    expect(getCanonicalUrl('/legacy/123')).toBe(`${BASE_URL}/legacy/123`);
   });
 
   it('adds leading slash if missing', () => {
-    expect(getCanonicalUrl('about')).toBe('https://mosaiclife.me/about');
-    expect(getCanonicalUrl('legacy/123')).toBe('https://mosaiclife.me/legacy/123');
+    expect(getCanonicalUrl('about')).toBe(`${BASE_URL}/about`);
+    expect(getCanonicalUrl('legacy/123')).toBe(`${BASE_URL}/legacy/123`);
   });
 
   it('handles root path', () => {
-    expect(getCanonicalUrl('/')).toBe('https://mosaiclife.me/');
+    expect(getCanonicalUrl('/')).toBe(`${BASE_URL}/`);
   });
 
   it('handles empty string', () => {
-    expect(getCanonicalUrl('')).toBe('https://mosaiclife.me/');
+    expect(getCanonicalUrl('')).toBe(`${BASE_URL}/`);
   });
 });
 
@@ -102,12 +102,14 @@ describe('constants', () => {
     expect(SITE_NAME).toBe('Mosaic Life');
   });
 
-  it('exports correct BASE_URL', () => {
-    expect(BASE_URL).toBe('https://mosaiclife.me');
+  it('exports BASE_URL (defaults to production when env var not set)', () => {
+    // BASE_URL uses import.meta.env.VITE_APP_URL with fallback to production URL
+    expect(BASE_URL).toBeTruthy();
+    expect(BASE_URL).toMatch(/^https?:\/\//);
   });
 
-  it('exports correct DEFAULT_OG_IMAGE', () => {
-    expect(DEFAULT_OG_IMAGE).toBe('https://mosaiclife.me/og-image.png');
+  it('exports DEFAULT_OG_IMAGE based on BASE_URL', () => {
+    expect(DEFAULT_OG_IMAGE).toBe(`${BASE_URL}/og-image.png`);
   });
 
   it('exports DEFAULT_DESCRIPTION with expected content', () => {

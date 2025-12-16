@@ -4,8 +4,8 @@ replicaCount: 1
 
 image:
   repository: tvanro/prerender-alpine
-  tag: latest
-  pullPolicy: Always
+  tag: "7.2.0"
+  pullPolicy: IfNotPresent
 
 service:
   type: ClusterIP

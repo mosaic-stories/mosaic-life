@@ -3,6 +3,7 @@
 
 import logging
 from datetime import datetime
+from typing import TypedDict
 
 from fastapi import APIRouter, Depends, Response
 from fastapi.responses import PlainTextResponse
@@ -12,6 +13,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import get_settings
 from ..database import get_db
 from ..models.legacy import Legacy
+
+
+class SitemapUrl(TypedDict, total=False):
+    """TypedDict for sitemap URL entries."""
+
+    loc: str
+    lastmod: str
+    changefreq: str
+    priority: str
+
 
 router = APIRouter(tags=["seo"])
 logger = logging.getLogger(__name__)
@@ -24,7 +35,7 @@ def _format_sitemap_date(dt: datetime) -> str:
     return dt.strftime("%Y-%m-%d")
 
 
-def _generate_sitemap_xml(urls: list[dict[str, str]]) -> str:
+def _generate_sitemap_xml(urls: list[SitemapUrl]) -> str:
     """Generate XML sitemap from URL list."""
     xml_parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
@@ -52,7 +63,7 @@ async def sitemap(db: AsyncSession = Depends(get_db)) -> Response:
     base_url = settings.app_url.rstrip("/")
 
     # Static pages
-    static_urls = [
+    static_urls: list[SitemapUrl] = [
         {"loc": f"{base_url}/", "priority": "1.0", "changefreq": "daily"},
         {"loc": f"{base_url}/about", "priority": "0.8", "changefreq": "monthly"},
         {
@@ -69,7 +80,7 @@ async def sitemap(db: AsyncSession = Depends(get_db)) -> Response:
     public_legacies = result.scalars().all()
 
     # Add legacy URLs
-    legacy_urls = [
+    legacy_urls: list[SitemapUrl] = [
         {
             "loc": f"{base_url}/legacy/{legacy.id}",
             "lastmod": _format_sitemap_date(legacy.updated_at),

@@ -130,7 +130,7 @@ services:
 
   # Prerender Service for SEO (renders pages for bots)
   prerender:
-    image: prerender/prerender
+    image: tvanro/prerender-alpine:7.2.0
     ports:
       - "3000:3000"
     environment:

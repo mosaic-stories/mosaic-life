@@ -15,7 +15,8 @@ export interface SEOMetaData {
 
 const SITE_NAME = 'Mosaic Life';
 const DEFAULT_DESCRIPTION = 'Honor the lives and milestones that matter most. Create meaningful digital tributes for memorials, retirements, graduations, and living legacies.';
-const BASE_URL = 'https://mosaiclife.me';
+// Use environment variable for base URL to support staging/dev, fallback to production
+const BASE_URL = import.meta.env.VITE_APP_URL || 'https://mosaiclife.me';
 const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`;
 
 /**
