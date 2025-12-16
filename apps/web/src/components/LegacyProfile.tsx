@@ -30,6 +30,8 @@ import { formatLegacyDates } from '@/lib/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import type { StorySummary } from '@/lib/api/stories';
 import MemberDrawer from './MemberDrawer';
+import { SEOHead, getLegacySchema } from '@/components/seo';
+import type { LegacySchemaInput } from '@/components/seo';
 
 interface LegacyProfileProps {
   legacyId: string;
@@ -195,6 +197,22 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
     }
   };
 
+  // Generate SEO data
+  const legacyImageUrl = legacy?.profile_image_url
+    ? rewriteBackendUrlForDev(legacy.profile_image_url)
+    : undefined;
+
+  const seoSchema: LegacySchemaInput | null = legacy ? {
+    id: legacy.id,
+    name: legacy.name,
+    biography: legacy.biography,
+    profileImageUrl: legacyImageUrl,
+    birthDate: legacy.birth_date,
+    deathDate: legacy.death_date,
+    createdAt: legacy.created_at,
+    updatedAt: legacy.updated_at,
+  } : null;
+
   if (legacyLoading) {
     return (
       <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center">
@@ -244,6 +262,16 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+      {legacy && seoSchema && (
+        <SEOHead
+          title={legacy.name}
+          description={legacy.biography}
+          path={`/legacy/${legacyId}`}
+          ogImage={legacyImageUrl}
+          ogType="profile"
+          structuredData={getLegacySchema(seoSchema)}
+        />
+      )}
       {/* Header Slot with contextual controls */}
       <HeaderSlot>
         <LegacyHeaderControls
