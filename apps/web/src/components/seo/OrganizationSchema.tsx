@@ -16,8 +16,8 @@ export function getOrganizationSchema() {
     description: DEFAULT_DESCRIPTION,
     sameAs: [
       // Add social profiles when available
-      // 'https://twitter.com/mosaiclife',
-      // 'https://facebook.com/mosaiclife',
+      // 'https://twitter.com/mosaiclifeme',
+      'https://facebook.com/mosaiclifeme',
     ],
   };
 }
