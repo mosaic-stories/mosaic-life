@@ -17,19 +17,33 @@ interface MediaGalleryInlineProps {
   legacyId: string;
   profileImageId?: string | null;
   canEdit?: boolean;
+  isAuthenticated?: boolean;
 }
 
 export default function MediaGalleryInline({
   legacyId,
   profileImageId,
   canEdit = false,
+  isAuthenticated = false,
 }: MediaGalleryInlineProps) {
-  const { data: media, isLoading, error } = useMedia(legacyId);
+  // Only fetch media when user is authenticated (media endpoint requires auth)
+  const { data: media, isLoading, error } = useMedia(legacyId, { enabled: isAuthenticated });
   const deleteMedia = useDeleteMedia(legacyId);
   const setProfileImage = useSetProfileImage(legacyId);
 
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
+
+  // Show sign-in message for unauthenticated users
+  if (!isAuthenticated) {
+    return (
+      <div className="text-center py-12 text-neutral-500">
+        <ImageIcon className="size-12 mx-auto text-neutral-300 mb-4" />
+        <p>Sign in to view photos</p>
+        <p className="text-sm">Photos are only visible to authenticated users</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

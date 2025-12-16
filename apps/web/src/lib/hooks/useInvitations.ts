@@ -16,10 +16,12 @@ export const invitationKeys = {
   preview: (token: string) => [...invitationKeys.all, 'preview', token] as const,
 };
 
-export function useInvitations(legacyId: string) {
+export function useInvitations(legacyId: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: invitationKeys.list(legacyId),
     queryFn: () => listInvitations(legacyId),
+    // Only fetch when enabled (defaults to true for backwards compatibility)
+    enabled: options?.enabled ?? true,
   });
 }
 

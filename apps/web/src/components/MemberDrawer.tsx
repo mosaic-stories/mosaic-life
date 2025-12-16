@@ -78,8 +78,9 @@ export default function MemberDrawer({
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
 
-  const { data: members = [], isLoading: membersLoading } = useMembers(legacyId);
-  const { data: invitations = [], isLoading: _invitationsLoading } = useInvitations(legacyId);
+  // Only fetch members and invitations when user is authenticated
+  const { data: members = [], isLoading: membersLoading } = useMembers(legacyId, { enabled: !!user });
+  const { data: invitations = [], isLoading: _invitationsLoading } = useInvitations(legacyId, { enabled: !!user });
 
   const changeRole = useChangeMemberRole();
   const removeMember = useRemoveMember();

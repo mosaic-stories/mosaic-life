@@ -420,6 +420,7 @@ export default function LegacyProfile({ legacyId, onNavigate: _onNavigate, curre
               legacyId={legacyId}
               profileImageId={legacy.profile_image_id}
               canEdit={!!user}
+              isAuthenticated={!!user}
             />
           </div>
         )}

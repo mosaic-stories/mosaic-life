@@ -136,10 +136,12 @@ export function useLegacyWithFallback(id: string | undefined, isAuthenticated: b
 }
 
 // Member management hooks
-export function useMembers(legacyId: string) {
+export function useMembers(legacyId: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: memberKeys.list(legacyId),
     queryFn: () => listMembers(legacyId),
+    // Only fetch when enabled (defaults to true for backwards compatibility)
+    enabled: options?.enabled ?? true,
   });
 }
 

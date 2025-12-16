@@ -22,11 +22,14 @@ export const mediaKeys = {
 /**
  * Fetch media items, optionally filtered by legacy.
  * @param legacyId - Optional legacy ID to filter media
+ * @param options - Query options including enabled flag
  */
-export function useMedia(legacyId?: string) {
+export function useMedia(legacyId?: string, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: mediaKeys.list(legacyId),
     queryFn: () => listMedia(legacyId),
+    // Only fetch when enabled (defaults to true for backwards compatibility)
+    enabled: options?.enabled ?? true,
   });
 }
 
