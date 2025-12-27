@@ -53,7 +53,27 @@ export default function MediaUploader({ legacyId, onSuccess }: MediaUploaderProp
       e.preventDefault();
       e.stopPropagation();
       setDragActive(false);
-      handleFiles(e.dataTransfer.files);
+
+      // Check if files were dropped
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFiles(e.dataTransfer.files);
+        return;
+      }
+
+      // Check if this is an external URL drag (from another website)
+      const urlData = e.dataTransfer.getData('text/uri-list') || e.dataTransfer.getData('text/plain');
+      const htmlData = e.dataTransfer.getData('text/html');
+
+      if (urlData || htmlData) {
+        // User dragged an image from another website - we can't directly upload these
+        setError(
+          'Cannot upload images dragged from other websites. Please save the image to your device first, then upload it.'
+        );
+        return;
+      }
+
+      // No files and no URL data - unclear what was dropped
+      setError('No valid image found. Please drop an image file from your device.');
     },
     [handleFiles]
   );
