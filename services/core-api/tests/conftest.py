@@ -94,17 +94,29 @@ async def db_session(db_engine) -> AsyncGenerator[AsyncSession, None]:
 @pytest_asyncio.fixture
 async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     """Create a test client with database override."""
+    from unittest.mock import AsyncMock, patch
 
     async def override_get_db():
         yield db_session
 
     app.dependency_overrides[get_db] = override_get_db
 
-    async with AsyncClient(
-        transport=ASGITransport(app=app),
-        base_url="http://test",
-    ) as ac:
-        yield ac
+    # Mock both get_db_for_background and index_story_chunks to avoid background task issues in tests
+    with (
+        patch("app.routes.story.get_db_for_background") as mock_get_db_bg,
+        patch("app.routes.story.index_story_chunks", new_callable=AsyncMock),
+    ):
+        # Make get_db_for_background return the test session
+        async def mock_bg_db():
+            yield db_session
+
+        mock_get_db_bg.return_value = mock_bg_db()
+
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test",
+        ) as ac:
+            yield ac
 
     app.dependency_overrides.clear()
 

@@ -3,11 +3,11 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import require_auth
-from ..database import get_db
+from ..database import get_db, get_db_for_background
 from ..schemas.story import (
     StoryCreate,
     StoryDetail,
@@ -16,6 +16,7 @@ from ..schemas.story import (
     StoryUpdate,
 )
 from ..services import story as story_service
+from ..services.ingestion import index_story_chunks
 
 router = APIRouter(prefix="/api/stories", tags=["stories"])
 logger = logging.getLogger(__name__)
@@ -31,6 +32,7 @@ logger = logging.getLogger(__name__)
 async def create_story(
     data: StoryCreate,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> StoryResponse:
     """Create a new story.
@@ -39,11 +41,34 @@ async def create_story(
     """
     session = require_auth(request)
 
-    return await story_service.create_story(
+    story = await story_service.create_story(
         db=db,
         user_id=session.user_id,
         data=data,
     )
+
+    # Queue background indexing
+    if story.legacies:
+        primary_legacy = next(
+            (leg for leg in story.legacies if leg.role == "primary"),
+            story.legacies[0],
+        )
+
+        async def background_index() -> None:
+            async for bg_db in get_db_for_background():
+                await index_story_chunks(
+                    db=bg_db,
+                    story_id=story.id,
+                    content=data.content,
+                    legacy_id=primary_legacy.legacy_id,
+                    visibility=data.visibility,
+                    author_id=session.user_id,
+                    user_id=session.user_id,
+                )
+
+        background_tasks.add_task(background_index)
+
+    return story
 
 
 @router.get(
@@ -129,6 +154,7 @@ async def update_story(
     story_id: UUID,
     data: StoryUpdate,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> StoryResponse:
     """Update a story.
@@ -137,12 +163,37 @@ async def update_story(
     """
     session = require_auth(request)
 
-    return await story_service.update_story(
+    story = await story_service.update_story(
         db=db,
         user_id=session.user_id,
         story_id=story_id,
         data=data,
     )
+
+    # Reindex if content changed
+    if data.content is not None and story.legacies:
+        primary_legacy = next(
+            (leg for leg in story.legacies if leg.role == "primary"),
+            story.legacies[0],
+        )
+        # Capture content to satisfy mypy
+        content = data.content
+
+        async def background_reindex() -> None:
+            async for bg_db in get_db_for_background():
+                await index_story_chunks(
+                    db=bg_db,
+                    story_id=story.id,
+                    content=content,
+                    legacy_id=primary_legacy.legacy_id,
+                    visibility=story.visibility,
+                    author_id=session.user_id,
+                    user_id=session.user_id,
+                )
+
+        background_tasks.add_task(background_reindex)
+
+    return story
 
 
 @router.delete(
