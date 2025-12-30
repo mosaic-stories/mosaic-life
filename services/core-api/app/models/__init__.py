@@ -3,6 +3,7 @@
 from .ai import AIConversation, AIMessage
 from .associations import ConversationLegacy, MediaLegacy, StoryLegacy
 from .invitation import Invitation
+from .knowledge import KnowledgeAuditLog, StoryChunk
 from .legacy import Legacy, LegacyMember
 from .media import Media
 from .notification import Notification
@@ -16,12 +17,14 @@ __all__ = [
     "AIMessage",
     "ConversationLegacy",
     "Invitation",
+    "KnowledgeAuditLog",
     "Legacy",
     "LegacyMember",
     "Media",
     "MediaLegacy",
     "Notification",
     "Story",
+    "StoryChunk",
     "StoryLegacy",
     "SupportRequest",
     "User",

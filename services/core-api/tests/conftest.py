@@ -255,6 +255,35 @@ async def test_legacy_2(db_session: AsyncSession, test_user: User) -> Legacy:
 
 
 @pytest_asyncio.fixture
+async def test_story(
+    db_session: AsyncSession,
+    test_user: User,
+    test_legacy: Legacy,
+) -> Story:
+    """Create a test story with private visibility."""
+    story = Story(
+        author_id=test_user.id,
+        title="Test Story",
+        content="This is test story content.",
+        visibility="private",
+    )
+    db_session.add(story)
+    await db_session.flush()
+
+    # Create association with legacy
+    story_legacy = StoryLegacy(
+        story_id=story.id,
+        legacy_id=test_legacy.id,
+        role="primary",
+        position=0,
+    )
+    db_session.add(story_legacy)
+    await db_session.commit()
+    await db_session.refresh(story)
+    return story
+
+
+@pytest_asyncio.fixture
 async def test_story_public(
     db_session: AsyncSession,
     test_user: User,
