@@ -153,7 +153,7 @@ async def delete_chunks_for_story(db: AsyncSession, story_id: UUID) -> int:
     with tracer.start_as_current_span("retrieval.delete_chunks") as span:
         span.set_attribute("story_id", str(story_id))
 
-        result: Result[Any] = await db.execute(  # type: ignore[assignment]
+        result: Result[Any] = await db.execute(
             delete(StoryChunk).where(StoryChunk.story_id == story_id)
         )
         await db.commit()
