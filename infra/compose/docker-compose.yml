@@ -88,9 +88,9 @@ services:
       - web-node-modules:/app/node_modules
     restart: unless-stopped
 
-  # PostgreSQL Database
+  # PostgreSQL Database with pgvector extension
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
 
     # Load environment variables from .env file
     env_file:
