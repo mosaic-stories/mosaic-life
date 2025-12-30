@@ -160,3 +160,44 @@ class TestPersonaConfig:
             system_prompt="Test prompt",
         )
         assert persona.max_tokens == 1024
+
+
+class TestBuildSystemPromptWithStoryContext:
+    """Tests for build_system_prompt with story_context parameter."""
+
+    def test_build_system_prompt_includes_story_context(self) -> None:
+        """Test that story_context is appended to system prompt."""
+        story_context = "\n## Relevant stories:\n[Story 1]\nGrandma loved gardening."
+        prompt = build_system_prompt("biographer", "Jane Doe", story_context)
+
+        assert prompt is not None
+        assert "Jane Doe" in prompt
+        assert "Relevant stories" in prompt
+        assert "Grandma loved gardening" in prompt
+
+    def test_build_system_prompt_without_story_context(self) -> None:
+        """Test that prompt works without story_context (backward compatible)."""
+        prompt = build_system_prompt("biographer", "John Smith")
+
+        assert prompt is not None
+        assert "John Smith" in prompt
+        # Should not have story context section
+        assert "Relevant stories" not in prompt
+
+    def test_build_system_prompt_with_empty_story_context(self) -> None:
+        """Test that empty story_context doesn't add anything."""
+        prompt_no_context = build_system_prompt("biographer", "Test Person")
+        prompt_empty_context = build_system_prompt("biographer", "Test Person", "")
+
+        # Both should be identical
+        assert prompt_no_context == prompt_empty_context
+
+    def test_build_system_prompt_story_context_comes_after_persona(self) -> None:
+        """Test that story_context is appended at the end."""
+        story_context = "\n## Story context here"
+        prompt = build_system_prompt("biographer", "Jane", story_context)
+
+        assert prompt is not None
+        # Story context should come after persona prompt (at the end)
+        base_rules = get_base_rules()
+        assert prompt.index(base_rules) < prompt.index("Story context here")

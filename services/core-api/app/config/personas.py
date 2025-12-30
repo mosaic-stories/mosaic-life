@@ -105,15 +105,20 @@ def get_base_rules() -> str:
     return _base_rules
 
 
-def build_system_prompt(persona_id: str, legacy_name: str) -> str | None:
+def build_system_prompt(
+    persona_id: str,
+    legacy_name: str,
+    story_context: str = "",
+) -> str | None:
     """Build complete system prompt for a persona with legacy context.
 
     Args:
         persona_id: The persona identifier.
         legacy_name: Name of the legacy being discussed.
+        story_context: Retrieved story context to include in prompt.
 
     Returns:
-        Complete system prompt with base rules and persona prompt,
+        Complete system prompt with base rules, persona prompt, and story context,
         or None if persona not found.
     """
     persona = get_persona(persona_id)
@@ -123,4 +128,9 @@ def build_system_prompt(persona_id: str, legacy_name: str) -> str | None:
     base = get_base_rules()
     persona_prompt = persona.system_prompt.replace("{legacy_name}", legacy_name)
 
-    return f"{base}\n\n{persona_prompt}"
+    prompt = f"{base}\n\n{persona_prompt}"
+
+    if story_context:
+        prompt = f"{prompt}\n\n{story_context}"
+
+    return prompt

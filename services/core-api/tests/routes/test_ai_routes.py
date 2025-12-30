@@ -1,5 +1,7 @@
 """Tests for AI routes."""
 
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,7 +10,86 @@ from app.models.ai import AIConversation, AIMessage
 from app.models.associations import ConversationLegacy
 from app.models.legacy import Legacy
 from app.models.user import User
+from app.routes.ai import format_story_context
+from app.schemas.retrieval import ChunkResult
 from tests.conftest import create_auth_headers_for_user
+
+
+class TestFormatStoryContext:
+    """Tests for format_story_context helper function."""
+
+    def test_format_empty_chunks_returns_empty_string(self) -> None:
+        """Test that empty chunks list returns empty string."""
+        result = format_story_context([])
+        assert result == ""
+
+    def test_format_single_chunk(self) -> None:
+        """Test formatting a single chunk."""
+        chunks = [
+            ChunkResult(
+                chunk_id=uuid4(),
+                story_id=uuid4(),
+                content="Grandma loved her garden.",
+                similarity=0.85,
+            )
+        ]
+
+        result = format_story_context(chunks)
+
+        assert "## Relevant stories about this person:" in result
+        assert "[Story excerpt 1]" in result
+        assert "Grandma loved her garden." in result
+        assert "Use these excerpts" in result
+        assert "rather than making things up" in result
+
+    def test_format_multiple_chunks(self) -> None:
+        """Test formatting multiple chunks."""
+        chunks = [
+            ChunkResult(
+                chunk_id=uuid4(),
+                story_id=uuid4(),
+                content="First memory content.",
+                similarity=0.9,
+            ),
+            ChunkResult(
+                chunk_id=uuid4(),
+                story_id=uuid4(),
+                content="Second memory content.",
+                similarity=0.85,
+            ),
+            ChunkResult(
+                chunk_id=uuid4(),
+                story_id=uuid4(),
+                content="Third memory content.",
+                similarity=0.8,
+            ),
+        ]
+
+        result = format_story_context(chunks)
+
+        assert "[Story excerpt 1]" in result
+        assert "[Story excerpt 2]" in result
+        assert "[Story excerpt 3]" in result
+        assert "First memory content." in result
+        assert "Second memory content." in result
+        assert "Third memory content." in result
+
+    def test_format_includes_guidance_instructions(self) -> None:
+        """Test that formatted context includes usage instructions."""
+        chunks = [
+            ChunkResult(
+                chunk_id=uuid4(),
+                story_id=uuid4(),
+                content="Some content",
+                similarity=0.9,
+            )
+        ]
+
+        result = format_story_context(chunks)
+
+        assert "Use these excerpts to inform your responses" in result
+        assert "Reference specific details when relevant" in result
+        assert "say so rather than making things up" in result
 
 
 class TestListPersonas:

@@ -32,12 +32,41 @@ from ..schemas.ai import (
     SSEDoneEvent,
     SSEErrorEvent,
 )
+from ..schemas.retrieval import ChunkResult
 from ..services import ai as ai_service
+from ..services.retrieval import retrieve_context
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.ai")
 DEBUG_SSE_HEADER = "x-debug-sse-token"
+
+
+def format_story_context(chunks: list[ChunkResult]) -> str:
+    """Format retrieved chunks for the system prompt.
+
+    Args:
+        chunks: Retrieved story chunks with their content.
+
+    Returns:
+        Formatted context string for system prompt, or empty string if no chunks.
+    """
+    if not chunks:
+        return ""
+
+    context_parts = ["\n## Relevant stories about this person:\n"]
+
+    for i, chunk in enumerate(chunks, 1):
+        context_parts.append(f"[Story excerpt {i}]\n{chunk.content}\n")
+
+    context_parts.append(
+        "\nUse these excerpts to inform your responses. "
+        "Reference specific details when relevant. "
+        "If the excerpts don't contain relevant information, "
+        "say so rather than making things up."
+    )
+
+    return "\n".join(context_parts)
 
 
 # ============================================================================
@@ -229,10 +258,43 @@ async def send_message(
         )
         legacy = legacy_result.scalar_one()
 
-        # Build system prompt
+        # Retrieve relevant story context (RAG)
+        story_context = ""
+        if primary_legacy_id:
+            try:
+                chunks = await retrieve_context(
+                    db=db,
+                    query=data.content,
+                    legacy_id=primary_legacy_id,
+                    user_id=session.user_id,
+                    top_k=5,
+                )
+                story_context = format_story_context(chunks)
+                span.set_attribute("rag.chunks_retrieved", len(chunks))
+                logger.debug(
+                    "ai.chat.rag_context_retrieved",
+                    extra={
+                        "conversation_id": str(conversation_id),
+                        "chunks_count": len(chunks),
+                        "context_length": len(story_context),
+                    },
+                )
+            except Exception as e:
+                # Continue without context rather than failing the chat
+                logger.warning(
+                    "ai.chat.rag_retrieval_failed",
+                    extra={
+                        "conversation_id": str(conversation_id),
+                        "error": str(e),
+                    },
+                )
+                span.set_attribute("rag.retrieval_failed", True)
+
+        # Build system prompt with story context
         system_prompt = build_system_prompt(
             conversation.persona_id,
             legacy.name,
+            story_context,
         )
         if not system_prompt:
             raise HTTPException(
