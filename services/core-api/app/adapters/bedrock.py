@@ -1,5 +1,6 @@
 """AWS Bedrock adapter for AI chat."""
 
+import json
 import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -11,6 +12,10 @@ from opentelemetry import trace
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.bedrock")
+
+# Titan Embeddings v2 constants
+TITAN_EMBED_MODEL_ID = "amazon.titan-embed-text-v2:0"
+TITAN_EMBED_DIMENSION = 1024
 
 
 def _extract_triggered_filters(guardrail_trace: dict[str, Any]) -> list[dict[str, Any]]:
@@ -289,6 +294,82 @@ class BedrockAdapter:
                 raise BedrockError(
                     "An error occurred while generating response.",
                     retryable=False,
+                ) from e
+
+    async def embed_texts(
+        self,
+        texts: list[str],
+        model_id: str = TITAN_EMBED_MODEL_ID,
+        dimensions: int = TITAN_EMBED_DIMENSION,
+    ) -> list[list[float]]:
+        """Generate embeddings for a list of texts using Amazon Titan.
+
+        Args:
+            texts: List of texts to embed.
+            model_id: Titan embedding model ID.
+            dimensions: Embedding dimension (256, 512, or 1024).
+
+        Returns:
+            List of embedding vectors.
+
+        Raises:
+            BedrockError: If embedding generation fails.
+        """
+        with tracer.start_as_current_span("ai.bedrock.embed") as span:
+            span.set_attribute("model_id", model_id)
+            span.set_attribute("text_count", len(texts))
+            span.set_attribute("dimensions", dimensions)
+
+            embeddings: list[list[float]] = []
+
+            try:
+                async with self._get_client() as client:
+                    for text in texts:
+                        response = await client.invoke_model(
+                            modelId=model_id,
+                            body=json.dumps(
+                                {
+                                    "inputText": text,
+                                    "dimensions": dimensions,
+                                    "normalize": True,
+                                }
+                            ),
+                        )
+
+                        result = json.loads(response["body"].read())
+                        embeddings.append(result["embedding"])
+
+                logger.info(
+                    "bedrock.embed_complete",
+                    extra={
+                        "model_id": model_id,
+                        "text_count": len(texts),
+                        "dimensions": dimensions,
+                    },
+                )
+
+                return embeddings
+
+            except ClientError as e:
+                error_code = e.response.get("Error", {}).get("Code", "")
+                span.set_attribute("error", True)
+                logger.error(
+                    "bedrock.embed_error",
+                    extra={"error_code": error_code, "text_count": len(texts)},
+                )
+
+                if error_code == "ThrottlingException":
+                    raise BedrockError("Rate limit exceeded", retryable=True) from e
+                raise BedrockError(
+                    f"Embedding failed: {error_code}", retryable=False
+                ) from e
+
+            except Exception as e:
+                span.set_attribute("error", True)
+                span.record_exception(e)
+                logger.error("bedrock.embed_error", extra={"error": str(e)})
+                raise BedrockError(
+                    "Embedding generation failed", retryable=False
                 ) from e
 
 
