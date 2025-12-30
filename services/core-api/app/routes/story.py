@@ -55,15 +55,22 @@ async def create_story(
         )
 
         async def background_index() -> None:
-            async for bg_db in get_db_for_background():
-                await index_story_chunks(
-                    db=bg_db,
-                    story_id=story.id,
-                    content=data.content,
-                    legacy_id=primary_legacy.legacy_id,
-                    visibility=data.visibility,
-                    author_id=session.user_id,
-                    user_id=session.user_id,
+            try:
+                async for bg_db in get_db_for_background():
+                    await index_story_chunks(
+                        db=bg_db,
+                        story_id=story.id,
+                        content=data.content,
+                        legacy_id=primary_legacy.legacy_id,
+                        visibility=data.visibility,
+                        author_id=session.user_id,
+                        user_id=session.user_id,
+                    )
+            except Exception as e:
+                logger.error(
+                    "background_indexing_failed",
+                    extra={"story_id": str(story.id), "error": str(e)},
+                    exc_info=True,
                 )
 
         background_tasks.add_task(background_index)
@@ -180,15 +187,22 @@ async def update_story(
         content = data.content
 
         async def background_reindex() -> None:
-            async for bg_db in get_db_for_background():
-                await index_story_chunks(
-                    db=bg_db,
-                    story_id=story.id,
-                    content=content,
-                    legacy_id=primary_legacy.legacy_id,
-                    visibility=story.visibility,
-                    author_id=session.user_id,
-                    user_id=session.user_id,
+            try:
+                async for bg_db in get_db_for_background():
+                    await index_story_chunks(
+                        db=bg_db,
+                        story_id=story.id,
+                        content=content,
+                        legacy_id=primary_legacy.legacy_id,
+                        visibility=story.visibility,
+                        author_id=session.user_id,
+                        user_id=session.user_id,
+                    )
+            except Exception as e:
+                logger.error(
+                    "background_reindexing_failed",
+                    extra={"story_id": str(story.id), "error": str(e)},
+                    exc_info=True,
                 )
 
         background_tasks.add_task(background_reindex)
