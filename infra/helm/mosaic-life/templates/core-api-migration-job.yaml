@@ -1,0 +1,130 @@
+{{- if and .Values.coreApi.enabled .Values.coreApi.migrations.enabled }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: core-api-migration-{{ .Release.Revision }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "mosaic-life.labels" . | nindent 4 }}
+    app.kubernetes.io/component: migration
+  annotations:
+    # Run before install and upgrade
+    helm.sh/hook: pre-install,pre-upgrade
+    # Hook weight (run after secrets are created)
+    helm.sh/hook-weight: "5"
+    # Delete previous job before creating new one
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  # Only keep successful jobs for 1 hour
+  ttlSecondsAfterFinished: 3600
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "mosaic-life.labels" . | nindent 8 }}
+        app.kubernetes.io/component: migration
+    spec:
+      serviceAccountName: {{ .Values.coreApi.name }}
+      restartPolicy: Never
+      
+      containers:
+        - name: alembic-migrate
+          image: "{{ .Values.global.registry }}/{{ .Values.coreApi.image.repository }}:{{ .Values.global.imageTag }}"
+          imagePullPolicy: {{ .Values.coreApi.image.pullPolicy }}
+          
+          # Run Alembic migration
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+              
+              echo "=========================================="
+              echo "Waiting for required secrets..."
+              echo "=========================================="
+              
+              # Wait for secrets to be available (created by External Secrets Operator)
+              REQUIRED_SECRETS="database-credentials google-oauth session-secret"
+              for SECRET_NAME in $REQUIRED_SECRETS; do
+                echo "Checking for secret: $SECRET_NAME"
+                MAX_WAIT=120  # 2 minutes max wait
+                ELAPSED=0
+                while [ $ELAPSED -lt $MAX_WAIT ]; do
+                  if [ -n "$(ls /var/run/secrets/kubernetes.io/serviceaccount 2>/dev/null)" ]; then
+                    # Secret mount check - if DB_URL env var is set, secrets are loaded
+                    if [ -n "$DB_URL" ] && [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$SESSION_SECRET_KEY" ]; then
+                      echo "✓ All secrets are loaded"
+                      break 2  # Exit both loops
+                    fi
+                  fi
+                  echo "  Waiting for secrets to be available... (${ELAPSED}s/${MAX_WAIT}s)"
+                  sleep 5
+                  ELAPSED=$((ELAPSED + 5))
+                done
+              done
+              
+              if [ -z "$DB_URL" ]; then
+                echo "ERROR: DB_URL secret not available after ${MAX_WAIT}s"
+                exit 1
+              fi
+              
+              echo "=========================================="
+              echo "Starting database migration..."
+              echo "=========================================="
+              echo "Alembic version:"
+              alembic --version
+              
+              echo ""
+              echo "Current migration status:"
+              alembic current || echo "No migrations yet"
+              
+              echo ""
+              echo "Pending migrations:"
+              alembic history --indicate-current || true
+              
+              echo ""
+              echo "Running migrations..."
+              alembic upgrade head
+              
+              echo ""
+              echo "=========================================="
+              echo "Migration completed successfully!"
+              echo "=========================================="
+              echo "Final migration status:"
+              alembic current
+          
+          env:
+            {{- /* Build list of env var names from extraEnv for deduplication */ -}}
+            {{- $extraEnvNames := dict }}
+            {{- if .Values.coreApi.extraEnv }}
+            {{- range .Values.coreApi.extraEnv }}
+            {{- $_ := set $extraEnvNames .name true }}
+            {{- end }}
+            {{- end }}
+            {{- /* Render base env vars, excluding any that are overridden in extraEnv */ -}}
+            {{- range .Values.coreApi.env }}
+            {{- if not (hasKey $extraEnvNames .name) }}
+            - name: {{ .name }}
+              {{- if .value }}
+              value: {{ .value | quote }}
+              {{- end }}
+              {{- if .valueFrom }}
+              valueFrom:
+                {{- toYaml .valueFrom | nindent 16 }}
+              {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- /* Render extraEnv vars (these take precedence) */ -}}
+            {{- if .Values.coreApi.extraEnv }}
+            {{- toYaml .Values.coreApi.extraEnv | nindent 12 }}
+            {{- end }}
+          
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+{{- end }}

@@ -363,3 +363,78 @@ class TestGuardrailIntegration:
 
             assert "filtered for safety" in exc_info.value.message
             assert exc_info.value.retryable is False
+
+
+class TestBedrockAdapterEmbeddings:
+    """Tests for embedding generation."""
+
+    @pytest.fixture
+    def adapter(self) -> BedrockAdapter:
+        """Create adapter instance."""
+        return BedrockAdapter(region="us-east-1")
+
+    def test_embed_texts_method_exists(self, adapter: BedrockAdapter) -> None:
+        """Test embed_texts method is defined."""
+        assert hasattr(adapter, "embed_texts")
+        assert callable(adapter.embed_texts)
+
+    @pytest.mark.asyncio
+    async def test_embed_texts_returns_embeddings(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test embed_texts returns list of embeddings."""
+        # Mock the Bedrock client
+        import json
+
+        mock_body = AsyncMock()
+        mock_body.read.return_value = json.dumps({"embedding": [0.1] * 1024}).encode()
+
+        mock_response = {"body": mock_body}
+
+        mock_client = AsyncMock()
+        mock_client.invoke_model = AsyncMock(return_value=mock_response)
+
+        with patch.object(adapter, "_get_client") as mock_get_client:
+            # Create async context manager mock
+            mock_cm = AsyncMock()
+            mock_cm.__aenter__.return_value = mock_client
+            mock_cm.__aexit__.return_value = None
+            mock_get_client.return_value = mock_cm
+
+            result = await adapter.embed_texts(["Hello world"])
+
+            assert len(result) == 1
+            assert len(result[0]) == 1024
+            assert all(isinstance(x, float) for x in result[0])
+
+    @pytest.mark.asyncio
+    async def test_embed_texts_batches_multiple_texts(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test embed_texts handles multiple texts."""
+        import json
+
+        call_count = 0
+
+        async def mock_invoke(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            mock_body = AsyncMock()
+            mock_body.read.return_value = json.dumps(
+                {"embedding": [0.1 * call_count] * 1024}
+            ).encode()
+            return {"body": mock_body}
+
+        mock_client = AsyncMock()
+        mock_client.invoke_model = mock_invoke
+
+        with patch.object(adapter, "_get_client") as mock_get_client:
+            mock_cm = AsyncMock()
+            mock_cm.__aenter__.return_value = mock_client
+            mock_cm.__aexit__.return_value = None
+            mock_get_client.return_value = mock_cm
+
+            result = await adapter.embed_texts(["Text 1", "Text 2", "Text 3"])
+
+            assert len(result) == 3
+            assert call_count == 3  # One API call per text
