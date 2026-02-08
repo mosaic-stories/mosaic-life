@@ -222,32 +222,35 @@ async def retrieve_context(
 
         # 3. Build and execute vector search query
         # Using raw SQL for pgvector similarity search
+        # Format embedding as pgvector string format: '[1,2,3]'
+        embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
+        
         query_sql = text("""
             SELECT
                 id,
                 story_id,
                 content,
-                1 - (embedding <=> :query_embedding::vector) AS similarity
+                1 - (embedding <=> :query_embedding) AS similarity
             FROM story_chunks
             WHERE
                 legacy_id = :legacy_id
                 AND (
-                    visibility IN :public_visibilities
+                    visibility = ANY(:public_visibilities)
                     OR (visibility = 'personal' AND author_id = :author_id)
                 )
-            ORDER BY embedding <=> :query_embedding::vector
+            ORDER BY embedding <=> :query_embedding
             LIMIT :top_k
         """)
 
         # Filter out 'personal' from public visibilities since it's handled separately
-        public_visibilities = tuple(
+        public_visibilities = [
             v for v in visibility_filter.allowed_visibilities if v != "personal"
-        )
+        ]
 
         result = await db.execute(
             query_sql,
             {
-                "query_embedding": str(query_embedding),
+                "query_embedding": embedding_str,
                 "legacy_id": str(legacy_id),
                 "public_visibilities": public_visibilities,
                 "author_id": str(visibility_filter.personal_author_id),
