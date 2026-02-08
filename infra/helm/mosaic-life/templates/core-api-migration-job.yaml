@@ -28,25 +28,6 @@ spec:
       serviceAccountName: {{ .Values.coreApi.name }}
       restartPolicy: Never
       
-      # Wait for ExternalSecrets to sync before running migration
-      initContainers:
-        - name: wait-for-secrets
-          image: bitnami/kubectl:latest
-          command:
-            - sh
-            - -c
-            - |
-              echo "Waiting for ExternalSecrets to sync..."
-              for secret in database-credentials google-oauth session-secret; do
-                echo "Checking $secret..."
-                until kubectl get secret $secret -n {{ .Release.Namespace }} 2>/dev/null; do
-                  echo "  Waiting for secret $secret to be created..."
-                  sleep 2
-                done
-                echo "  ✓ Secret $secret is ready"
-              done
-              echo "All secrets are ready!"
-      
       containers:
         - name: alembic-migrate
           image: "{{ .Values.global.registry }}/{{ .Values.coreApi.image.repository }}:{{ .Values.global.imageTag }}"
@@ -58,6 +39,36 @@ spec:
             - -c
             - |
               set -e
+              
+              echo "=========================================="
+              echo "Waiting for required secrets..."
+              echo "=========================================="
+              
+              # Wait for secrets to be available (created by External Secrets Operator)
+              REQUIRED_SECRETS="database-credentials google-oauth session-secret"
+              for SECRET_NAME in $REQUIRED_SECRETS; do
+                echo "Checking for secret: $SECRET_NAME"
+                MAX_WAIT=120  # 2 minutes max wait
+                ELAPSED=0
+                while [ $ELAPSED -lt $MAX_WAIT ]; do
+                  if [ -n "$(ls /var/run/secrets/kubernetes.io/serviceaccount 2>/dev/null)" ]; then
+                    # Secret mount check - if DB_URL env var is set, secrets are loaded
+                    if [ -n "$DB_URL" ] && [ -n "$GOOGLE_CLIENT_ID" ] && [ -n "$SESSION_SECRET_KEY" ]; then
+                      echo "✓ All secrets are loaded"
+                      break 2  # Exit both loops
+                    fi
+                  fi
+                  echo "  Waiting for secrets to be available... (${ELAPSED}s/${MAX_WAIT}s)"
+                  sleep 5
+                  ELAPSED=$((ELAPSED + 5))
+                done
+              done
+              
+              if [ -z "$DB_URL" ]; then
+                echo "ERROR: DB_URL secret not available after ${MAX_WAIT}s"
+                exit 1
+              fi
+              
               echo "=========================================="
               echo "Starting database migration..."
               echo "=========================================="
