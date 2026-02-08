@@ -54,7 +54,7 @@ jobs:
           echo "api-hostname=pr-${PR_NUMBER}-api.${BASE_DOMAIN}" >> $GITHUB_OUTPUT
           echo "image-tag=pr-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
 
-          # Determine target environment based on base branch
+          # Determine target environment based on base branch (for context/labeling)
           TARGET_BRANCH="${{ github.base_ref }}"
           if [ "${TARGET_BRANCH}" == "main" ]; then
             TARGET_ENV="prod"
@@ -63,12 +63,16 @@ jobs:
           fi
           echo "target-env=${TARGET_ENV}" >> $GITHUB_OUTPUT
 
-          # Set environment-specific resource references
-          echo "db-secret-key=mosaic/${TARGET_ENV}/rds/credentials" >> $GITHUB_OUTPUT
-          echo "session-secret-key=mosaic/${TARGET_ENV}/session/secret-key" >> $GITHUB_OUTPUT
-          echo "s3-media-bucket=mosaic-${TARGET_ENV}-media-033691785857" >> $GITHUB_OUTPUT
-          echo "s3-backup-bucket=mosaic-${TARGET_ENV}-backups-033691785857" >> $GITHUB_OUTPUT
-          echo "iam-role-arn=arn:aws:iam::033691785857:role/mosaic-${TARGET_ENV}-core-api-role" >> $GITHUB_OUTPUT
+          # IMPORTANT: Preview environments ALWAYS use staging resources
+          # This prevents preview PRs from accessing/modifying production data
+          PREVIEW_ENV="staging"
+          
+          # Set environment-specific resource references (always staging for preview)
+          echo "db-secret-key=mosaic/${PREVIEW_ENV}/rds/credentials" >> $GITHUB_OUTPUT
+          echo "session-secret-key=mosaic/${PREVIEW_ENV}/session/secret-key" >> $GITHUB_OUTPUT
+          echo "s3-media-bucket=mosaic-${PREVIEW_ENV}-media-033691785857" >> $GITHUB_OUTPUT
+          echo "s3-backup-bucket=mosaic-${PREVIEW_ENV}-backups-033691785857" >> $GITHUB_OUTPUT
+          echo "iam-role-arn=arn:aws:iam::033691785857:role/mosaic-${PREVIEW_ENV}-core-api-role" >> $GITHUB_OUTPUT
 
       - name: Configure AWS credentials (ECR Push Role)
         uses: aws-actions/configure-aws-credentials@v4
