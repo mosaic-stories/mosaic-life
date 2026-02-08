@@ -256,6 +256,10 @@ export class StagingResourcesStack extends cdk.Stack {
           `arn:aws:bedrock:us-east-1:${this.account}:inference-profile/us.anthropic.*`,
           `arn:aws:bedrock:us-east-2:${this.account}:inference-profile/us.anthropic.*`,
           `arn:aws:bedrock:us-west-2:${this.account}:inference-profile/us.anthropic.*`,
+          // Allow access to Amazon Titan Embeddings for AI memory/RAG
+          'arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0',
+          'arn:aws:bedrock:us-east-2::foundation-model/amazon.titan-embed-text-v2:0',
+          'arn:aws:bedrock:us-west-2::foundation-model/amazon.titan-embed-text-v2:0',
         ],
       })
     );

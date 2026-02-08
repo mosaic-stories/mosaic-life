@@ -336,7 +336,8 @@ class BedrockAdapter:
                             ),
                         )
 
-                        result = json.loads(response["body"].read())
+                        body_bytes = await response["body"].read()
+                        result = json.loads(body_bytes)
                         embeddings.append(result["embedding"])
 
                 logger.info(

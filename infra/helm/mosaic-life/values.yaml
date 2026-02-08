@@ -110,6 +110,10 @@ coreApi:
   name: core-api
   replicaCount: 3
 
+  # Database migrations - run automatically on deploy
+  migrations:
+    enabled: true
+
   image:
     repository: mosaic-life/core-api
     pullPolicy: Always  # Force pull for latest tag
