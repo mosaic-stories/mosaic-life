@@ -28,6 +28,25 @@ spec:
       serviceAccountName: {{ .Values.coreApi.name }}
       restartPolicy: Never
       
+      # Wait for ExternalSecrets to sync before running migration
+      initContainers:
+        - name: wait-for-secrets
+          image: bitnami/kubectl:latest
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for ExternalSecrets to sync..."
+              for secret in database-credentials google-oauth session-secret; do
+                echo "Checking $secret..."
+                until kubectl get secret $secret -n {{ .Release.Namespace }} 2>/dev/null; do
+                  echo "  Waiting for secret $secret to be created..."
+                  sleep 2
+                done
+                echo "  ✓ Secret $secret is ready"
+              done
+              echo "All secrets are ready!"
+      
       containers:
         - name: alembic-migrate
           image: "{{ .Values.global.registry }}/{{ .Values.coreApi.image.repository }}:{{ .Values.global.imageTag }}"
