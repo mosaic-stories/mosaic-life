@@ -224,7 +224,7 @@ async def retrieve_context(
         # Using raw SQL for pgvector similarity search
         # Format embedding as pgvector string format: '[1,2,3]'
         embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
-        
+
         query_sql = text("""
             SELECT
                 id,
