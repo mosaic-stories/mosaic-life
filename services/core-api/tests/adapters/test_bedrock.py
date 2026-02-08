@@ -385,9 +385,8 @@ class TestBedrockAdapterEmbeddings:
         """Test embed_texts returns list of embeddings."""
         # Mock the Bedrock client
         import json
-        from unittest.mock import MagicMock
 
-        mock_body = MagicMock()
+        mock_body = AsyncMock()
         mock_body.read.return_value = json.dumps({"embedding": [0.1] * 1024}).encode()
 
         mock_response = {"body": mock_body}
@@ -414,14 +413,13 @@ class TestBedrockAdapterEmbeddings:
     ) -> None:
         """Test embed_texts handles multiple texts."""
         import json
-        from unittest.mock import MagicMock
 
         call_count = 0
 
         async def mock_invoke(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            mock_body = MagicMock()
+            mock_body = AsyncMock()
             mock_body.read.return_value = json.dumps(
                 {"embedding": [0.1 * call_count] * 1024}
             ).encode()
