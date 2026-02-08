@@ -87,8 +87,15 @@ async def backfill_stories(
         logger.error("DB_URL not configured")
         sys.exit(1)
 
-    # Convert to async driver
-    db_url = settings.db_url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
+    # Convert to async driver - handle various URL formats
+    db_url = settings.db_url
+    if "postgresql+psycopg://" in db_url:
+        db_url = db_url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
+    elif db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif "postgresql+asyncpg://" not in db_url:
+        logger.error(f"Unsupported DB_URL format: {db_url}")
+        sys.exit(1)
 
     engine = create_async_engine(db_url, echo=False)
     async_session = async_sessionmaker(engine, expire_on_commit=False)

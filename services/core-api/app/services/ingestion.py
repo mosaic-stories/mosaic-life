@@ -49,52 +49,57 @@ async def index_story_chunks(
         span.set_attribute("story_id", str(story_id))
         span.set_attribute("content_length", len(content))
 
-        # 1. Delete existing chunks (for reindexing)
-        old_count = await delete_chunks_for_story(db, story_id)
-        span.set_attribute("old_chunk_count", old_count)
+        # Wrap entire operation in a transaction for atomicity
+        # If embedding or storage fails, delete is rolled back
+        async with db.begin_nested():
+            # 1. Delete existing chunks (for reindexing)
+            old_count = await delete_chunks_for_story(db, story_id)
+            span.set_attribute("old_chunk_count", old_count)
 
-        # 2. Chunk the content
-        chunks = chunk_story(content)
+            # 2. Chunk the content
+            chunks = chunk_story(content)
 
-        if not chunks:
-            logger.info(
-                "ingestion.no_content",
-                extra={"story_id": str(story_id)},
+            if not chunks:
+                logger.info(
+                    "ingestion.no_content",
+                    extra={"story_id": str(story_id)},
+                )
+                return 0
+
+            span.set_attribute("new_chunk_count", len(chunks))
+
+            # 3. Generate embeddings
+            bedrock = get_bedrock_adapter()
+            embeddings = await bedrock.embed_texts(chunks)
+
+            # 4. Store chunks with embeddings
+            chunks_with_embeddings = list(zip(chunks, embeddings))
+            chunk_count = await store_chunks(
+                db=db,
+                story_id=story_id,
+                chunks=chunks_with_embeddings,
+                legacy_id=legacy_id,
+                visibility=visibility,
+                author_id=author_id,
             )
-            return 0
 
-        span.set_attribute("new_chunk_count", len(chunks))
+            # 5. Create audit log entry
+            action = "story_reindexed" if old_count > 0 else "story_indexed"
+            audit_log = KnowledgeAuditLog(
+                action=action,
+                story_id=story_id,
+                legacy_id=legacy_id,
+                user_id=user_id or author_id,
+                chunk_count=chunk_count,
+                details={
+                    "content_length": len(content),
+                    "old_chunk_count": old_count,
+                    "embedding_model": "amazon.titan-embed-text-v2:0",
+                },
+            )
+            db.add(audit_log)
 
-        # 3. Generate embeddings
-        bedrock = get_bedrock_adapter()
-        embeddings = await bedrock.embed_texts(chunks)
-
-        # 4. Store chunks with embeddings
-        chunks_with_embeddings = list(zip(chunks, embeddings))
-        chunk_count = await store_chunks(
-            db=db,
-            story_id=story_id,
-            chunks=chunks_with_embeddings,
-            legacy_id=legacy_id,
-            visibility=visibility,
-            author_id=author_id,
-        )
-
-        # 5. Create audit log entry
-        action = "story_reindexed" if old_count > 0 else "story_indexed"
-        audit_log = KnowledgeAuditLog(
-            action=action,
-            story_id=story_id,
-            legacy_id=legacy_id,
-            user_id=user_id or author_id,
-            chunk_count=chunk_count,
-            details={
-                "content_length": len(content),
-                "old_chunk_count": old_count,
-                "embedding_model": "amazon.titan-embed-text-v2:0",
-            },
-        )
-        db.add(audit_log)
+        # Commit the entire transaction
         await db.commit()
 
         logger.info(

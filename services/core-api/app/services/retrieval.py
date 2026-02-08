@@ -127,7 +127,7 @@ async def store_chunks(
             )
             db.add(chunk)
 
-        await db.commit()
+        await db.flush()
 
         logger.info(
             "retrieval.chunks_stored",
@@ -156,7 +156,7 @@ async def delete_chunks_for_story(db: AsyncSession, story_id: UUID) -> int:
         result: Result[Any] = await db.execute(
             delete(StoryChunk).where(StoryChunk.story_id == story_id)
         )
-        await db.commit()
+        await db.flush()
 
         deleted = getattr(result, "rowcount", 0) or 0
         span.set_attribute("deleted_count", deleted)
@@ -230,15 +230,15 @@ async def retrieve_context(
                 id,
                 story_id,
                 content,
-                1 - (embedding <=> :query_embedding) AS similarity
+                1 - (embedding <=> (:query_embedding)::vector) AS similarity
             FROM story_chunks
             WHERE
                 legacy_id = :legacy_id
                 AND (
-                    visibility = ANY(:public_visibilities)
+                    visibility = ANY(:public_visibilities::text[])
                     OR (visibility = 'personal' AND author_id = :author_id)
                 )
-            ORDER BY embedding <=> :query_embedding
+            ORDER BY embedding <=> (:query_embedding)::vector
             LIMIT :top_k
         """)
 

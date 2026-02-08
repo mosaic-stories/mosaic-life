@@ -38,12 +38,12 @@ class TestResolveVisibilityFilter:
         assert result.personal_author_id == test_user.id
 
     @pytest.mark.asyncio
-    async def test_admirer_sees_only_public(
+    async def test_admirer_sees_public_and_personal(
         self,
         db_session: AsyncSession,
         test_legacy: Legacy,
     ) -> None:
-        """Test admirer can only see public stories."""
+        """Test admirer can see public stories and their own personal stories."""
         # Create admirer user
         admirer = User(
             email="admirer@example.com",
