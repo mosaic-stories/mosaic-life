@@ -225,7 +225,22 @@ async def retrieve_context(
         # Format embedding as pgvector string format: '[1,2,3]'
         embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]"
 
-        query_sql = text("""
+        # Filter out 'personal' from public visibilities since it's handled separately
+        public_visibilities = [
+            v for v in visibility_filter.allowed_visibilities if v != "personal"
+        ]
+
+        # Build IN clause dynamically for public visibilities
+        if public_visibilities:
+            visibility_placeholders = ", ".join(
+                f":vis_{i}" for i in range(len(public_visibilities))
+            )
+            visibility_condition = f"visibility IN ({visibility_placeholders})"
+        else:
+            # No public visibilities, only match personal condition
+            visibility_condition = "FALSE"
+
+        query_sql = text(f"""
             SELECT
                 id,
                 story_id,
@@ -235,28 +250,24 @@ async def retrieve_context(
             WHERE
                 legacy_id = :legacy_id
                 AND (
-                    visibility = ANY(:public_visibilities::text[])
+                    {visibility_condition}
                     OR (visibility = 'personal' AND author_id = :author_id)
                 )
             ORDER BY embedding <=> (:query_embedding)::vector
             LIMIT :top_k
         """)
 
-        # Filter out 'personal' from public visibilities since it's handled separately
-        public_visibilities = [
-            v for v in visibility_filter.allowed_visibilities if v != "personal"
-        ]
+        # Build parameter dict with visibility values
+        params = {
+            "query_embedding": embedding_str,
+            "legacy_id": str(legacy_id),
+            "author_id": str(visibility_filter.personal_author_id),
+            "top_k": top_k,
+        }
+        for i, vis in enumerate(public_visibilities):
+            params[f"vis_{i}"] = vis
 
-        result = await db.execute(
-            query_sql,
-            {
-                "query_embedding": embedding_str,
-                "legacy_id": str(legacy_id),
-                "public_visibilities": public_visibilities,
-                "author_id": str(visibility_filter.personal_author_id),
-                "top_k": top_k,
-            },
-        )
+        result = await db.execute(query_sql, params)
 
         rows = result.fetchall()
 
