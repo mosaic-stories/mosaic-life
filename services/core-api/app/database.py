@@ -43,8 +43,16 @@ def get_async_engine() -> AsyncEngine:
     if not settings.db_url:
         raise ValueError("DB_URL not configured")
 
-    # Convert to async driver
+    # Convert to async driver and handle SSL mode
     db_url = settings.db_url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
+
+    # asyncpg doesn't support 'sslmode' parameter in URL
+    # Remove sslmode from query string - asyncpg will use SSL by default for RDS
+    if "?sslmode=require" in db_url:
+        db_url = db_url.replace("?sslmode=require", "")
+    elif "&sslmode=require" in db_url:
+        db_url = db_url.replace("&sslmode=require", "")
+
     return create_async_engine(db_url, echo=settings.env == "dev")
 
 
