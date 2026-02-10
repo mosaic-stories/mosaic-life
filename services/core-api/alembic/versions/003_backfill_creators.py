@@ -10,7 +10,6 @@ membership records so their legacies show up in list_user_legacies.
 """
 
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
