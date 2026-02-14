@@ -5,13 +5,13 @@ Revises: 003_backfill_creators
 Create Date: 2026-02-14 05:06:33.478287
 
 """
+
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'e04738d48e96'
-down_revision = '003_backfill_creators'
+revision = "e04738d48e96"
+down_revision = "003_backfill_creators"
 branch_labels = None
 depends_on = None
 
@@ -33,4 +33,3 @@ def downgrade() -> None:
         ALTER COLUMN ip_address TYPE INET 
         USING ip_address::INET;
     """)
-
