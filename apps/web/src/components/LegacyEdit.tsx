@@ -6,10 +6,10 @@ import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import ThemeSelector from './ThemeSelector';
 import { useLegacy, useUpdateLegacy } from '@/lib/hooks/useLegacies';
 import type { LegacyVisibility } from '@/lib/api/legacies';
 import { SEOHead } from '@/components/seo';
+import { HeaderSlot } from '@/components/header';
 
 interface LegacyEditProps {
   legacyId: string;
@@ -18,7 +18,7 @@ interface LegacyEditProps {
   onThemeChange: (themeId: string) => void;
 }
 
-export default function LegacyEdit({ legacyId, onNavigate: _onNavigate, currentTheme, onThemeChange }: LegacyEditProps) {
+export default function LegacyEdit({ legacyId, onNavigate: _onNavigate, currentTheme: _currentTheme, onThemeChange: _onThemeChange }: LegacyEditProps) {
   const navigate = useNavigate();
   const { data: legacy, isLoading: legacyLoading, error: legacyError } = useLegacy(legacyId);
   const updateLegacy = useUpdateLegacy();
@@ -113,20 +113,15 @@ export default function LegacyEdit({ legacyId, onNavigate: _onNavigate, currentT
         description="Edit your legacy information"
         noIndex={true}
       />
-      <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(`/legacy/${legacyId}`)}
-              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-            >
-              <ArrowLeft className="size-4" />
-              <span>Back to legacy</span>
-            </button>
-            <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-          </div>
-        </div>
-      </header>
+      <HeaderSlot>
+        <button
+          onClick={() => navigate(`/legacy/${legacyId}`)}
+          className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+        >
+          <ArrowLeft className="size-4" />
+          <span>Back to legacy</span>
+        </button>
+      </HeaderSlot>
 
       <main className="max-w-2xl mx-auto px-6 py-12">
         <div className="space-y-8">

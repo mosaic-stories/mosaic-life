@@ -105,6 +105,11 @@ function StoryCard({ story, onClick }: { story: StorySummary; onClick?: () => vo
   const authorInitials = story.author_name
     ? story.author_name.split(' ').map(n => n[0]).join('')
     : '?';
+  const associatedLegaciesLabel = story.legacies
+    .map((legacy) => legacy.role === 'primary'
+      ? `${legacy.legacy_name} (primary)`
+      : legacy.legacy_name)
+    .join(' · ');
   const formattedDate = new Date(story.created_at).toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -121,6 +126,9 @@ function StoryCard({ story, onClick }: { story: StorySummary; onClick?: () => vo
           <h3 className="text-neutral-900">{story.title}</h3>
           {story.content_preview && (
             <p className="text-neutral-600 text-sm line-clamp-2 mt-2">{story.content_preview}</p>
+          )}
+          {associatedLegaciesLabel && (
+            <p className="text-neutral-500 text-sm mt-2">About: {associatedLegaciesLabel}</p>
           )}
           <div className="flex items-center gap-3 text-sm text-neutral-500 mt-3">
             <div className="flex items-center gap-2">

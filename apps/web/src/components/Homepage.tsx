@@ -9,6 +9,8 @@ import { useLegacies, useExploreLegacies } from '@/lib/hooks/useLegacies';
 import { formatLegacyDates, getLegacyContext } from '@/lib/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import { SEOHead, getOrganizationSchema } from '@/components/seo';
+import { HeaderSlot } from '@/components/header';
+import ThemeSelector from './ThemeSelector';
 
 interface HomepageProps {
   onNavigate: (view: string) => void;
@@ -38,6 +40,9 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
     'living-tribute': 'bg-purple-100 text-purple-800 border-purple-200'
   };
 
+  const currentTheme = _currentTheme;
+  const onThemeChange = _onThemeChange;
+
   return (
     <div className="min-h-screen flex flex-col">
       <SEOHead
@@ -47,7 +52,9 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
         ogType="website"
         structuredData={getOrganizationSchema()}
       />
-      {/* Header Slot - Empty on Homepage, theme is in AppHeader */}
+      <HeaderSlot>
+        <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
+      </HeaderSlot>
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-6 py-20">

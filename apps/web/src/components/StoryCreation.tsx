@@ -4,12 +4,14 @@ import { ArrowLeft, Loader2, Save, AlertCircle, Pencil, Eye, Globe, Users, Lock 
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
+import LegacyMultiSelect from './LegacyMultiSelect';
 import { getThemeClasses } from '../lib/themes';
-import ThemeSelector from './ThemeSelector';
 import { useLegacy } from '@/lib/hooks/useLegacies';
 import { useStory, useCreateStory, useUpdateStory } from '@/lib/hooks/useStories';
+import type { LegacyAssociationInput } from '@/lib/api/stories';
 import { useAuth } from '@/contexts/AuthContext';
 import { SEOHead } from '@/components/seo';
+import { HeaderSlot } from '@/components/header';
 
 interface StoryCreationProps {
   onNavigate: (view: string) => void;
@@ -26,7 +28,7 @@ const ROLE_LEVELS: Record<string, number> = {
   admirer: 1,
 };
 
-export default function StoryCreation({ onNavigate: _onNavigate, legacyId, storyId, currentTheme, onThemeChange }: StoryCreationProps) {
+export default function StoryCreation({ onNavigate: _onNavigate, legacyId, storyId, currentTheme, onThemeChange: _onThemeChange }: StoryCreationProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [title, setTitle] = useState('');
@@ -34,6 +36,7 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
   const [visibility, setVisibility] = useState<'public' | 'private' | 'personal'>('private');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isViewMode, setIsViewMode] = useState(true);
+  const [selectedLegacies, setSelectedLegacies] = useState<LegacyAssociationInput[]>([]);
 
   const { data: legacy, isLoading: _legacyLoading } = useLegacy(legacyId);
   const { data: existingStory, isLoading: storyLoading } = useStory(storyId);
@@ -81,12 +84,46 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
       setTitle(existingStory.title);
       setContent(existingStory.content);
       setVisibility(existingStory.visibility);
+      setSelectedLegacies(
+        existingStory.legacies.map((legacy, index) => ({
+          legacy_id: legacy.legacy_id,
+          role: legacy.role,
+          position: legacy.position ?? index,
+        }))
+      );
     }
   }, [existingStory]);
+
+  useEffect(() => {
+    if (isEditMode) return;
+
+    setSelectedLegacies((current) => {
+      if (current.some((legacy) => legacy.legacy_id === legacyId)) {
+        return current;
+      }
+
+      const next = [...current];
+      if (next.length === 0) {
+        next.push({ legacy_id: legacyId, role: 'primary', position: 0 });
+      } else {
+        next.push({ legacy_id: legacyId, role: 'secondary', position: next.length });
+      }
+
+      return next.map((legacy, index) => ({
+        ...legacy,
+        position: index,
+      }));
+    });
+  }, [isEditMode, legacyId]);
 
   const handlePublish = async () => {
     if (!title.trim() || !content.trim()) {
       setSubmitError('Please add a title and content for your story.');
+      return;
+    }
+
+    if (selectedLegacies.length === 0) {
+      setSubmitError('Please select at least one legacy for this story.');
       return;
     }
 
@@ -100,11 +137,20 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
             title: title.trim(),
             content: content.trim(),
             visibility,
+            legacies: selectedLegacies.map((legacy, index) => ({
+              legacy_id: legacy.legacy_id,
+              role: legacy.role,
+              position: index,
+            })),
           },
         });
       } else {
         await createStory.mutateAsync({
-          legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
+          legacies: selectedLegacies.map((legacy, index) => ({
+            legacy_id: legacy.legacy_id,
+            role: legacy.role,
+            position: index,
+          })),
           title: title.trim(),
           content: content.trim(),
           visibility,
@@ -112,7 +158,11 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
       }
 
       // Navigate back to the legacy profile on success
-      navigate(`/legacy/${legacyId}`);
+      const primaryLegacyId = selectedLegacies.find((legacy) => legacy.role === 'primary')?.legacy_id
+        ?? selectedLegacies[0]?.legacy_id
+        ?? legacyId;
+
+      navigate(`/legacy/${primaryLegacyId}`);
     } catch (error) {
       setSubmitError(isEditMode ? 'Failed to update story. Please try again.' : 'Failed to publish story. Please try again.');
     }
@@ -162,6 +212,13 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
 
   const visibilityInfo = getVisibilityInfo(visibility);
   const VisibilityIcon = visibilityInfo.icon;
+  const associatedLegaciesLabel = existingStory?.legacies?.length
+    ? existingStory.legacies
+      .map((legacy) => legacy.role === 'primary'
+        ? `${legacy.legacy_name} (primary)`
+        : legacy.legacy_name)
+      .join(' · ')
+    : null;
 
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
@@ -170,62 +227,54 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
         description="Create or edit a story for this legacy"
         noIndex={true}
       />
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={handleBack}
-              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-            >
-              <ArrowLeft className="size-4" />
-              <span>Back to {legacyName}</span>
-            </button>
-            <div className="flex items-center gap-3">
-              <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
+      <HeaderSlot>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleBack}
+            className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+          >
+            <ArrowLeft className="size-4" />
+            <span>Back to {legacyName}</span>
+          </button>
 
-              {isViewMode && isEditMode ? (
-                // View mode header actions
-                canEdit && (
-                  <Button
-                    size="sm"
-                    className="gap-2"
-                    onClick={handleEditClick}
-                  >
-                    <Pencil className="size-4" />
-                    Edit Story
-                  </Button>
-                )
-              ) : (
-                // Edit mode header actions
-                <>
-                  {isEditMode && (
-                    <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
-                      Cancel
-                    </Button>
-                  )}
-                  <Button variant="ghost" size="sm" disabled>
-                    Save Draft
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="gap-2"
-                    onClick={handlePublish}
-                    disabled={isMutating || !title.trim() || !content.trim()}
-                  >
-                    {isMutating ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Save className="size-4" />
-                    )}
-                    {isEditMode ? 'Update Story' : 'Publish Story'}
-                  </Button>
-                </>
+          {isViewMode && isEditMode ? (
+            canEdit && (
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={handleEditClick}
+              >
+                <Pencil className="size-4" />
+                Edit Story
+              </Button>
+            )
+          ) : (
+            <>
+              {isEditMode && (
+                <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                  Cancel
+                </Button>
               )}
-            </div>
-          </div>
+              <Button variant="ghost" size="sm" disabled>
+                Save Draft
+              </Button>
+              <Button
+                size="sm"
+                className="gap-2"
+                onClick={handlePublish}
+                disabled={isMutating || !title.trim() || !content.trim()}
+              >
+                {isMutating ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Save className="size-4" />
+                )}
+                {isEditMode ? 'Update Story' : 'Publish Story'}
+              </Button>
+            </>
+          )}
         </div>
-      </header>
+      </HeaderSlot>
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
@@ -263,6 +312,11 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
                     </>
                   )}
                 </div>
+                {associatedLegaciesLabel && (
+                  <p className="text-sm text-neutral-600">
+                    About: {associatedLegaciesLabel}
+                  </p>
+                )}
                 <h1 className="text-3xl font-semibold text-neutral-900">{title}</h1>
               </div>
 
@@ -294,6 +348,19 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
           ) : (
             // Edit Mode
             <div className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-sm text-neutral-600">Legacies *</label>
+                <LegacyMultiSelect
+                  value={selectedLegacies}
+                  onChange={setSelectedLegacies}
+                  requirePrimary={true}
+                  disabled={isMutating}
+                />
+                <p className="text-xs text-neutral-500">
+                  Select one or more legacies and mark one as primary.
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm text-neutral-600">Story Title *</label>
                 <Input

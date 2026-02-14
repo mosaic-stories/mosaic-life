@@ -29,9 +29,9 @@ import { cn } from './ui/utils';
 import type { Persona } from '@/lib/api/ai';
 import type { ChatMessage } from '@/stores/aiChatStore';
 import { useLegacy } from '@/lib/hooks/useLegacies';
-import ThemeSelector from './ThemeSelector';
 import { usePrevious } from '@/hooks/usePrevious';
 import { SEOHead } from '@/components/seo';
+import { HeaderSlot } from '@/components/header';
 
 interface AIAgentChatProps {
   onNavigate: (view: string) => void;
@@ -46,8 +46,8 @@ const ALLOWED_PERSONAS = ['biographer', 'friend'];
 export default function AIAgentChat({
   onNavigate: _onNavigate,
   legacyId: propLegacyId,
-  currentTheme,
-  onThemeChange,
+  currentTheme: _currentTheme,
+  onThemeChange: _onThemeChange,
 }: AIAgentChatProps) {
   const navigate = useNavigate();
   const params = useParams();
@@ -346,40 +346,34 @@ export default function AIAgentChat({
         description="Chat with AI agents about this legacy"
         noIndex={true}
       />
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b z-40">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
-          <div className="flex items-center justify-between gap-2">
-            <button
-              onClick={() => navigate(`/legacy/${legacyId}`)}
-              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors min-w-0"
-            >
-              <ArrowLeft className="size-4 flex-shrink-0" />
-              <span className="truncate">
-                <span className="hidden sm:inline">Back to </span>
-                {legacy?.name || 'Legacy'}
-              </span>
-            </button>
-            <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-              <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-              <Badge
-                variant="outline"
-                className="bg-blue-50 text-blue-700 border-blue-200 hidden md:inline-flex"
-              >
-                Chat Interface
-              </Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(`/legacy/${legacyId}/ai-panel`)}
-                className="hidden sm:inline-flex"
-              >
-                Switch to Panel
-              </Button>
-            </div>
-          </div>
+      <HeaderSlot>
+        <div className="flex items-center gap-2 md:gap-3">
+          <button
+            onClick={() => navigate(`/legacy/${legacyId}`)}
+            className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors min-w-0"
+          >
+            <ArrowLeft className="size-4 flex-shrink-0" />
+            <span className="truncate">
+              <span className="hidden sm:inline">Back to </span>
+              {legacy?.name || 'Legacy'}
+            </span>
+          </button>
+          <Badge
+            variant="outline"
+            className="bg-blue-50 text-blue-700 border-blue-200 hidden md:inline-flex"
+          >
+            Chat Interface
+          </Badge>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(`/legacy/${legacyId}/ai-panel`)}
+            className="hidden sm:inline-flex"
+          >
+            Switch to Panel
+          </Button>
         </div>
-      </header>
+      </HeaderSlot>
 
       {/* Global error banner */}
       {error && (

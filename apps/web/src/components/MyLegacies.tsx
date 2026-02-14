@@ -1,14 +1,26 @@
+import { useMemo, useState } from 'react';
 import { BookHeart, Plus, Loader2, AlertCircle, Users, Globe, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import { HeaderSlot } from '@/components/header';
 import SearchBar from './SearchBar';
 import { useLegacies } from '@/lib/hooks/useLegacies';
+import { useStories, useUpdateStory } from '@/lib/hooks/useStories';
+import type { StorySummary, LegacyAssociationInput } from '@/lib/api/stories';
 import { formatLegacyDates, getLegacyContext, type Legacy } from '@/lib/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import { SEOHead } from '@/components/seo';
+import LegacyMultiSelect from './LegacyMultiSelect';
 
 interface MyLegaciesProps {
   onNavigate: (view: string) => void;
@@ -81,6 +93,16 @@ function LegacyCard({ legacy, onClick }: { legacy: Legacy; onClick: () => void }
 export default function MyLegacies({ onNavigate }: MyLegaciesProps) {
   const navigate = useNavigate();
   const { data: legacies, isLoading, error } = useLegacies();
+  const { data: orphanedStories, isLoading: orphanedLoading } = useStories(undefined, true);
+  const updateStory = useUpdateStory();
+
+  const [storyToAssign, setStoryToAssign] = useState<StorySummary | null>(null);
+  const [assignmentLegacies, setAssignmentLegacies] = useState<LegacyAssociationInput[]>([]);
+
+  const hasOrphanedStories = useMemo(
+    () => !!orphanedStories && orphanedStories.length > 0,
+    [orphanedStories],
+  );
 
   const handleLegacyClick = (legacyId: string) => {
     navigate(`/legacy/${legacyId}`);
@@ -97,6 +119,33 @@ export default function MyLegacies({ onNavigate }: MyLegaciesProps) {
     } else if (type === 'community') {
       navigate(`/community/${id}`);
     }
+  };
+
+  const openAssignmentDialog = (story: StorySummary) => {
+    setStoryToAssign(story);
+    setAssignmentLegacies([]);
+  };
+
+  const closeAssignmentDialog = () => {
+    setStoryToAssign(null);
+    setAssignmentLegacies([]);
+  };
+
+  const handleAssignStory = async () => {
+    if (!storyToAssign || assignmentLegacies.length === 0) return;
+
+    await updateStory.mutateAsync({
+      storyId: storyToAssign.id,
+      data: {
+        legacies: assignmentLegacies.map((legacy, index) => ({
+          legacy_id: legacy.legacy_id,
+          role: legacy.role,
+          position: index,
+        })),
+      },
+    });
+
+    closeAssignmentDialog();
   };
 
   return (
@@ -126,6 +175,49 @@ export default function MyLegacies({ onNavigate }: MyLegaciesProps) {
               Legacies you've created and curated
             </p>
           </div>
+
+          <section className="space-y-3">
+            <div>
+              <h2 className="text-neutral-900">Needs Assignment</h2>
+              <p className="text-sm text-neutral-600 mt-1">
+                Stories without legacy links after legacy changes.
+              </p>
+            </div>
+
+            {orphanedLoading && (
+              <div className="flex items-center gap-2 text-sm text-neutral-500">
+                <Loader2 className="size-4 animate-spin" />
+                <span>Loading unassigned stories...</span>
+              </div>
+            )}
+
+            {!orphanedLoading && !hasOrphanedStories && (
+              <Card className="p-4 text-sm text-neutral-600">
+                No stories need reassignment.
+              </Card>
+            )}
+
+            {!orphanedLoading && hasOrphanedStories && (
+              <div className="space-y-3">
+                {orphanedStories?.map((story) => (
+                  <Card key={story.id} className="p-4 flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <p className="text-neutral-900">{story.title}</p>
+                      {story.content_preview && (
+                        <p className="text-sm text-neutral-600 line-clamp-2">{story.content_preview}</p>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => openAssignmentDialog(story)}
+                    >
+                      Assign Legacies
+                    </Button>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
 
           {isLoading && (
             <div className="flex items-center justify-center py-12">
@@ -183,6 +275,58 @@ export default function MyLegacies({ onNavigate }: MyLegaciesProps) {
           )}
         </div>
       </main>
+
+      <Dialog open={!!storyToAssign} onOpenChange={(open) => !open && closeAssignmentDialog()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign story to legacies</DialogTitle>
+            <DialogDescription>
+              Choose one or more legacies for this story and set the primary legacy.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {storyToAssign && (
+              <Card className="p-3">
+                <p className="text-sm text-neutral-500">Story</p>
+                <p className="text-neutral-900">{storyToAssign.title}</p>
+              </Card>
+            )}
+
+            <LegacyMultiSelect
+              value={assignmentLegacies}
+              onChange={setAssignmentLegacies}
+              requirePrimary={true}
+              disabled={updateStory.isPending}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={closeAssignmentDialog}
+              disabled={updateStory.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAssignStory}
+              disabled={updateStory.isPending || assignmentLegacies.length === 0}
+            >
+              {updateStory.isPending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                  Saving...
+                </>
+              ) : (
+                'Save Assignments'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
