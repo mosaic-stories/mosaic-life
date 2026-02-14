@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy.dialects.postgresql import INET, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -38,7 +38,7 @@ class UserSession(Base):
         index=True,
     )
     device_info: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(INET, nullable=True)
     location: Mapped[str | None] = mapped_column(String(100), nullable=True)
     last_active_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
