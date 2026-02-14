@@ -15,12 +15,13 @@ from opentelemetry import trace
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..adapters.bedrock import BedrockError, get_bedrock_adapter
+from ..adapters.ai import AIProviderError
 from ..auth.middleware import require_auth
 from ..config.personas import build_system_prompt, get_persona, get_personas
 from ..config.settings import get_settings
 from ..database import get_db
 from ..models.legacy import Legacy
+from ..providers.registry import get_provider_registry
 from ..schemas.ai import (
     ConversationCreate,
     ConversationResponse,
@@ -316,13 +317,13 @@ async def send_message(
 
         async def generate_stream() -> AsyncGenerator[str, None]:
             """Generate SSE stream."""
-            adapter = get_bedrock_adapter()
+            llm_provider = get_provider_registry().get_llm_provider()
             full_response = ""
             token_count: int | None = None
 
             try:
                 settings = get_settings()
-                async for chunk in adapter.stream_generate(
+                async for chunk in llm_provider.stream_generate(
                     messages=context,
                     system_prompt=system_prompt,
                     model_id=persona.model_id,
@@ -359,13 +360,16 @@ async def send_message(
                     },
                 )
 
-            except BedrockError as e:
+            except AIProviderError as e:
                 logger.warning(
                     "ai.chat.error",
                     extra={
                         "conversation_id": str(conversation_id),
                         "error": e.message,
                         "retryable": e.retryable,
+                        "error_code": e.code,
+                        "provider": e.provider,
+                        "operation": e.operation,
                     },
                 )
 

@@ -10,6 +10,7 @@ from app.adapters.bedrock import (
     _extract_triggered_filters,
     get_bedrock_adapter,
 )
+from app.adapters.telemetry import AI_MODEL, AI_OPERATION, AI_PROVIDER
 
 
 class TestBedrockError:
@@ -368,6 +369,62 @@ class TestGuardrailIntegration:
 
             assert "filtered for safety" in exc_info.value.message
             assert exc_info.value.retryable is False
+            assert exc_info.value.code == "invalid_request"
+            assert exc_info.value.provider == "bedrock"
+            assert exc_info.value.operation == "stream_generate"
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_emits_normalized_telemetry(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Streaming path should emit shared telemetry keys."""
+
+        async def mock_stream_iterator():
+            events = [
+                {"contentBlockDelta": {"delta": {"text": "Hello"}}},
+                {"messageStop": {"stopReason": "end_turn"}},
+            ]
+            for event in events:
+                yield event
+
+        mock_response = {"stream": mock_stream_iterator()}
+        from unittest.mock import Mock
+
+        mock_span = Mock()
+        mock_span_cm = Mock()
+        mock_span_cm.__enter__ = Mock(return_value=mock_span)
+        mock_span_cm.__exit__ = Mock(return_value=None)
+
+        with (
+            patch.object(adapter, "_get_client") as mock_get_client,
+            patch(
+                "app.adapters.bedrock.tracer.start_as_current_span",
+                return_value=mock_span_cm,
+            ),
+        ):
+            mock_client = AsyncMock()
+            mock_client.converse_stream = AsyncMock(return_value=mock_response)
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_client.return_value = mock_context
+
+            chunks = []
+            async for chunk in adapter.stream_generate(
+                messages=[{"role": "user", "content": "Hi"}],
+                system_prompt="You are helpful.",
+                model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            ):
+                chunks.append(chunk)
+
+            assert chunks == ["Hello"]
+            mock_span.set_attribute.assert_any_call(AI_PROVIDER, "bedrock")
+            mock_span.set_attribute.assert_any_call(AI_OPERATION, "stream_generate")
+            mock_span.set_attribute.assert_any_call(
+                AI_MODEL,
+                "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            )
 
     @pytest.mark.asyncio
     async def test_stream_generate_guardrail_intervention_extracts_filters(

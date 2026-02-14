@@ -135,6 +135,45 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318/v1/traces
 VITE_API_BASE_URL=http://localhost:8080
 ```
 
+### AI Provider Selection (Backend)
+
+The backend supports config-driven AI provider selection for both chat and embeddings.
+
+**Default behavior:**
+- `AI_LLM_PROVIDER=bedrock`
+- `AI_EMBEDDING_PROVIDER=bedrock`
+
+**Use Bedrock (default):**
+```env
+AI_LLM_PROVIDER=bedrock
+AI_EMBEDDING_PROVIDER=bedrock
+AWS_REGION=us-east-1
+BEDROCK_GUARDRAIL_ID=<optional>
+BEDROCK_GUARDRAIL_VERSION=<optional>
+```
+
+**Use direct OpenAI (second provider):**
+```env
+AI_LLM_PROVIDER=openai
+AI_EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=<required>
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_CHAT_MODEL=gpt-4o-mini
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+```
+
+**Mixed mode (example):**
+```env
+AI_LLM_PROVIDER=bedrock
+AI_EMBEDDING_PROVIDER=openai
+OPENAI_API_KEY=<required>
+AWS_REGION=us-east-1
+```
+
+Notes:
+- When OpenAI is selected, `OPENAI_API_KEY` is required for the selected provider path.
+- Keep provider settings in `services/core-api/.env.local` for local-only overrides.
+
 ## Services & Ports
 
 | Service | Port | Purpose |

@@ -56,6 +56,18 @@ class Settings(BaseModel):
     bedrock_guardrail_id: str | None = os.getenv("BEDROCK_GUARDRAIL_ID")
     bedrock_guardrail_version: str | None = os.getenv("BEDROCK_GUARDRAIL_VERSION")
 
+    # AI provider selection (Feature 3 abstraction)
+    ai_llm_provider: str = os.getenv("AI_LLM_PROVIDER", "bedrock").lower()
+    ai_embedding_provider: str = os.getenv("AI_EMBEDDING_PROVIDER", "bedrock").lower()
+
+    # OpenAI provider configuration (optional)
+    openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
+    openai_base_url: str = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+    openai_chat_model: str = os.getenv("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+    openai_embedding_model: str = os.getenv(
+        "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
+    )
+
     # Storage Configuration
     storage_backend: str = os.getenv("STORAGE_BACKEND", "local")
     local_media_path: str = os.getenv("LOCAL_MEDIA_PATH", "/app/media")

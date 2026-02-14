@@ -6,8 +6,8 @@ from uuid import UUID
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..adapters.bedrock import get_bedrock_adapter
 from ..models.knowledge import KnowledgeAuditLog
+from ..providers.registry import get_provider_registry
 from .chunking import chunk_story
 from .retrieval import delete_chunks_for_story, store_chunks
 
@@ -69,8 +69,8 @@ async def index_story_chunks(
             span.set_attribute("new_chunk_count", len(chunks))
 
             # 3. Generate embeddings
-            bedrock = get_bedrock_adapter()
-            embeddings = await bedrock.embed_texts(chunks)
+            embedding_provider = get_provider_registry().get_embedding_provider()
+            embeddings = await embedding_provider.embed_texts(chunks)
 
             # 4. Store chunks with embeddings
             chunks_with_embeddings = list(zip(chunks, embeddings))

@@ -1,0 +1,122 @@
+"""Central registry for runtime AI provider resolution."""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, cast
+
+from ..adapters.ai import AIProviderError
+from ..config import get_settings
+
+if TYPE_CHECKING:
+    from ..adapters.ai import EmbeddingProvider, LLMProvider
+    from ..config.settings import Settings
+
+
+class ProviderRegistry:
+    """Resolve provider implementations from runtime settings."""
+
+    def __init__(self, settings: Settings):
+        self._settings = settings
+
+    def _resolve_region(self, region: str | None) -> str:
+        return region or self._settings.aws_region
+
+    def _require_openai_config(self, operation: str) -> None:
+        if self._settings.openai_api_key:
+            return
+        raise AIProviderError(
+            message="OPENAI_API_KEY is required when OpenAI provider is selected",
+            retryable=False,
+            code="auth_error",
+            provider="openai",
+            operation=operation,
+        )
+
+    def _get_openai_provider(self) -> object:
+        from ..adapters.openai import get_openai_provider
+
+        return get_openai_provider(
+            api_key=self._settings.openai_api_key or "",
+            base_url=self._settings.openai_base_url,
+            default_chat_model=self._settings.openai_chat_model,
+            default_embedding_model=self._settings.openai_embedding_model,
+        )
+
+    def _get_openai_llm_provider(self) -> LLMProvider:
+        return cast("LLMProvider", self._get_openai_provider())
+
+    def _get_openai_embedding_provider(self) -> EmbeddingProvider:
+        return cast("EmbeddingProvider", self._get_openai_provider())
+
+    def get_llm_provider(self, region: str | None = None) -> LLMProvider:
+        """Return the configured LLM provider instance."""
+        provider = self._settings.ai_llm_provider
+
+        if provider == "bedrock":
+            from ..adapters.bedrock import get_bedrock_adapter
+
+            return get_bedrock_adapter(region=self._resolve_region(region))
+
+        if provider == "openai":
+            self._require_openai_config(operation="stream_generate")
+            return self._get_openai_llm_provider()
+
+        raise AIProviderError(
+            message=f"Unsupported LLM provider configured: {provider}",
+            retryable=False,
+            code="invalid_request",
+            provider=provider,
+            operation="stream_generate",
+        )
+
+    def get_embedding_provider(self, region: str | None = None) -> EmbeddingProvider:
+        """Return the configured embedding provider instance."""
+        provider = self._settings.ai_embedding_provider
+
+        if provider == "bedrock":
+            from ..adapters.bedrock import get_bedrock_adapter
+
+            return get_bedrock_adapter(region=self._resolve_region(region))
+
+        if provider == "openai":
+            self._require_openai_config(operation="embed_texts")
+            return self._get_openai_embedding_provider()
+
+        raise AIProviderError(
+            message=f"Unsupported embedding provider configured: {provider}",
+            retryable=False,
+            code="invalid_request",
+            provider=provider,
+            operation="embed_texts",
+        )
+
+
+_provider_registry: ProviderRegistry | None = None
+_provider_registry_signature: tuple[str, ...] | None = None
+
+
+def _settings_signature(settings: Settings) -> tuple[str, ...]:
+    return (
+        settings.ai_llm_provider,
+        settings.ai_embedding_provider,
+        settings.aws_region,
+        settings.openai_api_key or "",
+        settings.openai_base_url,
+        settings.openai_chat_model,
+        settings.openai_embedding_model,
+    )
+
+
+def get_provider_registry() -> ProviderRegistry:
+    """Get singleton provider registry for current settings."""
+    global _provider_registry
+    global _provider_registry_signature
+
+    settings = get_settings()
+    signature = _settings_signature(settings)
+
+    if _provider_registry is None or _provider_registry_signature != signature:
+        _provider_registry = ProviderRegistry(settings=settings)
+        _provider_registry_signature = signature
+
+    return _provider_registry

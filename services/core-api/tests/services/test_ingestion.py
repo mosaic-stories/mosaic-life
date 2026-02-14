@@ -26,12 +26,14 @@ class TestIndexStoryChunks:
     ) -> None:
         """Test indexing a story creates chunks."""
         # Mock the embedding call
-        with patch("app.services.ingestion.get_bedrock_adapter") as mock_bedrock:
+        with patch("app.services.ingestion.get_provider_registry") as mock_registry:
             mock_adapter = AsyncMock()
             mock_adapter.embed_texts = AsyncMock(
                 return_value=[[0.1] * 1024]  # One chunk
             )
-            mock_bedrock.return_value = mock_adapter
+            mock_registry.return_value.get_embedding_provider.return_value = (
+                mock_adapter
+            )
 
             chunk_count = await index_story_chunks(
                 db=db_session,
@@ -55,10 +57,12 @@ class TestIndexStoryChunks:
         test_story: Story,
     ) -> None:
         """Test reindexing deletes old chunks and creates new."""
-        with patch("app.services.ingestion.get_bedrock_adapter") as mock_bedrock:
+        with patch("app.services.ingestion.get_provider_registry") as mock_registry:
             mock_adapter = AsyncMock()
             mock_adapter.embed_texts = AsyncMock(return_value=[[0.1] * 1024])
-            mock_bedrock.return_value = mock_adapter
+            mock_registry.return_value.get_embedding_provider.return_value = (
+                mock_adapter
+            )
 
             # Index first time
             count1 = await index_story_chunks(
@@ -113,9 +117,11 @@ class TestIndexStoryChunks:
         test_story: Story,
     ) -> None:
         """Test empty content creates no chunks."""
-        with patch("app.services.ingestion.get_bedrock_adapter") as mock_bedrock:
+        with patch("app.services.ingestion.get_provider_registry") as mock_registry:
             mock_adapter = AsyncMock()
-            mock_bedrock.return_value = mock_adapter
+            mock_registry.return_value.get_embedding_provider.return_value = (
+                mock_adapter
+            )
 
             chunk_count = await index_story_chunks(
                 db=db_session,
@@ -146,10 +152,12 @@ class TestIndexStoryChunks:
 
         from app.models.knowledge import KnowledgeAuditLog
 
-        with patch("app.services.ingestion.get_bedrock_adapter") as mock_bedrock:
+        with patch("app.services.ingestion.get_provider_registry") as mock_registry:
             mock_adapter = AsyncMock()
             mock_adapter.embed_texts = AsyncMock(return_value=[[0.1] * 1024])
-            mock_bedrock.return_value = mock_adapter
+            mock_registry.return_value.get_embedding_provider.return_value = (
+                mock_adapter
+            )
 
             await index_story_chunks(
                 db=db_session,

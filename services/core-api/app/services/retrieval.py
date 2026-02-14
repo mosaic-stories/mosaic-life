@@ -10,9 +10,9 @@ from sqlalchemy import delete, func, select, text
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..adapters.bedrock import get_bedrock_adapter
 from ..models.knowledge import StoryChunk
 from ..models.legacy import LegacyMember
+from ..providers.registry import get_provider_registry
 from ..schemas.retrieval import ChunkResult, VisibilityFilter
 
 logger = logging.getLogger(__name__)
@@ -215,8 +215,8 @@ async def retrieve_context(
         visibility_filter = await resolve_visibility_filter(db, user_id, legacy_id)
 
         # 2. Embed the query
-        bedrock = get_bedrock_adapter()
-        [query_embedding] = await bedrock.embed_texts([query])
+        embedding_provider = get_provider_registry().get_embedding_provider()
+        [query_embedding] = await embedding_provider.embed_texts([query])
 
         span.set_attribute("query_embedded", True)
 
