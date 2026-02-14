@@ -8,7 +8,6 @@ Create Date: 2025-12-14 17:25:22.000000
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision = "pl8f7xmaeuaq"
@@ -25,7 +24,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.UUID(), nullable=False),
         sa.Column("session_token", sa.String(length=255), nullable=False),
         sa.Column("device_info", sa.String(length=255), nullable=True),
-        sa.Column("ip_address", postgresql.INET(), nullable=True),
+        sa.Column("ip_address", sa.String(length=45), nullable=True),
         sa.Column("location", sa.String(length=100), nullable=True),
         sa.Column(
             "last_active_at",
