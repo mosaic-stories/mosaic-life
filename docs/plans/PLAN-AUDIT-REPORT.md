@@ -9,8 +9,8 @@
 
 | Status | Count | Plans |
 |--------|-------|-------|
-| **Fully Implemented** | 14 | Moved to `docs/plans/completed/` |
-| **Partially Implemented** | 3 | Remain in `docs/plans/` for review |
+| **Fully Implemented** | 16 | Moved to `docs/plans/completed/` |
+| **Partially Implemented** | 1 | Remain in `docs/plans/` for review |
 | **Not Implemented** | 1 | Remains in `docs/plans/` for review |
 | **Total** | 18 | (28 files, grouped into 18 logical plans) |
 
@@ -93,30 +93,19 @@
 **What:** Restructure content from legacy-scoped to user-scoped ownership with many-to-many legacy associations.
 **Status:** Fully implemented. Backend association architecture, schemas, routes, and services are complete; frontend now includes multi-legacy story assignment/editing via `LegacyMultiSelect`, orphaned story reassignment via the “Needs Assignment” dashboard section, and multi-legacy story display formatting with primary/secondary indicators; dedicated backend association tests were added (`test_story_associations.py`) and `test_media_service.py` now covers owner-scoped storage path and association persistence.
 
----
-
-## Partially Implemented Plans (remain for review)
 ### 15. AI Chat Improvements (2025-12-09)
 **File:** `2025-12-09-ai-chat-improvements-prompt.md`
 **What:** Three improvements — enhanced guardrail tracing, multiple conversations per persona, blocked message exclusion.
-**Feature 2 (Chat History):** DONE — Full conversation list, new chat, persona-scoped history
-**Feature 3 (Blocked Exclusion):** DONE — blocked column, filtering, UI badge
-**Feature 1 (Guardrail Tracing):** PARTIAL
-- **Missing:** `_extract_triggered_filters()` is defined but never called — guardrail intervention logs raw trace data instead of parsed triggered filters
-- **Missing:** Span attribute `guardrail_filters` not set as planned
+**Status:** Fully implemented. Chat history and blocked-message exclusion were already complete, and guardrail tracing is now complete with triggered filter extraction wired into intervention handling and span attribute emission (`guardrail_filters`) alongside structured warning logs.
 
 ### 16. Settings & Support (2025-12-14)
 **Files:** `2025-12-14-settings-and-support-design.md`, `2025-12-14-settings-and-support-implementation.md`
 **What:** Settings page (5 sections) + Help & Support dialog.
-**Implemented:** Profile, Appearance, AI Preferences, Usage Stats sections, HelpSupportDialog, backend schemas/services/routes, theme sync.
-**Missing:**
-- Session management API (GET/DELETE `/api/users/me/sessions`) — schemas exist but no routes/service
-- Data export API (POST `/api/users/me/export`) — entirely missing
-- Account deletion API (DELETE `/api/users/me`) — entirely missing
-- Rate limiting on support requests — only a TODO comment
-- AWS SES integration for support emails — logging only
-- AccountSettings data export/delete buttons are placeholder `alert()` calls
+**Status:** Fully implemented. Account management now includes active session listing and revocation (`GET/DELETE /api/users/me/sessions`), data export request + tokenized download flow (`POST /api/users/me/export`, `GET /api/users/me/export/{token}`), and account deletion with short-lived confirmation token (`POST /api/users/me/delete-token`, `DELETE /api/users/me`). Support requests now enforce per-user hourly rate limiting (5/hour) and send via SES when configured (with local logging fallback). Frontend `AccountSettings` now uses real APIs instead of placeholders for session management, export, and account deletion.
 
+---
+
+## Partially Implemented Plans (remain for review)
 ### 17. AI Memory Roadmap
 **File:** `AI-MEMORY-START.md`
 **What:** High-level 10-feature roadmap for AI-powered knowledge capabilities across multiple phases.
@@ -153,10 +142,10 @@
 
 1. **Notification integration spans multiple plans:** The notification system (NOTIFICATION-SYSTEM-PLAN.md) was designed standalone but its header integration was superseded by the unified header plan (2025-12-14). Both confirm the feature works — notifications now live in HeaderUserMenu rather than a standalone NotificationBell per page.
 
-2. **AI features form a chain:** Bedrock AI Chat (12/07) → Bedrock Guardrails (12/08) → AI Chat Improvements (12/09) → AI Memory Phase 1 (12/30). Each subsequent plan builds on the prior. Phase 1 of the full AI pipeline is complete; later phases (agent framework, experimentation) from AI-MEMORY-START.md are not started.
+2. **AI features form a chain:** Bedrock AI Chat (12/07) → Bedrock Guardrails (12/08) → AI Chat Improvements (12/09) → AI Memory Phase 1 (12/30). Each subsequent plan builds on the prior. These first four linked milestones are now complete; later roadmap phases (agent framework, experimentation) from AI-MEMORY-START.md are not started.
 
 3. **User-scoped content (01/15) now has end-to-end feature coverage** across backend and frontend, including multi-legacy selection, orphaned content reassignment, and association-aware display formatting.
 
 4. **Media architecture evolved** from the original media upload plan (01/29) to align with user-scoped content (01/15). The media adapter pattern, presigned URLs, and gallery work correctly with the evolved architecture.
 
-5. **Settings & Support (12/14) has meaningful gaps** in account management (session management, data export, account deletion) that may have compliance implications. These are clearly marked as placeholders in the frontend.
+5. **Settings & Support (12/14) is now fully implemented** with account session controls, export flow, account deletion safeguards, support rate limiting, and SES-backed support delivery.

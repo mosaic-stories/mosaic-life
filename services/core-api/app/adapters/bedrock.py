@@ -209,15 +209,23 @@ class BedrockAdapter:
 
                             # Check for guardrail intervention
                             if stop_reason == "guardrail_intervened":
+                                triggered_filters = _extract_triggered_filters(
+                                    guardrail_trace_data
+                                )
                                 logger.warning(
                                     "bedrock.guardrail_intervened",
                                     extra={
                                         "guardrail_id": guardrail_id,
                                         "chunk_count": chunk_count,
+                                        "triggered_filters": triggered_filters,
                                         "trace": guardrail_trace_data,
                                     },
                                 )
                                 span.set_attribute("guardrail_intervened", True)
+                                span.set_attribute(
+                                    "guardrail_filters",
+                                    json.dumps(triggered_filters),
+                                )
                                 raise BedrockError(
                                     "Your message was filtered for safety. Please rephrase.",
                                     retryable=False,

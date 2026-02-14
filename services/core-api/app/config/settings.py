@@ -50,6 +50,7 @@ class Settings(BaseModel):
     # SES Configuration (for email)
     ses_from_email: str | None = os.getenv("SES_FROM_EMAIL")
     ses_region: str = os.getenv("SES_REGION", "us-east-1")
+    support_email_to: str = os.getenv("SUPPORT_EMAIL_TO", "support@mosaiclife.me")
 
     # Bedrock Guardrails (optional - disabled if not set)
     bedrock_guardrail_id: str | None = os.getenv("BEDROCK_GUARDRAIL_ID")

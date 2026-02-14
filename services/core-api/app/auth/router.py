@@ -16,6 +16,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
 from ..database import get_db
+from ..models.user_session import UserSession
+from .session_tokens import (
+    extract_client_ip,
+    extract_device_info,
+    get_session_cookie_value,
+    hash_session_token,
+)
 from ..models.user import User
 from .google import GoogleOAuthError, get_google_client
 from .middleware import create_session_cookie, get_current_session, require_auth
@@ -250,6 +257,17 @@ async def callback_google(
             domain=settings.session_cookie_domain,  # Cross-subdomain cookie
         )
 
+        session_record = UserSession(
+            user_id=user.id,
+            session_token=hash_session_token(cookie_value),
+            device_info=extract_device_info(request),
+            ip_address=extract_client_ip(request),
+            location=None,
+            last_active_at=now,
+        )
+        db.add(session_record)
+        await db.commit()
+
         return response
 
     except GoogleOAuthError as e:
@@ -271,7 +289,10 @@ async def callback_google(
 
 
 @router.post("/auth/logout")
-async def logout(request: Request) -> Response:
+async def logout(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> Response:
     """Log out the current user.
 
     Clears the session cookie.
@@ -287,6 +308,22 @@ async def logout(request: Request) -> Response:
                 "user_id": str(session.user_id),
             },
         )
+
+    # Revoke current session record if present
+    session_cookie = get_session_cookie_value(request)
+    if session_cookie and session:
+        token_hash = hash_session_token(session_cookie)
+        result = await db.execute(
+            select(UserSession).where(
+                UserSession.user_id == session.user_id,
+                UserSession.session_token == token_hash,
+                UserSession.revoked_at.is_(None),
+            )
+        )
+        current_session_record = result.scalar_one_or_none()
+        if current_session_record:
+            current_session_record.revoked_at = datetime.now(timezone.utc)
+            await db.commit()
 
     # Clear session cookie
     response = Response(status_code=200)

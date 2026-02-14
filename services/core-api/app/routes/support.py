@@ -24,9 +24,9 @@ async def create_support_request(
     """
     session = require_auth(request)
 
-    # TODO: Add rate limiting check here
-
     try:
         return await support_service.create_support_request(db, session.user_id, data)
+    except support_service.SupportRateLimitError as e:
+        raise HTTPException(status_code=429, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

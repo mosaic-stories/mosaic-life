@@ -5,11 +5,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import {
+  createAccountDeletionToken,
+  deleteAccount,
+  DeleteAccountRequest,
   getPreferences,
   getProfile,
+  getSessions,
   getStats,
   PreferencesUpdateRequest,
   ProfileUpdateRequest,
+  requestDataExport,
+  revokeSession,
   updatePreferences,
   updateProfile,
 } from '../api/settings';
@@ -20,6 +26,7 @@ export const settingsKeys = {
   preferences: () => [...settingsKeys.all, 'preferences'] as const,
   profile: () => [...settingsKeys.all, 'profile'] as const,
   stats: () => [...settingsKeys.all, 'stats'] as const,
+  sessions: () => [...settingsKeys.all, 'sessions'] as const,
 };
 
 // Preferences hooks
@@ -102,5 +109,47 @@ export function useStats() {
     queryKey: settingsKeys.stats(),
     queryFn: getStats,
     staleTime: 1000 * 60 * 10, // 10 minutes
+  });
+}
+
+export function useSessions() {
+  return useQuery({
+    queryKey: settingsKeys.sessions(),
+    queryFn: getSessions,
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
+export function useRevokeSession() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (sessionId: string) => revokeSession(sessionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: settingsKeys.sessions() });
+    },
+  });
+}
+
+export function useRequestDataExport() {
+  return useMutation({
+    mutationFn: () => requestDataExport(),
+  });
+}
+
+export function useCreateAccountDeletionToken() {
+  return useMutation({
+    mutationFn: () => createAccountDeletionToken(),
+  });
+}
+
+export function useDeleteAccount() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: DeleteAccountRequest) => deleteAccount(data),
+    onSuccess: () => {
+      queryClient.clear();
+    },
   });
 }

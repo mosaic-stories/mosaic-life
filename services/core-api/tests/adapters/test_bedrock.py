@@ -4,7 +4,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.adapters.bedrock import BedrockAdapter, BedrockError, get_bedrock_adapter
+from app.adapters.bedrock import (
+    BedrockAdapter,
+    BedrockError,
+    _extract_triggered_filters,
+    get_bedrock_adapter,
+)
 
 
 class TestBedrockError:
@@ -363,6 +368,105 @@ class TestGuardrailIntegration:
 
             assert "filtered for safety" in exc_info.value.message
             assert exc_info.value.retryable is False
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_guardrail_intervention_extracts_filters(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test guardrail intervention extracts triggered filters from trace."""
+
+        trace_guardrail = {
+            "input": {
+                "gr-abc123": {
+                    "contentPolicy": {
+                        "filters": [
+                            {
+                                "type": "HATE",
+                                "confidence": "HIGH",
+                                "action": "BLOCKED",
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        async def mock_stream_iterator():
+            events = [
+                {"metadata": {"trace": {"guardrail": trace_guardrail}}},
+                {"messageStop": {"stopReason": "guardrail_intervened"}},
+            ]
+            for event in events:
+                yield event
+
+        mock_response = {"stream": mock_stream_iterator()}
+
+        with (
+            patch.object(adapter, "_get_client") as mock_get_client,
+            patch("app.adapters.bedrock._extract_triggered_filters") as mock_extract,
+        ):
+            mock_extract.return_value = [{"type": "HATE", "confidence": "HIGH"}]
+
+            mock_client = AsyncMock()
+            mock_client.converse_stream = AsyncMock(return_value=mock_response)
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_client.return_value = mock_context
+
+            with pytest.raises(BedrockError):
+                async for _ in adapter.stream_generate(
+                    messages=[{"role": "user", "content": "Harmful content"}],
+                    system_prompt="You are helpful.",
+                    model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                    guardrail_id="gr-abc123",
+                    guardrail_version="1",
+                ):
+                    pass
+
+            mock_extract.assert_called_once_with(trace_guardrail)
+
+
+class TestGuardrailFilterExtraction:
+    """Tests for guardrail trace filter extraction helper."""
+
+    def test_extract_triggered_filters_content_and_topic(self) -> None:
+        """Test extraction includes blocked content and topic policy filters."""
+
+        guardrail_trace = {
+            "input": {
+                "gr-abc123": {
+                    "contentPolicy": {
+                        "filters": [
+                            {
+                                "type": "VIOLENCE",
+                                "confidence": "MEDIUM",
+                                "action": "BLOCKED",
+                            },
+                            {
+                                "type": "INSULTS",
+                                "confidence": "LOW",
+                                "action": "NONE",
+                            },
+                        ]
+                    },
+                    "topicPolicy": {
+                        "topics": [
+                            {"name": "self-harm", "type": "DENY", "action": "BLOCKED"},
+                            {"name": "safe-topic", "type": "ALLOW", "action": "NONE"},
+                        ]
+                    },
+                }
+            }
+        }
+
+        result = _extract_triggered_filters(guardrail_trace)
+
+        assert result == [
+            {"type": "VIOLENCE", "confidence": "MEDIUM"},
+            {"type": "TOPIC", "name": "self-harm"},
+        ]
 
 
 class TestBedrockAdapterEmbeddings:
