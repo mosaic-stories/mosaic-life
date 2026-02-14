@@ -154,7 +154,7 @@ Story Created/Updated/Deleted
 
 ### Implementation Status (2026-02-14)
 
-**Status:** COMPLETE for the original Feature 3 scope in this roadmap document.
+**Status:** COMPLETE, including follow-on hardening tracked in the Feature 3 wrap-up plan.
 
 **Implemented in codebase:**
 - Protocol-based AI provider interfaces (`LLMProvider`, `EmbeddingProvider`) plus unified provider error envelope (`AIProviderError`)
@@ -162,11 +162,14 @@ Story Created/Updated/Deleted
 - Multiple provider implementations in active paths (AWS Bedrock + direct OpenAI)
 - Business-path abstraction wiring for chat, retrieval, and ingestion (provider getters used in place of direct adapter coupling)
 
-**Follow-on hardening and expansion work:**
-- Remaining architectural hardening tasks (DI/container-style wiring, expanded abstraction surfaces, observability normalization, and contract conformance suites) are tracked in:
-  - `docs/plans/2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
+**Feature 3 wrap-up hardening completed (tracked in wrap-up plan):**
+- DI/registry-expanded wiring includes vector store, memory, guardrail, and storytelling agent resolution
+- Full protocol surface added (`VectorStore`, `AgentMemory`, `ContentGuardrail`, `StorytellingAgent`)
+- Thin adapter shells implemented and integrated in active paths
+- Shared provider contract conformance suite implemented and passing
+- Provider-boundary observability normalization completed for supported providers
 
-This follow-on work is treated as a separate implementation plan beyond the baseline Feature 3 roadmap milestone.
+Reference: `docs/plans/2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
 
 ### Overview
 Create an abstraction layer that allows different AI agent implementations to be swapped without changing business logic. Supports experimentation with different LLM providers, frameworks, and approaches.

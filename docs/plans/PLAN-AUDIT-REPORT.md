@@ -9,8 +9,8 @@
 
 | Status | Count | Plans |
 |--------|-------|-------|
-| **Fully Implemented** | 16 | Moved to `docs/plans/completed/` |
-| **Partially Implemented** | 2 | Remain in `docs/plans/` for review |
+| **Fully Implemented** | 17 | Moved to `docs/plans/completed/` |
+| **Partially Implemented** | 1 | Remain in `docs/plans/` for review |
 | **Not Implemented** | 1 | Remain in `docs/plans/` for review |
 | **Total** | 19 | (29 files, grouped into 19 logical plans) |
 
@@ -103,6 +103,11 @@
 **What:** Settings page (5 sections) + Help & Support dialog.
 **Status:** Fully implemented. Account management now includes active session listing and revocation (`GET/DELETE /api/users/me/sessions`), data export request + tokenized download flow (`POST /api/users/me/export`, `GET /api/users/me/export/{token}`), and account deletion with short-lived confirmation token (`POST /api/users/me/delete-token`, `DELETE /api/users/me`). Support requests now enforce per-user hourly rate limiting (5/hour) and send via SES when configured (with local logging fallback). Frontend `AccountSettings` now uses real APIs instead of placeholders for session management, export, and account deletion.
 
+### 19. Feature 3 Agent Framework Wrap-Up (2026-02-14)
+**File:** `2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
+**What:** Follow-on plan for post-milestone Feature 3 hardening and expansion (DI/container registry, expanded protocol surface, observability contract normalization, and provider conformance suites).
+**Status:** COMPLETE — Slice 1 and Slice 2 are complete, including registry/container wiring, normalized provider error/telemetry contracts, full abstraction protocol surface, thin adapter-shell orchestration, and shared provider conformance test coverage.
+
 ---
 
 ## Partially Implemented Plans (remain for review)
@@ -111,17 +116,12 @@
 **What:** High-level 10-feature roadmap for AI-powered knowledge capabilities across multiple phases.
 **Phase 1 (Vector Store, Ingestion, Retrieval):** DONE — Covered by AI Memory Phase 1 plan
 **Phase 2 (Guardrails, Personas):** PARTIAL — Bedrock guardrails done, 2 of 4+ personas implemented, no per-persona retrieval config
-**Feature 3 (Agent Framework Abstraction):** COMPLETE for this roadmap milestone — baseline abstraction targets are implemented (provider interfaces, config-driven selection, Bedrock + direct OpenAI providers, and abstraction wiring across chat/retrieval/ingestion). Remaining architectural hardening is tracked as a separate follow-on plan (`2026-02-14-feature-3-agent-framework-wrap-up-plan.md`).
+**Feature 3 (Agent Framework Abstraction):** COMPLETE including follow-on hardening — baseline abstraction targets plus wrap-up implementation are complete (expanded DI/registry wiring, full protocol surface, thin adapter shells, and provider contract conformance suite).
 **Not Started:**
 - Feature 7 (partial): legacy_facts table, working memory, conversation summarization, token budget
 - Feature 8 (partial): Prometheus metrics, quality metrics, cost tracking, dashboards
 - Feature 9: Experimentation Framework (A/B testing, feature flags)
 - Feature 10 (partial): Deletion verification, legacy-level cascade, cache invalidation
-
-### 19. Feature 3 Agent Framework Wrap-Up (2026-02-14)
-**File:** `2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
-**What:** Follow-on plan for post-milestone Feature 3 hardening and expansion (DI/container registry, expanded protocol surface, observability contract normalization, and provider conformance suites).
-**Status:** PARTIAL — Slice 1 is complete (registry/container wiring, normalized AI provider error envelope, shared provider-boundary telemetry keys, and migrated tests with validation gates passing). Slice 2 work remains (full protocol surface, thin adapter shells, and contract conformance suite).
 
 ---
 
@@ -145,7 +145,7 @@
 
 1. **Notification integration spans multiple plans:** The notification system (NOTIFICATION-SYSTEM-PLAN.md) was designed standalone but its header integration was superseded by the unified header plan (2025-12-14). Both confirm the feature works — notifications now live in HeaderUserMenu rather than a standalone NotificationBell per page.
 
-2. **AI features form a chain:** Bedrock AI Chat (12/07) → Bedrock Guardrails (12/08) → AI Chat Improvements (12/09) → AI Memory Phase 1 (12/30) → AI Memory Feature 3 baseline completion (provider abstraction + Bedrock/OpenAI runtime selection) → Feature 3 wrap-up Slice 1 completion (registry wiring + error/telemetry normalization). Remaining roadmap phases (advanced memory, experimentation) are still pending.
+2. **AI features form a chain:** Bedrock AI Chat (12/07) → Bedrock Guardrails (12/08) → AI Chat Improvements (12/09) → AI Memory Phase 1 (12/30) → AI Memory Feature 3 baseline completion (provider abstraction + Bedrock/OpenAI runtime selection) → Feature 3 wrap-up completion (registry wiring + error/telemetry normalization + full protocol/adapter/conformance hardening). Remaining roadmap phases (advanced memory, experimentation) are still pending.
 
 3. **User-scoped content (01/15) now has end-to-end feature coverage** across backend and frontend, including multi-legacy selection, orphaned content reassignment, and association-aware display formatting.
 

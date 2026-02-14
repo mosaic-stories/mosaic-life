@@ -328,6 +328,23 @@ The work is organized into two delivery slices to minimize regression risk.
 - Contract suite passes for all configured providers.
 - Existing provider-specific tests still pass.
 
+### Slice 2 Status Update (2026-02-14)
+
+**Status:** ✅ Completed
+
+**Delivered in Slice 2:**
+- Added missing protocols: `VectorStore`, `AgentMemory`, `ContentGuardrail`, `StorytellingAgent`.
+- Added thin adapter shells: `PostgresVectorStoreAdapter`, `ConversationMemoryAdapter`, `BedrockGuardrailAdapter`.
+- Added `DefaultStorytellingAgent` orchestration shell for context retrieval, prompt assembly, provider streaming, and assistant-memory persistence handoff.
+- Wired chat route through registry-backed storytelling agent path.
+- Added shared provider contract conformance suite covering stream success, embedding shape/length, retryable mapping, config/auth failure behavior, and malformed stream handling.
+
+**Validation evidence captured:**
+- `just validate-backend` ✅
+- `cd services/core-api && uv run pytest tests/adapters -q` ✅
+- `cd services/core-api && uv run pytest tests/integration/test_rag_flow.py -q` ✅
+- `cd services/core-api && uv run pytest -q` ✅
+
 ---
 
 ## 5) Suggested File Targets
@@ -428,7 +445,7 @@ Once both slices are complete and validated:
 - [x] Registry/container wiring merged and used by chat + ingestion + retrieval paths
 - [x] `AIProviderError` normalized fields implemented and asserted in tests
 - [x] Shared telemetry keys implemented for OpenAI + Bedrock providers
-- [ ] Missing protocols (`VectorStore`, `AgentMemory`, `ContentGuardrail`, `StorytellingAgent`) added and type-checked
-- [ ] Thin adapter shells integrated into at least one orchestration path
-- [ ] Provider contract test suite implemented and passing
+- [x] Missing protocols (`VectorStore`, `AgentMemory`, `ContentGuardrail`, `StorytellingAgent`) added and type-checked
+- [x] Thin adapter shells integrated into at least one orchestration path
+- [x] Provider contract test suite implemented and passing
 - [x] `just validate-backend` passing on final branch state

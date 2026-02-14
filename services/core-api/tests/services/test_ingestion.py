@@ -6,11 +6,26 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.storytelling import PostgresVectorStoreAdapter
 from app.models.legacy import Legacy
 from app.models.story import Story
 from app.models.user import User
 from app.services.ingestion import index_story_chunks, log_deletion_audit
 from app.services.retrieval import count_chunks_for_story
+
+
+def _mock_ingestion_registry(
+    mock_registry: AsyncMock,
+    embedding_vectors: list[list[float]] | None = None,
+) -> AsyncMock:
+    embedding_provider = AsyncMock()
+    if embedding_vectors is not None:
+        embedding_provider.embed_texts = AsyncMock(return_value=embedding_vectors)
+    mock_registry.return_value.get_embedding_provider.return_value = embedding_provider
+    mock_registry.return_value.get_vector_store.return_value = (
+        PostgresVectorStoreAdapter()
+    )
+    return embedding_provider
 
 
 class TestIndexStoryChunks:
@@ -27,12 +42,9 @@ class TestIndexStoryChunks:
         """Test indexing a story creates chunks."""
         # Mock the embedding call
         with patch("app.services.ingestion.get_provider_registry") as mock_registry:
-            mock_adapter = AsyncMock()
-            mock_adapter.embed_texts = AsyncMock(
-                return_value=[[0.1] * 1024]  # One chunk
-            )
-            mock_registry.return_value.get_embedding_provider.return_value = (
-                mock_adapter
+            _mock_ingestion_registry(
+                mock_registry,
+                embedding_vectors=[[0.1] * 1024],  # One chunk
             )
 
             chunk_count = await index_story_chunks(
@@ -58,10 +70,9 @@ class TestIndexStoryChunks:
     ) -> None:
         """Test reindexing deletes old chunks and creates new."""
         with patch("app.services.ingestion.get_provider_registry") as mock_registry:
-            mock_adapter = AsyncMock()
-            mock_adapter.embed_texts = AsyncMock(return_value=[[0.1] * 1024])
-            mock_registry.return_value.get_embedding_provider.return_value = (
-                mock_adapter
+            mock_adapter = _mock_ingestion_registry(
+                mock_registry,
+                embedding_vectors=[[0.1] * 1024],
             )
 
             # Index first time
@@ -118,10 +129,7 @@ class TestIndexStoryChunks:
     ) -> None:
         """Test empty content creates no chunks."""
         with patch("app.services.ingestion.get_provider_registry") as mock_registry:
-            mock_adapter = AsyncMock()
-            mock_registry.return_value.get_embedding_provider.return_value = (
-                mock_adapter
-            )
+            mock_adapter = _mock_ingestion_registry(mock_registry)
 
             chunk_count = await index_story_chunks(
                 db=db_session,
@@ -153,10 +161,9 @@ class TestIndexStoryChunks:
         from app.models.knowledge import KnowledgeAuditLog
 
         with patch("app.services.ingestion.get_provider_registry") as mock_registry:
-            mock_adapter = AsyncMock()
-            mock_adapter.embed_texts = AsyncMock(return_value=[[0.1] * 1024])
-            mock_registry.return_value.get_embedding_provider.return_value = (
-                mock_adapter
+            _mock_ingestion_registry(
+                mock_registry,
+                embedding_vectors=[[0.1] * 1024],
             )
 
             await index_story_chunks(

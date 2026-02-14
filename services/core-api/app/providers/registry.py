@@ -8,7 +8,14 @@ from ..adapters.ai import AIProviderError
 from ..config import get_settings
 
 if TYPE_CHECKING:
-    from ..adapters.ai import EmbeddingProvider, LLMProvider
+    from ..adapters.ai import (
+        AgentMemory,
+        ContentGuardrail,
+        EmbeddingProvider,
+        LLMProvider,
+        StorytellingAgent,
+        VectorStore,
+    )
     from ..config.settings import Settings
 
 
@@ -88,6 +95,45 @@ class ProviderRegistry:
             code="invalid_request",
             provider=provider,
             operation="embed_texts",
+        )
+
+    def get_vector_store(self) -> VectorStore:
+        """Return the configured vector store adapter."""
+        from ..adapters.storytelling import PostgresVectorStoreAdapter
+
+        return PostgresVectorStoreAdapter()
+
+    def get_agent_memory(self) -> AgentMemory:
+        """Return the configured conversation memory adapter."""
+        from ..adapters.storytelling import ConversationMemoryAdapter
+
+        return ConversationMemoryAdapter()
+
+    def get_content_guardrail(self) -> ContentGuardrail:
+        """Return the configured content guardrail adapter."""
+        from ..adapters.storytelling import BedrockGuardrailAdapter
+
+        return BedrockGuardrailAdapter(
+            guardrail_id=self._settings.bedrock_guardrail_id,
+            guardrail_version=self._settings.bedrock_guardrail_version,
+        )
+
+    def get_storytelling_agent(
+        self,
+        region: str | None = None,
+    ) -> StorytellingAgent:
+        """Return the default storytelling orchestrator."""
+        from ..adapters.storytelling import (
+            DefaultStorytellingAgent,
+            format_story_context,
+        )
+
+        return DefaultStorytellingAgent(
+            llm_provider=self.get_llm_provider(region=region),
+            vector_store=self.get_vector_store(),
+            memory=self.get_agent_memory(),
+            guardrail=self.get_content_guardrail(),
+            context_formatter=format_story_context,
         )
 
 

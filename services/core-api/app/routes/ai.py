@@ -16,8 +16,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..adapters.ai import AIProviderError
+from ..adapters.storytelling import format_story_context as format_story_context_impl
 from ..auth.middleware import require_auth
-from ..config.personas import build_system_prompt, get_persona, get_personas
+from ..config.personas import get_persona, get_personas
 from ..config.settings import get_settings
 from ..database import get_db
 from ..models.legacy import Legacy
@@ -35,7 +36,6 @@ from ..schemas.ai import (
 )
 from ..schemas.retrieval import ChunkResult
 from ..services import ai as ai_service
-from ..services.retrieval import retrieve_context
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 logger = logging.getLogger(__name__)
@@ -52,22 +52,7 @@ def format_story_context(chunks: list[ChunkResult]) -> str:
     Returns:
         Formatted context string for system prompt, or empty string if no chunks.
     """
-    if not chunks:
-        return ""
-
-    context_parts = ["\n## Relevant stories about this person:\n"]
-
-    for i, chunk in enumerate(chunks, 1):
-        context_parts.append(f"[Story excerpt {i}]\n{chunk.content}\n")
-
-    context_parts.append(
-        "\nUse these excerpts to inform your responses. "
-        "Reference specific details when relevant. "
-        "If the excerpts don't contain relevant information, "
-        "say so rather than making things up."
-    )
-
-    return "\n".join(context_parts)
+    return format_story_context_impl(chunks)
 
 
 # ============================================================================
@@ -259,50 +244,6 @@ async def send_message(
         )
         legacy = legacy_result.scalar_one()
 
-        # Retrieve relevant story context (RAG)
-        story_context = ""
-        if primary_legacy_id:
-            try:
-                chunks = await retrieve_context(
-                    db=db,
-                    query=data.content,
-                    legacy_id=primary_legacy_id,
-                    user_id=session.user_id,
-                    top_k=5,
-                )
-                story_context = format_story_context(chunks)
-                span.set_attribute("rag.chunks_retrieved", len(chunks))
-                logger.debug(
-                    "ai.chat.rag_context_retrieved",
-                    extra={
-                        "conversation_id": str(conversation_id),
-                        "chunks_count": len(chunks),
-                        "context_length": len(story_context),
-                    },
-                )
-            except Exception as e:
-                # Continue without context rather than failing the chat
-                logger.warning(
-                    "ai.chat.rag_retrieval_failed",
-                    extra={
-                        "conversation_id": str(conversation_id),
-                        "error": str(e),
-                    },
-                )
-                span.set_attribute("rag.retrieval_failed", True)
-
-        # Build system prompt with story context
-        system_prompt = build_system_prompt(
-            conversation.persona_id,
-            legacy.name,
-            story_context,
-        )
-        if not system_prompt:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to build system prompt",
-            )
-
         # Save user message BEFORE streaming starts and capture its ID
         user_message = await ai_service.save_message(
             db=db,
@@ -312,34 +253,39 @@ async def send_message(
         )
         user_message_id = user_message.id
 
-        # Get context messages
-        context = await ai_service.get_context_messages(db, conversation_id)
+        storytelling_agent = get_provider_registry().get_storytelling_agent()
 
         async def generate_stream() -> AsyncGenerator[str, None]:
             """Generate SSE stream."""
-            llm_provider = get_provider_registry().get_llm_provider()
             full_response = ""
             token_count: int | None = None
 
             try:
-                settings = get_settings()
-                async for chunk in llm_provider.stream_generate(
-                    messages=context,
-                    system_prompt=system_prompt,
+                turn = await storytelling_agent.prepare_turn(
+                    db=db,
+                    conversation_id=conversation_id,
+                    user_id=session.user_id,
+                    user_query=data.content,
+                    legacy_id=primary_legacy_id,
+                    persona_id=conversation.persona_id,
+                    legacy_name=legacy.name,
+                    top_k=5,
+                )
+                span.set_attribute("rag.chunks_retrieved", turn.chunks_count)
+
+                async for chunk in storytelling_agent.stream_response(
+                    turn=turn,
                     model_id=persona.model_id,
                     max_tokens=persona.max_tokens,
-                    guardrail_id=settings.bedrock_guardrail_id,
-                    guardrail_version=settings.bedrock_guardrail_version,
                 ):
                     full_response += chunk
                     event = SSEChunkEvent(content=chunk)
                     yield f"data: {event.model_dump_json()}\n\n"
 
                 # Save assistant message
-                message = await ai_service.save_message(
+                message = await storytelling_agent.save_assistant_message(
                     db=db,
                     conversation_id=conversation_id,
-                    role="assistant",
                     content=full_response,
                     token_count=token_count,
                 )

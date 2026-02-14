@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.knowledge import KnowledgeAuditLog
 from ..providers.registry import get_provider_registry
 from .chunking import chunk_story
-from .retrieval import delete_chunks_for_story, store_chunks
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.ingestion")
@@ -52,8 +51,12 @@ async def index_story_chunks(
         # Wrap entire operation in a transaction for atomicity
         # If embedding or storage fails, delete is rolled back
         async with db.begin_nested():
+            vector_store = get_provider_registry().get_vector_store()
+
             # 1. Delete existing chunks (for reindexing)
-            old_count = await delete_chunks_for_story(db, story_id)
+            old_count = await vector_store.delete_chunks_for_story(
+                db=db, story_id=story_id
+            )
             span.set_attribute("old_chunk_count", old_count)
 
             # 2. Chunk the content
@@ -74,7 +77,7 @@ async def index_story_chunks(
 
             # 4. Store chunks with embeddings
             chunks_with_embeddings = list(zip(chunks, embeddings))
-            chunk_count = await store_chunks(
+            chunk_count = await vector_store.store_chunks(
                 db=db,
                 story_id=story_id,
                 chunks=chunks_with_embeddings,
