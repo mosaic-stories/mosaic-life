@@ -1,5 +1,6 @@
 """Routes for user settings, preferences, and profile."""
 
+from typing import Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -171,7 +172,7 @@ async def download_export(
     token: str,
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> dict:
+) -> dict[str, Any]:
     """Get account export payload using a valid export token."""
     session = require_auth(request)
     try:

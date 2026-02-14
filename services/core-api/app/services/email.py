@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from typing import Any
 
 import boto3  # type: ignore[import-untyped]
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
@@ -23,6 +24,18 @@ def _send_email_via_ses(
     settings = get_settings()
 
     if not settings.ses_from_email:
+        # Local mode: print to console for developer visibility
+        print("\n" + "=" * 60)
+        print("INVITATION EMAIL (local mode - not sent)")
+        print("=" * 60)
+        print(f"To: {to_email}")
+        print(f"Subject: {subject}")
+        if reply_to:
+            print(f"Reply-To: {reply_to}")
+        print("\nText Body:")
+        print(text_body)
+        print("=" * 60 + "\n")
+
         logger.info(
             "email.would_send",
             extra={
@@ -41,7 +54,7 @@ def _send_email_via_ses(
         if html_body:
             message_body["Html"] = {"Data": html_body, "Charset": "UTF-8"}
 
-        payload: dict = {
+        payload: dict[str, Any] = {
             "Source": settings.ses_from_email,
             "Destination": {"ToAddresses": [to_email]},
             "Message": {

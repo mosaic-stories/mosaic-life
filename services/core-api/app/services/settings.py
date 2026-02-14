@@ -1,8 +1,8 @@
 """Service layer for user settings operations."""
 
-import json
 import logging
 from datetime import datetime, timedelta, timezone
+from typing import Any
 from uuid import UUID
 
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
@@ -415,7 +415,7 @@ async def get_user_data_export(
     db: AsyncSession,
     user_id: UUID,
     token: str,
-) -> dict:
+) -> dict[str, Any]:
     """Build account export payload after validating export token."""
     _validate_export_token(user_id, token)
 
@@ -586,4 +586,4 @@ async def get_user_data_export(
         ],
     }
 
-    return json.loads(json.dumps(export_data))
+    return export_data
