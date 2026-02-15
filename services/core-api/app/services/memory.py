@@ -214,28 +214,34 @@ async def _call_summarize_llm(messages: list[dict[str, str]], legacy_name: str) 
     """
     from ..providers.registry import get_provider_registry
 
-    llm = get_provider_registry().get_llm_provider()
-    prompt = SUMMARIZE_AND_EXTRACT_PROMPT.format(legacy_name=legacy_name)
+    with tracer.start_as_current_span("memory.summarize_llm") as span:
+        span.set_attribute("input_message_count", len(messages))
 
-    full_response = ""
-    async for chunk in llm.stream_generate(
-        messages=messages,
-        system_prompt=prompt,
-        model_id="",  # Use provider default
-        max_tokens=1024,
-    ):
-        full_response += chunk
+        llm = get_provider_registry().get_llm_provider()
+        prompt = SUMMARIZE_AND_EXTRACT_PROMPT.format(legacy_name=legacy_name)
 
-    return full_response
+        full_response = ""
+        async for chunk in llm.stream_generate(
+            messages=messages,
+            system_prompt=prompt,
+            model_id="",  # Use provider default
+            max_tokens=1024,
+        ):
+            full_response += chunk
+
+        return full_response
 
 
 async def _embed_text(text: str) -> list[float]:
     """Embed a single text string. Thin wrapper for testability."""
     from ..providers.registry import get_provider_registry
 
-    embedding_provider = get_provider_registry().get_embedding_provider()
-    [embedding] = await embedding_provider.embed_texts([text])
-    return embedding
+    with tracer.start_as_current_span("memory.embed_summary") as span:
+        span.set_attribute("text_length", len(text))
+
+        embedding_provider = get_provider_registry().get_embedding_provider()
+        [embedding] = await embedding_provider.embed_texts([text])
+        return embedding
 
 
 async def maybe_summarize(

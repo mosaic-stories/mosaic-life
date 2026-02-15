@@ -1,7 +1,7 @@
 """Tests for memory summarization and fact extraction."""
 
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from sqlalchemy import func, select
@@ -250,3 +250,109 @@ class TestMaybeSummarize:
             .where(ConversationChunk.conversation_id == conv.id)
         )
         assert (chunk_count.scalar() or 0) == 1
+
+
+class TestSummarizationTracing:
+    """Tests for tracing spans in summarization path."""
+
+    @pytest.mark.asyncio
+    async def test_summarize_llm_creates_span(self):
+        """Test _call_summarize_llm creates a memory.summarize_llm span."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import (
+            SimpleSpanProcessor,
+            SpanExportResult,
+            SpanExporter,
+        )
+
+        class _InMemoryExporter(SpanExporter):
+            def __init__(self) -> None:
+                self.spans: list = []
+
+            def export(self, spans):  # type: ignore[override]
+                self.spans.extend(spans)
+                return SpanExportResult.SUCCESS
+
+        exporter = _InMemoryExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+        mock_llm = AsyncMock()
+
+        async def mock_stream(*args, **kwargs):
+            yield '{"summary": "test", "facts": []}'
+
+        mock_llm.stream_generate = mock_stream
+
+        mock_registry = MagicMock()
+        mock_registry.get_llm_provider.return_value = mock_llm
+
+        messages = [{"role": "user", "content": "hello"}]
+
+        with (
+            patch(
+                "app.providers.registry.get_provider_registry",
+                return_value=mock_registry,
+            ),
+            patch(
+                "app.services.memory.tracer",
+                provider.get_tracer("test"),
+            ),
+        ):
+            from app.services.memory import _call_summarize_llm
+
+            await _call_summarize_llm(messages, "John")
+
+        span_names = [s.name for s in exporter.spans]
+        assert "memory.summarize_llm" in span_names
+
+        llm_span = next(s for s in exporter.spans if s.name == "memory.summarize_llm")
+        assert llm_span.attributes["input_message_count"] == 1
+
+    @pytest.mark.asyncio
+    async def test_embed_summary_creates_span(self):
+        """Test _embed_text creates a memory.embed_summary span."""
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import (
+            SimpleSpanProcessor,
+            SpanExportResult,
+            SpanExporter,
+        )
+
+        class _InMemoryExporter(SpanExporter):
+            def __init__(self) -> None:
+                self.spans: list = []
+
+            def export(self, spans):  # type: ignore[override]
+                self.spans.extend(spans)
+                return SpanExportResult.SUCCESS
+
+        exporter = _InMemoryExporter()
+        provider = TracerProvider()
+        provider.add_span_processor(SimpleSpanProcessor(exporter))
+
+        mock_embedding = AsyncMock()
+        mock_embedding.embed_texts.return_value = [[0.1] * 1024]
+
+        mock_registry = MagicMock()
+        mock_registry.get_embedding_provider.return_value = mock_embedding
+
+        with (
+            patch(
+                "app.providers.registry.get_provider_registry",
+                return_value=mock_registry,
+            ),
+            patch(
+                "app.services.memory.tracer",
+                provider.get_tracer("test"),
+            ),
+        ):
+            from app.services.memory import _embed_text
+
+            await _embed_text("A test summary")
+
+        span_names = [s.name for s in exporter.spans]
+        assert "memory.embed_summary" in span_names
+
+        embed_span = next(s for s in exporter.spans if s.name == "memory.embed_summary")
+        assert embed_span.attributes["text_length"] == len("A test summary")
