@@ -87,6 +87,7 @@ class Settings(BaseModel):
 
     # Observability
     otel_exporter_otlp_endpoint: str | None = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+    otel_debug: bool = _as_bool(os.getenv("OTEL_DEBUG"), False)
 
     # Debug SSE probe (disabled by default)
     debug_sse_enabled: bool = _as_bool(os.getenv("DEBUG_SSE_ENABLED"), False)
