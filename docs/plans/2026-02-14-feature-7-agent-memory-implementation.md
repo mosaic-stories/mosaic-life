@@ -22,10 +22,10 @@
 | Task 4: Memory Service — Fact CRUD | DONE | `e293ecd` | 9 tests pass (get_facts_for_context, list, delete, update visibility) |
 | Task 5: Memory Service — Summarization | DONE | `61ce51a` | 7 tests pass (parse_summary_response, maybe_summarize, idempotency) |
 | Task 6: System Prompt Facts Injection | DONE | `9f62cb8` | 22 tests pass, no regressions |
-| Task 7: Wire Memory Into Turn Prep | TODO | | |
-| Task 8: Summarization Trigger in Route | TODO | | |
-| Task 9: Fact Management API Endpoints | TODO | | |
-| Task 10: Validation & Full Test Suite | TODO | | |
+| Task 7: Wire Memory Into Turn Prep | DONE | uncommitted | 1 test pass, 349 total pass, no regressions |
+| Task 8: Summarization Trigger in Route | DONE | uncommitted | No new tests, 349 total pass, no regressions |
+| Task 9: Fact Management API Endpoints | DONE | uncommitted | 4 tests pass, 349 total pass, no regressions |
+| Task 10: Validation & Full Test Suite | DONE | uncommitted | 349 pass, 2 skipped; ruff + mypy clean |
 
 **Last updated:** 2026-02-15
 
