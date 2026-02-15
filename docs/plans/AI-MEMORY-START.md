@@ -459,6 +459,22 @@ persona:
 
 ## Feature 7: Agent Memory System
 
+### Implementation Status (2026-02-15)
+
+**Status:** COMPLETE
+
+**Implemented in codebase:**
+- Rolling conversation summarization with threshold-based triggering and message-range idempotency
+- Vectorized conversation summaries stored in `conversation_chunks` for memory RAG retrieval
+- Per-user-per-legacy fact extraction persisted in `legacy_facts` with private/shared visibility
+- Fact management API endpoints (list, delete, visibility update) with ownership enforcement
+- Prompt-time fact injection and turn-preparation memory wiring in the storytelling path
+- End-to-end validation complete (tests passing, backend lint/type checks clean)
+
+Reference:
+- `docs/plans/completed/2026-02-14-feature-7-agent-memory-system-design.md`
+- `docs/plans/completed/2026-02-14-feature-7-agent-memory-implementation.md`
+
 ### Overview
 Implement memory capabilities that allow agents to maintain context within conversations and learn from interactions over time. Start with session memory, design for episodic memory expansion.
 

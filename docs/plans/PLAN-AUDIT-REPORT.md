@@ -1,6 +1,6 @@
 # Plan Implementation Audit Report
 
-**Generated:** 2025-02-14
+**Generated:** 2026-02-15
 **Audited by:** Systematic codebase analysis (subagent per plan, cross-referenced)
 
 ---
@@ -9,10 +9,10 @@
 
 | Status | Count | Plans |
 |--------|-------|-------|
-| **Fully Implemented** | 17 | Moved to `docs/plans/completed/` |
+| **Fully Implemented** | 18 | Moved to `docs/plans/completed/` |
 | **Partially Implemented** | 1 | Remain in `docs/plans/` for review |
 | **Not Implemented** | 1 | Remain in `docs/plans/` for review |
-| **Total** | 19 | (29 files, grouped into 19 logical plans) |
+| **Total** | 20 | (31 files, grouped into 20 logical plans) |
 
 ---
 
@@ -103,6 +103,11 @@
 **What:** Settings page (5 sections) + Help & Support dialog.
 **Status:** Fully implemented. Account management now includes active session listing and revocation (`GET/DELETE /api/users/me/sessions`), data export request + tokenized download flow (`POST /api/users/me/export`, `GET /api/users/me/export/{token}`), and account deletion with short-lived confirmation token (`POST /api/users/me/delete-token`, `DELETE /api/users/me`). Support requests now enforce per-user hourly rate limiting (5/hour) and send via SES when configured (with local logging fallback). Frontend `AccountSettings` now uses real APIs instead of placeholders for session management, export, and account deletion.
 
+### 20. Agent Memory System (2026-02-14)
+**Files:** `2026-02-14-feature-7-agent-memory-system-design.md`, `2026-02-14-feature-7-agent-memory-implementation.md`
+**What:** Add rolling conversation summarization and per-user-per-legacy fact extraction with private/shared visibility, plus memory retrieval and prompt injection integration.
+**Status:** Fully implemented. `conversation_chunks` and `legacy_facts` data model/migrations are complete; memory service supports summarization, extraction, and fact CRUD; storytelling turn preparation and system prompt building consume memory context/facts; AI routes trigger summarization and expose fact management endpoints; tests and backend validation are clean.
+
 ### 19. Feature 3 Agent Framework Wrap-Up (2026-02-14)
 **File:** `completed/2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
 **What:** Follow-on plan for post-milestone Feature 3 hardening and expansion (DI/container registry, expanded protocol surface, observability contract normalization, and provider conformance suites).
@@ -118,7 +123,6 @@
 **Phase 2 (Guardrails, Personas):** PARTIAL — Bedrock guardrails done, 2 of 4+ personas implemented, no per-persona retrieval config
 **Feature 3 (Agent Framework Abstraction):** COMPLETE including follow-on hardening — baseline abstraction targets plus wrap-up implementation are complete (expanded DI/registry wiring, full protocol surface, thin adapter shells, and provider contract conformance suite).
 **Not Started:**
-- Feature 7 (partial): legacy_facts table, working memory, conversation summarization, token budget
 - Feature 8 (partial): Prometheus metrics, quality metrics, cost tracking, dashboards
 - Feature 9: Experimentation Framework (A/B testing, feature flags)
 - Feature 10 (partial): Deletion verification, legacy-level cascade, cache invalidation
@@ -145,7 +149,7 @@
 
 1. **Notification integration spans multiple plans:** The notification system (NOTIFICATION-SYSTEM-PLAN.md) was designed standalone but its header integration was superseded by the unified header plan (2025-12-14). Both confirm the feature works — notifications now live in HeaderUserMenu rather than a standalone NotificationBell per page.
 
-2. **AI features form a chain:** Bedrock AI Chat (12/07) → Bedrock Guardrails (12/08) → AI Chat Improvements (12/09) → AI Memory Phase 1 (12/30) → AI Memory Feature 3 baseline completion (provider abstraction + Bedrock/OpenAI runtime selection) → Feature 3 wrap-up completion (registry wiring + error/telemetry normalization + full protocol/adapter/conformance hardening). Remaining roadmap phases (advanced memory, experimentation) are still pending.
+2. **AI features form a chain:** Bedrock AI Chat (12/07) → Bedrock Guardrails (12/08) → AI Chat Improvements (12/09) → AI Memory Phase 1 (12/30) → AI Memory Feature 3 baseline completion (provider abstraction + Bedrock/OpenAI runtime selection) → Feature 3 wrap-up completion (registry wiring + error/telemetry normalization + full protocol/adapter/conformance hardening) → Feature 7 Agent Memory System completion (conversation summarization + legacy facts). Remaining roadmap phases (observability/monitoring, experimentation, and full deletion-cascade hardening) are still pending.
 
 3. **User-scoped content (01/15) now has end-to-end feature coverage** across backend and frontend, including multi-legacy selection, orphaned content reassignment, and association-aware display formatting.
 
