@@ -54,7 +54,9 @@ class TestConversationChunk:
         assert chunk.message_range_start == 0
         assert chunk.message_range_end == 20
 
-    @pytest.mark.skip(reason="CASCADE deletes require PostgreSQL; SQLite test DB does not enforce FK constraints")
+    @pytest.mark.skip(
+        reason="CASCADE deletes require PostgreSQL; SQLite test DB does not enforce FK constraints"
+    )
     @pytest.mark.asyncio
     async def test_conversation_chunk_cascade_delete(
         self,
@@ -172,7 +174,9 @@ class TestLegacyFact:
 
         assert fact.source_conversation_id == conv.id
 
-    @pytest.mark.skip(reason="CASCADE deletes require PostgreSQL; SQLite test DB does not enforce FK constraints")
+    @pytest.mark.skip(
+        reason="CASCADE deletes require PostgreSQL; SQLite test DB does not enforce FK constraints"
+    )
     @pytest.mark.asyncio
     async def test_legacy_cascade_deletes_facts(
         self,
