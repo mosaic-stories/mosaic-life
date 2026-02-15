@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from uuid import UUID
 
+from opentelemetry import trace
+
 from ..adapters.ai import (
     AIProviderError,
     AgentMemory,
@@ -27,6 +29,7 @@ if TYPE_CHECKING:
     from ..schemas.retrieval import ChunkResult
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("core-api.storytelling")
 
 
 def format_story_context(chunks: list[ChunkResult]) -> str:
@@ -180,67 +183,75 @@ class DefaultStorytellingAgent:
         legacy_name: str,
         top_k: int = 5,
     ) -> PreparedStoryTurn:
-        chunks: list[ChunkResult] = []
+        with tracer.start_as_current_span("storytelling.prepare_turn") as span:
+            span.set_attribute("user_id", str(user_id))
+            span.set_attribute("legacy_id", str(legacy_id))
+            span.set_attribute("persona_id", persona_id)
 
-        try:
-            chunks = await self.vector_store.retrieve_context(
+            chunks: list[ChunkResult] = []
+
+            try:
+                chunks = await self.vector_store.retrieve_context(
+                    db=db,
+                    query=user_query,
+                    legacy_id=legacy_id,
+                    user_id=user_id,
+                    top_k=top_k,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "ai.chat.rag_retrieval_failed",
+                    extra={
+                        "conversation_id": str(conversation_id),
+                        "error": str(exc),
+                    },
+                )
+
+            story_context = self.context_formatter(chunks)
+
+            # Fetch legacy facts for system prompt injection
+            facts = []
+            try:
+                facts = await memory_service.get_facts_for_context(
+                    db=db, legacy_id=legacy_id, user_id=user_id
+                )
+            except Exception as exc:
+                logger.warning(
+                    "ai.chat.facts_retrieval_failed",
+                    extra={
+                        "conversation_id": str(conversation_id),
+                        "error": str(exc),
+                    },
+                )
+
+            span.set_attribute("chunks_retrieved", len(chunks))
+            span.set_attribute("facts_retrieved", len(facts))
+
+            system_prompt = build_system_prompt(
+                persona_id, legacy_name, story_context, facts=facts
+            )
+            if not system_prompt:
+                raise AIProviderError(
+                    message="Failed to build system prompt",
+                    retryable=False,
+                    code="invalid_request",
+                    provider="storytelling",
+                    operation="prepare_turn",
+                )
+
+            context_messages = await self.memory.get_context_messages(
                 db=db,
-                query=user_query,
-                legacy_id=legacy_id,
-                user_id=user_id,
-                top_k=top_k,
+                conversation_id=conversation_id,
             )
-        except Exception as exc:
-            logger.warning(
-                "ai.chat.rag_retrieval_failed",
-                extra={
-                    "conversation_id": str(conversation_id),
-                    "error": str(exc),
-                },
+            guardrail_id, guardrail_version = self.guardrail.get_bedrock_guardrail()
+
+            return PreparedStoryTurn(
+                context_messages=context_messages,
+                system_prompt=system_prompt,
+                chunks_count=len(chunks),
+                guardrail_id=guardrail_id,
+                guardrail_version=guardrail_version,
             )
-
-        story_context = self.context_formatter(chunks)
-
-        # Fetch legacy facts for system prompt injection
-        facts = []
-        try:
-            facts = await memory_service.get_facts_for_context(
-                db=db, legacy_id=legacy_id, user_id=user_id
-            )
-        except Exception as exc:
-            logger.warning(
-                "ai.chat.facts_retrieval_failed",
-                extra={
-                    "conversation_id": str(conversation_id),
-                    "error": str(exc),
-                },
-            )
-
-        system_prompt = build_system_prompt(
-            persona_id, legacy_name, story_context, facts=facts
-        )
-        if not system_prompt:
-            raise AIProviderError(
-                message="Failed to build system prompt",
-                retryable=False,
-                code="invalid_request",
-                provider="storytelling",
-                operation="prepare_turn",
-            )
-
-        context_messages = await self.memory.get_context_messages(
-            db=db,
-            conversation_id=conversation_id,
-        )
-        guardrail_id, guardrail_version = self.guardrail.get_bedrock_guardrail()
-
-        return PreparedStoryTurn(
-            context_messages=context_messages,
-            system_prompt=system_prompt,
-            chunks_count=len(chunks),
-            guardrail_id=guardrail_id,
-            guardrail_version=guardrail_version,
-        )
 
     async def stream_response(
         self,
@@ -248,15 +259,17 @@ class DefaultStorytellingAgent:
         model_id: str,
         max_tokens: int,
     ) -> AsyncGenerator[str, None]:
-        async for chunk in self.llm_provider.stream_generate(
-            messages=turn.context_messages,
-            system_prompt=turn.system_prompt,
-            model_id=model_id,
-            max_tokens=max_tokens,
-            guardrail_id=turn.guardrail_id,
-            guardrail_version=turn.guardrail_version,
-        ):
-            yield chunk
+        with tracer.start_as_current_span("storytelling.stream_response") as span:
+            span.set_attribute("ai.model", model_id)
+            async for chunk in self.llm_provider.stream_generate(
+                messages=turn.context_messages,
+                system_prompt=turn.system_prompt,
+                model_id=model_id,
+                max_tokens=max_tokens,
+                guardrail_id=turn.guardrail_id,
+                guardrail_version=turn.guardrail_version,
+            ):
+                yield chunk
 
     async def save_assistant_message(
         self,
