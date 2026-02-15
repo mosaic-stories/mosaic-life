@@ -19,9 +19,9 @@
 | Task 1: Alembic Migration | DONE | `c75cf73` | Tables created, upgrade/downgrade verified on Postgres |
 | Task 2: SQLAlchemy Models | DONE | `6041a17` | 4 tests pass, 2 cascade tests skipped (SQLite FK limitation) |
 | Task 3: Pydantic Schemas | DONE | `a6b3469` | 5 tests pass |
-| Task 4: Memory Service — Fact CRUD | TODO | | |
-| Task 5: Memory Service — Summarization | TODO | | |
-| Task 6: System Prompt Facts Injection | TODO | | |
+| Task 4: Memory Service — Fact CRUD | DONE | `e293ecd` | 9 tests pass (get_facts_for_context, list, delete, update visibility) |
+| Task 5: Memory Service — Summarization | DONE | `61ce51a` | 7 tests pass (parse_summary_response, maybe_summarize, idempotency) |
+| Task 6: System Prompt Facts Injection | DONE | `9f62cb8` | 22 tests pass, no regressions |
 | Task 7: Wire Memory Into Turn Prep | TODO | | |
 | Task 8: Summarization Trigger in Route | TODO | | |
 | Task 9: Fact Management API Endpoints | TODO | | |
