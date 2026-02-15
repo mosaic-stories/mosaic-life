@@ -599,3 +599,87 @@ class TestBedrockAdapterEmbeddings:
 
             assert len(result) == 3
             assert call_count == 3  # One API call per text
+
+
+class TestBedrockMetricsRecording:
+    """Tests for Prometheus metrics recording in Bedrock adapter."""
+
+    @pytest.fixture
+    def adapter(self) -> BedrockAdapter:
+        return BedrockAdapter(region="us-east-1")
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_records_duration_metric(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test that stream_generate records AI request duration metric."""
+
+        async def mock_stream_iterator():
+            events = [
+                {"contentBlockDelta": {"delta": {"text": "OK"}}},
+                {"messageStop": {"stopReason": "end_turn"}},
+                {"metadata": {"usage": {"outputTokens": 5}}},
+            ]
+            for event in events:
+                yield event
+
+        mock_response = {"stream": mock_stream_iterator()}
+
+        with (
+            patch.object(adapter, "_get_client") as mock_get_client,
+            patch("app.adapters.bedrock.AI_REQUEST_DURATION") as mock_hist,
+            patch("app.adapters.bedrock.AI_TOKENS"),
+        ):
+            mock_client = AsyncMock()
+            mock_client.converse_stream = AsyncMock(return_value=mock_response)
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_client.return_value = mock_context
+
+            async for _ in adapter.stream_generate(
+                messages=[{"role": "user", "content": "Hi"}],
+                system_prompt="You are helpful.",
+                model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            ):
+                pass
+
+            mock_hist.labels.assert_called_once_with(
+                provider="bedrock",
+                model="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                operation="stream_generate",
+                persona_id="",
+            )
+            mock_hist.labels.return_value.observe.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_embed_texts_records_embedding_duration(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test that embed_texts records embedding duration metric."""
+        import json as json_mod
+
+        mock_body = AsyncMock()
+        mock_body.read.return_value = json_mod.dumps(
+            {"embedding": [0.1] * 1024}
+        ).encode()
+        mock_response = {"body": mock_body}
+        mock_client = AsyncMock()
+        mock_client.invoke_model = AsyncMock(return_value=mock_response)
+
+        with (
+            patch.object(adapter, "_get_client") as mock_get_client,
+            patch("app.adapters.bedrock.AI_EMBEDDING_DURATION") as mock_hist,
+        ):
+            mock_cm = AsyncMock()
+            mock_cm.__aenter__.return_value = mock_client
+            mock_cm.__aexit__.return_value = None
+            mock_get_client.return_value = mock_cm
+
+            await adapter.embed_texts(["Hello"])
+
+            mock_hist.labels.assert_called_once_with(
+                provider="bedrock",
+                model="amazon.titan-embed-text-v2:0",
+            )
+            mock_hist.labels.return_value.observe.assert_called_once()

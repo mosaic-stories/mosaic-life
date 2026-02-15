@@ -20,6 +20,12 @@ from .telemetry import (
     AI_PROVIDER,
     AI_RETRYABLE,
 )
+from ..observability.metrics import (
+    AI_EMBEDDING_DURATION,
+    AI_GUARDRAIL_TRIGGERS,
+    AI_REQUEST_DURATION,
+    AI_TOKENS,
+)
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.bedrock")
@@ -243,6 +249,9 @@ class BedrockAdapter:
                                     },
                                 )
                                 span.set_attribute("guardrail_intervened", True)
+                                AI_GUARDRAIL_TRIGGERS.labels(
+                                    provider="bedrock", action="blocked"
+                                ).inc()
                                 span.set_attribute(
                                     "guardrail_filters",
                                     json.dumps(triggered_filters),
@@ -278,6 +287,12 @@ class BedrockAdapter:
                             logger.debug("bedrock.content_block_stop")
 
                     span.set_attribute("output_tokens", total_tokens)
+                    if total_tokens:
+                        AI_TOKENS.labels(
+                            provider="bedrock",
+                            model=model_id,
+                            direction="output",
+                        ).inc(total_tokens)
                     span.set_attribute("stop_reason", stop_reason or "unknown")
 
             except BedrockError as e:
@@ -347,10 +362,17 @@ class BedrockAdapter:
                     operation="stream_generate",
                 ) from e
             finally:
+                elapsed = time.perf_counter() - started
                 span.set_attribute(
                     AI_LATENCY_MS,
-                    int((time.perf_counter() - started) * 1000),
+                    int(elapsed * 1000),
                 )
+                AI_REQUEST_DURATION.labels(
+                    provider="bedrock",
+                    model=model_id,
+                    operation="stream_generate",
+                    persona_id="",
+                ).observe(elapsed)
 
     async def embed_texts(
         self,
@@ -451,10 +473,15 @@ class BedrockAdapter:
                     operation="embed_texts",
                 ) from e
             finally:
+                elapsed = time.perf_counter() - started
                 span.set_attribute(
                     AI_LATENCY_MS,
-                    int((time.perf_counter() - started) * 1000),
+                    int(elapsed * 1000),
                 )
+                AI_EMBEDDING_DURATION.labels(
+                    provider="bedrock",
+                    model=model_id,
+                ).observe(elapsed)
 
 
 # Global adapter instance
