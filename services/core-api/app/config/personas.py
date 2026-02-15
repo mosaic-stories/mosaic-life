@@ -109,6 +109,7 @@ def build_system_prompt(
     persona_id: str,
     legacy_name: str,
     story_context: str = "",
+    facts: list[Any] | None = None,
 ) -> str | None:
     """Build complete system prompt for a persona with legacy context.
 
@@ -116,10 +117,11 @@ def build_system_prompt(
         persona_id: The persona identifier.
         legacy_name: Name of the legacy being discussed.
         story_context: Retrieved story context to include in prompt.
+        facts: Optional list of LegacyFact objects to inject.
 
     Returns:
-        Complete system prompt with base rules, persona prompt, and story context,
-        or None if persona not found.
+        Complete system prompt with base rules, persona prompt, story context,
+        and known facts, or None if persona not found.
     """
     persona = get_persona(persona_id)
     if not persona:
@@ -132,5 +134,12 @@ def build_system_prompt(
 
     if story_context:
         prompt = f"{prompt}\n\n{story_context}"
+
+    if facts:
+        facts_section = f"\n\nKnown facts about {legacy_name} from conversations:\n"
+        for fact in facts:
+            source = "(shared)" if fact.visibility == "shared" else "(personal)"
+            facts_section += f"- [{fact.category}] {fact.content} {source}\n"
+        prompt = f"{prompt}{facts_section}"
 
     return prompt
