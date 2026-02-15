@@ -207,9 +207,7 @@ def parse_summary_response(raw: str) -> SummarizeExtractResponse | None:
     )
 
 
-async def _call_summarize_llm(
-    messages: list[dict[str, str]], legacy_name: str
-) -> str:
+async def _call_summarize_llm(messages: list[dict[str, str]], legacy_name: str) -> str:
     """Call the LLM to summarize messages and extract facts.
 
     This is a thin wrapper to make mocking straightforward in tests.
@@ -275,8 +273,9 @@ async def maybe_summarize(
 
         # Find last summarized range end
         last_range_result = await db.execute(
-            select(func.coalesce(func.max(ConversationChunk.message_range_end), 0))
-            .where(ConversationChunk.conversation_id == conversation_id)
+            select(
+                func.coalesce(func.max(ConversationChunk.message_range_end), 0)
+            ).where(ConversationChunk.conversation_id == conversation_id)
         )
         last_summarized_end = last_range_result.scalar() or 0
 

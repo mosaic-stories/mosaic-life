@@ -2,7 +2,6 @@
 
 import json
 from unittest.mock import AsyncMock, patch
-from uuid import uuid4
 
 import pytest
 from sqlalchemy import func, select
@@ -129,9 +128,7 @@ class TestMaybeSummarize:
         for i in range(SUMMARIZATION_THRESHOLD + 5):
             role = "user" if i % 2 == 0 else "assistant"
             db_session.add(
-                AIMessage(
-                    conversation_id=conv.id, role=role, content=f"Message {i}"
-                )
+                AIMessage(conversation_id=conv.id, role=role, content=f"Message {i}")
             )
         await db_session.commit()
 
@@ -211,15 +208,11 @@ class TestMaybeSummarize:
         for i in range(SUMMARIZATION_THRESHOLD + 5):
             role = "user" if i % 2 == 0 else "assistant"
             db_session.add(
-                AIMessage(
-                    conversation_id=conv.id, role=role, content=f"Message {i}"
-                )
+                AIMessage(conversation_id=conv.id, role=role, content=f"Message {i}")
             )
         await db_session.commit()
 
-        mock_llm_response = json.dumps(
-            {"summary": "Summary text.", "facts": []}
-        )
+        mock_llm_response = json.dumps({"summary": "Summary text.", "facts": []})
         mock_embedding = [0.1] * 1024
 
         with (

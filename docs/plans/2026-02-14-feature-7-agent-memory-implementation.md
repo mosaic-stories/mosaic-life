@@ -12,6 +12,25 @@
 
 ---
 
+## Implementation Status
+
+| Task | Status | Commit | Notes |
+|------|--------|--------|-------|
+| Task 1: Alembic Migration | DONE | `c75cf73` | Tables created, upgrade/downgrade verified on Postgres |
+| Task 2: SQLAlchemy Models | DONE | `6041a17` | 4 tests pass, 2 cascade tests skipped (SQLite FK limitation) |
+| Task 3: Pydantic Schemas | DONE | `a6b3469` | 5 tests pass |
+| Task 4: Memory Service — Fact CRUD | TODO | | |
+| Task 5: Memory Service — Summarization | TODO | | |
+| Task 6: System Prompt Facts Injection | TODO | | |
+| Task 7: Wire Memory Into Turn Prep | TODO | | |
+| Task 8: Summarization Trigger in Route | TODO | | |
+| Task 9: Fact Management API Endpoints | TODO | | |
+| Task 10: Validation & Full Test Suite | TODO | | |
+
+**Last updated:** 2026-02-15
+
+---
+
 ## Task 1: Alembic Migration — `conversation_chunks` and `legacy_facts` Tables
 
 **Files:**
