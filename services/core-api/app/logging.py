@@ -22,12 +22,12 @@ class OTelContextFilter(logging.Filter):
         span = trace.get_current_span()
         ctx = span.get_span_context()
         if ctx and ctx.trace_id:
-            record.trace_id = format(ctx.trace_id, "032x")  # type: ignore[attr-defined]
-            record.span_id = format(ctx.span_id, "016x")  # type: ignore[attr-defined]
+            record.trace_id = format(ctx.trace_id, "032x")
+            record.span_id = format(ctx.span_id, "016x")
         else:
-            record.trace_id = ""  # type: ignore[attr-defined]
-            record.span_id = ""  # type: ignore[attr-defined]
-        record.service = self.service_name  # type: ignore[attr-defined]
+            record.trace_id = ""
+            record.span_id = ""
+        record.service = self.service_name
         return True
 
 
