@@ -1,6 +1,7 @@
 """Service for permission-filtered knowledge retrieval."""
 
 import logging
+import time
 from typing import Any
 from uuid import UUID
 
@@ -11,6 +12,7 @@ from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.knowledge import StoryChunk
+from ..observability.metrics import AI_RETRIEVAL_DURATION
 from ..models.legacy import LegacyMember
 from ..providers.registry import get_provider_registry
 from ..schemas.retrieval import ChunkResult, VisibilityFilter
@@ -111,6 +113,7 @@ async def store_chunks(
     Returns:
         Number of chunks stored.
     """
+    started = time.perf_counter()
     with tracer.start_as_current_span("retrieval.store_chunks") as span:
         span.set_attribute("story_id", str(story_id))
         span.set_attribute("chunk_count", len(chunks))
@@ -137,6 +140,9 @@ async def store_chunks(
             },
         )
 
+        AI_RETRIEVAL_DURATION.labels(operation="store_chunks").observe(
+            time.perf_counter() - started
+        )
         return len(chunks)
 
 
@@ -150,6 +156,7 @@ async def delete_chunks_for_story(db: AsyncSession, story_id: UUID) -> int:
     Returns:
         Number of chunks deleted.
     """
+    started = time.perf_counter()
     with tracer.start_as_current_span("retrieval.delete_chunks") as span:
         span.set_attribute("story_id", str(story_id))
 
@@ -166,6 +173,9 @@ async def delete_chunks_for_story(db: AsyncSession, story_id: UUID) -> int:
             extra={"story_id": str(story_id), "deleted_count": deleted},
         )
 
+        AI_RETRIEVAL_DURATION.labels(operation="delete_chunks").observe(
+            time.perf_counter() - started
+        )
         return deleted
 
 
@@ -206,6 +216,7 @@ async def retrieve_context(
     Returns:
         List of relevant chunks the user is authorized to see.
     """
+    started = time.perf_counter()
     with tracer.start_as_current_span("retrieval.retrieve_context") as span:
         span.set_attribute("legacy_id", str(legacy_id))
         span.set_attribute("user_id", str(user_id))
@@ -293,4 +304,7 @@ async def retrieve_context(
             },
         )
 
+        AI_RETRIEVAL_DURATION.labels(operation="retrieve_context").observe(
+            time.perf_counter() - started
+        )
         return chunks
