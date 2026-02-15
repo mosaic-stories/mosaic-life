@@ -5,6 +5,7 @@ from .associations import ConversationLegacy, MediaLegacy, StoryLegacy
 from .invitation import Invitation
 from .knowledge import KnowledgeAuditLog, StoryChunk
 from .legacy import Legacy, LegacyMember
+from .memory import ConversationChunk, LegacyFact
 from .media import Media
 from .notification import Notification
 from .story import Story
@@ -15,10 +16,12 @@ from .user_session import UserSession
 __all__ = [
     "AIConversation",
     "AIMessage",
+    "ConversationChunk",
     "ConversationLegacy",
     "Invitation",
     "KnowledgeAuditLog",
     "Legacy",
+    "LegacyFact",
     "LegacyMember",
     "Media",
     "MediaLegacy",

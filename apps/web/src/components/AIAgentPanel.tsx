@@ -14,8 +14,8 @@ import {
 } from './ui/dialog';
 import { aiAgents } from '../lib/mockData';
 import { useLegacy } from '@/lib/hooks/useLegacies';
-import ThemeSelector from './ThemeSelector';
 import { SEOHead } from '@/components/seo';
+import { HeaderSlot } from '@/components/header';
 
 interface AIAgentPanelProps {
   onNavigate: (view: string) => void;
@@ -31,7 +31,7 @@ interface Interaction {
   action: string;
 }
 
-export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, currentTheme, onThemeChange }: AIAgentPanelProps) {
+export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, currentTheme: _currentTheme, onThemeChange: _onThemeChange }: AIAgentPanelProps) {
   const navigate = useNavigate();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [comingSoonDialogOpen, setComingSoonDialogOpen] = useState(false);
@@ -190,33 +190,27 @@ export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, curren
         description="Interact with AI agents for this legacy"
         noIndex={true}
       />
-      {/* Header */}
-      <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <button 
-              onClick={() => navigate(`/legacy/${legacyId}`)}
-              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-            >
-              <ArrowLeft className="size-4" />
-              <span>Back to {legacy?.name || 'Legacy'}</span>
-            </button>
-            <div className="flex items-center gap-3">
-              <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-              <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
-                Agent Panel
-              </Badge>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => navigate(`/legacy/${legacyId}/ai-chat`)}
-              >
-                Switch to Chat
-              </Button>
-            </div>
-          </div>
+      <HeaderSlot>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate(`/legacy/${legacyId}`)}
+            className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+          >
+            <ArrowLeft className="size-4" />
+            <span>Back to {legacy?.name || 'Legacy'}</span>
+          </button>
+          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+            Agent Panel
+          </Badge>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate(`/legacy/${legacyId}/ai-chat`)}
+          >
+            Switch to Chat
+          </Button>
         </div>
-      </header>
+      </HeaderSlot>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">

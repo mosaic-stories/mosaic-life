@@ -4,6 +4,7 @@
 
 import { AlertTriangle, Download, LogOut } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import {
   AlertDialog,
@@ -17,39 +18,114 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useProfile } from '@/lib/hooks/useSettings';
+import {
+  useCreateAccountDeletionToken,
+  useDeleteAccount,
+  useProfile,
+  useRequestDataExport,
+  useRevokeSession,
+  useSessions,
+} from '@/lib/hooks/useSettings';
+
+function relativeTime(value: string): string {
+  const now = Date.now();
+  const then = new Date(value).getTime();
+  const delta = Math.max(0, now - then);
+  const minutes = Math.floor(delta / 60000);
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
 
 export default function AccountSettings() {
+  const navigate = useNavigate();
   const { data: profile } = useProfile();
+  const { data: sessionData } = useSessions();
+  const revokeSession = useRevokeSession();
+  const requestExport = useRequestDataExport();
+  const createDeletionToken = useCreateAccountDeletionToken();
+  const deleteAccount = useDeleteAccount();
+
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const handleExportData = () => {
-    // TODO: Implement data export
-    alert('Data export will be implemented in a future update.');
+  const sessions = sessionData?.sessions ?? [];
+  const otherSessions = sessions.filter((session) => !session.is_current);
+
+  const handleExportData = async () => {
+    setError(null);
+    try {
+      await requestExport.mutateAsync();
+    } catch {
+      setError('Failed to request data export. Please try again.');
+    }
   };
 
-  const handleDeleteAccount = () => {
-    // TODO: Implement account deletion
-    alert('Account deletion will be implemented in a future update.');
-    setShowDeleteDialog(false);
-    setDeleteConfirmation('');
+  const handleDeleteAccount = async () => {
+    setError(null);
+    try {
+      const token = await createDeletionToken.mutateAsync();
+      await deleteAccount.mutateAsync({
+        confirmation_text: deleteConfirmation,
+        confirmation_token: token.token,
+      });
+      setShowDeleteDialog(false);
+      setDeleteConfirmation('');
+      navigate('/');
+    } catch {
+      setError('Failed to delete account. Please try again.');
+    }
+  };
+
+  const handleRevokeSession = async (id: string) => {
+    setError(null);
+    try {
+      await revokeSession.mutateAsync(id);
+    } catch {
+      setError('Failed to revoke session. Please try again.');
+    }
+  };
+
+  const handleRevokeAllOthers = async () => {
+    setError(null);
+    try {
+      await Promise.all(otherSessions.map((session) => revokeSession.mutateAsync(session.id)));
+    } catch {
+      setError('Failed to revoke sessions. Please try again.');
+    }
+  };
+
+  const exporting = requestExport.isPending;
+  const deleting = createDeletionToken.isPending || deleteAccount.isPending;
+  const revoking = revokeSession.isPending;
+  const exportResult = requestExport.data;
+
+  const deleteDialogClose = (open: boolean) => {
+    setShowDeleteDialog(open);
+    if (!open) {
+      setDeleteConfirmation('');
+    }
   };
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Account</h2>
-        <p className="text-sm text-gray-500">
-          Manage your account security and data
-        </p>
+        <p className="text-sm text-gray-500">Manage your account security and data</p>
       </div>
 
-      {/* Connected Accounts */}
+      {error && (
+        <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-sm font-medium text-gray-700 mb-4">
-          Connected Accounts
-        </h3>
+        <h3 className="text-sm font-medium text-gray-700 mb-4">Connected Accounts</h3>
         <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200">
           <div className="flex items-center gap-3">
             <div className="size-10 bg-blue-100 rounded-full flex items-center justify-center">
@@ -79,79 +155,138 @@ export default function AccountSettings() {
           </div>
           <span className="text-sm text-green-600 font-medium">Connected</span>
         </div>
-        <p className="mt-3 text-sm text-gray-500">
-          Primary sign-in method - Cannot be disconnected
-        </p>
+        <p className="mt-3 text-sm text-gray-500">Primary sign-in method - Cannot be disconnected</p>
       </div>
 
-      {/* Active Sessions - Placeholder */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-sm font-medium text-gray-700 mb-4">
-          Active Sessions
-        </h3>
-        <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="size-10 bg-gray-100 rounded-full flex items-center justify-center">
-              <LogOut className="size-5 text-gray-600" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">Current Session</p>
-              <p className="text-sm text-gray-500">This browser</p>
-            </div>
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-medium text-gray-700">Active Sessions</h3>
+            <p className="text-xs text-gray-500">
+              {sessions.length === 1 ? '1 active session' : `${sessions.length} active sessions`}
+            </p>
           </div>
-          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-            Active
-          </span>
+          {otherSessions.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRevokeAllOthers}
+              disabled={revoking}
+            >
+              {revoking ? 'Revoking sessions...' : 'Sign out all other sessions'}
+            </Button>
+          )}
         </div>
-        <p className="mt-3 text-sm text-gray-500">
-          Session management will be available in a future update.
-        </p>
+
+        {sessions.length === 0 && (
+          <div className="flex items-center justify-between p-4 rounded-lg border border-gray-200">
+            <div className="flex items-center gap-3">
+              <div className="size-10 bg-gray-100 rounded-full flex items-center justify-center">
+                <LogOut className="size-5 text-gray-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Current browser session</p>
+                <p className="text-sm text-gray-500">This browser</p>
+              </div>
+            </div>
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Active</span>
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {sessions.map((session) => (
+            <div
+              key={session.id}
+              className="flex items-center justify-between p-4 rounded-lg border border-gray-200"
+            >
+              <div className="flex items-center gap-3">
+                <div className="size-10 bg-gray-100 rounded-full flex items-center justify-center">
+                  <LogOut className="size-5 text-gray-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {session.device_info || (session.is_current ? 'Current browser session' : 'Browser session')}
+                  </p>
+                  <p className="text-sm text-gray-500">{session.location || 'Unknown location'}</p>
+                  <p className="text-sm text-gray-500">
+                    {session.is_current
+                      ? 'Current'
+                      : `Last active ${relativeTime(session.last_active_at)}`}
+                  </p>
+                </div>
+              </div>
+
+              {session.is_current ? (
+                <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Current</span>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleRevokeSession(session.id)}
+                  disabled={revoking}
+                >
+                  Sign out
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Export Data */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-sm font-medium text-gray-700 mb-2">
-          Export Your Data
-        </h3>
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Export Your Data</h3>
         <p className="text-sm text-gray-500 mb-4">
-          Download a copy of your data including legacies, stories, media, and
-          account information.
+          Download a copy of your data including legacies, stories, media, and account information.
         </p>
-        <Button variant="outline" onClick={handleExportData}>
+        <Button variant="outline" onClick={handleExportData} disabled={exporting}>
           <Download className="size-4 mr-2" />
-          Request Data Export
+          {exporting ? 'Requesting export...' : 'Request Data Export'}
         </Button>
+
+        {exportResult && (
+          <div className="mt-3 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700">
+            <p>Export requested successfully. A download link has been emailed to you.</p>
+            <a
+              className="underline"
+              href={exportResult.download_url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open export link now
+            </a>
+            <p className="mt-1 text-xs">
+              Expires: {new Date(exportResult.expires_at).toLocaleString()}
+            </p>
+          </div>
+        )}
       </div>
 
-      {/* Danger Zone */}
       <div className="bg-red-50 rounded-lg border border-red-200 p-6">
         <div className="flex items-start gap-3">
           <AlertTriangle className="size-5 text-red-600 shrink-0 mt-0.5" />
           <div className="flex-1">
             <h3 className="text-sm font-medium text-red-800">Delete Account</h3>
             <p className="text-sm text-red-600 mt-1">
-              Permanently delete your account and all data. This action cannot be
-              undone.
+              Permanently delete your account and all data. This action cannot be undone.
             </p>
             <Button
               variant="destructive"
               className="mt-4"
+              disabled={deleting}
               onClick={() => setShowDeleteDialog(true)}
             >
-              Delete Account
+              {deleting ? 'Deleting...' : 'Delete Account'}
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      <AlertDialog open={showDeleteDialog} onOpenChange={deleteDialogClose}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete your
-              account and remove all your data from our servers, including:
+              This action cannot be undone. This will permanently delete your account and remove all your data from our servers, including:
               <ul className="list-disc list-inside mt-2 space-y-1">
                 <li>All legacies you've created</li>
                 <li>All stories and media</li>
@@ -176,10 +311,10 @@ export default function AccountSettings() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAccount}
-              disabled={deleteConfirmation !== 'DELETE'}
+              disabled={deleteConfirmation !== 'DELETE' || deleting}
               className="bg-red-600 hover:bg-red-700"
             >
-              Delete Account
+              {deleting ? 'Deleting...' : 'Delete Account'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

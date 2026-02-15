@@ -15,12 +15,14 @@ from opentelemetry import trace
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..adapters.bedrock import BedrockError, get_bedrock_adapter
+from ..adapters.ai import AIProviderError
+from ..adapters.storytelling import format_story_context as format_story_context_impl
 from ..auth.middleware import require_auth
-from ..config.personas import build_system_prompt, get_persona, get_personas
+from ..config.personas import get_persona, get_personas
 from ..config.settings import get_settings
 from ..database import get_db
 from ..models.legacy import Legacy
+from ..providers.registry import get_provider_registry
 from ..schemas.ai import (
     ConversationCreate,
     ConversationResponse,
@@ -32,9 +34,10 @@ from ..schemas.ai import (
     SSEDoneEvent,
     SSEErrorEvent,
 )
+from ..schemas.memory import FactResponse, FactVisibilityUpdate
 from ..schemas.retrieval import ChunkResult
 from ..services import ai as ai_service
-from ..services.retrieval import retrieve_context
+from ..services import memory as memory_service
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 logger = logging.getLogger(__name__)
@@ -51,22 +54,7 @@ def format_story_context(chunks: list[ChunkResult]) -> str:
     Returns:
         Formatted context string for system prompt, or empty string if no chunks.
     """
-    if not chunks:
-        return ""
-
-    context_parts = ["\n## Relevant stories about this person:\n"]
-
-    for i, chunk in enumerate(chunks, 1):
-        context_parts.append(f"[Story excerpt {i}]\n{chunk.content}\n")
-
-    context_parts.append(
-        "\nUse these excerpts to inform your responses. "
-        "Reference specific details when relevant. "
-        "If the excerpts don't contain relevant information, "
-        "say so rather than making things up."
-    )
-
-    return "\n".join(context_parts)
+    return format_story_context_impl(chunks)
 
 
 # ============================================================================
@@ -210,6 +198,75 @@ async def delete_conversation(
 
 
 # ============================================================================
+# Fact Management Endpoints
+# ============================================================================
+
+
+@router.get(
+    "/legacies/{legacy_id}/facts",
+    response_model=list[FactResponse],
+    summary="List facts for a legacy",
+    description="List the current user's facts for a legacy.",
+)
+async def list_facts(
+    legacy_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> list[FactResponse]:
+    """List facts for a legacy visible to the current user."""
+    session = require_auth(request)
+    facts = await memory_service.list_user_facts(
+        db=db,
+        legacy_id=legacy_id,
+        user_id=session.user_id,
+    )
+    return [FactResponse.model_validate(f) for f in facts]
+
+
+@router.delete(
+    "/facts/{fact_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a fact",
+    description="Delete a fact you own.",
+)
+async def delete_fact(
+    fact_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete a fact (ownership enforced)."""
+    session = require_auth(request)
+    await memory_service.delete_fact(
+        db=db,
+        fact_id=fact_id,
+        user_id=session.user_id,
+    )
+
+
+@router.patch(
+    "/facts/{fact_id}/visibility",
+    response_model=FactResponse,
+    summary="Update fact visibility",
+    description="Toggle a fact between private and shared.",
+)
+async def update_fact_visibility(
+    fact_id: UUID,
+    data: FactVisibilityUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> FactResponse:
+    """Update fact visibility (ownership enforced)."""
+    session = require_auth(request)
+    fact = await memory_service.update_fact_visibility(
+        db=db,
+        fact_id=fact_id,
+        user_id=session.user_id,
+        visibility=data.visibility,
+    )
+    return FactResponse.model_validate(fact)
+
+
+# ============================================================================
 # Message/Chat Endpoints
 # ============================================================================
 
@@ -258,50 +315,6 @@ async def send_message(
         )
         legacy = legacy_result.scalar_one()
 
-        # Retrieve relevant story context (RAG)
-        story_context = ""
-        if primary_legacy_id:
-            try:
-                chunks = await retrieve_context(
-                    db=db,
-                    query=data.content,
-                    legacy_id=primary_legacy_id,
-                    user_id=session.user_id,
-                    top_k=5,
-                )
-                story_context = format_story_context(chunks)
-                span.set_attribute("rag.chunks_retrieved", len(chunks))
-                logger.debug(
-                    "ai.chat.rag_context_retrieved",
-                    extra={
-                        "conversation_id": str(conversation_id),
-                        "chunks_count": len(chunks),
-                        "context_length": len(story_context),
-                    },
-                )
-            except Exception as e:
-                # Continue without context rather than failing the chat
-                logger.warning(
-                    "ai.chat.rag_retrieval_failed",
-                    extra={
-                        "conversation_id": str(conversation_id),
-                        "error": str(e),
-                    },
-                )
-                span.set_attribute("rag.retrieval_failed", True)
-
-        # Build system prompt with story context
-        system_prompt = build_system_prompt(
-            conversation.persona_id,
-            legacy.name,
-            story_context,
-        )
-        if not system_prompt:
-            raise HTTPException(
-                status_code=500,
-                detail="Failed to build system prompt",
-            )
-
         # Save user message BEFORE streaming starts and capture its ID
         user_message = await ai_service.save_message(
             db=db,
@@ -311,37 +324,57 @@ async def send_message(
         )
         user_message_id = user_message.id
 
-        # Get context messages
-        context = await ai_service.get_context_messages(db, conversation_id)
+        storytelling_agent = get_provider_registry().get_storytelling_agent()
 
         async def generate_stream() -> AsyncGenerator[str, None]:
             """Generate SSE stream."""
-            adapter = get_bedrock_adapter()
             full_response = ""
             token_count: int | None = None
 
             try:
-                settings = get_settings()
-                async for chunk in adapter.stream_generate(
-                    messages=context,
-                    system_prompt=system_prompt,
+                turn = await storytelling_agent.prepare_turn(
+                    db=db,
+                    conversation_id=conversation_id,
+                    user_id=session.user_id,
+                    user_query=data.content,
+                    legacy_id=primary_legacy_id,
+                    persona_id=conversation.persona_id,
+                    legacy_name=legacy.name,
+                    top_k=5,
+                )
+                span.set_attribute("rag.chunks_retrieved", turn.chunks_count)
+
+                async for chunk in storytelling_agent.stream_response(
+                    turn=turn,
                     model_id=persona.model_id,
                     max_tokens=persona.max_tokens,
-                    guardrail_id=settings.bedrock_guardrail_id,
-                    guardrail_version=settings.bedrock_guardrail_version,
                 ):
                     full_response += chunk
                     event = SSEChunkEvent(content=chunk)
                     yield f"data: {event.model_dump_json()}\n\n"
 
                 # Save assistant message
-                message = await ai_service.save_message(
+                message = await storytelling_agent.save_assistant_message(
                     db=db,
                     conversation_id=conversation_id,
-                    role="assistant",
                     content=full_response,
                     token_count=token_count,
                 )
+
+                # Trigger background summarization check
+                try:
+                    await memory_service.maybe_summarize(
+                        db=db,
+                        conversation_id=conversation_id,
+                        user_id=session.user_id,
+                        legacy_id=primary_legacy_id,
+                        legacy_name=legacy.name,
+                    )
+                except Exception:
+                    logger.exception(
+                        "ai.chat.summarization_failed",
+                        extra={"conversation_id": str(conversation_id)},
+                    )
 
                 # Send done event
                 done_event = SSEDoneEvent(
@@ -359,13 +392,16 @@ async def send_message(
                     },
                 )
 
-            except BedrockError as e:
+            except AIProviderError as e:
                 logger.warning(
                     "ai.chat.error",
                     extra={
                         "conversation_id": str(conversation_id),
                         "error": e.message,
                         "retryable": e.retryable,
+                        "error_code": e.code,
+                        "provider": e.provider,
+                        "operation": e.operation,
                     },
                 )
 

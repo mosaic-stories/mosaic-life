@@ -39,8 +39,8 @@ class TestFormatStoryContext:
         assert "## Relevant stories about this person:" in result
         assert "[Story excerpt 1]" in result
         assert "Grandma loved her garden." in result
-        assert "Use these excerpts" in result
-        assert "rather than making things up" in result
+        assert "These excerpts are background knowledge ONLY" in result
+        assert "Never make up information" in result
 
     def test_format_multiple_chunks(self) -> None:
         """Test formatting multiple chunks."""
@@ -87,9 +87,12 @@ class TestFormatStoryContext:
 
         result = format_story_context(chunks)
 
-        assert "Use these excerpts to inform your responses" in result
-        assert "Reference specific details when relevant" in result
-        assert "say so rather than making things up" in result
+        assert "These excerpts are background knowledge ONLY" in result
+        assert (
+            "sharing new information or memories, focus on what THEY are telling you"
+            in result
+        )
+        assert "Never make up information" in result
 
 
 class TestListPersonas:

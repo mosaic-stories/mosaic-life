@@ -201,3 +201,41 @@ class TestBuildSystemPromptWithStoryContext:
         # Story context should come after persona prompt (at the end)
         base_rules = get_base_rules()
         assert prompt.index(base_rules) < prompt.index("Story context here")
+
+
+class TestBuildSystemPromptWithFacts:
+    """Tests for build_system_prompt with facts injection."""
+
+    def test_includes_facts_in_prompt(self):
+        """Test that facts are appended to system prompt."""
+        from unittest.mock import MagicMock
+
+        fact1 = MagicMock()
+        fact1.category = "hobby"
+        fact1.content = "Loved fly fishing"
+        fact1.visibility = "private"
+
+        fact2 = MagicMock()
+        fact2.category = "personality"
+        fact2.content = "Very generous"
+        fact2.visibility = "shared"
+
+        prompt = build_system_prompt("biographer", "John", facts=[fact1, fact2])
+
+        assert prompt is not None
+        assert "Loved fly fishing" in prompt
+        assert "Very generous" in prompt
+        assert "(shared)" in prompt
+        assert "(personal)" in prompt
+
+    def test_no_facts_section_when_empty(self):
+        """Test that no facts section appears when facts is empty."""
+        prompt = build_system_prompt("biographer", "John", facts=[])
+        assert prompt is not None
+        assert "Known facts" not in prompt
+
+    def test_no_facts_section_when_none(self):
+        """Test backward compatibility when facts not provided."""
+        prompt = build_system_prompt("biographer", "John")
+        assert prompt is not None
+        assert "Known facts" not in prompt

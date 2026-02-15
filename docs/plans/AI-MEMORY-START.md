@@ -152,6 +152,25 @@ Story Created/Updated/Deleted
 
 ## Feature 3: Agent Framework Abstraction
 
+### Implementation Status (2026-02-14)
+
+**Status:** COMPLETE, including follow-on hardening tracked in the Feature 3 wrap-up plan.
+
+**Implemented in codebase:**
+- Protocol-based AI provider interfaces (`LLMProvider`, `EmbeddingProvider`) plus unified provider error envelope (`AIProviderError`)
+- Configuration-driven provider selection via `AI_LLM_PROVIDER` and `AI_EMBEDDING_PROVIDER`
+- Multiple provider implementations in active paths (AWS Bedrock + direct OpenAI)
+- Business-path abstraction wiring for chat, retrieval, and ingestion (provider getters used in place of direct adapter coupling)
+
+**Feature 3 wrap-up hardening completed (tracked in wrap-up plan):**
+- DI/registry-expanded wiring includes vector store, memory, guardrail, and storytelling agent resolution
+- Full protocol surface added (`VectorStore`, `AgentMemory`, `ContentGuardrail`, `StorytellingAgent`)
+- Thin adapter shells implemented and integrated in active paths
+- Shared provider contract conformance suite implemented and passing
+- Provider-boundary observability normalization completed for supported providers
+
+Reference: `docs/plans/completed/2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
+
 ### Overview
 Create an abstraction layer that allows different AI agent implementations to be swapped without changing business logic. Supports experimentation with different LLM providers, frameworks, and approaches.
 
@@ -439,6 +458,22 @@ persona:
 ---
 
 ## Feature 7: Agent Memory System
+
+### Implementation Status (2026-02-15)
+
+**Status:** COMPLETE
+
+**Implemented in codebase:**
+- Rolling conversation summarization with threshold-based triggering and message-range idempotency
+- Vectorized conversation summaries stored in `conversation_chunks` for memory RAG retrieval
+- Per-user-per-legacy fact extraction persisted in `legacy_facts` with private/shared visibility
+- Fact management API endpoints (list, delete, visibility update) with ownership enforcement
+- Prompt-time fact injection and turn-preparation memory wiring in the storytelling path
+- End-to-end validation complete (tests passing, backend lint/type checks clean)
+
+Reference:
+- `docs/plans/completed/2026-02-14-feature-7-agent-memory-system-design.md`
+- `docs/plans/completed/2026-02-14-feature-7-agent-memory-implementation.md`
 
 ### Overview
 Implement memory capabilities that allow agents to maintain context within conversations and learn from interactions over time. Start with session memory, design for episodic memory expansion.

@@ -1,6 +1,8 @@
 """Email service for sending emails via SES."""
 
 import logging
+from datetime import datetime
+from typing import Any
 
 import boto3  # type: ignore[import-untyped]
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
@@ -8,6 +10,77 @@ from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 from ..config import get_settings
 
 logger = logging.getLogger(__name__)
+
+
+def _send_email_via_ses(
+    *,
+    to_email: str,
+    subject: str,
+    text_body: str,
+    html_body: str | None = None,
+    reply_to: str | None = None,
+) -> bool:
+    """Send email using SES when configured, otherwise log in local mode."""
+    settings = get_settings()
+
+    if not settings.ses_from_email:
+        # Local mode: print to console for developer visibility
+        print("\n" + "=" * 60)
+        print("INVITATION EMAIL (local mode - not sent)")
+        print("=" * 60)
+        print(f"To: {to_email}")
+        print(f"Subject: {subject}")
+        if reply_to:
+            print(f"Reply-To: {reply_to}")
+        print("\nText Body:")
+        print(text_body)
+        print("=" * 60 + "\n")
+
+        logger.info(
+            "email.would_send",
+            extra={
+                "to_email": to_email,
+                "subject": subject,
+                "reply_to": reply_to,
+            },
+        )
+        return True
+
+    try:
+        ses_client = boto3.client("ses", region_name=settings.ses_region)
+        message_body = {
+            "Text": {"Data": text_body, "Charset": "UTF-8"},
+        }
+        if html_body:
+            message_body["Html"] = {"Data": html_body, "Charset": "UTF-8"}
+
+        payload: dict[str, Any] = {
+            "Source": settings.ses_from_email,
+            "Destination": {"ToAddresses": [to_email]},
+            "Message": {
+                "Subject": {"Data": subject, "Charset": "UTF-8"},
+                "Body": message_body,
+            },
+        }
+        if reply_to:
+            payload["ReplyToAddresses"] = [reply_to]
+
+        response = ses_client.send_email(**payload)
+        logger.info(
+            "email.sent",
+            extra={
+                "to_email": to_email,
+                "subject": subject,
+                "message_id": response.get("MessageId"),
+            },
+        )
+        return True
+    except ClientError as e:
+        logger.error(
+            "email.send_failed",
+            extra={"to_email": to_email, "subject": subject, "error": str(e)},
+        )
+        return False
 
 
 def _build_invitation_email(
@@ -111,56 +184,56 @@ async def send_invitation_email(
         invite_url=invite_url,
     )
 
-    # Local development mode - just log
-    if not settings.ses_from_email:
-        logger.info(
-            "Would send invitation email",
-            extra={
-                "to_email": to_email,
-                "subject": subject,
-                "invite_url": invite_url,
-            },
-        )
-        print(f"\n{'=' * 60}")
-        print("INVITATION EMAIL (local mode - not sent)")
-        print(f"{'=' * 60}")
-        print(f"To: {to_email}")
-        print(f"Subject: {subject}")
-        print(f"Invite URL: {invite_url}")
-        print(f"{'=' * 60}\n")
-        return True
+    return _send_email_via_ses(
+        to_email=to_email,
+        subject=subject,
+        text_body=text_body,
+        html_body=html_body,
+    )
 
-    # Production mode - send via SES
-    try:
-        ses_client = boto3.client("ses", region_name=settings.ses_region)
 
-        response = ses_client.send_email(
-            Source=settings.ses_from_email,
-            Destination={"ToAddresses": [to_email]},
-            Message={
-                "Subject": {"Data": subject, "Charset": "UTF-8"},
-                "Body": {
-                    "Text": {"Data": text_body, "Charset": "UTF-8"},
-                    "Html": {"Data": html_body, "Charset": "UTF-8"},
-                },
-            },
-        )
+async def send_support_request_email(
+    *,
+    from_user_email: str,
+    category_display: str,
+    subject: str,
+    message_body: str,
+    context_block: str,
+) -> bool:
+    """Send support request email to support inbox."""
+    settings = get_settings()
+    full_subject = f"[{category_display}] {subject}"
+    body = (
+        f"Subject: {full_subject}\n\n"
+        f"From: {from_user_email}\n"
+        f"Category: {category_display}\n\n"
+        f"Message:\n{message_body}\n\n"
+        f"--- Context ---\n{context_block}\n"
+    )
+    return _send_email_via_ses(
+        to_email=settings.support_email_to,
+        subject=full_subject,
+        text_body=body,
+        reply_to=from_user_email,
+    )
 
-        logger.info(
-            "Invitation email sent",
-            extra={
-                "to_email": to_email,
-                "message_id": response.get("MessageId"),
-            },
-        )
-        return True
 
-    except ClientError as e:
-        logger.error(
-            "Failed to send invitation email",
-            extra={
-                "to_email": to_email,
-                "error": str(e),
-            },
-        )
-        return False
+async def send_data_export_email(
+    *,
+    to_email: str,
+    download_url: str,
+    expires_at: datetime,
+) -> bool:
+    """Send data export download link email to the user."""
+    subject = "Your Mosaic Life data export is ready"
+    text_body = (
+        "Your account data export has been prepared.\n\n"
+        f"Download link: {download_url}\n"
+        f"Expires at: {expires_at.isoformat()}\n\n"
+        "If you did not request this export, please contact support immediately."
+    )
+    return _send_email_via_ses(
+        to_email=to_email,
+        subject=subject,
+        text_body=text_body,
+    )

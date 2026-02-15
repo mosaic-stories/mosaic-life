@@ -6,10 +6,10 @@ import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-import ThemeSelector from './ThemeSelector';
 import { useCreateLegacy } from '@/lib/hooks/useLegacies';
 import type { LegacyVisibility } from '@/lib/api/legacies';
 import { SEOHead } from '@/components/seo';
+import { HeaderSlot } from '@/components/header';
 
 interface LegacyCreationProps {
   onNavigate: (view: string) => void;
@@ -17,7 +17,7 @@ interface LegacyCreationProps {
   onThemeChange: (themeId: string) => void;
 }
 
-export default function LegacyCreation({ onNavigate: _onNavigate, currentTheme, onThemeChange }: LegacyCreationProps) {
+export default function LegacyCreation({ onNavigate: _onNavigate, currentTheme: _currentTheme, onThemeChange: _onThemeChange }: LegacyCreationProps) {
   const navigate = useNavigate();
   const createLegacy = useCreateLegacy();
 
@@ -61,20 +61,15 @@ export default function LegacyCreation({ onNavigate: _onNavigate, currentTheme, 
         description="Create a new digital tribute to preserve stories and memories"
         noIndex={true}
       />
-      <header className="bg-white/90 backdrop-blur-sm border-b sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-            >
-              <ArrowLeft className="size-4" />
-              <span>Back</span>
-            </button>
-            <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
-          </div>
-        </div>
-      </header>
+      <HeaderSlot>
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+        >
+          <ArrowLeft className="size-4" />
+          <span>Back</span>
+        </button>
+      </HeaderSlot>
 
       <main className="max-w-2xl mx-auto px-6 py-12">
         <div className="space-y-8">

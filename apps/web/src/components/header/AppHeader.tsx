@@ -4,18 +4,15 @@ import { useHeaderContext } from './HeaderContext';
 import HeaderLogo from './HeaderLogo';
 import HeaderUserMenu from './HeaderUserMenu';
 import HeaderOverflowMenu from './HeaderOverflowMenu';
-import ThemeSelector from '@/components/ThemeSelector';
 
 interface AppHeaderProps {
   user: { name: string; email: string; avatarUrl?: string } | null;
   onNavigate: (view: string) => void;
   onAuthClick: () => void;
   onSignOut: () => void;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
 }
 
-export default function AppHeader({ user, onNavigate, onAuthClick, onSignOut, currentTheme, onThemeChange }: AppHeaderProps) {
+export default function AppHeader({ user, onNavigate, onAuthClick, onSignOut }: AppHeaderProps) {
   const isMobile = useIsMobile();
   const { slotContent } = useHeaderContext();
 
@@ -34,9 +31,8 @@ export default function AppHeader({ user, onNavigate, onAuthClick, onSignOut, cu
           </div>
         )}
 
-        {/* Right: Theme + Auth */}
+        {/* Right: Auth */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
           {user ? (
             <HeaderUserMenu user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
           ) : (

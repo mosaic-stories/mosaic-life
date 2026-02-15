@@ -4,9 +4,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from opentelemetry import trace
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
-    CollectorRegistry,
     Counter,
     generate_latest,
 )
@@ -36,14 +36,19 @@ REQUESTS = Counter(
     "HTTP requests",
     ["method", "path", "status"],
 )
-REGISTRY = CollectorRegistry()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     configure_logging(settings.log_level)
-    configure_tracing("core-api", settings.otel_exporter_otlp_endpoint)
+    configure_tracing(
+        app=app,
+        service_name="core-api",
+        environment=settings.env,
+        otlp_endpoint=settings.otel_exporter_otlp_endpoint,
+        debug=settings.otel_debug,
+    )
     logging.getLogger(__name__).info("core-api.start", extra={"env": settings.env})
     yield
     logging.getLogger(__name__).info("core-api.stop")
@@ -76,6 +81,18 @@ async def metrics_middleware(
         ).inc()
     except Exception:
         logger.warning("Failed to update metrics", exc_info=True)
+    return response
+
+
+@app.middleware("http")
+async def trace_id_middleware(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    response: Response = await call_next(request)
+    span = trace.get_current_span()
+    ctx = span.get_span_context()
+    if ctx and ctx.trace_id:
+        response.headers["X-Trace-Id"] = format(ctx.trace_id, "032x")
     return response
 
 

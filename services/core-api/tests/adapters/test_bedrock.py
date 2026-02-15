@@ -4,7 +4,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.adapters.bedrock import BedrockAdapter, BedrockError, get_bedrock_adapter
+from app.adapters.bedrock import (
+    BedrockAdapter,
+    BedrockError,
+    _extract_triggered_filters,
+    get_bedrock_adapter,
+)
+from app.adapters.telemetry import AI_MODEL, AI_OPERATION, AI_PROVIDER
 
 
 class TestBedrockError:
@@ -363,6 +369,161 @@ class TestGuardrailIntegration:
 
             assert "filtered for safety" in exc_info.value.message
             assert exc_info.value.retryable is False
+            assert exc_info.value.code == "invalid_request"
+            assert exc_info.value.provider == "bedrock"
+            assert exc_info.value.operation == "stream_generate"
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_emits_normalized_telemetry(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Streaming path should emit shared telemetry keys."""
+
+        async def mock_stream_iterator():
+            events = [
+                {"contentBlockDelta": {"delta": {"text": "Hello"}}},
+                {"messageStop": {"stopReason": "end_turn"}},
+            ]
+            for event in events:
+                yield event
+
+        mock_response = {"stream": mock_stream_iterator()}
+        from unittest.mock import Mock
+
+        mock_span = Mock()
+        mock_span_cm = Mock()
+        mock_span_cm.__enter__ = Mock(return_value=mock_span)
+        mock_span_cm.__exit__ = Mock(return_value=None)
+
+        with (
+            patch.object(adapter, "_get_client") as mock_get_client,
+            patch(
+                "app.adapters.bedrock.tracer.start_as_current_span",
+                return_value=mock_span_cm,
+            ),
+        ):
+            mock_client = AsyncMock()
+            mock_client.converse_stream = AsyncMock(return_value=mock_response)
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_client.return_value = mock_context
+
+            chunks = []
+            async for chunk in adapter.stream_generate(
+                messages=[{"role": "user", "content": "Hi"}],
+                system_prompt="You are helpful.",
+                model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            ):
+                chunks.append(chunk)
+
+            assert chunks == ["Hello"]
+            mock_span.set_attribute.assert_any_call(AI_PROVIDER, "bedrock")
+            mock_span.set_attribute.assert_any_call(AI_OPERATION, "stream_generate")
+            mock_span.set_attribute.assert_any_call(
+                AI_MODEL,
+                "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            )
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_guardrail_intervention_extracts_filters(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test guardrail intervention extracts triggered filters from trace."""
+
+        trace_guardrail = {
+            "input": {
+                "gr-abc123": {
+                    "contentPolicy": {
+                        "filters": [
+                            {
+                                "type": "HATE",
+                                "confidence": "HIGH",
+                                "action": "BLOCKED",
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        async def mock_stream_iterator():
+            events = [
+                {"metadata": {"trace": {"guardrail": trace_guardrail}}},
+                {"messageStop": {"stopReason": "guardrail_intervened"}},
+            ]
+            for event in events:
+                yield event
+
+        mock_response = {"stream": mock_stream_iterator()}
+
+        with (
+            patch.object(adapter, "_get_client") as mock_get_client,
+            patch("app.adapters.bedrock._extract_triggered_filters") as mock_extract,
+        ):
+            mock_extract.return_value = [{"type": "HATE", "confidence": "HIGH"}]
+
+            mock_client = AsyncMock()
+            mock_client.converse_stream = AsyncMock(return_value=mock_response)
+
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_client.return_value = mock_context
+
+            with pytest.raises(BedrockError):
+                async for _ in adapter.stream_generate(
+                    messages=[{"role": "user", "content": "Harmful content"}],
+                    system_prompt="You are helpful.",
+                    model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                    guardrail_id="gr-abc123",
+                    guardrail_version="1",
+                ):
+                    pass
+
+            mock_extract.assert_called_once_with(trace_guardrail)
+
+
+class TestGuardrailFilterExtraction:
+    """Tests for guardrail trace filter extraction helper."""
+
+    def test_extract_triggered_filters_content_and_topic(self) -> None:
+        """Test extraction includes blocked content and topic policy filters."""
+
+        guardrail_trace = {
+            "input": {
+                "gr-abc123": {
+                    "contentPolicy": {
+                        "filters": [
+                            {
+                                "type": "VIOLENCE",
+                                "confidence": "MEDIUM",
+                                "action": "BLOCKED",
+                            },
+                            {
+                                "type": "INSULTS",
+                                "confidence": "LOW",
+                                "action": "NONE",
+                            },
+                        ]
+                    },
+                    "topicPolicy": {
+                        "topics": [
+                            {"name": "self-harm", "type": "DENY", "action": "BLOCKED"},
+                            {"name": "safe-topic", "type": "ALLOW", "action": "NONE"},
+                        ]
+                    },
+                }
+            }
+        }
+
+        result = _extract_triggered_filters(guardrail_trace)
+
+        assert result == [
+            {"type": "VIOLENCE", "confidence": "MEDIUM"},
+            {"type": "TOPIC", "name": "self-harm"},
+        ]
 
 
 class TestBedrockAdapterEmbeddings:
@@ -438,3 +599,87 @@ class TestBedrockAdapterEmbeddings:
 
             assert len(result) == 3
             assert call_count == 3  # One API call per text
+
+
+class TestBedrockMetricsRecording:
+    """Tests for Prometheus metrics recording in Bedrock adapter."""
+
+    @pytest.fixture
+    def adapter(self) -> BedrockAdapter:
+        return BedrockAdapter(region="us-east-1")
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_records_duration_metric(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test that stream_generate records AI request duration metric."""
+
+        async def mock_stream_iterator():
+            events = [
+                {"contentBlockDelta": {"delta": {"text": "OK"}}},
+                {"messageStop": {"stopReason": "end_turn"}},
+                {"metadata": {"usage": {"outputTokens": 5}}},
+            ]
+            for event in events:
+                yield event
+
+        mock_response = {"stream": mock_stream_iterator()}
+
+        with (
+            patch.object(adapter, "_get_client") as mock_get_client,
+            patch("app.adapters.bedrock.AI_REQUEST_DURATION") as mock_hist,
+            patch("app.adapters.bedrock.AI_TOKENS"),
+        ):
+            mock_client = AsyncMock()
+            mock_client.converse_stream = AsyncMock(return_value=mock_response)
+            mock_context = AsyncMock()
+            mock_context.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_context.__aexit__ = AsyncMock(return_value=None)
+            mock_get_client.return_value = mock_context
+
+            async for _ in adapter.stream_generate(
+                messages=[{"role": "user", "content": "Hi"}],
+                system_prompt="You are helpful.",
+                model_id="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+            ):
+                pass
+
+            mock_hist.labels.assert_called_once_with(
+                provider="bedrock",
+                model="us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                operation="stream_generate",
+                persona_id="",
+            )
+            mock_hist.labels.return_value.observe.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_embed_texts_records_embedding_duration(
+        self, adapter: BedrockAdapter
+    ) -> None:
+        """Test that embed_texts records embedding duration metric."""
+        import json as json_mod
+
+        mock_body = AsyncMock()
+        mock_body.read.return_value = json_mod.dumps(
+            {"embedding": [0.1] * 1024}
+        ).encode()
+        mock_response = {"body": mock_body}
+        mock_client = AsyncMock()
+        mock_client.invoke_model = AsyncMock(return_value=mock_response)
+
+        with (
+            patch.object(adapter, "_get_client") as mock_get_client,
+            patch("app.adapters.bedrock.AI_EMBEDDING_DURATION") as mock_hist,
+        ):
+            mock_cm = AsyncMock()
+            mock_cm.__aenter__.return_value = mock_client
+            mock_cm.__aexit__.return_value = None
+            mock_get_client.return_value = mock_cm
+
+            await adapter.embed_texts(["Hello"])
+
+            mock_hist.labels.assert_called_once_with(
+                provider="bedrock",
+                model="amazon.titan-embed-text-v2:0",
+            )
+            mock_hist.labels.return_value.observe.assert_called_once()

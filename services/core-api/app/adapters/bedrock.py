@@ -2,6 +2,7 @@
 
 import json
 import logging
+import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from typing import Any
@@ -10,12 +11,40 @@ import aioboto3  # type: ignore[import-untyped]
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 from opentelemetry import trace
 
+from .ai import AIProviderError
+from .telemetry import (
+    AI_ERROR_TYPE,
+    AI_LATENCY_MS,
+    AI_MODEL,
+    AI_OPERATION,
+    AI_PROVIDER,
+    AI_RETRYABLE,
+)
+from ..observability.metrics import (
+    AI_EMBEDDING_DURATION,
+    AI_GUARDRAIL_TRIGGERS,
+    AI_REQUEST_DURATION,
+    AI_TOKENS,
+)
+
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.bedrock")
 
 # Titan Embeddings v2 constants
 TITAN_EMBED_MODEL_ID = "amazon.titan-embed-text-v2:0"
 TITAN_EMBED_DIMENSION = 1024
+
+
+def _map_bedrock_error(error_code: str) -> tuple[str, bool]:
+    if error_code == "ThrottlingException":
+        return "rate_limit", True
+    if error_code in {"ModelTimeoutException", "ServiceUnavailableException"}:
+        return "provider_unavailable", True
+    if error_code in {"AccessDeniedException", "UnrecognizedClientException"}:
+        return "auth_error", False
+    if error_code == "ValidationException":
+        return "invalid_request", False
+    return "unknown", False
 
 
 def _extract_triggered_filters(guardrail_trace: dict[str, Any]) -> list[dict[str, Any]]:
@@ -53,13 +82,8 @@ def _extract_triggered_filters(guardrail_trace: dict[str, Any]) -> list[dict[str
     return triggered_filters
 
 
-class BedrockError(Exception):
+class BedrockError(AIProviderError):
     """Exception raised for Bedrock API errors."""
-
-    def __init__(self, message: str, retryable: bool = False):
-        super().__init__(message)
-        self.message = message
-        self.retryable = retryable
 
 
 class BedrockAdapter:
@@ -127,8 +151,11 @@ class BedrockAdapter:
         Raises:
             BedrockError: On API errors.
         """
+        started = time.perf_counter()
         with tracer.start_as_current_span("ai.bedrock.stream") as span:
-            span.set_attribute("model_id", model_id)
+            span.set_attribute(AI_PROVIDER, "bedrock")
+            span.set_attribute(AI_OPERATION, "stream_generate")
+            span.set_attribute(AI_MODEL, model_id)
             span.set_attribute("message_count", len(messages))
 
             formatted_messages = self._format_messages(messages)
@@ -209,18 +236,32 @@ class BedrockAdapter:
 
                             # Check for guardrail intervention
                             if stop_reason == "guardrail_intervened":
+                                triggered_filters = _extract_triggered_filters(
+                                    guardrail_trace_data
+                                )
                                 logger.warning(
                                     "bedrock.guardrail_intervened",
                                     extra={
                                         "guardrail_id": guardrail_id,
                                         "chunk_count": chunk_count,
+                                        "triggered_filters": triggered_filters,
                                         "trace": guardrail_trace_data,
                                     },
                                 )
                                 span.set_attribute("guardrail_intervened", True)
+                                AI_GUARDRAIL_TRIGGERS.labels(
+                                    provider="bedrock", action="blocked"
+                                ).inc()
+                                span.set_attribute(
+                                    "guardrail_filters",
+                                    json.dumps(triggered_filters),
+                                )
                                 raise BedrockError(
                                     "Your message was filtered for safety. Please rephrase.",
                                     retryable=False,
+                                    code="invalid_request",
+                                    provider="bedrock",
+                                    operation="stream_generate",
                                 )
 
                         # Handle metadata with usage stats and guardrail trace
@@ -246,21 +287,35 @@ class BedrockAdapter:
                             logger.debug("bedrock.content_block_stop")
 
                     span.set_attribute("output_tokens", total_tokens)
+                    if total_tokens:
+                        AI_TOKENS.labels(
+                            provider="bedrock",
+                            model=model_id,
+                            direction="output",
+                        ).inc(total_tokens)
                     span.set_attribute("stop_reason", stop_reason or "unknown")
 
-            except BedrockError:
+            except BedrockError as e:
+                span.set_attribute(AI_ERROR_TYPE, e.code)
+                span.set_attribute(AI_RETRYABLE, e.retryable)
                 # Re-raise BedrockError (e.g., from guardrail intervention)
                 raise
 
             except ClientError as e:
                 error_code = e.response.get("Error", {}).get("Code", "")
+                mapped_error, retryable = _map_bedrock_error(error_code)
                 span.set_attribute("error", True)
+                span.set_attribute(AI_ERROR_TYPE, mapped_error)
+                span.set_attribute(AI_RETRYABLE, retryable)
 
                 if error_code == "ThrottlingException":
                     logger.warning("bedrock.throttled", extra={"error": str(e)})
                     raise BedrockError(
                         "Rate limit exceeded. Please try again.",
                         retryable=True,
+                        code="rate_limit",
+                        provider="bedrock",
+                        operation="stream_generate",
                     ) from e
 
                 elif error_code == "ModelTimeoutException":
@@ -268,6 +323,9 @@ class BedrockAdapter:
                     raise BedrockError(
                         "Request timed out. Please try again.",
                         retryable=True,
+                        code="provider_unavailable",
+                        provider="bedrock",
+                        operation="stream_generate",
                     ) from e
 
                 else:
@@ -281,12 +339,17 @@ class BedrockAdapter:
                     )
                     raise BedrockError(
                         "An error occurred while generating response.",
-                        retryable=False,
+                        retryable=retryable,
+                        code=mapped_error,
+                        provider="bedrock",
+                        operation="stream_generate",
                     ) from e
 
             except Exception as e:
                 span.set_attribute("error", True)
                 span.record_exception(e)
+                span.set_attribute(AI_ERROR_TYPE, "unknown")
+                span.set_attribute(AI_RETRYABLE, False)
                 logger.error(
                     "bedrock.error",
                     extra={"error": str(e), "model_id": model_id},
@@ -294,7 +357,22 @@ class BedrockAdapter:
                 raise BedrockError(
                     "An error occurred while generating response.",
                     retryable=False,
+                    code="unknown",
+                    provider="bedrock",
+                    operation="stream_generate",
                 ) from e
+            finally:
+                elapsed = time.perf_counter() - started
+                span.set_attribute(
+                    AI_LATENCY_MS,
+                    int(elapsed * 1000),
+                )
+                AI_REQUEST_DURATION.labels(
+                    provider="bedrock",
+                    model=model_id,
+                    operation="stream_generate",
+                    persona_id="",
+                ).observe(elapsed)
 
     async def embed_texts(
         self,
@@ -315,8 +393,11 @@ class BedrockAdapter:
         Raises:
             BedrockError: If embedding generation fails.
         """
+        started = time.perf_counter()
         with tracer.start_as_current_span("ai.bedrock.embed") as span:
-            span.set_attribute("model_id", model_id)
+            span.set_attribute(AI_PROVIDER, "bedrock")
+            span.set_attribute(AI_OPERATION, "embed_texts")
+            span.set_attribute(AI_MODEL, model_id)
             span.set_attribute("text_count", len(texts))
             span.set_attribute("dimensions", dimensions)
 
@@ -353,25 +434,54 @@ class BedrockAdapter:
 
             except ClientError as e:
                 error_code = e.response.get("Error", {}).get("Code", "")
+                mapped_error, retryable = _map_bedrock_error(error_code)
                 span.set_attribute("error", True)
+                span.set_attribute(AI_ERROR_TYPE, mapped_error)
+                span.set_attribute(AI_RETRYABLE, retryable)
                 logger.error(
                     "bedrock.embed_error",
                     extra={"error_code": error_code, "text_count": len(texts)},
                 )
 
                 if error_code == "ThrottlingException":
-                    raise BedrockError("Rate limit exceeded", retryable=True) from e
+                    raise BedrockError(
+                        "Rate limit exceeded",
+                        retryable=True,
+                        code="rate_limit",
+                        provider="bedrock",
+                        operation="embed_texts",
+                    ) from e
                 raise BedrockError(
-                    f"Embedding failed: {error_code}", retryable=False
+                    f"Embedding failed: {error_code}",
+                    retryable=retryable,
+                    code=mapped_error,
+                    provider="bedrock",
+                    operation="embed_texts",
                 ) from e
 
             except Exception as e:
                 span.set_attribute("error", True)
                 span.record_exception(e)
+                span.set_attribute(AI_ERROR_TYPE, "unknown")
+                span.set_attribute(AI_RETRYABLE, False)
                 logger.error("bedrock.embed_error", extra={"error": str(e)})
                 raise BedrockError(
-                    "Embedding generation failed", retryable=False
+                    "Embedding generation failed",
+                    retryable=False,
+                    code="unknown",
+                    provider="bedrock",
+                    operation="embed_texts",
                 ) from e
+            finally:
+                elapsed = time.perf_counter() - started
+                span.set_attribute(
+                    AI_LATENCY_MS,
+                    int(elapsed * 1000),
+                )
+                AI_EMBEDDING_DURATION.labels(
+                    provider="bedrock",
+                    model=model_id,
+                ).observe(elapsed)
 
 
 # Global adapter instance
@@ -388,6 +498,6 @@ def get_bedrock_adapter(region: str = "us-east-1") -> BedrockAdapter:
         BedrockAdapter instance.
     """
     global _adapter
-    if _adapter is None:
+    if _adapter is None or _adapter.region != region:
         _adapter = BedrockAdapter(region=region)
     return _adapter

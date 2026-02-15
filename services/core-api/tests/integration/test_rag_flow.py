@@ -18,8 +18,21 @@ from app.models.legacy import Legacy, LegacyMember
 from app.models.story import Story
 from app.models.user import User
 from app.schemas.retrieval import ChunkResult
+from app.adapters.storytelling import PostgresVectorStoreAdapter
 from app.services.ingestion import index_story_chunks
 from app.services.retrieval import count_chunks_for_story, resolve_visibility_filter
+
+
+def _mock_ingestion_registry(
+    mock_registry: AsyncMock,
+    embedding_vectors: list[list[float]],
+) -> None:
+    embedding_provider = AsyncMock()
+    embedding_provider.embed_texts = AsyncMock(return_value=embedding_vectors)
+    mock_registry.return_value.get_embedding_provider.return_value = embedding_provider
+    mock_registry.return_value.get_vector_store.return_value = (
+        PostgresVectorStoreAdapter()
+    )
 
 
 class TestRAGFlow:
@@ -51,17 +64,15 @@ class TestRAGFlow:
         """
 
         # Mock embeddings
-        with patch("app.services.ingestion.get_bedrock_adapter") as mock_ingest:
-            mock_adapter = AsyncMock()
-            # Return different embeddings for each chunk
-            mock_adapter.embed_texts = AsyncMock(
-                return_value=[
+        with patch("app.services.ingestion.get_provider_registry") as mock_ingest:
+            _mock_ingestion_registry(
+                mock_ingest,
+                embedding_vectors=[
                     [0.1] * 1024,  # Birth info
                     [0.2] * 1024,  # Garden info
                     [0.3] * 1024,  # Teacher info
-                ]
+                ],
             )
-            mock_ingest.return_value = mock_adapter
 
             # Index the story
             chunk_count = await index_story_chunks(
@@ -97,10 +108,12 @@ class TestRAGFlow:
 
         # Test retrieval with mock (SQLite doesn't support pgvector)
         # We mock the entire retrieve_context because the raw SQL uses pgvector operators
-        with patch("app.services.retrieval.get_bedrock_adapter") as mock_retrieve:
+        with patch("app.services.retrieval.get_provider_registry") as mock_retrieve:
             mock_adapter = AsyncMock()
             mock_adapter.embed_texts = AsyncMock(return_value=[[0.3] * 1024])
-            mock_retrieve.return_value = mock_adapter
+            mock_retrieve.return_value.get_embedding_provider.return_value = (
+                mock_adapter
+            )
 
             # Since we can't use pgvector with SQLite, we verify that
             # the visibility filter resolves correctly (which doesn't need pgvector)
@@ -161,10 +174,8 @@ class TestRAGFlow:
         await db_session.commit()
 
         # Index the story
-        with patch("app.services.ingestion.get_bedrock_adapter") as mock:
-            mock_adapter = AsyncMock()
-            mock_adapter.embed_texts = AsyncMock(return_value=[[0.5] * 1024])
-            mock.return_value = mock_adapter
+        with patch("app.services.ingestion.get_provider_registry") as mock:
+            _mock_ingestion_registry(mock, embedding_vectors=[[0.5] * 1024])
 
             await index_story_chunks(
                 db=db_session,
@@ -245,10 +256,8 @@ class TestRAGFlow:
     ) -> None:
         """Test that reindexing a story replaces old chunks."""
         # Index initial content
-        with patch("app.services.ingestion.get_bedrock_adapter") as mock:
-            mock_adapter = AsyncMock()
-            mock_adapter.embed_texts = AsyncMock(return_value=[[0.1] * 1024])
-            mock.return_value = mock_adapter
+        with patch("app.services.ingestion.get_provider_registry") as mock:
+            _mock_ingestion_registry(mock, embedding_vectors=[[0.1] * 1024])
 
             await index_story_chunks(
                 db=db_session,
@@ -272,10 +281,8 @@ class TestRAGFlow:
         first_content = first_chunks[0].content
 
         # Reindex with different content
-        with patch("app.services.ingestion.get_bedrock_adapter") as mock:
-            mock_adapter = AsyncMock()
-            mock_adapter.embed_texts = AsyncMock(return_value=[[0.9] * 1024])
-            mock.return_value = mock_adapter
+        with patch("app.services.ingestion.get_provider_registry") as mock:
+            _mock_ingestion_registry(mock, embedding_vectors=[[0.9] * 1024])
 
             await index_story_chunks(
                 db=db_session,
@@ -339,10 +346,8 @@ class TestRAGFlow:
         await db_session.commit()
 
         # Index both stories
-        with patch("app.services.ingestion.get_bedrock_adapter") as mock:
-            mock_adapter = AsyncMock()
-            mock_adapter.embed_texts = AsyncMock(return_value=[[0.1] * 1024])
-            mock.return_value = mock_adapter
+        with patch("app.services.ingestion.get_provider_registry") as mock:
+            _mock_ingestion_registry(mock, embedding_vectors=[[0.1] * 1024])
 
             for story in [story1, story2]:
                 await index_story_chunks(
