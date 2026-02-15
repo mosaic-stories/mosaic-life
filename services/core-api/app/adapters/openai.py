@@ -11,6 +11,10 @@ import httpx
 from opentelemetry import trace
 
 from .ai import AIProviderError
+from ..observability.metrics import (
+    AI_EMBEDDING_DURATION,
+    AI_REQUEST_DURATION,
+)
 from .telemetry import (
     AI_ERROR_TYPE,
     AI_LATENCY_MS,
@@ -206,10 +210,17 @@ class OpenAIProvider:
                     operation="stream_generate",
                 ) from e
             finally:
+                elapsed = time.perf_counter() - started
                 span.set_attribute(
                     AI_LATENCY_MS,
-                    int((time.perf_counter() - started) * 1000),
+                    int(elapsed * 1000),
                 )
+                AI_REQUEST_DURATION.labels(
+                    provider="openai",
+                    model=resolved_model,
+                    operation="stream_generate",
+                    persona_id="",
+                ).observe(elapsed)
 
     async def embed_texts(
         self,
@@ -283,10 +294,15 @@ class OpenAIProvider:
                     operation="embed_texts",
                 ) from e
             finally:
+                elapsed = time.perf_counter() - started
                 span.set_attribute(
                     AI_LATENCY_MS,
-                    int((time.perf_counter() - started) * 1000),
+                    int(elapsed * 1000),
                 )
+                AI_EMBEDDING_DURATION.labels(
+                    provider="openai",
+                    model=resolved_model,
+                ).observe(elapsed)
 
 
 _provider: OpenAIProvider | None = None

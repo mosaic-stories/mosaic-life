@@ -173,3 +173,88 @@ class TestOpenAIProvider:
         mock_span.set_attribute.assert_any_call(AI_PROVIDER, "openai")
         mock_span.set_attribute.assert_any_call(AI_OPERATION, "stream_generate")
         mock_span.set_attribute.assert_any_call(AI_MODEL, "gpt-4o-mini")
+
+
+class TestOpenAIMetricsRecording:
+    """Tests for Prometheus metrics recording in OpenAI adapter."""
+
+    @pytest.fixture
+    def provider(self) -> OpenAIProvider:
+        return OpenAIProvider(api_key="test-key")
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_records_duration_metric(
+        self, provider: OpenAIProvider
+    ) -> None:
+        """Test that stream_generate records AI request duration metric."""
+
+        async def mock_lines():
+            lines = [
+                'data: {"choices":[{"delta":{"content":"Hi"}}]}',
+                "data: [DONE]",
+            ]
+            for line in lines:
+                yield line
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.aiter_lines = mock_lines
+
+        mock_stream_cm = AsyncMock()
+        mock_stream_cm.__aenter__ = AsyncMock(return_value=mock_response)
+        mock_stream_cm.__aexit__ = AsyncMock(return_value=None)
+
+        mock_client = Mock()
+        mock_client.stream = Mock(return_value=mock_stream_cm)
+
+        mock_client_cm = AsyncMock()
+        mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client_cm.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch.object(provider, "_client", return_value=mock_client_cm),
+            patch("app.adapters.openai.AI_REQUEST_DURATION") as mock_hist,
+        ):
+            async for _ in provider.stream_generate(
+                messages=[{"role": "user", "content": "Hi"}],
+                system_prompt="You are helpful.",
+                model_id="gpt-4o-mini",
+            ):
+                pass
+
+            mock_hist.labels.assert_called_once_with(
+                provider="openai",
+                model="gpt-4o-mini",
+                operation="stream_generate",
+                persona_id="",
+            )
+            mock_hist.labels.return_value.observe.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_embed_texts_records_embedding_duration(
+        self, provider: OpenAIProvider
+    ) -> None:
+        """Test that embed_texts records embedding duration metric."""
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"data": [{"embedding": [0.1] * 1024}]}
+
+        mock_client = AsyncMock()
+        mock_client.post = AsyncMock(return_value=mock_response)
+
+        mock_client_cm = AsyncMock()
+        mock_client_cm.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client_cm.__aexit__ = AsyncMock(return_value=None)
+
+        with (
+            patch.object(provider, "_client", return_value=mock_client_cm),
+            patch("app.adapters.openai.AI_EMBEDDING_DURATION") as mock_hist,
+        ):
+            await provider.embed_texts(["Hello"])
+
+            mock_hist.labels.assert_called_once_with(
+                provider="openai",
+                model="text-embedding-3-small",
+            )
+            mock_hist.labels.return_value.observe.assert_called_once()
