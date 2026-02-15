@@ -40,10 +40,13 @@ def format_story_context(chunks: list[ChunkResult]) -> str:
         context_parts.append(f"[Story excerpt {i}]\n{chunk.content}\n")
 
     context_parts.append(
-        "\nUse these excerpts to inform your responses. "
-        "Reference specific details when relevant. "
-        "If the excerpts don't contain relevant information, "
-        "say so rather than making things up."
+        "\nThese excerpts are background knowledge ONLY. Guidelines:"
+        "\n- If the user is sharing new information or memories, focus on what THEY are telling you."
+        " Ask follow-up questions to learn more. Do NOT redirect the conversation to these excerpts."
+        "\n- Only reference specific excerpt details when they are directly relevant to what"
+        " the user is currently discussing."
+        "\n- If the excerpts don't relate to the current topic, ignore them entirely."
+        "\n- Never make up information that isn't in the excerpts or shared by the user."
     )
 
     return "\n".join(context_parts)
