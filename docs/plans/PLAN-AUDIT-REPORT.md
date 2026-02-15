@@ -104,7 +104,7 @@
 **Status:** Fully implemented. Account management now includes active session listing and revocation (`GET/DELETE /api/users/me/sessions`), data export request + tokenized download flow (`POST /api/users/me/export`, `GET /api/users/me/export/{token}`), and account deletion with short-lived confirmation token (`POST /api/users/me/delete-token`, `DELETE /api/users/me`). Support requests now enforce per-user hourly rate limiting (5/hour) and send via SES when configured (with local logging fallback). Frontend `AccountSettings` now uses real APIs instead of placeholders for session management, export, and account deletion.
 
 ### 19. Feature 3 Agent Framework Wrap-Up (2026-02-14)
-**File:** `2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
+**File:** `completed/2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
 **What:** Follow-on plan for post-milestone Feature 3 hardening and expansion (DI/container registry, expanded protocol surface, observability contract normalization, and provider conformance suites).
 **Status:** COMPLETE — Slice 1 and Slice 2 are complete, including registry/container wiring, normalized provider error/telemetry contracts, full abstraction protocol surface, thin adapter-shell orchestration, and shared provider conformance test coverage.
 

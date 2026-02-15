@@ -169,7 +169,7 @@ Story Created/Updated/Deleted
 - Shared provider contract conformance suite implemented and passing
 - Provider-boundary observability normalization completed for supported providers
 
-Reference: `docs/plans/2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
+Reference: `docs/plans/completed/2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
 
 ### Overview
 Create an abstraction layer that allows different AI agent implementations to be swapped without changing business logic. Supports experimentation with different LLM providers, frameworks, and approaches.
