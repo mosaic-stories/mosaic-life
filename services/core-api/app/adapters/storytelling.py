@@ -17,6 +17,7 @@ from ..adapters.ai import (
 )
 from ..config.personas import build_system_prompt
 from ..services import ai as ai_service
+from ..services import memory as memory_service
 from ..services import retrieval as retrieval_service
 
 if TYPE_CHECKING:
@@ -196,7 +197,25 @@ class DefaultStorytellingAgent:
             )
 
         story_context = self.context_formatter(chunks)
-        system_prompt = build_system_prompt(persona_id, legacy_name, story_context)
+
+        # Fetch legacy facts for system prompt injection
+        facts = []
+        try:
+            facts = await memory_service.get_facts_for_context(
+                db=db, legacy_id=legacy_id, user_id=user_id
+            )
+        except Exception as exc:
+            logger.warning(
+                "ai.chat.facts_retrieval_failed",
+                extra={
+                    "conversation_id": str(conversation_id),
+                    "error": str(exc),
+                },
+            )
+
+        system_prompt = build_system_prompt(
+            persona_id, legacy_name, story_context, facts=facts
+        )
         if not system_prompt:
             raise AIProviderError(
                 message="Failed to build system prompt",

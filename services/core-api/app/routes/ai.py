@@ -34,8 +34,10 @@ from ..schemas.ai import (
     SSEDoneEvent,
     SSEErrorEvent,
 )
+from ..schemas.memory import FactResponse, FactVisibilityUpdate
 from ..schemas.retrieval import ChunkResult
 from ..services import ai as ai_service
+from ..services import memory as memory_service
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 logger = logging.getLogger(__name__)
@@ -196,6 +198,75 @@ async def delete_conversation(
 
 
 # ============================================================================
+# Fact Management Endpoints
+# ============================================================================
+
+
+@router.get(
+    "/legacies/{legacy_id}/facts",
+    response_model=list[FactResponse],
+    summary="List facts for a legacy",
+    description="List the current user's facts for a legacy.",
+)
+async def list_facts(
+    legacy_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> list[FactResponse]:
+    """List facts for a legacy visible to the current user."""
+    session = require_auth(request)
+    facts = await memory_service.list_user_facts(
+        db=db,
+        legacy_id=legacy_id,
+        user_id=session.user_id,
+    )
+    return [FactResponse.model_validate(f) for f in facts]
+
+
+@router.delete(
+    "/facts/{fact_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a fact",
+    description="Delete a fact you own.",
+)
+async def delete_fact(
+    fact_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Delete a fact (ownership enforced)."""
+    session = require_auth(request)
+    await memory_service.delete_fact(
+        db=db,
+        fact_id=fact_id,
+        user_id=session.user_id,
+    )
+
+
+@router.patch(
+    "/facts/{fact_id}/visibility",
+    response_model=FactResponse,
+    summary="Update fact visibility",
+    description="Toggle a fact between private and shared.",
+)
+async def update_fact_visibility(
+    fact_id: UUID,
+    data: FactVisibilityUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> FactResponse:
+    """Update fact visibility (ownership enforced)."""
+    session = require_auth(request)
+    fact = await memory_service.update_fact_visibility(
+        db=db,
+        fact_id=fact_id,
+        user_id=session.user_id,
+        visibility=data.visibility,
+    )
+    return FactResponse.model_validate(fact)
+
+
+# ============================================================================
 # Message/Chat Endpoints
 # ============================================================================
 
@@ -289,6 +360,21 @@ async def send_message(
                     content=full_response,
                     token_count=token_count,
                 )
+
+                # Trigger background summarization check
+                try:
+                    await memory_service.maybe_summarize(
+                        db=db,
+                        conversation_id=conversation_id,
+                        user_id=session.user_id,
+                        legacy_id=primary_legacy_id,
+                        legacy_name=legacy.name,
+                    )
+                except Exception:
+                    logger.exception(
+                        "ai.chat.summarization_failed",
+                        extra={"conversation_id": str(conversation_id)},
+                    )
 
                 # Send done event
                 done_event = SSEDoneEvent(
