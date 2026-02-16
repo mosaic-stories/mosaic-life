@@ -2,7 +2,8 @@
 
 import pytest
 import pytest_asyncio
-
+from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.story import Story
@@ -11,9 +12,12 @@ from app.models.user import User
 from app.models.legacy import Legacy
 from app.models.associations import StoryLegacy
 from app.services.story_version import (
+    bulk_delete_versions,
+    delete_version,
     get_next_version_number,
     get_active_version,
     get_draft_version,
+    get_version_detail,
     list_versions,
 )
 
@@ -261,3 +265,136 @@ class TestListVersions:
         )
         summary = result.versions[0]
         assert "content" not in summary.model_fields
+
+
+class TestGetVersionDetail:
+    @pytest.mark.asyncio
+    async def test_returns_full_detail(self, db_session, story_with_version):
+        result = await get_version_detail(
+            db_session, story_with_version.id, version_number=1
+        )
+        assert result.title == "Versioned Story"
+        assert result.content == "Original content."
+        assert result.version_number == 1
+
+    @pytest.mark.asyncio
+    async def test_not_found_raises_404(self, db_session, story_with_version):
+        with pytest.raises(HTTPException) as exc_info:
+            await get_version_detail(
+                db_session, story_with_version.id, version_number=99
+            )
+        assert exc_info.value.status_code == 404
+
+
+class TestDeleteVersion:
+    @pytest.mark.asyncio
+    async def test_delete_inactive_version(
+        self, db_session, story_with_version, test_user
+    ):
+        v2 = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="V2",
+            content="V2 content.",
+            status="inactive",
+            source="manual_edit",
+            created_by=test_user.id,
+        )
+        db_session.add(v2)
+        await db_session.flush()
+
+        await delete_version(db_session, story_with_version.id, version_number=2)
+
+        check = await db_session.execute(
+            select(StoryVersion).where(
+                StoryVersion.story_id == story_with_version.id,
+                StoryVersion.version_number == 2,
+            )
+        )
+        assert check.scalar_one_or_none() is None
+
+    @pytest.mark.asyncio
+    async def test_delete_active_version_blocked(
+        self, db_session, story_with_version
+    ):
+        """Deleting the active version should return 409."""
+        with pytest.raises(HTTPException) as exc_info:
+            await delete_version(
+                db_session, story_with_version.id, version_number=1
+            )
+        assert exc_info.value.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_delete_draft_version(
+        self, db_session, story_with_version, test_user
+    ):
+        draft = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="Draft",
+            content="Draft content.",
+            status="draft",
+            source="ai_enhancement",
+            created_by=test_user.id,
+        )
+        db_session.add(draft)
+        await db_session.flush()
+
+        await delete_version(db_session, story_with_version.id, version_number=2)
+
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent_raises_404(
+        self, db_session, story_with_version
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await delete_version(
+                db_session, story_with_version.id, version_number=99
+            )
+        assert exc_info.value.status_code == 404
+
+
+class TestBulkDeleteVersions:
+    @pytest.mark.asyncio
+    async def test_bulk_delete_inactive_versions(
+        self, db_session, story_with_version, test_user
+    ):
+        for i in [2, 3]:
+            v = StoryVersion(
+                story_id=story_with_version.id,
+                version_number=i,
+                title=f"V{i}",
+                content=f"Content v{i}.",
+                status="inactive",
+                source="manual_edit",
+                created_by=test_user.id,
+            )
+            db_session.add(v)
+        await db_session.flush()
+
+        deleted = await bulk_delete_versions(
+            db_session, story_with_version.id, version_numbers=[2, 3]
+        )
+        assert deleted == 2
+
+    @pytest.mark.asyncio
+    async def test_bulk_delete_rejects_if_any_active(
+        self, db_session, story_with_version, test_user
+    ):
+        """If any version in the list is active, entire request is rejected."""
+        v2 = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="V2",
+            content="Content v2.",
+            status="inactive",
+            source="manual_edit",
+            created_by=test_user.id,
+        )
+        db_session.add(v2)
+        await db_session.flush()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await bulk_delete_versions(
+                db_session, story_with_version.id, version_numbers=[1, 2]
+            )
+        assert exc_info.value.status_code == 409

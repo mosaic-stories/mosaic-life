@@ -3,12 +3,14 @@
 import logging
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
 from ..models.story_version import StoryVersion
 from ..schemas.story_version import (
+    StoryVersionDetail,
     StoryVersionListResponse,
     StoryVersionSummary,
 )
@@ -116,3 +118,116 @@ async def list_versions(
         page_size=page_size,
         warning=warning,
     )
+
+
+async def get_version_detail(
+    db: AsyncSession,
+    story_id: UUID,
+    version_number: int,
+) -> StoryVersionDetail:
+    """Get full detail for a specific version.
+
+    Raises:
+        HTTPException: 404 if version not found.
+    """
+    result = await db.execute(
+        select(StoryVersion).where(
+            StoryVersion.story_id == story_id,
+            StoryVersion.version_number == version_number,
+        )
+    )
+    version = result.scalar_one_or_none()
+
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    return StoryVersionDetail.model_validate(version)
+
+
+async def delete_version(
+    db: AsyncSession,
+    story_id: UUID,
+    version_number: int,
+) -> None:
+    """Delete a version. Active versions cannot be deleted.
+
+    Raises:
+        HTTPException: 404 if not found, 409 if active.
+    """
+    result = await db.execute(
+        select(StoryVersion).where(
+            StoryVersion.story_id == story_id,
+            StoryVersion.version_number == version_number,
+        )
+    )
+    version = result.scalar_one_or_none()
+
+    if not version:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    if version.status == "active":
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete the active version. Activate another version first.",
+        )
+
+    await db.delete(version)
+    await db.flush()
+
+    logger.info(
+        "version.deleted",
+        extra={
+            "story_id": str(story_id),
+            "version_number": version_number,
+            "status": version.status,
+        },
+    )
+
+
+async def bulk_delete_versions(
+    db: AsyncSession,
+    story_id: UUID,
+    version_numbers: list[int],
+) -> int:
+    """Bulk delete versions. Rejects entire request if any version is active.
+
+    Raises:
+        HTTPException: 409 if any version is active, 404 if any not found.
+    """
+    result = await db.execute(
+        select(StoryVersion).where(
+            StoryVersion.story_id == story_id,
+            StoryVersion.version_number.in_(version_numbers),
+        )
+    )
+    versions = result.scalars().all()
+
+    found_numbers = {v.version_number for v in versions}
+    missing = set(version_numbers) - found_numbers
+    if missing:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Versions not found: {sorted(missing)}",
+        )
+
+    active_versions = [v for v in versions if v.status == "active"]
+    if active_versions:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete active versions. Activate another version first.",
+        )
+
+    for version in versions:
+        await db.delete(version)
+    await db.flush()
+
+    logger.info(
+        "version.bulk_deleted",
+        extra={
+            "story_id": str(story_id),
+            "version_numbers": version_numbers,
+            "count": len(versions),
+        },
+    )
+
+    return len(versions)
