@@ -98,6 +98,8 @@ class StoryDetail(BaseModel):
     content: str
     visibility: str
     legacies: list[LegacyAssociationResponse]
+    version_count: int | None = None
+    has_draft: bool | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -109,6 +111,7 @@ class StoryResponse(BaseModel):
 
     id: UUID
     title: str
+    version_number: int | None = None
     visibility: str
     legacies: list[LegacyAssociationResponse]
     created_at: datetime
