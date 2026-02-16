@@ -8,6 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
+from ..models.story import Story
 from ..models.story_version import StoryVersion
 from ..schemas.story_version import (
     StoryVersionDetail,
@@ -231,3 +232,200 @@ async def bulk_delete_versions(
     )
 
     return len(versions)
+
+
+async def restore_version(
+    db: AsyncSession,
+    story_id: UUID,
+    version_number: int,
+    user_id: UUID,
+) -> StoryVersionDetail:
+    """Restore an old version by creating a new active version with its content.
+
+    This creates a new version (append-only history), deactivates the current
+    active version, and updates the story's title/content.
+
+    Raises:
+        HTTPException: 404 if source version not found.
+    """
+    # Find the version to restore from
+    result = await db.execute(
+        select(StoryVersion).where(
+            StoryVersion.story_id == story_id,
+            StoryVersion.version_number == version_number,
+        )
+    )
+    source = result.scalar_one_or_none()
+    if not source:
+        raise HTTPException(status_code=404, detail="Version not found")
+
+    # Deactivate current active version
+    current_active = await get_active_version(db, story_id)
+    if current_active:
+        current_active.status = "inactive"
+
+    # Create new version from source content
+    next_num = await get_next_version_number(db, story_id)
+    new_version = StoryVersion(
+        story_id=story_id,
+        version_number=next_num,
+        title=source.title,
+        content=source.content,
+        status="active",
+        source="restoration",
+        source_version=version_number,
+        change_summary=f"Restored from version {version_number}",
+        created_by=user_id,
+    )
+    db.add(new_version)
+    await db.flush()
+
+    # Update story to reflect restored content
+    story_result = await db.execute(select(Story).where(Story.id == story_id))
+    story = story_result.scalar_one()
+    story.title = source.title
+    story.content = source.content
+    story.active_version_id = new_version.id
+
+    await db.flush()
+
+    logger.info(
+        "version.restored",
+        extra={
+            "story_id": str(story_id),
+            "source_version": version_number,
+            "new_version": next_num,
+        },
+    )
+
+    return StoryVersionDetail.model_validate(new_version)
+
+
+async def approve_draft(
+    db: AsyncSession,
+    story_id: UUID,
+) -> StoryVersionDetail:
+    """Approve the current draft, promoting it to active.
+
+    Deactivates the current active version, promotes draft, and updates
+    the story's title/content.
+
+    Raises:
+        HTTPException: 404 if no draft exists.
+    """
+    draft = await get_draft_version(db, story_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail="No draft found")
+
+    # Deactivate current active
+    current_active = await get_active_version(db, story_id)
+    if current_active:
+        current_active.status = "inactive"
+
+    # Promote draft
+    draft.status = "active"
+    draft.stale = False
+
+    # Update story
+    story_result = await db.execute(select(Story).where(Story.id == story_id))
+    story = story_result.scalar_one()
+    story.title = draft.title
+    story.content = draft.content
+    story.active_version_id = draft.id
+
+    await db.flush()
+
+    logger.info(
+        "version.draft_approved",
+        extra={
+            "story_id": str(story_id),
+            "version_number": draft.version_number,
+        },
+    )
+
+    return StoryVersionDetail.model_validate(draft)
+
+
+async def discard_draft(
+    db: AsyncSession,
+    story_id: UUID,
+) -> None:
+    """Discard (hard-delete) the current draft.
+
+    Raises:
+        HTTPException: 404 if no draft exists.
+    """
+    draft = await get_draft_version(db, story_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail="No draft found")
+
+    await db.delete(draft)
+    await db.flush()
+
+    logger.info(
+        "version.draft_discarded",
+        extra={
+            "story_id": str(story_id),
+            "version_number": draft.version_number,
+        },
+    )
+
+
+async def create_version(
+    db: AsyncSession,
+    story: Story,
+    title: str,
+    content: str,
+    source: str,
+    user_id: UUID,
+    change_summary: str | None = None,
+    source_version: int | None = None,
+) -> StoryVersion:
+    """Create a new active version for a story.
+
+    Handles: deactivating previous active, marking draft stale,
+    updating story fields, and setting active_version_id.
+    """
+    # Deactivate current active version
+    current_active = await get_active_version(db, story.id)
+    if current_active:
+        current_active.status = "inactive"
+
+    # Mark any existing draft as stale
+    draft = await get_draft_version(db, story.id)
+    if draft:
+        draft.stale = True
+
+    # Create new version
+    next_num = await get_next_version_number(db, story.id)
+    version = StoryVersion(
+        story_id=story.id,
+        version_number=next_num,
+        title=title,
+        content=content,
+        status="active",
+        source=source,
+        source_version=source_version,
+        change_summary=change_summary,
+        created_by=user_id,
+    )
+    db.add(version)
+    await db.flush()
+
+    # Update story fields
+    story.title = title
+    story.content = content
+    story.active_version_id = version.id
+
+    await db.flush()
+
+    logger.info(
+        "version.created",
+        extra={
+            "story_id": str(story.id),
+            "version_number": next_num,
+            "source": source,
+        },
+    )
+
+    return version

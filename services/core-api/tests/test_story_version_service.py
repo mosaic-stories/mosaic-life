@@ -12,13 +12,17 @@ from app.models.user import User
 from app.models.legacy import Legacy
 from app.models.associations import StoryLegacy
 from app.services.story_version import (
+    approve_draft,
     bulk_delete_versions,
+    create_version,
     delete_version,
+    discard_draft,
     get_next_version_number,
     get_active_version,
     get_draft_version,
     get_version_detail,
     list_versions,
+    restore_version,
 )
 
 
@@ -398,3 +402,345 @@ class TestBulkDeleteVersions:
                 db_session, story_with_version.id, version_numbers=[1, 2]
             )
         assert exc_info.value.status_code == 409
+
+
+class TestRestoreVersion:
+    @pytest.mark.asyncio
+    async def test_restore_creates_new_active_version(
+        self, db_session, story_with_version, test_user
+    ):
+        """Restoring v1 should create v2 with v1's content as the new active."""
+        v1 = await get_active_version(db_session, story_with_version.id)
+        v1.status = "inactive"
+
+        v2 = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="Edited",
+            content="Edited content.",
+            status="active",
+            source="manual_edit",
+            created_by=test_user.id,
+        )
+        db_session.add(v2)
+        await db_session.flush()
+        story_with_version.active_version_id = v2.id
+        story_with_version.title = "Edited"
+        story_with_version.content = "Edited content."
+        await db_session.flush()
+
+        new_version = await restore_version(
+            db_session, story_with_version.id, version_number=1, user_id=test_user.id
+        )
+
+        assert new_version.version_number == 3
+        assert new_version.status == "active"
+        assert new_version.source == "restoration"
+        assert new_version.source_version == 1
+        assert new_version.title == "Versioned Story"
+        assert new_version.content == "Original content."
+
+    @pytest.mark.asyncio
+    async def test_restore_deactivates_current(
+        self, db_session, story_with_version, test_user
+    ):
+        """The previously active version should become inactive."""
+        v1 = await get_active_version(db_session, story_with_version.id)
+        v1.status = "inactive"
+
+        v2 = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="V2",
+            content="V2 content.",
+            status="active",
+            source="manual_edit",
+            created_by=test_user.id,
+        )
+        db_session.add(v2)
+        await db_session.flush()
+        story_with_version.active_version_id = v2.id
+        await db_session.flush()
+
+        await restore_version(
+            db_session, story_with_version.id, version_number=1, user_id=test_user.id
+        )
+
+        await db_session.refresh(v2)
+        assert v2.status == "inactive"
+
+    @pytest.mark.asyncio
+    async def test_restore_updates_story_content(
+        self, db_session, story_with_version, test_user
+    ):
+        """stories.title and stories.content should reflect the restored content."""
+        v1 = await get_active_version(db_session, story_with_version.id)
+        v1.status = "inactive"
+
+        v2 = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="V2",
+            content="V2 content.",
+            status="active",
+            source="manual_edit",
+            created_by=test_user.id,
+        )
+        db_session.add(v2)
+        await db_session.flush()
+        story_with_version.active_version_id = v2.id
+        story_with_version.title = "V2"
+        story_with_version.content = "V2 content."
+        await db_session.flush()
+
+        await restore_version(
+            db_session, story_with_version.id, version_number=1, user_id=test_user.id
+        )
+
+        await db_session.refresh(story_with_version)
+        assert story_with_version.title == "Versioned Story"
+        assert story_with_version.content == "Original content."
+
+    @pytest.mark.asyncio
+    async def test_restore_nonexistent_raises_404(
+        self, db_session, story_with_version, test_user
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await restore_version(
+                db_session,
+                story_with_version.id,
+                version_number=99,
+                user_id=test_user.id,
+            )
+        assert exc_info.value.status_code == 404
+
+
+class TestApproveDraft:
+    @pytest.mark.asyncio
+    async def test_approve_promotes_draft_to_active(
+        self, db_session, story_with_version, test_user
+    ):
+        draft = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="AI Draft",
+            content="AI-generated content.",
+            status="draft",
+            source="ai_enhancement",
+            change_summary="Enhanced by AI",
+            created_by=test_user.id,
+        )
+        db_session.add(draft)
+        await db_session.flush()
+
+        result = await approve_draft(db_session, story_with_version.id)
+
+        assert result.status == "active"
+        assert result.version_number == 2
+
+    @pytest.mark.asyncio
+    async def test_approve_deactivates_previous_active(
+        self, db_session, story_with_version, test_user
+    ):
+        draft = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="AI Draft",
+            content="AI content.",
+            status="draft",
+            source="ai_enhancement",
+            created_by=test_user.id,
+        )
+        db_session.add(draft)
+        await db_session.flush()
+
+        await approve_draft(db_session, story_with_version.id)
+
+        v1 = await db_session.execute(
+            select(StoryVersion).where(
+                StoryVersion.story_id == story_with_version.id,
+                StoryVersion.version_number == 1,
+            )
+        )
+        v1_row = v1.scalar_one()
+        assert v1_row.status == "inactive"
+
+    @pytest.mark.asyncio
+    async def test_approve_updates_story_content(
+        self, db_session, story_with_version, test_user
+    ):
+        draft = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="AI Title",
+            content="AI content.",
+            status="draft",
+            source="ai_enhancement",
+            created_by=test_user.id,
+        )
+        db_session.add(draft)
+        await db_session.flush()
+
+        await approve_draft(db_session, story_with_version.id)
+
+        await db_session.refresh(story_with_version)
+        assert story_with_version.title == "AI Title"
+        assert story_with_version.content == "AI content."
+
+    @pytest.mark.asyncio
+    async def test_approve_clears_stale_flag(
+        self, db_session, story_with_version, test_user
+    ):
+        draft = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="AI Draft",
+            content="AI content.",
+            status="draft",
+            source="ai_enhancement",
+            stale=True,
+            created_by=test_user.id,
+        )
+        db_session.add(draft)
+        await db_session.flush()
+
+        result = await approve_draft(db_session, story_with_version.id)
+        assert result.stale is False
+
+    @pytest.mark.asyncio
+    async def test_approve_no_draft_raises_404(self, db_session, story_with_version):
+        with pytest.raises(HTTPException) as exc_info:
+            await approve_draft(db_session, story_with_version.id)
+        assert exc_info.value.status_code == 404
+
+
+class TestDiscardDraft:
+    @pytest.mark.asyncio
+    async def test_discard_deletes_draft(
+        self, db_session, story_with_version, test_user
+    ):
+        draft = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="Discard me",
+            content="To be discarded.",
+            status="draft",
+            source="ai_enhancement",
+            created_by=test_user.id,
+        )
+        db_session.add(draft)
+        await db_session.flush()
+
+        await discard_draft(db_session, story_with_version.id)
+
+        result = await get_draft_version(db_session, story_with_version.id)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_discard_no_draft_raises_404(
+        self, db_session, story_with_version
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            await discard_draft(db_session, story_with_version.id)
+        assert exc_info.value.status_code == 404
+
+
+class TestCreateVersion:
+    @pytest.mark.asyncio
+    async def test_create_first_version(self, db_session, test_user, test_legacy):
+        """Creating a version for a new story should be v1 active."""
+        story = Story(
+            author_id=test_user.id,
+            title="Brand New",
+            content="Brand new content.",
+            visibility="private",
+        )
+        db_session.add(story)
+        await db_session.flush()
+
+        version = await create_version(
+            db=db_session,
+            story=story,
+            title="Brand New",
+            content="Brand new content.",
+            source="manual_edit",
+            user_id=test_user.id,
+            change_summary="Initial version",
+        )
+
+        assert version.version_number == 1
+        assert version.status == "active"
+        assert story.active_version_id == version.id
+
+    @pytest.mark.asyncio
+    async def test_create_new_version_deactivates_previous(
+        self, db_session, story_with_version, test_user
+    ):
+        """Creating a new version should deactivate the old active."""
+        version = await create_version(
+            db=db_session,
+            story=story_with_version,
+            title="Updated Title",
+            content="Updated content.",
+            source="manual_edit",
+            user_id=test_user.id,
+        )
+
+        assert version.version_number == 2
+        assert version.status == "active"
+
+        v1_result = await db_session.execute(
+            select(StoryVersion).where(
+                StoryVersion.story_id == story_with_version.id,
+                StoryVersion.version_number == 1,
+            )
+        )
+        v1 = v1_result.scalar_one()
+        assert v1.status == "inactive"
+
+    @pytest.mark.asyncio
+    async def test_create_version_marks_draft_stale(
+        self, db_session, story_with_version, test_user
+    ):
+        """If a draft exists, creating a new active version should mark it stale."""
+        draft = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="Draft",
+            content="Draft content.",
+            status="draft",
+            source="ai_enhancement",
+            stale=False,
+            created_by=test_user.id,
+        )
+        db_session.add(draft)
+        await db_session.flush()
+
+        await create_version(
+            db=db_session,
+            story=story_with_version,
+            title="New edit",
+            content="New edit content.",
+            source="manual_edit",
+            user_id=test_user.id,
+        )
+
+        await db_session.refresh(draft)
+        assert draft.stale is True
+
+    @pytest.mark.asyncio
+    async def test_create_version_updates_story_fields(
+        self, db_session, story_with_version, test_user
+    ):
+        await create_version(
+            db=db_session,
+            story=story_with_version,
+            title="New Title",
+            content="New content.",
+            source="manual_edit",
+            user_id=test_user.id,
+        )
+
+        await db_session.refresh(story_with_version)
+        assert story_with_version.title == "New Title"
+        assert story_with_version.content == "New content."
