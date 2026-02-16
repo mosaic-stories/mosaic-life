@@ -318,14 +318,10 @@ class TestDeleteVersion:
         assert check.scalar_one_or_none() is None
 
     @pytest.mark.asyncio
-    async def test_delete_active_version_blocked(
-        self, db_session, story_with_version
-    ):
+    async def test_delete_active_version_blocked(self, db_session, story_with_version):
         """Deleting the active version should return 409."""
         with pytest.raises(HTTPException) as exc_info:
-            await delete_version(
-                db_session, story_with_version.id, version_number=1
-            )
+            await delete_version(db_session, story_with_version.id, version_number=1)
         assert exc_info.value.status_code == 409
 
     @pytest.mark.asyncio
@@ -347,13 +343,9 @@ class TestDeleteVersion:
         await delete_version(db_session, story_with_version.id, version_number=2)
 
     @pytest.mark.asyncio
-    async def test_delete_nonexistent_raises_404(
-        self, db_session, story_with_version
-    ):
+    async def test_delete_nonexistent_raises_404(self, db_session, story_with_version):
         with pytest.raises(HTTPException) as exc_info:
-            await delete_version(
-                db_session, story_with_version.id, version_number=99
-            )
+            await delete_version(db_session, story_with_version.id, version_number=99)
         assert exc_info.value.status_code == 404
 
 
@@ -637,9 +629,7 @@ class TestDiscardDraft:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_discard_no_draft_raises_404(
-        self, db_session, story_with_version
-    ):
+    async def test_discard_no_draft_raises_404(self, db_session, story_with_version):
         with pytest.raises(HTTPException) as exc_info:
             await discard_draft(db_session, story_with_version.id)
         assert exc_info.value.status_code == 404

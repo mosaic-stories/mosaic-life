@@ -606,9 +606,7 @@ class TestUpdateStoryVersioning:
         )
 
         versions_result = await db_session.execute(
-            select(StoryVersion).where(
-                StoryVersion.story_id == test_story_public.id
-            )
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
         )
         versions = versions_result.scalars().all()
         assert len(versions) == 1  # Still only v1
