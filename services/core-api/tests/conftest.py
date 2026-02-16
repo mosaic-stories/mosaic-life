@@ -105,12 +105,18 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
     with (
         patch("app.routes.story.get_db_for_background") as mock_get_db_bg,
         patch("app.routes.story.index_story_chunks", new_callable=AsyncMock),
+        patch("app.routes.story_version.get_db_for_background") as mock_get_db_bg2,
+        patch("app.routes.story_version.index_story_chunks", new_callable=AsyncMock),
     ):
         # Make get_db_for_background return the test session
         async def mock_bg_db():
             yield db_session
 
+        async def mock_bg_db2():
+            yield db_session
+
         mock_get_db_bg.return_value = mock_bg_db()
+        mock_get_db_bg2.return_value = mock_bg_db2()
 
         async with AsyncClient(
             transport=ASGITransport(app=app),
