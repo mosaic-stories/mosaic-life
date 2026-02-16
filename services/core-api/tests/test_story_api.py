@@ -373,14 +373,14 @@ class TestUpdateStory:
         assert response.status_code == 403
 
     @pytest.mark.asyncio
-    async def test_update_story_admin_member_can_edit(
+    async def test_update_story_admin_member_non_author_denied(
         self,
         client: AsyncClient,
         db_session: AsyncSession,
         test_story_public: Story,
         test_user_2: User,
     ):
-        """Test admin member can update story even when not the author."""
+        """Test admin member cannot update story when not the author."""
         assoc_result = await db_session.execute(
             select(StoryLegacy.legacy_id).where(
                 StoryLegacy.story_id == test_story_public.id
@@ -420,8 +420,7 @@ class TestUpdateStory:
             headers=headers,
         )
 
-        assert response.status_code == 200
-        assert response.json()["title"] == "Admin Update"
+        assert response.status_code == 403
 
 
 class TestDeleteStory:

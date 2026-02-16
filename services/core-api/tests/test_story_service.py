@@ -319,17 +319,17 @@ class TestUpdateStory:
                 data=data,
             )
         assert exc.value.status_code == 403
-        assert "permission" in exc.value.detail.lower()
+        assert "only the story author" in exc.value.detail.lower()
 
     @pytest.mark.asyncio
-    async def test_update_story_admin_can_edit_non_authored(
+    async def test_update_story_admin_non_author_denied(
         self,
         db_session: AsyncSession,
         test_user_2: User,
         test_legacy: Legacy,
         test_story_public: Story,
     ):
-        """Test admin member can update a story they did not author."""
+        """Test admin member cannot update a story they did not author."""
         db_session.add(
             LegacyMember(
                 legacy_id=test_legacy.id,
@@ -340,17 +340,19 @@ class TestUpdateStory:
         await db_session.flush()
 
         data = StoryUpdate(title="Admin Updated")
-        story = await story_service.update_story(
-            db=db_session,
-            user_id=test_user_2.id,
-            story_id=test_story_public.id,
-            data=data,
-        )
+        with pytest.raises(HTTPException) as exc:
+            await story_service.update_story(
+                db=db_session,
+                user_id=test_user_2.id,
+                story_id=test_story_public.id,
+                data=data,
+            )
 
-        assert story.title == "Admin Updated"
+        assert exc.value.status_code == 403
+        assert "only the story author" in exc.value.detail.lower()
 
     @pytest.mark.asyncio
-    async def test_update_story_advocate_can_edit_private_only(
+    async def test_update_story_advocate_non_author_denied(
         self,
         db_session: AsyncSession,
         test_user_2: User,
@@ -358,7 +360,7 @@ class TestUpdateStory:
         test_story_private: Story,
         test_story_public: Story,
     ):
-        """Test advocate can edit private stories but not public stories."""
+        """Test advocate cannot update stories they did not author."""
         db_session.add(
             LegacyMember(
                 legacy_id=test_legacy.id,
@@ -368,22 +370,23 @@ class TestUpdateStory:
         )
         await db_session.flush()
 
-        private_story = await story_service.update_story(
-            db=db_session,
-            user_id=test_user_2.id,
-            story_id=test_story_private.id,
-            data=StoryUpdate(title="Advocate Private Edit"),
-        )
-        assert private_story.title == "Advocate Private Edit"
+        with pytest.raises(HTTPException) as private_exc:
+            await story_service.update_story(
+                db=db_session,
+                user_id=test_user_2.id,
+                story_id=test_story_private.id,
+                data=StoryUpdate(title="Advocate Private Edit"),
+            )
+        assert private_exc.value.status_code == 403
 
-        with pytest.raises(HTTPException) as exc:
+        with pytest.raises(HTTPException) as public_exc:
             await story_service.update_story(
                 db=db_session,
                 user_id=test_user_2.id,
                 story_id=test_story_public.id,
                 data=StoryUpdate(title="Advocate Public Edit"),
             )
-        assert exc.value.status_code == 403
+        assert public_exc.value.status_code == 403
 
     @pytest.mark.asyncio
     async def test_update_partial_fields(

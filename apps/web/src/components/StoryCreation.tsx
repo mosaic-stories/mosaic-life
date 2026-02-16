@@ -31,12 +31,9 @@ interface StoryCreationProps {
   onThemeChange: (themeId: string) => void;
 }
 
-const ROLE_LEVELS: Record<string, number> = {
-  creator: 4,
-  admin: 3,
-  advocate: 2,
-  admirer: 1,
-};
+function normalizeEmail(email: string | null | undefined): string {
+  return (email ?? '').trim().toLowerCase();
+}
 
 export default function StoryCreation({ onNavigate: _onNavigate, legacyId, storyId, currentTheme, onThemeChange: _onThemeChange }: StoryCreationProps) {
   const navigate = useNavigate();
@@ -59,7 +56,14 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
   const isEditMode = !!storyId;
 
   // Version history (only fetch when drawer is open)
-  const isAuthor = !!(existingStory && user && existingStory.author_email === user.email);
+  const isAuthor = useMemo(() => {
+    if (!existingStory || !user) return false;
+
+    if (existingStory.author_id === user.id) return true;
+
+    return normalizeEmail(existingStory.author_email) === normalizeEmail(user.email);
+  }, [existingStory, user]);
+
   const showHistory = isAuthor && (existingStory?.version_count ?? 0) > 1;
   const versionsQuery = useVersions(storyId ?? '', isHistoryOpen && !!storyId);
   const versionDetailQuery = useVersionDetail(storyId ?? '', previewVersionNumber);
@@ -74,30 +78,10 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
   const isPreviewing = previewVersionNumber !== null && previewData !== undefined;
   const isPreviewActive = previewData?.status === 'active';
 
-  // Determine current user's role in this legacy
-  const currentUserRole = useMemo(() => {
-    if (!user || !legacy?.members) return 'admirer';
-    const member = legacy.members.find(m => m.email === user.email);
-    return member?.role || 'admirer';
-  }, [user, legacy?.members]);
-
-  // Check if user can edit this story
+  // Check if user can edit this story (author-only)
   const canEdit = useMemo(() => {
-    if (!existingStory || !user) return false;
-
-    // Author can always edit their own story
-    if (existingStory.author_email === user.email) return true;
-
-    // Admins and creators can edit any story
-    if (currentUserRole === 'admin' || currentUserRole === 'creator') return true;
-
-    // Advocates can edit private/member stories
-    if (existingStory.visibility === 'private' && ROLE_LEVELS[currentUserRole] >= ROLE_LEVELS['advocate']) {
-      return true;
-    }
-
-    return false;
-  }, [existingStory, user, currentUserRole]);
+    return !!existingStory && !!user && isAuthor;
+  }, [existingStory, user, isAuthor]);
 
   // For new stories, start in edit mode
   useEffect(() => {

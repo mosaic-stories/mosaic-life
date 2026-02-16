@@ -594,23 +594,19 @@ async def update_story(
             detail="Story not found",
         )
 
-    # Check author/role permissions
-    legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
-    highest_role = await _get_highest_story_member_role(db, user_id, legacy_ids)
-
-    if not _can_edit_story(story, user_id, highest_role):
+    # Author-only updates
+    if story.author_id != user_id:
         logger.warning(
             "story.update_denied",
             extra={
                 "story_id": str(story_id),
                 "user_id": str(user_id),
                 "author_id": str(story.author_id),
-                "member_role": highest_role,
             },
         )
         raise HTTPException(
             status_code=403,
-            detail="You do not have permission to update this story",
+            detail="Only the story author can update this story",
         )
 
     # Determine if title/content changed (versioned fields)

@@ -88,9 +88,11 @@ vi.mock('../lib/themes', () => ({
 }));
 
 // Mock auth context
+let mockAuthUser = { id: 'user-1', email: 'author@test.com', name: 'Author' };
+
 vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({
-    user: { id: 'user-1', email: 'author@test.com', name: 'Author' },
+    user: mockAuthUser,
   }),
 }));
 
@@ -267,6 +269,7 @@ describe('StoryCreation - Version History integration', () => {
     vi.clearAllMocks();
     capturedDrawerProps = {};
     capturedBannerProps = {};
+    mockAuthUser = { id: 'user-1', email: 'author@test.com', name: 'Author' };
   });
 
   it('shows History button when version_count > 1', () => {
@@ -274,6 +277,26 @@ describe('StoryCreation - Version History integration', () => {
     expect(
       screen.getByRole('button', { name: /history/i })
     ).toBeInTheDocument();
+  });
+
+  it('shows History button when author_id matches but email differs', () => {
+    mockAuthUser = { id: 'user-1', email: 'AUTHOR@TEST.COM', name: 'Author' };
+
+    renderStoryCreation();
+
+    expect(
+      screen.getByRole('button', { name: /history/i })
+    ).toBeInTheDocument();
+  });
+
+  it('does not show Edit Story button for non-author user', () => {
+    mockAuthUser = { id: 'user-2', email: 'other@test.com', name: 'Other User' };
+
+    renderStoryCreation();
+
+    expect(
+      screen.queryByRole('button', { name: /edit story/i })
+    ).not.toBeInTheDocument();
   });
 
   it('opens drawer when History button is clicked', async () => {
