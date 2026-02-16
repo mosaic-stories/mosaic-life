@@ -2,15 +2,13 @@
 
 import pytest
 import pytest_asyncio
-from uuid import UUID
 
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.story import Story
 from app.models.story_version import StoryVersion
 from app.models.user import User
-from app.models.legacy import Legacy, LegacyMember
+from app.models.legacy import Legacy
 from app.models.associations import StoryLegacy
 from app.services.story_version import (
     get_next_version_number,
@@ -18,7 +16,6 @@ from app.services.story_version import (
     get_draft_version,
     list_versions,
 )
-from tests.conftest import create_auth_headers_for_user
 
 
 @pytest_asyncio.fixture
@@ -89,7 +86,9 @@ class TestGetNextVersionNumber:
         assert result == 2
 
     @pytest.mark.asyncio
-    async def test_never_reuses_deleted_numbers(self, db_session, story_with_version, test_user):
+    async def test_never_reuses_deleted_numbers(
+        self, db_session, story_with_version, test_user
+    ):
         """After creating v2 and deleting it, next should be v2 (MAX+1)."""
         # Create v2
         v2 = StoryVersion(
@@ -121,7 +120,9 @@ class TestGetActiveVersion:
         assert result.version_number == 1
 
     @pytest.mark.asyncio
-    async def test_returns_none_when_no_active(self, db_session, test_user, test_legacy):
+    async def test_returns_none_when_no_active(
+        self, db_session, test_user, test_legacy
+    ):
         story = Story(
             author_id=test_user.id,
             title="No Active",
@@ -142,7 +143,9 @@ class TestGetDraftVersion:
         assert result is None
 
     @pytest.mark.asyncio
-    async def test_returns_draft_when_exists(self, db_session, story_with_version, test_user):
+    async def test_returns_draft_when_exists(
+        self, db_session, story_with_version, test_user
+    ):
         draft = StoryVersion(
             story_id=story_with_version.id,
             version_number=2,
@@ -163,7 +166,9 @@ class TestGetDraftVersion:
 
 class TestListVersions:
     @pytest.mark.asyncio
-    async def test_returns_versions_newest_first(self, db_session, story_with_version, test_user):
+    async def test_returns_versions_newest_first(
+        self, db_session, story_with_version, test_user
+    ):
         # Create v2
         v2 = StoryVersion(
             story_id=story_with_version.id,
@@ -178,7 +183,9 @@ class TestListVersions:
         db_session.add(v2)
         await db_session.flush()
 
-        result = await list_versions(db_session, story_with_version.id, page=1, page_size=20)
+        result = await list_versions(
+            db_session, story_with_version.id, page=1, page_size=20
+        )
         assert result.total == 2
         assert result.versions[0].version_number == 2
         assert result.versions[1].version_number == 1
@@ -200,13 +207,17 @@ class TestListVersions:
         await db_session.flush()
 
         # Page 1, size 2
-        result = await list_versions(db_session, story_with_version.id, page=1, page_size=2)
+        result = await list_versions(
+            db_session, story_with_version.id, page=1, page_size=2
+        )
         assert result.total == 3
         assert len(result.versions) == 2
         assert result.versions[0].version_number == 3
 
         # Page 2, size 2
-        result = await list_versions(db_session, story_with_version.id, page=2, page_size=2)
+        result = await list_versions(
+            db_session, story_with_version.id, page=2, page_size=2
+        )
         assert len(result.versions) == 1
         assert result.versions[0].version_number == 1
 
@@ -228,17 +239,25 @@ class TestListVersions:
         await db_session.flush()
 
         # 3 versions with soft_cap=2 should trigger warning
-        result = await list_versions(db_session, story_with_version.id, page=1, page_size=20, soft_cap=2)
+        result = await list_versions(
+            db_session, story_with_version.id, page=1, page_size=20, soft_cap=2
+        )
         assert result.warning is not None
         assert "3 versions" in result.warning
 
     @pytest.mark.asyncio
     async def test_no_warning_under_cap(self, db_session, story_with_version):
-        result = await list_versions(db_session, story_with_version.id, page=1, page_size=20, soft_cap=50)
+        result = await list_versions(
+            db_session, story_with_version.id, page=1, page_size=20, soft_cap=50
+        )
         assert result.warning is None
 
     @pytest.mark.asyncio
-    async def test_excludes_content_from_summaries(self, db_session, story_with_version):
-        result = await list_versions(db_session, story_with_version.id, page=1, page_size=20)
+    async def test_excludes_content_from_summaries(
+        self, db_session, story_with_version
+    ):
+        result = await list_versions(
+            db_session, story_with_version.id, page=1, page_size=20
+        )
         summary = result.versions[0]
         assert "content" not in summary.model_fields

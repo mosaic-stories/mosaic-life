@@ -75,9 +75,7 @@ class StoryVersion(Base):
     )
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
 
-    __table_args__ = (
-        {"comment": "Story version snapshots with full content"},
-    )
+    __table_args__ = ({"comment": "Story version snapshots with full content"},)
 
     def __repr__(self) -> str:
         return f"<StoryVersion(id={self.id}, story_id={self.story_id}, v={self.version_number}, status={self.status})>"

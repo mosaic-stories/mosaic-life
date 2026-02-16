@@ -5,14 +5,15 @@ Revises: f7a1_memory
 Create Date: 2026-02-16 03:06:20.498658
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
 # revision identifiers, used by Alembic.
-revision = '57af04fc38a3'
-down_revision = 'f7a1_memory'
+revision = "57af04fc38a3"
+down_revision = "f7a1_memory"
 branch_labels = None
 depends_on = None
 
@@ -21,8 +22,19 @@ def upgrade() -> None:
     # 1. Create story_versions table
     op.create_table(
         "story_versions",
-        sa.Column("id", PG_UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
-        sa.Column("story_id", PG_UUID(as_uuid=True), sa.ForeignKey("stories.id", ondelete="CASCADE"), nullable=False, index=True),
+        sa.Column(
+            "id",
+            PG_UUID(as_uuid=True),
+            primary_key=True,
+            server_default=sa.text("gen_random_uuid()"),
+        ),
+        sa.Column(
+            "story_id",
+            PG_UUID(as_uuid=True),
+            sa.ForeignKey("stories.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        ),
         sa.Column("version_number", sa.Integer(), nullable=False),
         sa.Column("title", sa.String(500), nullable=False),
         sa.Column("content", sa.Text(), nullable=False),
@@ -30,9 +42,21 @@ def upgrade() -> None:
         sa.Column("source", sa.String(50), nullable=False),
         sa.Column("source_version", sa.Integer(), nullable=True),
         sa.Column("change_summary", sa.Text(), nullable=True),
-        sa.Column("stale", sa.Boolean(), nullable=False, server_default=sa.text("false")),
-        sa.Column("created_by", PG_UUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.current_timestamp(), nullable=False),
+        sa.Column(
+            "stale", sa.Boolean(), nullable=False, server_default=sa.text("false")
+        ),
+        sa.Column(
+            "created_by",
+            PG_UUID(as_uuid=True),
+            sa.ForeignKey("users.id"),
+            nullable=False,
+        ),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.func.current_timestamp(),
+            nullable=False,
+        ),
     )
 
     # Unique constraint: one version number per story

@@ -3,15 +3,12 @@
 import logging
 from uuid import UUID
 
-from fastapi import HTTPException
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
-from ..models.story import Story
 from ..models.story_version import StoryVersion
 from ..schemas.story_version import (
-    StoryVersionDetail,
     StoryVersionListResponse,
     StoryVersionSummary,
 )
@@ -33,9 +30,7 @@ async def get_next_version_number(db: AsyncSession, story_id: UUID) -> int:
     return (max_version or 0) + 1
 
 
-async def get_active_version(
-    db: AsyncSession, story_id: UUID
-) -> StoryVersion | None:
+async def get_active_version(db: AsyncSession, story_id: UUID) -> StoryVersion | None:
     """Get the active version for a story, or None."""
     result = await db.execute(
         select(StoryVersion).where(
@@ -46,9 +41,7 @@ async def get_active_version(
     return result.scalar_one_or_none()
 
 
-async def get_draft_version(
-    db: AsyncSession, story_id: UUID
-) -> StoryVersion | None:
+async def get_draft_version(db: AsyncSession, story_id: UUID) -> StoryVersion | None:
     """Get the draft version for a story, or None."""
     result = await db.execute(
         select(StoryVersion).where(
@@ -98,9 +91,7 @@ async def list_versions(
     )
     versions = result.scalars().all()
 
-    summaries = [
-        StoryVersionSummary.model_validate(v) for v in versions
-    ]
+    summaries = [StoryVersionSummary.model_validate(v) for v in versions]
 
     warning = None
     if total > soft_cap:
