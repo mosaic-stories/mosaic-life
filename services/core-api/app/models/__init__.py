@@ -9,6 +9,7 @@ from .memory import ConversationChunk, LegacyFact
 from .media import Media
 from .notification import Notification
 from .story import Story
+from .story_version import StoryVersion
 from .support_request import SupportRequest
 from .user import User
 from .user_session import UserSession
@@ -29,6 +30,7 @@ __all__ = [
     "Story",
     "StoryChunk",
     "StoryLegacy",
+    "StoryVersion",
     "SupportRequest",
     "User",
     "UserSession",
