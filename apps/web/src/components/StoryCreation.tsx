@@ -5,9 +5,19 @@ import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
 import LegacyMultiSelect from './LegacyMultiSelect';
+import VersionHistoryButton from './VersionHistoryButton';
+import VersionHistoryDrawer from './VersionHistoryDrawer';
+import VersionPreviewBanner from './VersionPreviewBanner';
 import { getThemeClasses } from '../lib/themes';
 import { useLegacy } from '@/lib/hooks/useLegacies';
 import { useStory, useCreateStory, useUpdateStory } from '@/lib/hooks/useStories';
+import {
+  useVersions,
+  useVersionDetail,
+  useRestoreVersion,
+  useApproveDraft,
+  useDiscardDraft,
+} from '@/lib/hooks/useVersions';
 import type { LegacyAssociationInput } from '@/lib/api/stories';
 import { useAuth } from '@/contexts/AuthContext';
 import { SEOHead } from '@/components/seo';
@@ -37,6 +47,8 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isViewMode, setIsViewMode] = useState(true);
   const [selectedLegacies, setSelectedLegacies] = useState<LegacyAssociationInput[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [previewVersionNumber, setPreviewVersionNumber] = useState<number | null>(null);
 
   const { data: legacy, isLoading: _legacyLoading } = useLegacy(legacyId);
   const { data: existingStory, isLoading: storyLoading } = useStory(storyId);
@@ -45,6 +57,22 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
   const _theme = getThemeClasses(currentTheme);
 
   const isEditMode = !!storyId;
+
+  // Version history (only fetch when drawer is open)
+  const isAuthor = !!(existingStory && user && existingStory.author_email === user.email);
+  const showHistory = isAuthor && (existingStory?.version_count ?? 0) > 1;
+  const versionsQuery = useVersions(storyId ?? '', isHistoryOpen && !!storyId);
+  const versionDetailQuery = useVersionDetail(storyId ?? '', previewVersionNumber);
+  const restoreVersionMutation = useRestoreVersion(storyId ?? '');
+  const approveDraftMutation = useApproveDraft(storyId ?? '');
+  const discardDraftMutation = useDiscardDraft(storyId ?? '');
+
+  // When previewing a version, use its content instead of the story's
+  const previewData = versionDetailQuery.data;
+  const displayTitle = previewData ? previewData.title : title;
+  const displayContent = previewData ? previewData.content : content;
+  const isPreviewing = previewVersionNumber !== null && previewData !== undefined;
+  const isPreviewActive = previewData?.status === 'active';
 
   // Determine current user's role in this legacy
   const currentUserRole = useMemo(() => {
@@ -186,6 +214,35 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
     setIsViewMode(true);
   };
 
+  const handleSelectVersion = (versionNumber: number) => {
+    setPreviewVersionNumber(versionNumber);
+  };
+
+  const handleRestore = () => {
+    if (previewVersionNumber === null) return;
+    restoreVersionMutation.mutate(previewVersionNumber, {
+      onSuccess: () => {
+        setPreviewVersionNumber(null);
+      },
+    });
+  };
+
+  const handleApproveDraft = () => {
+    approveDraftMutation.mutate(undefined, {
+      onSuccess: () => {
+        setPreviewVersionNumber(null);
+      },
+    });
+  };
+
+  const handleDiscardDraft = () => {
+    discardDraftMutation.mutate(undefined, {
+      onSuccess: () => {
+        setPreviewVersionNumber(null);
+      },
+    });
+  };
+
   const legacyName = legacy?.name || 'Legacy';
   const isMutating = createStory.isPending || updateStory.isPending;
 
@@ -238,16 +295,24 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
           </button>
 
           {isViewMode && isEditMode ? (
-            canEdit && (
-              <Button
-                size="sm"
-                className="gap-2"
-                onClick={handleEditClick}
-              >
-                <Pencil className="size-4" />
-                Edit Story
-              </Button>
-            )
+            <>
+              {canEdit && (
+                <Button
+                  size="sm"
+                  className="gap-2"
+                  onClick={handleEditClick}
+                >
+                  <Pencil className="size-4" />
+                  Edit Story
+                </Button>
+              )}
+              {showHistory && (
+                <VersionHistoryButton
+                  versionCount={existingStory?.version_count ?? null}
+                  onClick={() => setIsHistoryOpen(true)}
+                />
+              )}
+            </>
           ) : (
             <>
               {isEditMode && (
@@ -292,6 +357,18 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
           {isViewMode && isEditMode ? (
             // Read-only View Mode
             <div className="space-y-8">
+              {/* Version Preview Banner */}
+              {isPreviewing && previewData && (
+                <VersionPreviewBanner
+                  versionNumber={previewData.version_number}
+                  source={previewData.source}
+                  createdAt={previewData.created_at}
+                  isActive={isPreviewActive}
+                  onRestore={handleRestore}
+                  isRestoring={restoreVersionMutation.isPending}
+                />
+              )}
+
               {/* Story Header */}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 text-sm text-neutral-500">
@@ -317,7 +394,7 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
                     About: {associatedLegaciesLabel}
                   </p>
                 )}
-                <h1 className="text-3xl font-semibold text-neutral-900">{title}</h1>
+                <h1 className="text-3xl font-semibold text-neutral-900">{displayTitle}</h1>
               </div>
 
               {/* Story Content */}
@@ -325,7 +402,7 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
                 <div className="prose prose-neutral max-w-none">
                   {/* Render content - for now as plain text with line breaks preserved */}
                   <div className="whitespace-pre-wrap text-neutral-800 leading-relaxed">
-                    {content}
+                    {displayContent}
                   </div>
                 </div>
               </Card>
@@ -419,6 +496,26 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
           )}
         </div>
       </main>
+
+      {/* Version History Drawer */}
+      {showHistory && storyId && (
+        <VersionHistoryDrawer
+          open={isHistoryOpen}
+          onOpenChange={(open) => {
+            setIsHistoryOpen(open);
+            if (!open) setPreviewVersionNumber(null);
+          }}
+          data={versionsQuery.data}
+          isLoading={versionsQuery.isLoading}
+          selectedVersion={previewVersionNumber}
+          onSelectVersion={handleSelectVersion}
+          onApproveDraft={handleApproveDraft}
+          onDiscardDraft={handleDiscardDraft}
+          isDraftActionPending={
+            approveDraftMutation.isPending || discardDraftMutation.isPending
+          }
+        />
+      )}
     </div>
   );
 }
