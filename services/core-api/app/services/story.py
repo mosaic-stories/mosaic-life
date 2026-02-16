@@ -15,6 +15,7 @@ from ..models.legacy import Legacy, LegacyMember
 from ..models.story import Story
 from ..models.story_version import StoryVersion
 from ..schemas.associations import LegacyAssociationResponse
+from .change_summary import generate_change_summary
 from .story_version import create_version as create_story_version
 from .story_version import get_draft_version
 from ..schemas.story import (
@@ -564,6 +565,16 @@ async def update_story(
 
     version_number = None
     if content_changed:
+        # Capture old content before version creation updates story fields
+        old_content = story.content
+
+        # Generate change summary
+        change_summary = await generate_change_summary(
+            old_content=old_content,
+            new_content=new_content,
+            source="manual_edit",
+        )
+
         # Create new version (handles deactivation, stale marking, story field updates)
         new_version = await create_story_version(
             db=db,
@@ -572,6 +583,7 @@ async def update_story(
             content=new_content,
             source="manual_edit",
             user_id=user_id,
+            change_summary=change_summary,
         )
         version_number = new_version.version_number
 
