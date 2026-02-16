@@ -16,6 +16,7 @@ from app.services.story_version import (
     get_next_version_number,
     get_active_version,
     get_draft_version,
+    list_versions,
 )
 from tests.conftest import create_auth_headers_for_user
 
@@ -158,3 +159,86 @@ class TestGetDraftVersion:
         assert result is not None
         assert result.status == "draft"
         assert result.version_number == 2
+
+
+class TestListVersions:
+    @pytest.mark.asyncio
+    async def test_returns_versions_newest_first(self, db_session, story_with_version, test_user):
+        # Create v2
+        v2 = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="Updated",
+            content="Updated content.",
+            status="inactive",
+            source="manual_edit",
+            change_summary="Updated the story",
+            created_by=test_user.id,
+        )
+        db_session.add(v2)
+        await db_session.flush()
+
+        result = await list_versions(db_session, story_with_version.id, page=1, page_size=20)
+        assert result.total == 2
+        assert result.versions[0].version_number == 2
+        assert result.versions[1].version_number == 1
+
+    @pytest.mark.asyncio
+    async def test_pagination(self, db_session, story_with_version, test_user):
+        # Create v2 and v3
+        for i in [2, 3]:
+            v = StoryVersion(
+                story_id=story_with_version.id,
+                version_number=i,
+                title=f"V{i}",
+                content=f"Content v{i}.",
+                status="inactive",
+                source="manual_edit",
+                created_by=test_user.id,
+            )
+            db_session.add(v)
+        await db_session.flush()
+
+        # Page 1, size 2
+        result = await list_versions(db_session, story_with_version.id, page=1, page_size=2)
+        assert result.total == 3
+        assert len(result.versions) == 2
+        assert result.versions[0].version_number == 3
+
+        # Page 2, size 2
+        result = await list_versions(db_session, story_with_version.id, page=2, page_size=2)
+        assert len(result.versions) == 1
+        assert result.versions[0].version_number == 1
+
+    @pytest.mark.asyncio
+    async def test_soft_cap_warning(self, db_session, story_with_version, test_user):
+        """When version count exceeds soft cap, include warning."""
+        # Create v2 and v3
+        for i in [2, 3]:
+            v = StoryVersion(
+                story_id=story_with_version.id,
+                version_number=i,
+                title=f"V{i}",
+                content=f"Content v{i}.",
+                status="inactive",
+                source="manual_edit",
+                created_by=test_user.id,
+            )
+            db_session.add(v)
+        await db_session.flush()
+
+        # 3 versions with soft_cap=2 should trigger warning
+        result = await list_versions(db_session, story_with_version.id, page=1, page_size=20, soft_cap=2)
+        assert result.warning is not None
+        assert "3 versions" in result.warning
+
+    @pytest.mark.asyncio
+    async def test_no_warning_under_cap(self, db_session, story_with_version):
+        result = await list_versions(db_session, story_with_version.id, page=1, page_size=20, soft_cap=50)
+        assert result.warning is None
+
+    @pytest.mark.asyncio
+    async def test_excludes_content_from_summaries(self, db_session, story_with_version):
+        result = await list_versions(db_session, story_with_version.id, page=1, page_size=20)
+        summary = result.versions[0]
+        assert "content" not in summary.model_fields

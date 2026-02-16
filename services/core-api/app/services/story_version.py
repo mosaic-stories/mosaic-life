@@ -57,3 +57,71 @@ async def get_draft_version(
         )
     )
     return result.scalar_one_or_none()
+
+
+async def list_versions(
+    db: AsyncSession,
+    story_id: UUID,
+    page: int = 1,
+    page_size: int = 20,
+    soft_cap: int | None = None,
+) -> StoryVersionListResponse:
+    """List all versions for a story, paginated, newest first.
+
+    Args:
+        db: Database session.
+        story_id: Story ID.
+        page: Page number (1-indexed).
+        page_size: Items per page.
+        soft_cap: Override for version soft cap (uses settings if None).
+
+    Returns:
+        Paginated version list with optional warning.
+    """
+    if soft_cap is None:
+        soft_cap = get_settings().story_version_soft_cap
+
+    # Count total versions
+    count_result = await db.execute(
+        select(func.count()).where(StoryVersion.story_id == story_id)
+    )
+    total = count_result.scalar_one()
+
+    # Fetch page
+    offset = (page - 1) * page_size
+    result = await db.execute(
+        select(StoryVersion)
+        .where(StoryVersion.story_id == story_id)
+        .order_by(StoryVersion.version_number.desc())
+        .offset(offset)
+        .limit(page_size)
+    )
+    versions = result.scalars().all()
+
+    summaries = [
+        StoryVersionSummary.model_validate(v) for v in versions
+    ]
+
+    warning = None
+    if total > soft_cap:
+        warning = (
+            f"This story has {total} versions. "
+            f"Consider removing old versions you no longer need."
+        )
+
+    logger.info(
+        "version.list",
+        extra={
+            "story_id": str(story_id),
+            "total": total,
+            "page": page,
+        },
+    )
+
+    return StoryVersionListResponse(
+        versions=summaries,
+        total=total,
+        page=page,
+        page_size=page_size,
+        warning=warning,
+    )
