@@ -539,21 +539,7 @@ class TestUpdateStoryVersioning:
         test_story_public: Story,
     ):
         """Updating content should create a new version."""
-        # Create v1 for test_story if it doesn't have one
-        v1 = StoryVersion(
-            story_id=test_story_public.id,
-            version_number=1,
-            title=test_story_public.title,
-            content=test_story_public.content,
-            status="active",
-            source="manual_edit",
-            change_summary="Initial version",
-            created_by=test_user.id,
-        )
-        db_session.add(v1)
-        await db_session.flush()
-        test_story_public.active_version_id = v1.id
-        await db_session.flush()
+        # Fixture already creates v1 with active_version_id set
 
         data = StoryUpdate(title="Updated Title", content="Updated content.")
         await story_service.update_story(
@@ -583,19 +569,7 @@ class TestUpdateStoryVersioning:
         test_story_public: Story,
     ):
         """Updating only visibility should not create a new version."""
-        v1 = StoryVersion(
-            story_id=test_story_public.id,
-            version_number=1,
-            title=test_story_public.title,
-            content=test_story_public.content,
-            status="active",
-            source="manual_edit",
-            created_by=test_user.id,
-        )
-        db_session.add(v1)
-        await db_session.flush()
-        test_story_public.active_version_id = v1.id
-        await db_session.flush()
+        # Fixture already creates v1 with active_version_id set
 
         data = StoryUpdate(visibility="private")
         await story_service.update_story(
@@ -623,19 +597,7 @@ class TestGetStoryDetailVersioning:
         test_story_public: Story,
     ):
         """GET story detail should include version_count for author."""
-        v1 = StoryVersion(
-            story_id=test_story_public.id,
-            version_number=1,
-            title=test_story_public.title,
-            content=test_story_public.content,
-            status="active",
-            source="manual_edit",
-            created_by=test_user.id,
-        )
-        db_session.add(v1)
-        await db_session.flush()
-        test_story_public.active_version_id = v1.id
-        await db_session.flush()
+        # Fixture already creates v1 with active_version_id set
 
         result = await story_service.get_story_detail(
             db=db_session,
@@ -652,19 +614,7 @@ class TestGetStoryDetailVersioning:
         test_story_public: Story,
     ):
         """GET story detail should include has_draft for author."""
-        v1 = StoryVersion(
-            story_id=test_story_public.id,
-            version_number=1,
-            title=test_story_public.title,
-            content=test_story_public.content,
-            status="active",
-            source="manual_edit",
-            created_by=test_user.id,
-        )
-        db_session.add(v1)
-        await db_session.flush()
-        test_story_public.active_version_id = v1.id
-        await db_session.flush()
+        # Fixture already creates v1 with active_version_id set
 
         result = await story_service.get_story_detail(
             db=db_session,
