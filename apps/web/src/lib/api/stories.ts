@@ -35,6 +35,8 @@ export interface StoryDetail {
   title: string;
   content: string;
   visibility: 'public' | 'private' | 'personal';
+  version_count: number | null;  // null if not author
+  has_draft: boolean | null;     // null if not author
   created_at: string;
   updated_at: string;
 }
