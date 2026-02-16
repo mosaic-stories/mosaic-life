@@ -12,6 +12,7 @@ import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
 import { Card } from './ui/card';
 import type { VersionSummary, VersionListResponse } from '@/lib/api/versions';
+import { getSourceLabel } from '@/lib/utils/versionLabels';
 
 interface VersionHistoryDrawerProps {
   open: boolean;
@@ -23,21 +24,6 @@ interface VersionHistoryDrawerProps {
   onApproveDraft: () => void;
   onDiscardDraft: () => void;
   isDraftActionPending: boolean;
-}
-
-function getSourceLabel(source: string): string {
-  switch (source) {
-    case 'edit':
-      return 'Manual edit';
-    case 'ai_generate':
-      return 'AI enhancement';
-    case 'restoration':
-      return 'Restoration';
-    case 'creation':
-      return 'Original';
-    default:
-      return source;
-  }
 }
 
 function DraftZone({
@@ -57,10 +43,18 @@ function DraftZone({
 }) {
   return (
     <Card
+      role="button"
+      tabIndex={0}
       className={`p-4 border-amber-200 bg-amber-50 cursor-pointer ${
         selected ? 'ring-2 ring-amber-400' : ''
       }`}
       onClick={onSelect}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSelect();
+        }
+      }}
       data-selected={selected}
     >
       <div className="space-y-2">
