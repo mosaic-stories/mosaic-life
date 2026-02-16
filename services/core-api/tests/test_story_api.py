@@ -3,9 +3,11 @@
 import pytest
 from datetime import datetime, timedelta, timezone
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.legacy import Legacy
+from app.models.associations import StoryLegacy
+from app.models.legacy import Legacy, LegacyMember
 from app.models.story import Story
 from app.models.user import User
 
@@ -369,6 +371,57 @@ class TestUpdateStory:
         )
 
         assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_update_story_admin_member_can_edit(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_story_public: Story,
+        test_user_2: User,
+    ):
+        """Test admin member can update story even when not the author."""
+        assoc_result = await db_session.execute(
+            select(StoryLegacy.legacy_id).where(
+                StoryLegacy.story_id == test_story_public.id
+            )
+        )
+        legacy_id = assoc_result.scalar_one()
+        db_session.add(
+            LegacyMember(
+                legacy_id=legacy_id,
+                user_id=test_user_2.id,
+                role="admin",
+            )
+        )
+        await db_session.commit()
+
+        from app.auth.middleware import create_session_cookie
+        from app.auth.models import SessionData
+        from app.config import get_settings
+
+        settings = get_settings()
+        now = datetime.now(timezone.utc)
+        session_data = SessionData(
+            user_id=test_user_2.id,
+            google_id=test_user_2.google_id,
+            email=test_user_2.email,
+            name=test_user_2.name,
+            avatar_url=test_user_2.avatar_url,
+            created_at=now,
+            expires_at=now + timedelta(hours=24),
+        )
+        cookie_name, cookie_value = create_session_cookie(settings, session_data)
+        headers = {"Cookie": f"{cookie_name}={cookie_value}"}
+
+        response = await client.put(
+            f"/api/stories/{test_story_public.id}",
+            json={"title": "Admin Update"},
+            headers=headers,
+        )
+
+        assert response.status_code == 200
+        assert response.json()["title"] == "Admin Update"
 
 
 class TestDeleteStory:

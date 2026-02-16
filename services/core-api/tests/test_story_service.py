@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.associations import StoryLegacy
-from app.models.legacy import Legacy
+from app.models.legacy import Legacy, LegacyMember
 from app.models.story import Story
 from app.models.story_version import StoryVersion
 from app.models.user import User
@@ -302,13 +302,13 @@ class TestUpdateStory:
         assert story.visibility == "private"
 
     @pytest.mark.asyncio
-    async def test_update_story_only_author(
+    async def test_update_story_non_member_denied(
         self,
         db_session: AsyncSession,
         test_user_2: User,
         test_story_public: Story,
     ):
-        """Test that only author can update story."""
+        """Test that non-members cannot update story."""
         data = StoryUpdate(title="Unauthorized Update")
 
         with pytest.raises(HTTPException) as exc:
@@ -319,7 +319,71 @@ class TestUpdateStory:
                 data=data,
             )
         assert exc.value.status_code == 403
-        assert "author" in exc.value.detail.lower()
+        assert "permission" in exc.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_update_story_admin_can_edit_non_authored(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_legacy: Legacy,
+        test_story_public: Story,
+    ):
+        """Test admin member can update a story they did not author."""
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id,
+                user_id=test_user_2.id,
+                role="admin",
+            )
+        )
+        await db_session.flush()
+
+        data = StoryUpdate(title="Admin Updated")
+        story = await story_service.update_story(
+            db=db_session,
+            user_id=test_user_2.id,
+            story_id=test_story_public.id,
+            data=data,
+        )
+
+        assert story.title == "Admin Updated"
+
+    @pytest.mark.asyncio
+    async def test_update_story_advocate_can_edit_private_only(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_legacy: Legacy,
+        test_story_private: Story,
+        test_story_public: Story,
+    ):
+        """Test advocate can edit private stories but not public stories."""
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id,
+                user_id=test_user_2.id,
+                role="advocate",
+            )
+        )
+        await db_session.flush()
+
+        private_story = await story_service.update_story(
+            db=db_session,
+            user_id=test_user_2.id,
+            story_id=test_story_private.id,
+            data=StoryUpdate(title="Advocate Private Edit"),
+        )
+        assert private_story.title == "Advocate Private Edit"
+
+        with pytest.raises(HTTPException) as exc:
+            await story_service.update_story(
+                db=db_session,
+                user_id=test_user_2.id,
+                story_id=test_story_public.id,
+                data=StoryUpdate(title="Advocate Public Edit"),
+            )
+        assert exc.value.status_code == 403
 
     @pytest.mark.asyncio
     async def test_update_partial_fields(

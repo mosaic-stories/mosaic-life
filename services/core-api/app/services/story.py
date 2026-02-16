@@ -31,6 +31,14 @@ logger = logging.getLogger(__name__)
 # Maximum length for content preview
 PREVIEW_MAX_LENGTH = 200
 
+# Role levels used for update authorization.
+ROLE_LEVELS: dict[str, int] = {
+    "creator": 4,
+    "admin": 3,
+    "advocate": 2,
+    "admirer": 1,
+}
+
 
 def create_content_preview(content: str, max_length: int = PREVIEW_MAX_LENGTH) -> str:
     """Create a truncated preview of story content.
@@ -96,6 +104,51 @@ async def _get_legacy_names(
         select(Legacy.id, Legacy.name).where(Legacy.id.in_(legacy_ids))
     )
     return {row[0]: row[1] for row in result.all()}
+
+
+async def _get_highest_story_member_role(
+    db: AsyncSession,
+    user_id: UUID,
+    legacy_ids: list[UUID],
+) -> str | None:
+    """Get user's highest role across a story's linked legacies."""
+    if not legacy_ids:
+        return None
+
+    result = await db.execute(
+        select(LegacyMember.role).where(
+            LegacyMember.user_id == user_id,
+            LegacyMember.legacy_id.in_(legacy_ids),
+            LegacyMember.role != "pending",
+        )
+    )
+    roles = result.scalars().all()
+    if not roles:
+        return None
+
+    return max(roles, key=lambda role: ROLE_LEVELS.get(role, 0))
+
+
+def _can_edit_story(
+    story: Story,
+    user_id: UUID,
+    member_role: str | None,
+) -> bool:
+    """Check whether a user can edit a story.
+
+    Rules:
+    - Author can always edit
+    - Creator/Admin can edit any story in linked legacies
+    - Advocate can edit private stories
+    """
+    if story.author_id == user_id:
+        return True
+
+    level = ROLE_LEVELS.get(member_role or "", 0)
+    if level >= ROLE_LEVELS["admin"]:
+        return True
+
+    return story.visibility == "private" and level >= ROLE_LEVELS["advocate"]
 
 
 async def create_story(
@@ -541,19 +594,23 @@ async def update_story(
             detail="Story not found",
         )
 
-    # Check author
-    if story.author_id != user_id:
+    # Check author/role permissions
+    legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
+    highest_role = await _get_highest_story_member_role(db, user_id, legacy_ids)
+
+    if not _can_edit_story(story, user_id, highest_role):
         logger.warning(
             "story.update_denied",
             extra={
                 "story_id": str(story_id),
                 "user_id": str(user_id),
                 "author_id": str(story.author_id),
+                "member_role": highest_role,
             },
         )
         raise HTTPException(
             status_code=403,
-            detail="Only the author can update this story",
+            detail="You do not have permission to update this story",
         )
 
     # Determine if title/content changed (versioned fields)
