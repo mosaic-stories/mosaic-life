@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncGenerator
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -154,7 +155,7 @@ async def generate_draft(
     registry = get_provider_registry()
     llm = registry.get_llm_provider()
 
-    async def generate_stream():  # noqa: ANN202
+    async def generate_stream() -> AsyncGenerator[str, None]:
         try:
             context = await evolution_service.build_generation_context(
                 db=db, session=evo_session
@@ -240,7 +241,7 @@ async def revise_draft(
     registry = get_provider_registry()
     llm = registry.get_llm_provider()
 
-    async def revise_stream():  # noqa: ANN202
+    async def revise_stream() -> AsyncGenerator[str, None]:
         try:
             context = await evolution_service.build_generation_context(
                 db=db, session=evo_session, include_draft=True

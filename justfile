@@ -794,8 +794,8 @@ typecheck-backend:
     set -euo pipefail
     echo "Running mypy type checking on services/core-api..."
     cd services/core-api
-    uv run mypy app/
-    echo "✓ MyPy type checking passed"
+    uv run mypy app/ --strict
+    echo "✓ MyPy type checking passed (strict mode)"
 
 # Run all backend validation (ruff lint + format + mypy)
 validate-backend: lint-backend format-backend typecheck-backend

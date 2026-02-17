@@ -34,7 +34,7 @@ class GoogleOAuthClient:
             raise ValueError("Google OAuth credentials not configured")
 
         # Initialize OAuth client
-        self.oauth = OAuth()
+        self.oauth = OAuth()  # type: ignore[no-untyped-call]
         self.oauth.register(
             name="google",
             client_id=self.client_id,
