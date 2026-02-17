@@ -184,3 +184,50 @@ class TestDiscardSession:
         )
         assert response.status_code == 200
         assert response.json()["phase"] == "discarded"
+
+
+class TestGenerateDraft:
+    @pytest.mark.asyncio
+    async def test_generate_requires_style_selection_phase(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_story: Story,
+    ) -> None:
+        # Create session in elicitation phase
+        create_resp = await client.post(
+            f"/api/stories/{test_story.id}/evolution",
+            json={"persona_id": "biographer"},
+            headers=auth_headers,
+        )
+        session_id = create_resp.json()["id"]
+
+        # Try to generate from wrong phase
+        response = await client.post(
+            f"/api/stories/{test_story.id}/evolution/{session_id}/generate",
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
+
+class TestReviseDraft:
+    @pytest.mark.asyncio
+    async def test_revise_requires_review_phase(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_story: Story,
+    ) -> None:
+        create_resp = await client.post(
+            f"/api/stories/{test_story.id}/evolution",
+            json={"persona_id": "biographer"},
+            headers=auth_headers,
+        )
+        session_id = create_resp.json()["id"]
+
+        response = await client.post(
+            f"/api/stories/{test_story.id}/evolution/{session_id}/revise",
+            json={"instructions": "Make it longer"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422

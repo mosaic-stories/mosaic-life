@@ -17,7 +17,7 @@ from app.models.story_evolution import StoryEvolutionSession
 from app.models.story_version import StoryVersion
 
 if TYPE_CHECKING:
-    pass
+    from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -305,3 +305,190 @@ async def accept_session(
     )
 
     return session
+
+
+async def get_session_for_generation(
+    db: AsyncSession,
+    session_id: uuid.UUID,
+    story_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> StoryEvolutionSession:
+    """Get session and validate it's ready for generation."""
+    session = await _get_session(db, session_id, story_id, user_id)
+    if session.phase != "style_selection":
+        raise HTTPException(
+            status_code=422,
+            detail="Can only generate from style_selection phase",
+        )
+    if not session.writing_style or not session.length_preference:
+        raise HTTPException(
+            status_code=422,
+            detail="Writing style and length preference must be set",
+        )
+    # Advance to drafting
+    session.phase = "drafting"
+    await db.commit()
+    await db.refresh(session)
+    return session
+
+
+async def get_session_for_revision(
+    db: AsyncSession,
+    session_id: uuid.UUID,
+    story_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> StoryEvolutionSession:
+    """Get session and validate it's ready for revision."""
+    session = await _get_session(db, session_id, story_id, user_id)
+    if session.phase != "review":
+        raise HTTPException(
+            status_code=422,
+            detail="Can only revise from review phase",
+        )
+    if not session.draft_version_id:
+        raise HTTPException(
+            status_code=422,
+            detail="No draft to revise",
+        )
+    return session
+
+
+async def build_generation_context(
+    db: AsyncSession,
+    session: StoryEvolutionSession,
+    include_draft: bool = False,
+) -> dict[str, Any]:
+    """Build the context package for the writing agent."""
+    from app.config.personas import get_persona
+    from app.models.legacy import Legacy
+
+    # Load story
+    story_result = await db.execute(select(Story).where(Story.id == session.story_id))
+    story = story_result.scalar_one()
+
+    # Load active version content
+    original_story = story.content
+    if story.active_version_id:
+        version_result = await db.execute(
+            select(StoryVersion).where(StoryVersion.id == story.active_version_id)
+        )
+        active_version = version_result.scalar_one_or_none()
+        if active_version:
+            original_story = active_version.content
+
+    # Load primary legacy
+    legacy_result = await db.execute(
+        select(StoryLegacy).where(
+            StoryLegacy.story_id == session.story_id,
+            StoryLegacy.role == "primary",
+        )
+    )
+    primary = legacy_result.scalar_one_or_none()
+    legacy_name = "the person"
+    if primary:
+        leg = await db.execute(select(Legacy).where(Legacy.id == primary.legacy_id))
+        legacy = leg.scalar_one_or_none()
+        if legacy:
+            legacy_name = legacy.name
+
+    # Get persona model_id via conversation
+    conv_result = await db.execute(
+        select(AIConversation).where(AIConversation.id == session.conversation_id)
+    )
+    conv = conv_result.scalar_one_or_none()
+    persona_id = conv.persona_id if conv else "biographer"
+    persona = get_persona(persona_id)
+    model_id = (
+        persona.model_id if persona else "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    )
+
+    context: dict[str, Any] = {
+        "original_story": original_story,
+        "summary_text": session.summary_text or "",
+        "writing_style": session.writing_style or "vivid",
+        "length_preference": session.length_preference or "similar",
+        "legacy_name": legacy_name,
+        "story_title": story.title,
+        "model_id": model_id,
+    }
+
+    if include_draft and session.draft_version_id:
+        draft_result = await db.execute(
+            select(StoryVersion).where(StoryVersion.id == session.draft_version_id)
+        )
+        draft = draft_result.scalar_one_or_none()
+        if draft:
+            context["previous_draft"] = draft.content
+
+    return context
+
+
+async def save_draft(
+    db: AsyncSession,
+    session: StoryEvolutionSession,
+    title: str,
+    content: str,
+    user_id: uuid.UUID,
+) -> StoryVersion:
+    """Create or replace the draft StoryVersion for this session."""
+    # Get next version number
+    max_result = await db.execute(
+        select(StoryVersion.version_number)
+        .where(StoryVersion.story_id == session.story_id)
+        .order_by(StoryVersion.version_number.desc())
+        .limit(1)
+    )
+    max_version = max_result.scalar_one_or_none() or 0
+
+    # Delete existing draft if any
+    if session.draft_version_id:
+        existing = await db.execute(
+            select(StoryVersion).where(StoryVersion.id == session.draft_version_id)
+        )
+        old_draft = existing.scalar_one_or_none()
+        if old_draft:
+            await db.delete(old_draft)
+            await db.flush()
+
+    draft = StoryVersion(
+        story_id=session.story_id,
+        version_number=max_version + 1,
+        title=title,
+        content=content,
+        status="draft",
+        source="story_evolution",
+        created_by=user_id,
+    )
+    db.add(draft)
+    await db.flush()
+
+    session.draft_version_id = draft.id
+    session.phase = "review"
+    await db.commit()
+    await db.refresh(draft)
+
+    return draft
+
+
+async def update_draft(
+    db: AsyncSession,
+    session: StoryEvolutionSession,
+    content: str,
+) -> StoryVersion:
+    """Update an existing draft with revised content."""
+    if not session.draft_version_id:
+        raise HTTPException(status_code=422, detail="No draft to update")
+
+    result = await db.execute(
+        select(StoryVersion).where(StoryVersion.id == session.draft_version_id)
+    )
+    draft = result.scalar_one_or_none()
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft version not found")
+
+    draft.content = content
+    session.revision_count += 1
+    await db.commit()
+    await db.refresh(draft)
+
+    return draft
