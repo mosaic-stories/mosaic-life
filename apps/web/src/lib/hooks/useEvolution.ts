@@ -59,7 +59,9 @@ export function useDiscardEvolution(storyId: string, sessionId: string) {
   return useMutation({
     mutationFn: () => discardEvolution(storyId, sessionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({
+      // Remove cached data immediately so the story page doesn't show
+      // a stale "Continue Evolving" button while a background refetch runs
+      queryClient.removeQueries({
         queryKey: evolutionKeys.active(storyId),
       });
     },
@@ -72,7 +74,8 @@ export function useAcceptEvolution(storyId: string, sessionId: string) {
   return useMutation({
     mutationFn: () => acceptEvolution(storyId, sessionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: evolutionKeys.all });
+      // Remove evolution cache immediately to avoid stale UI on the story page
+      queryClient.removeQueries({ queryKey: evolutionKeys.all });
       queryClient.invalidateQueries({
         queryKey: storyKeys.detail(storyId),
       });
