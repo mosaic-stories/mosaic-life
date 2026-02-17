@@ -2723,9 +2723,9 @@ git commit -m "feat(evolution): add SSE generate and revise endpoints with draft
 
 ---
 
-## Phase 5: Frontend API Layer
+## Phase 5: Frontend API Layer -- COMPLETED
 
-### Task 10: Create Evolution API Client Functions
+### Task 10: Create Evolution API Client Functions -- COMPLETED
 
 **Files:**
 - Create: `apps/web/src/lib/api/evolution.ts`
@@ -2982,7 +2982,7 @@ git commit -m "feat(evolution): add frontend API client for story evolution"
 
 ---
 
-### Task 11: Create Evolution TanStack Query Hooks
+### Task 11: Create Evolution TanStack Query Hooks -- COMPLETED
 
 **Files:**
 - Create: `apps/web/src/lib/hooks/useEvolution.ts`
