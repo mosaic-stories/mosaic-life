@@ -297,7 +297,7 @@ export default function StoryEvolutionWorkspace({
   };
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))] flex flex-col">
+    <div className="h-[calc(100dvh-3.5rem)] bg-[rgb(var(--theme-background))] flex flex-col overflow-hidden">
       <SEOHead
         title="Evolve Story"
         description="Evolve your story with AI"
@@ -322,7 +322,7 @@ export default function StoryEvolutionWorkspace({
       </HeaderSlot>
 
       {/* Phase indicator */}
-      <div className="border-b bg-white px-4 py-3">
+      <div className="border-b bg-white px-4 py-3 shrink-0">
         <div className="max-w-7xl mx-auto">
           <PhaseIndicator currentPhase={phase} />
         </div>
@@ -330,7 +330,7 @@ export default function StoryEvolutionWorkspace({
 
       {/* Stream error banner */}
       {streamError && (
-        <div className="bg-red-50 border-b border-red-200 px-4 py-2">
+        <div className="bg-red-50 border-b border-red-200 px-4 py-2 shrink-0">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center gap-2 text-red-700 text-sm">
               <AlertCircle className="size-4" />
@@ -349,7 +349,7 @@ export default function StoryEvolutionWorkspace({
       )}
 
       {/* Two-panel layout */}
-      <div className="flex-1 flex max-w-7xl w-full mx-auto">
+      <div className="flex-1 flex min-h-0 max-w-7xl w-full mx-auto">
         {/* Left panel: Original story (hidden on mobile) */}
         <aside className="hidden lg:block w-[45%] border-r overflow-y-auto p-6">
           <div className="space-y-4">
@@ -369,7 +369,8 @@ export default function StoryEvolutionWorkspace({
         <main
           className={cn(
             'flex-1 flex flex-col min-h-0',
-            (phase === 'summary' || phase === 'style_selection') && 'p-6'
+            (phase === 'summary' || phase === 'style_selection') &&
+              'p-6 overflow-y-auto'
           )}
         >
           {renderPhasePanel()}
