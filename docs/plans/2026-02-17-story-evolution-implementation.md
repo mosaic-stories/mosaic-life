@@ -12,9 +12,9 @@
 
 ---
 
-## Phase 1: Data Layer
+## Phase 1: Data Layer -- COMPLETED
 
-### Task 1: Add `source_conversation_id` Column to StoryVersion
+### Task 1: Add `source_conversation_id` Column to StoryVersion -- COMPLETED (commit 2194336)
 
 **Files:**
 - Create: `services/core-api/alembic/versions/xxxx_add_source_conversation_id_to_story_versions.py`
@@ -93,7 +93,7 @@ git commit -m "feat(evolution): add source_conversation_id column to story_versi
 
 ---
 
-### Task 2: Create StoryEvolutionSession Model and Migration
+### Task 2: Create StoryEvolutionSession Model and Migration -- COMPLETED (commit 26c14e5)
 
 **Files:**
 - Create: `services/core-api/app/models/story_evolution.py`
@@ -401,7 +401,7 @@ git commit -m "feat(evolution): add StoryEvolutionSession model and migration"
 
 ---
 
-### Task 3: Create Pydantic Schemas for Story Evolution
+### Task 3: Create Pydantic Schemas for Story Evolution -- COMPLETED (commit 828a63a)
 
 **Files:**
 - Create: `services/core-api/app/schemas/story_evolution.py`
