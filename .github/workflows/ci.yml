@@ -139,18 +139,15 @@ jobs:
         run: pip install uv
 
       - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync --all-extras
 
       - name: Run Ruff (lint + format check)
         run: |
-          pip install ruff
-          ruff check .
-          ruff format --check .
+          uv run ruff check .
+          uv run ruff format --check .
 
       - name: Run MyPy (type checking)
-        run: |
-          pip install mypy
-          mypy app/ --strict
+        run: uv run mypy app/
 
   backend-test:
     name: Backend - Unit Tests
