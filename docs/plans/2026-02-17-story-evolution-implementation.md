@@ -737,9 +737,9 @@ git commit -m "feat(evolution): add writing style directives and elicitation mod
 
 ---
 
-## Phase 3: Backend Services
+## Phase 3: Backend Services -- COMPLETED
 
-### Task 5: Create Story Evolution Service (Session Management)
+### Task 5: Create Story Evolution Service (Session Management) -- COMPLETED (commit 463f0e1)
 
 **Files:**
 - Create: `services/core-api/app/services/story_evolution.py`
@@ -1416,7 +1416,7 @@ git commit -m "feat(evolution): add story evolution service with session managem
 
 ---
 
-### Task 6: Create StoryWriterAgent Service
+### Task 6: Create StoryWriterAgent Service -- COMPLETED (commit da98411)
 
 **Files:**
 - Create: `services/core-api/app/services/story_writer.py`
@@ -1688,7 +1688,7 @@ git commit -m "feat(evolution): add StoryWriterAgent service for draft generatio
 
 ---
 
-### Task 7: Augment Storytelling Adapter for Elicitation Mode
+### Task 7: Augment Storytelling Adapter for Elicitation Mode -- COMPLETED (commit cba840f)
 
 **Files:**
 - Modify: `services/core-api/app/adapters/storytelling.py`
