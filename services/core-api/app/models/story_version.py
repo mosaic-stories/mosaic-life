@@ -49,6 +49,10 @@ class StoryVersion(Base):
 
     source_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    source_conversation_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID, ForeignKey("ai_conversations.id", ondelete="SET NULL"), nullable=True
+    )
+
     change_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     stale: Mapped[bool] = mapped_column(
