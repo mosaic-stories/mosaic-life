@@ -1873,9 +1873,9 @@ git commit -m "feat(evolution): add elicitation mode augmentation to persona sys
 
 ---
 
-## Phase 4: Backend API Routes
+## Phase 4: Backend API Routes -- COMPLETED
 
-### Task 8: Create Story Evolution API Routes
+### Task 8: Create Story Evolution API Routes -- COMPLETED (commit e0911f8)
 
 **Files:**
 - Create: `services/core-api/app/routes/story_evolution.py`
@@ -2262,7 +2262,7 @@ git commit -m "feat(evolution): add story evolution API routes"
 
 ---
 
-### Task 9: Add SSE Streaming Endpoints (Generate and Revise)
+### Task 9: Add SSE Streaming Endpoints (Generate and Revise) -- COMPLETED (commit 6f6ab39)
 
 **Files:**
 - Modify: `services/core-api/app/routes/story_evolution.py`
