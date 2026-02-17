@@ -4,3 +4,4 @@ export * from './auth';
 export * from './legacies';
 export * from './stories';
 export * from './invitations';
+export * from './evolution';
