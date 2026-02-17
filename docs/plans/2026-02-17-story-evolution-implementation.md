@@ -3074,9 +3074,9 @@ git commit -m "feat(evolution): add TanStack Query hooks for evolution workflow"
 
 ---
 
-## Phase 6: Frontend Components
+## Phase 6: Frontend Components -- COMPLETED
 
-### Task 12: Create PhaseIndicator and EvolutionBanner Components
+### Task 12: Create PhaseIndicator and EvolutionBanner Components -- COMPLETED (commit 4e4ed9b)
 
 **Files:**
 - Create: `apps/web/src/features/story-evolution/PhaseIndicator.tsx`
@@ -3100,7 +3100,7 @@ git commit -m "feat(evolution): add PhaseIndicator and EvolutionBanner component
 
 ---
 
-### Task 13: Create StyleSelector Component
+### Task 13: Create StyleSelector Component -- COMPLETED (commit 4e4ed9b)
 
 **Files:**
 - Create: `apps/web/src/features/story-evolution/StyleSelector.tsx`
@@ -3145,7 +3145,7 @@ git commit -m "feat(evolution): add StyleSelector component with writing style a
 
 ---
 
-### Task 14: Create SummaryCheckpoint Component
+### Task 14: Create SummaryCheckpoint Component -- COMPLETED (commit 4e4ed9b)
 
 **Files:**
 - Create: `apps/web/src/features/story-evolution/SummaryCheckpoint.tsx`
@@ -3165,7 +3165,7 @@ git commit -m "feat(evolution): add SummaryCheckpoint component"
 
 ---
 
-### Task 15: Create ElicitationPanel Component
+### Task 15: Create ElicitationPanel Component -- COMPLETED (commit 37ab124)
 
 **Files:**
 - Create: `apps/web/src/features/story-evolution/ElicitationPanel.tsx`
@@ -3190,7 +3190,7 @@ git commit -m "feat(evolution): add ElicitationPanel with chat and summarize con
 
 ---
 
-### Task 16: Create DraftStreamPanel and DraftReviewPanel Components
+### Task 16: Create DraftStreamPanel and DraftReviewPanel Components -- COMPLETED (commit 37ab124)
 
 **Files:**
 - Create: `apps/web/src/features/story-evolution/DraftStreamPanel.tsx`
@@ -3213,7 +3213,7 @@ git commit -m "feat(evolution): add DraftStreamPanel and DraftReviewPanel compon
 
 ---
 
-### Task 17: Create StoryEvolutionWorkspace (Main Page)
+### Task 17: Create StoryEvolutionWorkspace (Main Page) -- COMPLETED (commit 37ab124)
 
 **Files:**
 - Create: `apps/web/src/features/story-evolution/StoryEvolutionWorkspace.tsx`
@@ -3264,7 +3264,7 @@ git commit -m "feat(evolution): add StoryEvolutionWorkspace main page component"
 
 ---
 
-### Task 18: Add Route and Entry Points
+### Task 18: Add Route and Entry Points -- COMPLETED (commit 37ab124)
 
 **Files:**
 - Modify: `apps/web/src/routes/index.tsx`
@@ -3353,9 +3353,9 @@ git commit -m "feat(evolution): add evolution route and entry points from StoryC
 
 ---
 
-## Phase 7: Validation & Polish
+## Phase 7: Validation & Polish -- COMPLETED
 
-### Task 19: Run Full Backend Validation
+### Task 19: Run Full Backend Validation -- COMPLETED
 
 **Step 1: Run all backend tests**
 
@@ -3380,7 +3380,7 @@ git commit -m "fix(evolution): address validation issues"
 
 ---
 
-### Task 20: Run Full Frontend Validation
+### Task 20: Run Full Frontend Validation -- COMPLETED
 
 **Step 1: Run frontend lint and typecheck**
 
