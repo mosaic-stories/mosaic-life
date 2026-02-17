@@ -20,6 +20,7 @@ from .auth.middleware import SessionMiddleware
 from .routes.ai import router as ai_router
 from .routes.legacy import router as legacy_router
 from .routes.story import router as story_router
+from .routes.story_version import router as story_version_router
 from .routes.media import router as media_router, local_router as media_local_router
 from .routes.invitation import router as invitation_router
 from .routes.notification import router as notification_router
@@ -106,6 +107,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(ai_router)
 app.include_router(legacy_router)
 app.include_router(story_router)
+app.include_router(story_version_router)
 app.include_router(media_router)
 app.include_router(media_local_router)
 app.include_router(invitation_router)

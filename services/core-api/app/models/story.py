@@ -13,6 +13,7 @@ from ..database import Base
 
 if TYPE_CHECKING:
     from .associations import StoryLegacy
+    from .story_version import StoryVersion
     from .user import User
 
 
@@ -58,12 +59,25 @@ class Story(Base):
         nullable=False,
     )
 
+    active_version_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("story_versions.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+    )
+
     # Relationships
     author: Mapped["User"] = relationship("User", foreign_keys=[author_id])
     legacy_associations: Mapped[list["StoryLegacy"]] = relationship(
         "StoryLegacy",
         cascade="all, delete-orphan",
         order_by="StoryLegacy.position",
+    )
+    versions: Mapped[list["StoryVersion"]] = relationship(
+        "StoryVersion",
+        foreign_keys="StoryVersion.story_id",
+        back_populates="story",
+        cascade="all, delete-orphan",
+        order_by="StoryVersion.version_number.desc()",
     )
 
     def __repr__(self) -> str:

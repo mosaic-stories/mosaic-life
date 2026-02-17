@@ -13,7 +13,11 @@ from sqlalchemy.orm import selectinload
 from ..models.associations import StoryLegacy
 from ..models.legacy import Legacy, LegacyMember
 from ..models.story import Story
+from ..models.story_version import StoryVersion
 from ..schemas.associations import LegacyAssociationResponse
+from .change_summary import generate_change_summary
+from .story_version import create_version as create_story_version
+from .story_version import get_draft_version
 from ..schemas.story import (
     StoryCreate,
     StoryDetail,
@@ -26,6 +30,14 @@ logger = logging.getLogger(__name__)
 
 # Maximum length for content preview
 PREVIEW_MAX_LENGTH = 200
+
+# Role levels used for update authorization.
+ROLE_LEVELS: dict[str, int] = {
+    "creator": 4,
+    "admin": 3,
+    "advocate": 2,
+    "admirer": 1,
+}
 
 
 def create_content_preview(content: str, max_length: int = PREVIEW_MAX_LENGTH) -> str:
@@ -94,6 +106,51 @@ async def _get_legacy_names(
     return {row[0]: row[1] for row in result.all()}
 
 
+async def _get_highest_story_member_role(
+    db: AsyncSession,
+    user_id: UUID,
+    legacy_ids: list[UUID],
+) -> str | None:
+    """Get user's highest role across a story's linked legacies."""
+    if not legacy_ids:
+        return None
+
+    result = await db.execute(
+        select(LegacyMember.role).where(
+            LegacyMember.user_id == user_id,
+            LegacyMember.legacy_id.in_(legacy_ids),
+            LegacyMember.role != "pending",
+        )
+    )
+    roles = result.scalars().all()
+    if not roles:
+        return None
+
+    return max(roles, key=lambda role: ROLE_LEVELS.get(role, 0))
+
+
+def _can_edit_story(
+    story: Story,
+    user_id: UUID,
+    member_role: str | None,
+) -> bool:
+    """Check whether a user can edit a story.
+
+    Rules:
+    - Author can always edit
+    - Creator/Admin can edit any story in linked legacies
+    - Advocate can edit private stories
+    """
+    if story.author_id == user_id:
+        return True
+
+    level = ROLE_LEVELS.get(member_role or "", 0)
+    if level >= ROLE_LEVELS["admin"]:
+        return True
+
+    return story.visibility == "private" and level >= ROLE_LEVELS["advocate"]
+
+
 async def create_story(
     db: AsyncSession,
     user_id: UUID,
@@ -159,6 +216,17 @@ async def create_story(
             position=leg_assoc.position,
         )
         db.add(story_legacy)
+
+    # Create v1
+    await create_story_version(
+        db=db,
+        story=story,
+        title=data.title,
+        content=data.content,
+        source="manual_edit",
+        user_id=user_id,
+        change_summary="Initial version",
+    )
 
     await db.commit()
     await db.refresh(story)
@@ -442,6 +510,22 @@ async def get_story_detail(
     legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
     legacy_names = await _get_legacy_names(db, legacy_ids)
 
+    # Count versions and check for draft (only for author)
+    version_count = None
+    has_draft = None
+    if story.author_id == user_id:
+        from sqlalchemy import func as sa_func
+
+        count_result = await db.execute(
+            select(sa_func.count())
+            .select_from(StoryVersion)
+            .where(StoryVersion.story_id == story_id)
+        )
+        version_count = count_result.scalar_one()
+
+        draft = await get_draft_version(db, story_id)
+        has_draft = draft is not None
+
     logger.info(
         "story.detail",
         extra={
@@ -467,6 +551,8 @@ async def get_story_detail(
             )
             for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
         ],
+        version_count=version_count,
+        has_draft=has_draft,
         created_at=story.created_at,
         updated_at=story.updated_at,
     )
@@ -508,7 +594,7 @@ async def update_story(
             detail="Story not found",
         )
 
-    # Check author
+    # Author-only updates
     if story.author_id != user_id:
         logger.warning(
             "story.update_denied",
@@ -520,14 +606,41 @@ async def update_story(
         )
         raise HTTPException(
             status_code=403,
-            detail="Only the author can update this story",
+            detail="Only the story author can update this story",
         )
 
-    # Update fields
-    if data.title is not None:
-        story.title = data.title
-    if data.content is not None:
-        story.content = data.content
+    # Determine if title/content changed (versioned fields)
+    new_title = data.title if data.title is not None else story.title
+    new_content = data.content if data.content is not None else story.content
+    content_changed = (data.title is not None and data.title != story.title) or (
+        data.content is not None and data.content != story.content
+    )
+
+    version_number = None
+    if content_changed:
+        # Capture old content before version creation updates story fields
+        old_content = story.content
+
+        # Generate change summary
+        change_summary = await generate_change_summary(
+            old_content=old_content,
+            new_content=new_content,
+            source="manual_edit",
+        )
+
+        # Create new version (handles deactivation, stale marking, story field updates)
+        new_version = await create_story_version(
+            db=db,
+            story=story,
+            title=new_title,
+            content=new_content,
+            source="manual_edit",
+            user_id=user_id,
+            change_summary=change_summary,
+        )
+        version_number = new_version.version_number
+
+    # Handle visibility update (not versioned)
     if data.visibility is not None:
         story.visibility = data.visibility
 
@@ -593,6 +706,7 @@ async def update_story(
     return StoryResponse(
         id=story.id,
         title=story.title,
+        version_number=version_number,
         visibility=story.visibility,
         legacies=[
             LegacyAssociationResponse(

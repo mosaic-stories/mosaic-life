@@ -8,7 +8,7 @@
 
 **Tech Stack:** OpenTelemetry SDK (already installed), opentelemetry-instrumentation-fastapi (already installed), prometheus-client (already installed), python-json-logger (already installed)
 
-**Design doc:** `docs/plans/2026-02-15-feature-8-observability-design.md`
+**Design doc:** `docs/plans/completed/2026-02-15-feature-8-observability-design.md`
 
 ---
 

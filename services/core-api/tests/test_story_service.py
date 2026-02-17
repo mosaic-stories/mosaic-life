@@ -2,11 +2,13 @@
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.associations import StoryLegacy
-from app.models.legacy import Legacy
+from app.models.legacy import Legacy, LegacyMember
 from app.models.story import Story
+from app.models.story_version import StoryVersion
 from app.models.user import User
 from app.schemas.associations import LegacyAssociationCreate
 from app.schemas.story import StoryCreate, StoryUpdate
@@ -300,13 +302,13 @@ class TestUpdateStory:
         assert story.visibility == "private"
 
     @pytest.mark.asyncio
-    async def test_update_story_only_author(
+    async def test_update_story_non_member_denied(
         self,
         db_session: AsyncSession,
         test_user_2: User,
         test_story_public: Story,
     ):
-        """Test that only author can update story."""
+        """Test that non-members cannot update story."""
         data = StoryUpdate(title="Unauthorized Update")
 
         with pytest.raises(HTTPException) as exc:
@@ -317,7 +319,74 @@ class TestUpdateStory:
                 data=data,
             )
         assert exc.value.status_code == 403
-        assert "author" in exc.value.detail.lower()
+        assert "only the story author" in exc.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_update_story_admin_non_author_denied(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_legacy: Legacy,
+        test_story_public: Story,
+    ):
+        """Test admin member cannot update a story they did not author."""
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id,
+                user_id=test_user_2.id,
+                role="admin",
+            )
+        )
+        await db_session.flush()
+
+        data = StoryUpdate(title="Admin Updated")
+        with pytest.raises(HTTPException) as exc:
+            await story_service.update_story(
+                db=db_session,
+                user_id=test_user_2.id,
+                story_id=test_story_public.id,
+                data=data,
+            )
+
+        assert exc.value.status_code == 403
+        assert "only the story author" in exc.value.detail.lower()
+
+    @pytest.mark.asyncio
+    async def test_update_story_advocate_non_author_denied(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_legacy: Legacy,
+        test_story_private: Story,
+        test_story_public: Story,
+    ):
+        """Test advocate cannot update stories they did not author."""
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id,
+                user_id=test_user_2.id,
+                role="advocate",
+            )
+        )
+        await db_session.flush()
+
+        with pytest.raises(HTTPException) as private_exc:
+            await story_service.update_story(
+                db=db_session,
+                user_id=test_user_2.id,
+                story_id=test_story_private.id,
+                data=StoryUpdate(title="Advocate Private Edit"),
+            )
+        assert private_exc.value.status_code == 403
+
+        with pytest.raises(HTTPException) as public_exc:
+            await story_service.update_story(
+                db=db_session,
+                user_id=test_user_2.id,
+                story_id=test_story_public.id,
+                data=StoryUpdate(title="Advocate Public Edit"),
+            )
+        assert public_exc.value.status_code == 403
 
     @pytest.mark.asyncio
     async def test_update_partial_fields(
@@ -457,3 +526,166 @@ class TestDeleteStory:
             "author" in exc.value.detail.lower()
             or "creator" in exc.value.detail.lower()
         )
+
+
+class TestCreateStoryVersioning:
+    """Tests for versioning integration in create_story."""
+
+    @pytest.mark.asyncio
+    async def test_create_story_creates_v1(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+    ):
+        """Creating a story should also create version 1."""
+        data = StoryCreate(
+            title="New Story",
+            content="Story content.",
+            visibility="private",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
+        )
+
+        result = await story_service.create_story(
+            db=db_session, user_id=test_user.id, data=data
+        )
+
+        # Check that v1 was created
+        versions = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == result.id)
+        )
+        version_list = versions.scalars().all()
+        assert len(version_list) == 1
+        assert version_list[0].version_number == 1
+        assert version_list[0].status == "active"
+        assert version_list[0].source == "manual_edit"
+        assert version_list[0].change_summary == "Initial version"
+
+    @pytest.mark.asyncio
+    async def test_create_story_sets_active_version_id(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+    ):
+        """Creating a story should set active_version_id."""
+        data = StoryCreate(
+            title="New Story",
+            content="Story content.",
+            visibility="private",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
+        )
+
+        result = await story_service.create_story(
+            db=db_session, user_id=test_user.id, data=data
+        )
+
+        story_result = await db_session.execute(
+            select(Story).where(Story.id == result.id)
+        )
+        story = story_result.scalar_one()
+        assert story.active_version_id is not None
+
+
+class TestUpdateStoryVersioning:
+    """Tests for versioning integration in update_story."""
+
+    @pytest.mark.asyncio
+    async def test_update_creates_new_version(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """Updating content should create a new version."""
+        # Fixture already creates v1 with active_version_id set
+
+        data = StoryUpdate(title="Updated Title", content="Updated content.")
+        await story_service.update_story(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            data=data,
+        )
+
+        # Check that v2 was created
+        versions_result = await db_session.execute(
+            select(StoryVersion)
+            .where(StoryVersion.story_id == test_story_public.id)
+            .order_by(StoryVersion.version_number)
+        )
+        versions = versions_result.scalars().all()
+        assert len(versions) == 2
+        assert versions[0].status == "inactive"  # v1
+        assert versions[1].status == "active"  # v2
+        assert versions[1].title == "Updated Title"
+
+    @pytest.mark.asyncio
+    async def test_visibility_only_update_no_new_version(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """Updating only visibility should not create a new version."""
+        # Fixture already creates v1 with active_version_id set
+
+        data = StoryUpdate(visibility="private")
+        await story_service.update_story(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            data=data,
+        )
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        versions = versions_result.scalars().all()
+        assert len(versions) == 1  # Still only v1
+
+
+class TestGetStoryDetailVersioning:
+    """Tests for version info in get_story_detail."""
+
+    @pytest.mark.asyncio
+    async def test_detail_includes_version_count(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """GET story detail should include version_count for author."""
+        # Fixture already creates v1 with active_version_id set
+
+        result = await story_service.get_story_detail(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+        )
+        assert result.version_count == 1
+
+    @pytest.mark.asyncio
+    async def test_detail_includes_has_draft(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """GET story detail should include has_draft for author."""
+        # Fixture already creates v1 with active_version_id set
+
+        result = await story_service.get_story_detail(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+        )
+        assert result.has_draft is False

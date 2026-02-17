@@ -9,10 +9,10 @@
 
 | Status | Count | Plans |
 |--------|-------|-------|
-| **Fully Implemented** | 18 | Moved to `docs/plans/completed/` |
-| **Partially Implemented** | 1 | Remain in `docs/plans/` for review |
+| **Fully Implemented** | 20 | Moved to `docs/plans/completed/` |
+| **Partially Implemented** | 0 | Remain in `docs/plans/` for review |
 | **Not Implemented** | 1 | Remain in `docs/plans/` for review |
-| **Total** | 20 | (31 files, grouped into 20 logical plans) |
+| **Total** | 21 | (33 files, grouped into 21 logical plans) |
 
 ---
 
@@ -104,9 +104,14 @@
 **Status:** Fully implemented. Account management now includes active session listing and revocation (`GET/DELETE /api/users/me/sessions`), data export request + tokenized download flow (`POST /api/users/me/export`, `GET /api/users/me/export/{token}`), and account deletion with short-lived confirmation token (`POST /api/users/me/delete-token`, `DELETE /api/users/me`). Support requests now enforce per-user hourly rate limiting (5/hour) and send via SES when configured (with local logging fallback). Frontend `AccountSettings` now uses real APIs instead of placeholders for session management, export, and account deletion.
 
 ### 20. Agent Memory System (2026-02-14)
-**Files:** `2026-02-14-feature-7-agent-memory-system-design.md`, `2026-02-14-feature-7-agent-memory-implementation.md`
+**Files:** `completed/2026-02-14-feature-7-agent-memory-system-design.md`, `completed/2026-02-14-feature-7-agent-memory-implementation.md`
 **What:** Add rolling conversation summarization and per-user-per-legacy fact extraction with private/shared visibility, plus memory retrieval and prompt injection integration.
 **Status:** Fully implemented. `conversation_chunks` and `legacy_facts` data model/migrations are complete; memory service supports summarization, extraction, and fact CRUD; storytelling turn preparation and system prompt building consume memory context/facts; AI routes trigger summarization and expose fact management endpoints; tests and backend validation are clean.
+
+### 21. Observability & Monitoring (2026-02-15)
+**Files:** `completed/2026-02-15-feature-8-observability-design.md`, `completed/2026-02-15-feature-8-observability-implementation.md`
+**What:** Instrument AI conversation path with OpenTelemetry tracing, Prometheus metrics, and structured log enrichment.
+**Status:** Fully implemented. TracerProvider foundation with Resource attributes and FastAPI auto-instrumentation; structured log enrichment via OTelContextFilter with automatic trace_id/span_id/service injection; Prometheus metrics module with AI-path histograms/counters for request duration, tokens, guardrails, retrieval, and embeddings; AI-path span enrichment in storytelling agent and memory summarization; request correlation via trace ID response headers; tests and backend validation are clean.
 
 ### 19. Feature 3 Agent Framework Wrap-Up (2026-02-14)
 **File:** `completed/2026-02-14-feature-3-agent-framework-wrap-up-plan.md`
@@ -115,21 +120,19 @@
 
 ---
 
-## Partially Implemented Plans (remain for review)
+## Not Implemented Plans (remain for review)
+
 ### 17. AI Memory Roadmap
 **File:** `AI-MEMORY-START.md`
 **What:** High-level 10-feature roadmap for AI-powered knowledge capabilities across multiple phases.
-**Phase 1 (Vector Store, Ingestion, Retrieval):** DONE — Covered by AI Memory Phase 1 plan
+**Phase 1 (Vector Store, Ingestion, Retrieval):** COMPLETE — Covered by AI Memory Phase 1 plan
 **Phase 2 (Guardrails, Personas):** PARTIAL — Bedrock guardrails done, 2 of 4+ personas implemented, no per-persona retrieval config
-**Feature 3 (Agent Framework Abstraction):** COMPLETE including follow-on hardening — baseline abstraction targets plus wrap-up implementation are complete (expanded DI/registry wiring, full protocol surface, thin adapter shells, and provider contract conformance suite).
+**Feature 3 (Agent Framework Abstraction):** COMPLETE including follow-on hardening
+**Feature 7 (Agent Memory System):** COMPLETE — Rolling conversation summarization and per-user-per-legacy facts
+**Feature 8 (Observability & Monitoring):** COMPLETE — OTel tracing, Prometheus metrics, structured logging
 **Not Started:**
-- Feature 8 (partial): Prometheus metrics, quality metrics, cost tracking, dashboards
 - Feature 9: Experimentation Framework (A/B testing, feature flags)
 - Feature 10 (partial): Deletion verification, legacy-level cascade, cache invalidation
-
----
-
-## Not Implemented Plans (remain for review)
 
 ### 18. Member Relationship Profiles (2025-02-13)
 **File:** `2025-02-13-member-relationship-profiles-design.md`

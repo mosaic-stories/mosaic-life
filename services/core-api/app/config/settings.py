@@ -95,6 +95,9 @@ class Settings(BaseModel):
     debug_sse_interval_ms: int = int(os.getenv("DEBUG_SSE_INTERVAL_MS", "250"))
     debug_sse_max_seconds: int = int(os.getenv("DEBUG_SSE_MAX_SECONDS", "60"))
 
+    # Story versioning
+    story_version_soft_cap: int = int(os.getenv("STORY_VERSION_SOFT_CAP", "50"))
+
 
 @lru_cache
 def get_settings() -> Settings:

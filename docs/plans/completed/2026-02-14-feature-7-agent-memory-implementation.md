@@ -8,7 +8,7 @@
 
 **Tech Stack:** FastAPI, SQLAlchemy 2.x, Alembic, pgvector, Pydantic v2, pytest + pytest-asyncio, OpenTelemetry
 
-**Design doc:** `docs/plans/2026-02-14-feature-7-agent-memory-system-design.md`
+**Design doc:** `docs/plans/completed/2026-02-14-feature-7-agent-memory-system-design.md`
 
 ---
 

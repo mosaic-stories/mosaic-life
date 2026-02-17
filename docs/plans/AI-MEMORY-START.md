@@ -558,6 +558,22 @@ CREATE TABLE legacy_facts (
 
 ## Feature 8: Observability and Monitoring
 
+### Implementation Status (2026-02-15)
+
+**Status:** COMPLETE
+
+**Implemented in codebase:**
+- TracerProvider foundation with Resource attributes and FastAPI auto-instrumentation
+- Structured log enrichment via OTelContextFilter (automatic trace_id/span_id/service injection)
+- Prometheus metrics module with AI-path histograms and counters (request duration, tokens, guardrails, retrieval, embeddings)
+- AI-path span enrichment in storytelling agent and memory summarization orchestration
+- Request correlation via trace ID response headers
+- End-to-end validation complete (tests passing, backend lint/type checks clean)
+
+Reference:
+- `docs/plans/completed/2026-02-15-feature-8-observability-design.md`
+- `docs/plans/completed/2026-02-15-feature-8-observability-implementation.md`
+
 ### Overview
 Implement comprehensive observability for the AI knowledge system, covering performance metrics, quality indicators, cost tracking, and security auditing.
 
