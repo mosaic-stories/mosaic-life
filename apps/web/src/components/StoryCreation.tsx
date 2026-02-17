@@ -271,73 +271,71 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
         noIndex={true}
       />
       <HeaderSlot>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-          >
-            <ArrowLeft className="size-4" />
-            <span>Back to {legacyName}</span>
-          </button>
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+        >
+          <ArrowLeft className="size-4" />
+          <span>Back to {legacyName}</span>
+        </button>
 
-          {isViewMode && isEditMode ? (
-            <>
-              {canEdit && (
-                <Button
-                  size="sm"
-                  className="gap-2"
-                  onClick={handleEditClick}
-                >
-                  <Pencil className="size-4" />
-                  Edit Story
-                </Button>
-              )}
-              {showHistory && (
-                <VersionHistoryButton
-                  versionCount={existingStory?.version_count ?? null}
-                  onClick={() => setIsHistoryOpen(true)}
-                />
-              )}
-              {storyId && canEdit && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() => navigate(`/legacy/${legacyId}/story/${storyId}/evolve`)}
-                >
-                  <Sparkles className="size-4" />
-                  {activeEvolution && !['completed', 'discarded'].includes(activeEvolution.phase)
-                    ? 'Continue Evolving'
-                    : 'Evolve Story'}
-                </Button>
-              )}
-            </>
-          ) : (
-            <>
-              {isEditMode && (
-                <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
-                  Cancel
-                </Button>
-              )}
-              <Button variant="ghost" size="sm" disabled>
-                Save Draft
-              </Button>
+        {isViewMode && isEditMode ? (
+          <>
+            {canEdit && (
               <Button
                 size="sm"
                 className="gap-2"
-                onClick={handlePublish}
-                disabled={isMutating || !title.trim() || !content.trim()}
+                onClick={handleEditClick}
               >
-                {isMutating ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Save className="size-4" />
-                )}
-                {isEditMode ? 'Update Story' : 'Publish Story'}
+                <Pencil className="size-4" />
+                Edit Story
               </Button>
-            </>
-          )}
-        </div>
+            )}
+            {showHistory && (
+              <VersionHistoryButton
+                versionCount={existingStory?.version_count ?? null}
+                onClick={() => setIsHistoryOpen(true)}
+              />
+            )}
+            {storyId && canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => navigate(`/legacy/${legacyId}/story/${storyId}/evolve`)}
+              >
+                <Sparkles className="size-4" />
+                {activeEvolution && !['completed', 'discarded'].includes(activeEvolution.phase)
+                  ? 'Continue Evolving'
+                  : 'Evolve Story'}
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            {isEditMode && (
+              <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                Cancel
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" disabled>
+              Save Draft
+            </Button>
+            <Button
+              size="sm"
+              className="gap-2"
+              onClick={handlePublish}
+              disabled={isMutating || !title.trim() || !content.trim()}
+            >
+              {isMutating ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              {isEditMode ? 'Update Story' : 'Publish Story'}
+            </Button>
+          </>
+        )}
       </HeaderSlot>
 
       {/* Main Content */}
