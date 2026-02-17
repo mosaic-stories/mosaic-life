@@ -1,9 +1,20 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Sparkles, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Loader2, Sparkles, AlertCircle, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/components/ui/utils';
 import { useStory } from '@/lib/hooks/useStories';
 import {
@@ -318,6 +329,43 @@ export default function StoryEvolutionWorkspace({
           >
             Evolution
           </Badge>
+          {phase !== 'completed' && phase !== 'discarded' && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-1"
+                  disabled={discardEvolution.isPending}
+                >
+                  <X className="size-3.5 mr-1" />
+                  Discard
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Discard evolution session?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will discard all progress in this evolution session
+                    including any conversation and draft. Your original story
+                    will remain unchanged.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep working</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDiscard}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    {discardEvolution.isPending ? (
+                      <Loader2 className="size-4 animate-spin mr-2" />
+                    ) : null}
+                    Discard session
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </HeaderSlot>
 
