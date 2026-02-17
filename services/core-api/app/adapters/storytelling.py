@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from opentelemetry import trace
+from sqlalchemy import select
 
 from ..adapters.ai import (
     AIProviderError,
@@ -227,8 +228,36 @@ class DefaultStorytellingAgent:
             span.set_attribute("chunks_retrieved", len(chunks))
             span.set_attribute("facts_retrieved", len(facts))
 
+            # Check if this conversation is linked to an active evolution session
+            from ..models.story import Story
+            from ..models.story_evolution import StoryEvolutionSession
+
+            elicitation_mode = False
+            original_story_text: str | None = None
+
+            evo_result = await db.execute(
+                select(StoryEvolutionSession).where(
+                    StoryEvolutionSession.conversation_id == conversation_id,
+                    StoryEvolutionSession.phase == "elicitation",
+                )
+            )
+            evo_session = evo_result.scalar_one_or_none()
+            if evo_session:
+                elicitation_mode = True
+                story_result = await db.execute(
+                    select(Story).where(Story.id == evo_session.story_id)
+                )
+                story = story_result.scalar_one_or_none()
+                if story:
+                    original_story_text = story.content
+
             system_prompt = build_system_prompt(
-                persona_id, legacy_name, story_context, facts=facts
+                persona_id,
+                legacy_name,
+                story_context,
+                facts=facts,
+                elicitation_mode=elicitation_mode,
+                original_story_text=original_story_text,
             )
             if not system_prompt:
                 raise AIProviderError(
