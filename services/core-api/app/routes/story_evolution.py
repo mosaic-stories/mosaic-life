@@ -45,6 +45,16 @@ async def start_evolution(
         user_id=session_data.user_id,
         persona_id=data.persona_id,
     )
+
+    # Generate opening message from the persona (best-effort, non-blocking)
+    registry = get_provider_registry()
+    await evolution_service.generate_opening_message(
+        db=db,
+        session=evo_session,
+        llm_provider=registry.get_llm_provider(),
+        memory=registry.get_agent_memory(),
+    )
+
     return EvolutionSessionResponse.model_validate(evo_session)
 
 

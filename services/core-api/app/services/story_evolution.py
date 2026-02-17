@@ -19,6 +19,8 @@ from app.models.story_version import StoryVersion
 if TYPE_CHECKING:
     from typing import Any
 
+    from app.adapters.ai import LLMProvider, AgentMemory
+
 logger = logging.getLogger(__name__)
 
 
@@ -144,6 +146,121 @@ async def start_session(
     )
 
     return session
+
+
+_OPENING_INSTRUCTION = (
+    "[System] The user has just started a story evolution session. "
+    "This is the very first message in the conversation. Please:\n"
+    "1. Briefly greet the user and introduce what you'll be doing together\n"
+    "2. Share what stood out to you about the story — key moments, themes, "
+    "or details that caught your attention\n"
+    "3. Suggest 2-3 specific directions they could explore to deepen the story "
+    "(based on what you read)\n"
+    "4. Let them know they're free to take the conversation in any direction\n\n"
+    "Keep it warm, concise, and inviting. Use 2-3 short paragraphs."
+)
+
+
+async def generate_opening_message(
+    db: AsyncSession,
+    session: StoryEvolutionSession,
+    llm_provider: LLMProvider,
+    memory: AgentMemory,
+) -> None:
+    """Generate an opening message from the persona for a new evolution session.
+
+    Builds the elicitation system prompt, calls the LLM with a synthetic
+    instruction (not saved), and saves the assistant response as the first
+    message in the conversation.
+    """
+    from app.config.personas import build_system_prompt, get_persona
+    from app.models.legacy import Legacy
+
+    # Load story content
+    story_result = await db.execute(select(Story).where(Story.id == session.story_id))
+    story = story_result.scalar_one_or_none()
+    if not story:
+        logger.warning(
+            "evolution.opening.story_not_found",
+            extra={"session_id": str(session.id)},
+        )
+        return
+
+    # Load legacy name
+    legacy_result = await db.execute(
+        select(StoryLegacy).where(
+            StoryLegacy.story_id == session.story_id,
+            StoryLegacy.role == "primary",
+        )
+    )
+    primary = legacy_result.scalar_one_or_none()
+    legacy_name = "the person"
+    if primary:
+        leg = await db.execute(select(Legacy).where(Legacy.id == primary.legacy_id))
+        legacy = leg.scalar_one_or_none()
+        if legacy:
+            legacy_name = legacy.name
+
+    # Get persona config for model_id
+    conv_result = await db.execute(
+        select(AIConversation).where(AIConversation.id == session.conversation_id)
+    )
+    conv = conv_result.scalar_one_or_none()
+    persona_id = conv.persona_id if conv else "biographer"
+    persona = get_persona(persona_id)
+    if not persona:
+        logger.warning(
+            "evolution.opening.persona_not_found",
+            extra={"persona_id": persona_id},
+        )
+        return
+
+    # Build system prompt with elicitation mode active
+    system_prompt = build_system_prompt(
+        persona_id=persona_id,
+        legacy_name=legacy_name,
+        elicitation_mode=True,
+        original_story_text=story.content,
+    )
+    if not system_prompt:
+        return
+
+    # Generate the opening message (collect streamed chunks)
+    try:
+        chunks: list[str] = []
+        async for chunk in llm_provider.stream_generate(
+            messages=[{"role": "user", "content": _OPENING_INSTRUCTION}],
+            system_prompt=system_prompt,
+            model_id=persona.model_id,
+            max_tokens=persona.max_tokens,
+        ):
+            chunks.append(chunk)
+
+        opening_text = "".join(chunks).strip()
+        if not opening_text:
+            return
+
+        # Save as assistant message (the synthetic user message is NOT saved)
+        await memory.save_message(
+            db=db,
+            conversation_id=session.conversation_id,
+            role="assistant",
+            content=opening_text,
+        )
+
+        logger.info(
+            "evolution.opening.generated",
+            extra={
+                "session_id": str(session.id),
+                "length": len(opening_text),
+            },
+        )
+    except Exception:
+        # Opening message is best-effort — don't fail session creation
+        logger.exception(
+            "evolution.opening.generation_failed",
+            extra={"session_id": str(session.id)},
+        )
 
 
 async def get_active_session(
