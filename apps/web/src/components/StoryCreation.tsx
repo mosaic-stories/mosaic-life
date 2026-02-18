@@ -514,10 +514,7 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
       {showHistory && storyId && (
         <VersionHistoryDrawer
           open={isHistoryOpen}
-          onOpenChange={(open) => {
-            setIsHistoryOpen(open);
-            if (!open) setPreviewVersionNumber(null);
-          }}
+          onOpenChange={setIsHistoryOpen}
           data={versionsQuery.data}
           isLoading={versionsQuery.isLoading}
           selectedVersion={previewVersionNumber}
