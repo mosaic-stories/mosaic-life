@@ -74,6 +74,9 @@ export default function StoryEvolutionWorkspace({
     session?.id ?? ''
   );
 
+  // Extract phase early so callbacks can reference it
+  const phase = session?.phase;
+
   // Phase transition handlers
   const handleStart = async () => {
     try {
@@ -243,9 +246,6 @@ export default function StoryEvolutionWorkspace({
     );
   }
 
-  // Active session — show workspace
-  const phase = session.phase;
-
   const renderPhasePanel = () => {
     switch (phase) {
       case 'elicitation':
@@ -379,7 +379,7 @@ export default function StoryEvolutionWorkspace({
       {/* Phase indicator */}
       <div className="border-b bg-white px-4 py-3 shrink-0">
         <div className="max-w-7xl mx-auto">
-          <PhaseIndicator currentPhase={phase} onPhaseClick={handlePhaseClick} />
+          <PhaseIndicator currentPhase={session.phase} onPhaseClick={handlePhaseClick} />
         </div>
       </div>
 
