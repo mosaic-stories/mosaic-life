@@ -122,7 +122,14 @@ class StoryEvolutionSession(Base):
         "summary": {"style_selection", "elicitation", "discarded"},
         "style_selection": {"drafting", "summary", "elicitation", "discarded"},
         "drafting": {"review"},
-        "review": {"completed", "discarded", "review", "style_selection", "summary", "elicitation"},
+        "review": {
+            "completed",
+            "discarded",
+            "review",
+            "style_selection",
+            "summary",
+            "elicitation",
+        },
     }
 
     WRITING_STYLES = {"vivid", "emotional", "conversational", "concise", "documentary"}

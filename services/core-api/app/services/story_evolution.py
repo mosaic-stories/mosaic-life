@@ -380,6 +380,20 @@ async def get_active_session(
     return result.scalar_one_or_none()
 
 
+async def _delete_draft_version(
+    db: AsyncSession, session: StoryEvolutionSession
+) -> None:
+    """Delete the draft StoryVersion linked to a session, if one exists."""
+    if session.draft_version_id:
+        draft = await db.execute(
+            select(StoryVersion).where(StoryVersion.id == session.draft_version_id)
+        )
+        draft_version = draft.scalar_one_or_none()
+        if draft_version:
+            await db.delete(draft_version)
+        session.draft_version_id = None
+
+
 async def advance_phase(
     db: AsyncSession,
     session_id: uuid.UUID,
@@ -398,6 +412,24 @@ async def advance_phase(
             status_code=422,
             detail=f"Cannot transition from '{session.phase}' to '{target_phase}'",
         )
+
+    # Clear forward-phase data on backward transitions
+    current_order = StoryEvolutionSession.PHASE_ORDER.get(session.phase, 0)
+    target_order = StoryEvolutionSession.PHASE_ORDER.get(target_phase, 0)
+
+    if target_order < current_order:
+        # Delete draft version if it exists
+        await _delete_draft_version(db, session)
+        session.revision_count = 0
+
+        if target_order <= StoryEvolutionSession.PHASE_ORDER["summary"]:
+            # Going back to summary or earlier: clear style/length
+            session.writing_style = None
+            session.length_preference = None
+
+        if target_order <= StoryEvolutionSession.PHASE_ORDER["elicitation"]:
+            # Going back to elicitation: also clear summary
+            session.summary_text = None
 
     session.phase = target_phase
 
@@ -438,13 +470,7 @@ async def discard_session(
         )
 
     # Delete draft version if one exists
-    if session.draft_version_id:
-        draft = await db.execute(
-            select(StoryVersion).where(StoryVersion.id == session.draft_version_id)
-        )
-        draft_version = draft.scalar_one_or_none()
-        if draft_version:
-            await db.delete(draft_version)
+    await _delete_draft_version(db, session)
 
     session.phase = "discarded"
     await db.commit()

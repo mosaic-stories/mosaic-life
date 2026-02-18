@@ -534,3 +534,290 @@ class TestGetSessionForGeneration:
                 user_id=test_user.id,
             )
         assert exc.value.status_code == 422
+
+
+class TestBackwardPhaseTransitions:
+    @pytest.mark.asyncio
+    async def test_review_back_to_style_selection_clears_draft(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Going back to style_selection should delete draft and reset revision_count."""
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        # Advance through: elicitation → summary → style_selection
+        await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="summary",
+            summary_text="## New Details\n- Detail",
+        )
+        await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="style_selection",
+            writing_style="vivid",
+            length_preference="similar",
+        )
+
+        # Simulate having a draft (manually set fields as generate endpoint would)
+        from app.models.story_version import StoryVersion
+
+        draft = StoryVersion(
+            story_id=test_story.id,
+            version_number=99,
+            title="Draft",
+            content="Draft content",
+            status="draft",
+            source="story_evolution",
+            created_by=test_user.id,
+        )
+        db_session.add(draft)
+        await db_session.flush()
+        session.draft_version_id = draft.id
+        session.phase = "review"
+        session.revision_count = 2
+        await db_session.commit()
+
+        # Go back to style_selection
+        updated = await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="style_selection",
+        )
+
+        assert updated.phase == "style_selection"
+        assert updated.draft_version_id is None
+        assert updated.revision_count == 0
+        # Style and length should be preserved (they belong to style_selection)
+        assert updated.writing_style == "vivid"
+        assert updated.length_preference == "similar"
+        # Summary should be preserved
+        assert updated.summary_text is not None
+
+    @pytest.mark.asyncio
+    async def test_review_back_to_summary_clears_style_and_draft(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Going back to summary should clear style, length, draft, and revision_count."""
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="summary",
+            summary_text="## New Details\n- Detail",
+        )
+        await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="style_selection",
+            writing_style="emotional",
+            length_preference="longer",
+        )
+
+        # Simulate review phase
+        session.phase = "review"
+        await db_session.commit()
+
+        # Go back to summary
+        updated = await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="summary",
+        )
+
+        assert updated.phase == "summary"
+        assert updated.writing_style is None
+        assert updated.length_preference is None
+        assert updated.draft_version_id is None
+        assert updated.revision_count == 0
+        # Summary should be preserved (belongs to this phase)
+        assert updated.summary_text == "## New Details\n- Detail"
+
+    @pytest.mark.asyncio
+    async def test_review_back_to_elicitation_clears_everything(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Going back to elicitation should clear summary, style, length, draft."""
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="summary",
+            summary_text="## Summary",
+        )
+        await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="style_selection",
+            writing_style="concise",
+            length_preference="shorter",
+        )
+
+        # Simulate review phase
+        session.phase = "review"
+        await db_session.commit()
+
+        # Go back to elicitation
+        updated = await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="elicitation",
+        )
+
+        assert updated.phase == "elicitation"
+        assert updated.summary_text is None
+        assert updated.writing_style is None
+        assert updated.length_preference is None
+        assert updated.draft_version_id is None
+        assert updated.revision_count == 0
+
+    @pytest.mark.asyncio
+    async def test_style_selection_back_to_elicitation_clears_summary(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Going from style_selection back to elicitation should clear summary and style."""
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="summary",
+            summary_text="## Summary",
+        )
+        await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="style_selection",
+            writing_style="vivid",
+            length_preference="similar",
+        )
+
+        updated = await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="elicitation",
+        )
+
+        assert updated.phase == "elicitation"
+        assert updated.summary_text is None
+        assert updated.writing_style is None
+        assert updated.length_preference is None
+
+    @pytest.mark.asyncio
+    async def test_backward_transition_deletes_draft_version_from_db(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Draft StoryVersion record should be deleted from DB on backward transition."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story_version import StoryVersion
+
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        # Create a draft version
+        draft = StoryVersion(
+            story_id=test_story.id,
+            version_number=99,
+            title="Draft",
+            content="Draft content",
+            status="draft",
+            source="story_evolution",
+            created_by=test_user.id,
+        )
+        db_session.add(draft)
+        await db_session.flush()
+
+        session.draft_version_id = draft.id
+        session.phase = "review"
+        session.summary_text = "## Summary"
+        session.writing_style = "vivid"
+        session.length_preference = "similar"
+        await db_session.commit()
+
+        draft_id = draft.id
+
+        # Go back to elicitation
+        await evolution_service.advance_phase(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            target_phase="elicitation",
+        )
+
+        # Verify draft is deleted from DB
+        result = await db_session.execute(
+            sa_select(StoryVersion).where(StoryVersion.id == draft_id)
+        )
+        assert result.scalar_one_or_none() is None
