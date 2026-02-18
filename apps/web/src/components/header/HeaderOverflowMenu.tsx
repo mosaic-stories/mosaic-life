@@ -26,7 +26,9 @@ export default function HeaderOverflowMenu({ children }: HeaderOverflowMenuProps
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="center" sideOffset={8} className="p-2 min-w-[200px]">
-        <div className="flex flex-col gap-2">{children}</div>
+        <div className="flex flex-col gap-1 [&>button]:w-full [&>button]:justify-start [&>a]:w-full [&>a]:justify-start">
+          {children}
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );

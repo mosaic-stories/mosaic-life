@@ -20,6 +20,7 @@ const AIAgentChatBase = lazy(() => import('@/components/AIAgentChat'));
 const AIAgentPanelBase = lazy(() => import('@/components/AIAgentPanel'));
 const InviteAcceptPageBase = lazy(() => import('@/components/InviteAcceptPage'));
 const NotificationHistoryBase = lazy(() => import('@/components/NotificationHistory'));
+const StoryEvolutionBase = lazy(() => import('@/features/story-evolution/StoryEvolutionWorkspace'));
 
 // Settings components
 const SettingsLayout = lazy(() => import('@/components/settings/SettingsLayout'));
@@ -47,6 +48,7 @@ const AIAgentPanel = withLegacyProps(AIAgentPanelBase);
 
 // Components that need legacyId and optionally storyId
 const StoryCreation = withStoryProps(StoryCreationBase);
+const StoryEvolution = withStoryProps(StoryEvolutionBase);
 
 // Loading fallback component
 function PageLoader() {
@@ -142,6 +144,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <LazyPage><StoryCreation /></LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'legacy/:legacyId/story/:storyId/evolve',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><StoryEvolution /></LazyPage>
           </ProtectedRoute>
         ),
       },

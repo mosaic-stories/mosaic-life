@@ -30,6 +30,12 @@ class TestPrepareTurnWithMemory:
         )
 
         mock_db = AsyncMock()
+        # Make db.execute return a result whose scalar_one_or_none returns None
+        # (needed for the evolution session detection query)
+        mock_execute_result = MagicMock()
+        mock_execute_result.scalar_one_or_none.return_value = None
+        mock_db.execute.return_value = mock_execute_result
+
         mock_fact = MagicMock()
         mock_fact.category = "hobby"
         mock_fact.content = "Loved fishing"
@@ -98,6 +104,12 @@ class TestPrepareTurnTracing:
         )
 
         mock_db = AsyncMock()
+        # Make db.execute return a result whose scalar_one_or_none returns None
+        # (needed for the evolution session detection query)
+        mock_execute_result = MagicMock()
+        mock_execute_result.scalar_one_or_none.return_value = None
+        mock_db.execute.return_value = mock_execute_result
+
         user_id = uuid4()
         legacy_id = uuid4()
 

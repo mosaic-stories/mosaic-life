@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Save, AlertCircle, Pencil, Eye, Globe, Users, Lock } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, AlertCircle, Pencil, Eye, Globe, Users, Lock, Sparkles } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Input } from './ui/input';
@@ -19,6 +19,7 @@ import {
   useDiscardDraft,
 } from '@/lib/hooks/useVersions';
 import type { LegacyAssociationInput } from '@/lib/api/stories';
+import { useActiveEvolution } from '@/lib/hooks/useEvolution';
 import { useAuth } from '@/contexts/AuthContext';
 import { SEOHead } from '@/components/seo';
 import { HeaderSlot } from '@/components/header';
@@ -49,6 +50,7 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
 
   const { data: legacy, isLoading: _legacyLoading } = useLegacy(legacyId);
   const { data: existingStory, isLoading: storyLoading } = useStory(storyId);
+  const { data: activeEvolution } = useActiveEvolution(storyId, !!storyId);
   const createStory = useCreateStory();
   const updateStory = useUpdateStory();
   const _theme = getThemeClasses(currentTheme);
@@ -269,65 +271,92 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
         noIndex={true}
       />
       <HeaderSlot>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-          >
-            <ArrowLeft className="size-4" />
-            <span>Back to {legacyName}</span>
-          </button>
+        <button
+          onClick={handleBack}
+          className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+        >
+          <ArrowLeft className="size-4" />
+          <span>Back to {legacyName}</span>
+        </button>
 
-          {isViewMode && isEditMode ? (
-            <>
-              {canEdit && (
-                <Button
-                  size="sm"
-                  className="gap-2"
-                  onClick={handleEditClick}
-                >
-                  <Pencil className="size-4" />
-                  Edit Story
-                </Button>
-              )}
-              {showHistory && (
-                <VersionHistoryButton
-                  versionCount={existingStory?.version_count ?? null}
-                  onClick={() => setIsHistoryOpen(true)}
-                />
-              )}
-            </>
-          ) : (
-            <>
-              {isEditMode && (
-                <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
-                  Cancel
-                </Button>
-              )}
-              <Button variant="ghost" size="sm" disabled>
-                Save Draft
-              </Button>
+        {isViewMode && isEditMode ? (
+          <>
+            {canEdit && (
               <Button
                 size="sm"
                 className="gap-2"
-                onClick={handlePublish}
-                disabled={isMutating || !title.trim() || !content.trim()}
+                onClick={handleEditClick}
               >
-                {isMutating ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <Save className="size-4" />
-                )}
-                {isEditMode ? 'Update Story' : 'Publish Story'}
+                <Pencil className="size-4" />
+                Edit Story
               </Button>
-            </>
-          )}
-        </div>
+            )}
+            {showHistory && (
+              <VersionHistoryButton
+                versionCount={existingStory?.version_count ?? null}
+                onClick={() => setIsHistoryOpen(true)}
+              />
+            )}
+            {storyId && canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={() => navigate(`/legacy/${legacyId}/story/${storyId}/evolve`)}
+              >
+                <Sparkles className="size-4" />
+                {activeEvolution && !['completed', 'discarded'].includes(activeEvolution.phase)
+                  ? 'Continue Evolving'
+                  : 'Evolve Story'}
+              </Button>
+            )}
+          </>
+        ) : (
+          <>
+            {isEditMode && (
+              <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
+                Cancel
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" disabled>
+              Save Draft
+            </Button>
+            <Button
+              size="sm"
+              className="gap-2"
+              onClick={handlePublish}
+              disabled={isMutating || !title.trim() || !content.trim()}
+            >
+              {isMutating ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Save className="size-4" />
+              )}
+              {isEditMode ? 'Update Story' : 'Publish Story'}
+            </Button>
+          </>
+        )}
       </HeaderSlot>
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="space-y-8">
+          {/* Evolution resume banner */}
+          {activeEvolution && !['completed', 'discarded'].includes(activeEvolution.phase) && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-center justify-between">
+              <span className="text-sm text-purple-700">
+                You have a story evolution in progress.
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(`/legacy/${legacyId}/story/${storyId}/evolve`)}
+              >
+                Continue &rarr;
+              </Button>
+            </div>
+          )}
+
           {/* Error Message */}
           {submitError && (
             <Card className="p-4 border-red-200 bg-red-50">

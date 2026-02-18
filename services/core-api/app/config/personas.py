@@ -7,6 +7,17 @@ from typing import Any
 
 import yaml
 
+ELICITATION_PROMPT_PATH = Path(__file__).parent / "elicitation_mode.txt"
+_elicitation_directive: str | None = None
+
+
+def _load_elicitation_directive() -> str:
+    global _elicitation_directive
+    if _elicitation_directive is None:
+        _elicitation_directive = ELICITATION_PROMPT_PATH.read_text().strip()
+    return _elicitation_directive
+
+
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = Path(__file__).parent / "personas.yaml"
@@ -110,6 +121,8 @@ def build_system_prompt(
     legacy_name: str,
     story_context: str = "",
     facts: list[Any] | None = None,
+    elicitation_mode: bool = False,
+    original_story_text: str | None = None,
 ) -> str | None:
     """Build complete system prompt for a persona with legacy context.
 
@@ -118,6 +131,8 @@ def build_system_prompt(
         legacy_name: Name of the legacy being discussed.
         story_context: Retrieved story context to include in prompt.
         facts: Optional list of LegacyFact objects to inject.
+        elicitation_mode: Whether to append elicitation mode directive.
+        original_story_text: The story text being evolved (used in elicitation mode).
 
     Returns:
         Complete system prompt with base rules, persona prompt, story context,
@@ -141,5 +156,10 @@ def build_system_prompt(
             source = "(shared)" if fact.visibility == "shared" else "(personal)"
             facts_section += f"- [{fact.category}] {fact.content} {source}\n"
         prompt = f"{prompt}{facts_section}"
+
+    if elicitation_mode:
+        prompt = f"{prompt}\n\n{_load_elicitation_directive()}"
+        if original_story_text:
+            prompt = f"{prompt}\n\n## Story Being Evolved\n\n{original_story_text}"
 
     return prompt
