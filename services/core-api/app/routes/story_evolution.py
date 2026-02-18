@@ -144,6 +144,29 @@ async def accept_session(
     return EvolutionSessionResponse.model_validate(evo_session)
 
 
+@router.post(
+    "/{session_id}/summarize",
+    response_model=EvolutionSessionResponse,
+)
+async def summarize_conversation(
+    story_id: UUID,
+    session_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> EvolutionSessionResponse:
+    """Generate a structured summary from the elicitation conversation."""
+    session_data = require_auth(request)
+    registry = get_provider_registry()
+    evo_session = await evolution_service.summarize_conversation(
+        db=db,
+        session_id=session_id,
+        story_id=story_id,
+        user_id=session_data.user_id,
+        llm_provider=registry.get_llm_provider(),
+    )
+    return EvolutionSessionResponse.model_validate(evo_session)
+
+
 @router.post("/{session_id}/generate")
 async def generate_draft(
     story_id: UUID,

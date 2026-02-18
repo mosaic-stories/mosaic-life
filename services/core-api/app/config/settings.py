@@ -95,6 +95,12 @@ class Settings(BaseModel):
     debug_sse_interval_ms: int = int(os.getenv("DEBUG_SSE_INTERVAL_MS", "250"))
     debug_sse_max_seconds: int = int(os.getenv("DEBUG_SSE_MAX_SECONDS", "60"))
 
+    # Story evolution
+    evolution_summarization_model_id: str = os.getenv(
+        "EVOLUTION_SUMMARIZATION_MODEL_ID",
+        "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+    )
+
     # Story versioning
     story_version_soft_cap: int = int(os.getenv("STORY_VERSION_SOFT_CAP", "50"))
 

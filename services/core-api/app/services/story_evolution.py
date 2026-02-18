@@ -263,6 +263,106 @@ async def generate_opening_message(
         )
 
 
+_SUMMARIZE_SYSTEM_PROMPT = """\
+You are a structured summariser. You have been given the transcript of a \
+conversation between a user and an AI interviewer about a personal story. \
+Your job is to extract and organise every new piece of information the user \
+shared during the conversation.
+
+Output ONLY a structured summary using exactly these section headers \
+(skip a section if nothing applies):
+
+**New Details** — Facts, events, descriptions surfaced in conversation
+**People Mentioned** — New people or expanded details about existing people
+**Timeline/Sequence** — Temporal ordering, dates, sequences clarified
+**Emotions/Significance** — What moments meant, how people felt
+**Corrections to Original** — Anything the user wants changed from the existing story
+
+Under each header, use bullet points (- ). Be specific and concrete — \
+include names, places, dates, and direct quotes when available. \
+Do not add commentary, do not fabricate, do not summarise the original story. \
+Only report what the user said in the conversation."""
+
+
+async def summarize_conversation(
+    db: AsyncSession,
+    session_id: uuid.UUID,
+    story_id: uuid.UUID,
+    user_id: uuid.UUID,
+    llm_provider: LLMProvider,
+) -> StoryEvolutionSession:
+    """Generate a structured summary from the elicitation conversation."""
+    from app.config.settings import get_settings
+    from app.services.ai import get_context_messages
+
+    session = await _get_session(db, session_id, story_id, user_id)
+
+    if session.phase != "elicitation":
+        raise HTTPException(
+            status_code=422,
+            detail="Can only summarize from elicitation phase",
+        )
+
+    # Load conversation messages
+    messages = await get_context_messages(db, session.conversation_id)
+    if not messages:
+        raise HTTPException(
+            status_code=422,
+            detail="No conversation messages to summarize",
+        )
+
+    # Load original story text for context
+    story_result = await db.execute(select(Story).where(Story.id == session.story_id))
+    story = story_result.scalar_one_or_none()
+    original_story = story.content if story else ""
+
+    # Build the user message with conversation transcript
+    transcript_lines: list[str] = []
+    for msg in messages:
+        role_label = "User" if msg["role"] == "user" else "Interviewer"
+        transcript_lines.append(f"{role_label}: {msg['content']}")
+    transcript = "\n\n".join(transcript_lines)
+
+    user_message = (
+        f"## Original Story\n\n{original_story}\n\n"
+        f"## Conversation Transcript\n\n{transcript}"
+    )
+
+    # Generate summary (collect streamed chunks)
+    settings = get_settings()
+    chunks: list[str] = []
+    async for chunk in llm_provider.stream_generate(
+        messages=[{"role": "user", "content": user_message}],
+        system_prompt=_SUMMARIZE_SYSTEM_PROMPT,
+        model_id=settings.evolution_summarization_model_id,
+        max_tokens=2048,
+    ):
+        chunks.append(chunk)
+
+    summary_text = "".join(chunks).strip()
+    if not summary_text:
+        raise HTTPException(
+            status_code=500,
+            detail="Summary generation returned empty result",
+        )
+
+    # Save summary and advance phase
+    session.summary_text = summary_text
+    session.phase = "summary"
+    await db.commit()
+    await db.refresh(session)
+
+    logger.info(
+        "evolution.conversation.summarized",
+        extra={
+            "session_id": str(session_id),
+            "summary_length": len(summary_text),
+        },
+    )
+
+    return session
+
+
 async def get_active_session(
     db: AsyncSession,
     story_id: uuid.UUID,
@@ -432,20 +532,21 @@ async def get_session_for_generation(
 ) -> StoryEvolutionSession:
     """Get session and validate it's ready for generation."""
     session = await _get_session(db, session_id, story_id, user_id)
-    if session.phase != "style_selection":
+    if session.phase not in ("style_selection", "drafting"):
         raise HTTPException(
             status_code=422,
-            detail="Can only generate from style_selection phase",
+            detail="Can only generate from style_selection or drafting phase",
         )
     if not session.writing_style or not session.length_preference:
         raise HTTPException(
             status_code=422,
             detail="Writing style and length preference must be set",
         )
-    # Advance to drafting
-    session.phase = "drafting"
-    await db.commit()
-    await db.refresh(session)
+    # Advance to drafting (only if not already there)
+    if session.phase == "style_selection":
+        session.phase = "drafting"
+        await db.commit()
+        await db.refresh(session)
     return session
 
 

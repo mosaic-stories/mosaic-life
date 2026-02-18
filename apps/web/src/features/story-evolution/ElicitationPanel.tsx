@@ -1,23 +1,32 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Loader2, CheckCircle, RefreshCw, AlertCircle } from 'lucide-react';
+import {
+  Send,
+  Loader2,
+  ArrowRight,
+  RefreshCw,
+  AlertCircle,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/components/ui/utils';
 import { useAIChat } from '@/hooks/useAIChat';
+import { useSummarizeEvolution } from '@/lib/hooks/useEvolution';
 import type { ChatMessage } from '@/stores/aiChatStore';
 
 interface ElicitationPanelProps {
   conversationId: string;
   legacyId: string;
-  onReadyToSummarize: () => void;
+  storyId: string;
+  sessionId: string;
 }
 
 export function ElicitationPanel({
   conversationId,
   legacyId,
-  onReadyToSummarize,
+  storyId,
+  sessionId,
 }: ElicitationPanelProps) {
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -37,16 +46,23 @@ export function ElicitationPanel({
     conversationId,
   });
 
+  const summarize = useSummarizeEvolution(storyId, sessionId);
+
   // Auto-scroll on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const userMessageCount = messages.filter((m) => m.role === 'user').length;
-  const showSummarizeButton = userMessageCount >= 3 && !isStreaming;
+  // Show the summarize banner when there is at least one completed assistant
+  // message and neither streaming nor summarizing is in progress.
+  const hasAssistantReply = messages.some(
+    (m) => m.role === 'assistant' && m.status !== 'streaming'
+  );
+  const showSummarizeBanner =
+    hasAssistantReply && !isStreaming && !summarize.isPending;
 
   const handleSend = async () => {
-    if (!inputMessage.trim() || isStreaming) return;
+    if (!inputMessage.trim() || isStreaming || summarize.isPending) return;
     const content = inputMessage.trim();
     setInputMessage('');
     await sendMessage(content);
@@ -194,17 +210,55 @@ export function ElicitationPanel({
         )}
       </div>
 
-      {/* Ready to summarize */}
-      {showSummarizeButton && (
+      {/* Summarize banner */}
+      {showSummarizeBanner && (
         <div className="px-4 pb-2">
-          <Button
-            variant="outline"
-            className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-            onClick={onReadyToSummarize}
-          >
-            <CheckCircle className="size-4 mr-2" />
-            Ready to summarize
-          </Button>
+          <div className="flex items-center justify-between rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5">
+            <span className="text-sm text-emerald-800">
+              When you've shared enough detail, move to the next step
+            </span>
+            <Button
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white ml-3 shrink-0"
+              onClick={() => summarize.mutate()}
+            >
+              Summarize &amp; continue
+              <ArrowRight className="size-3.5 ml-1.5" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Summarizing state banner */}
+      {summarize.isPending && (
+        <div className="px-4 pb-2">
+          <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5">
+            <Loader2 className="size-4 animate-spin text-amber-700" />
+            <span className="text-sm text-amber-800">
+              Generating summary...
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Summarize error */}
+      {summarize.isError && (
+        <div className="px-4 pb-2">
+          <div className="flex items-center justify-between rounded-lg border border-red-200 bg-red-50 px-4 py-2.5">
+            <div className="flex items-center gap-2 text-red-700 text-sm">
+              <AlertCircle className="size-4" />
+              <span>Failed to generate summary. Please try again.</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-red-300 text-red-700 hover:bg-red-100 ml-3 shrink-0"
+              onClick={() => summarize.mutate()}
+            >
+              <RefreshCw className="size-3 mr-1" />
+              Retry
+            </Button>
+          </div>
         </div>
       )}
 
@@ -217,15 +271,22 @@ export function ElicitationPanel({
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={
-              isStreaming
-                ? 'Please wait...'
-                : 'Share more about this story...'
+              summarize.isPending
+                ? 'Generating summary...'
+                : isStreaming
+                  ? 'Please wait...'
+                  : 'Share more about this story...'
             }
-            disabled={isStreaming || isLoading}
+            disabled={isStreaming || isLoading || summarize.isPending}
           />
           <Button
             onClick={handleSend}
-            disabled={isStreaming || isLoading || !inputMessage.trim()}
+            disabled={
+              isStreaming ||
+              isLoading ||
+              summarize.isPending ||
+              !inputMessage.trim()
+            }
             size="icon"
           >
             {isStreaming ? (

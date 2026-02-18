@@ -113,6 +113,15 @@ export function acceptEvolution(
   );
 }
 
+export function summarizeEvolution(
+  storyId: string,
+  sessionId: string
+): Promise<EvolutionSession> {
+  return apiPost(
+    `/api/stories/${storyId}/evolution/${sessionId}/summarize`
+  );
+}
+
 // --- SSE Streaming ---
 
 /**

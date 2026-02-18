@@ -83,14 +83,6 @@ export default function StoryEvolutionWorkspace({
     }
   };
 
-  const handleReadyToSummarize = useCallback(async () => {
-    try {
-      await advancePhase.mutateAsync({ phase: 'summary' });
-    } catch (err) {
-      console.error('Failed to advance to summary:', err);
-    }
-  }, [advancePhase]);
-
   const handleApproveSummary = useCallback(async () => {
     try {
       await advancePhase.mutateAsync({ phase: 'style_selection' });
@@ -247,7 +239,8 @@ export default function StoryEvolutionWorkspace({
           <ElicitationPanel
             conversationId={session.conversation_id}
             legacyId={legacyId}
-            onReadyToSummarize={handleReadyToSummarize}
+            storyId={storyId}
+            sessionId={session.id}
           />
         );
       case 'summary':
