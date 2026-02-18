@@ -182,8 +182,8 @@ export default function VersionHistoryDrawer({
   const nonDraftVersions = data?.versions.filter((v) => v.status !== 'draft') ?? [];
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[380px] sm:max-w-[380px] p-0">
+    <Sheet open={open} onOpenChange={onOpenChange} modal={false}>
+      <SheetContent side="right" className="w-[380px] sm:max-w-[380px] p-0" overlay={false}>
         <SheetHeader className="p-4 border-b">
           <SheetTitle>Version History</SheetTitle>
           <SheetDescription className="sr-only">

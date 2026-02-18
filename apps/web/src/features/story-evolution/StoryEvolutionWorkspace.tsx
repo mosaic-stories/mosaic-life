@@ -24,7 +24,7 @@ import {
   useDiscardEvolution,
   useAcceptEvolution,
 } from '@/lib/hooks/useEvolution';
-import type { WritingStyle, LengthPreference } from '@/lib/api/evolution';
+import type { WritingStyle, LengthPreference, EvolutionPhase } from '@/lib/api/evolution';
 import { PhaseIndicator } from './PhaseIndicator';
 import { ElicitationPanel } from './ElicitationPanel';
 import { SummaryCheckpoint } from './SummaryCheckpoint';
@@ -74,6 +74,9 @@ export default function StoryEvolutionWorkspace({
     session?.id ?? ''
   );
 
+  // Extract phase early so callbacks can reference it
+  const phase = session?.phase;
+
   // Phase transition handlers
   const handleStart = async () => {
     try {
@@ -82,14 +85,6 @@ export default function StoryEvolutionWorkspace({
       console.error('Failed to start evolution:', err);
     }
   };
-
-  const handleReadyToSummarize = useCallback(async () => {
-    try {
-      await advancePhase.mutateAsync({ phase: 'summary' });
-    } catch (err) {
-      console.error('Failed to advance to summary:', err);
-    }
-  }, [advancePhase]);
 
   const handleApproveSummary = useCallback(async () => {
     try {
@@ -157,6 +152,20 @@ export default function StoryEvolutionWorkspace({
       setDraftText(newText);
     },
     []
+  );
+
+  const handlePhaseClick = useCallback(
+    async (targetPhase: EvolutionPhase) => {
+      if (targetPhase === phase) return;
+      try {
+        await advancePhase.mutateAsync({ phase: targetPhase });
+        setDraftText('');
+        setStreamError(null);
+      } catch (err) {
+        console.error('Failed to navigate to phase:', err);
+      }
+    },
+    [advancePhase, phase]
   );
 
   const handleBack = () => {
@@ -237,9 +246,6 @@ export default function StoryEvolutionWorkspace({
     );
   }
 
-  // Active session — show workspace
-  const phase = session.phase;
-
   const renderPhasePanel = () => {
     switch (phase) {
       case 'elicitation':
@@ -247,7 +253,8 @@ export default function StoryEvolutionWorkspace({
           <ElicitationPanel
             conversationId={session.conversation_id}
             legacyId={legacyId}
-            onReadyToSummarize={handleReadyToSummarize}
+            storyId={storyId}
+            sessionId={session.id}
           />
         );
       case 'summary':
@@ -372,7 +379,7 @@ export default function StoryEvolutionWorkspace({
       {/* Phase indicator */}
       <div className="border-b bg-white px-4 py-3 shrink-0">
         <div className="max-w-7xl mx-auto">
-          <PhaseIndicator currentPhase={phase} />
+          <PhaseIndicator currentPhase={session.phase} onPhaseClick={handlePhaseClick} />
         </div>
       </div>
 

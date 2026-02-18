@@ -6,6 +6,7 @@ import {
   advancePhase,
   discardEvolution,
   acceptEvolution,
+  summarizeEvolution,
   type EvolutionSession,
   type PhaseAdvanceRequest,
 } from '@/lib/api/evolution';
@@ -64,6 +65,17 @@ export function useDiscardEvolution(storyId: string, sessionId: string) {
       queryClient.removeQueries({
         queryKey: evolutionKeys.active(storyId),
       });
+    },
+  });
+}
+
+export function useSummarizeEvolution(storyId: string, sessionId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => summarizeEvolution(storyId, sessionId),
+    onSuccess: (session: EvolutionSession) => {
+      queryClient.setQueryData(evolutionKeys.active(storyId), session);
     },
   });
 }

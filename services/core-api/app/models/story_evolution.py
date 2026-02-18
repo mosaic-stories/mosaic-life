@@ -107,13 +107,29 @@ class StoryEvolutionSession(Base):
 
     TERMINAL_PHASES = {"completed", "discarded"}
 
-    # Valid phase transitions
+    # Phase ordering for backward transition detection
+    PHASE_ORDER: dict[str, int] = {
+        "elicitation": 0,
+        "summary": 1,
+        "style_selection": 2,
+        "drafting": 3,
+        "review": 4,
+    }
+
+    # Valid phase transitions (forward + backward)
     VALID_TRANSITIONS: dict[str, set[str]] = {
         "elicitation": {"summary", "discarded"},
         "summary": {"style_selection", "elicitation", "discarded"},
-        "style_selection": {"drafting", "discarded"},
+        "style_selection": {"drafting", "summary", "elicitation", "discarded"},
         "drafting": {"review"},
-        "review": {"completed", "discarded", "review"},
+        "review": {
+            "completed",
+            "discarded",
+            "review",
+            "style_selection",
+            "summary",
+            "elicitation",
+        },
     }
 
     WRITING_STYLES = {"vivid", "emotional", "conversational", "concise", "documentary"}

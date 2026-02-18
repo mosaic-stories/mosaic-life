@@ -4,6 +4,7 @@ import type { EvolutionPhase } from '@/lib/api/evolution';
 
 interface PhaseIndicatorProps {
   currentPhase: EvolutionPhase;
+  onPhaseClick?: (phase: EvolutionPhase) => void;
   className?: string;
 }
 
@@ -31,6 +32,9 @@ const PHASE_ORDER: Record<EvolutionPhase, number> = {
   discarded: -1,
 };
 
+/** Phases that should never be a backward-navigation target. */
+const NON_CLICKABLE_PHASES: Set<EvolutionPhase> = new Set(['drafting']);
+
 function getStepState(
   stepIndex: number,
   currentPhaseIndex: number,
@@ -43,7 +47,7 @@ function getStepState(
   return 'future';
 }
 
-export function PhaseIndicator({ currentPhase, className }: PhaseIndicatorProps) {
+export function PhaseIndicator({ currentPhase, onPhaseClick, className }: PhaseIndicatorProps) {
   const isDiscarded = currentPhase === 'discarded';
   const currentPhaseIndex = PHASE_ORDER[currentPhase];
 
@@ -78,36 +82,61 @@ export function PhaseIndicator({ currentPhase, className }: PhaseIndicatorProps)
           const state = getStepState(index, currentPhaseIndex, isDiscarded);
           const isLast = index === WORKFLOW_PHASES.length - 1;
           const { Icon } = phase;
+          const isClickable =
+            onPhaseClick &&
+            state === 'completed' &&
+            !NON_CLICKABLE_PHASES.has(phase.id);
+
+          const stepContent = (
+            <>
+              <div
+                className={cn(
+                  'size-8 rounded-full flex items-center justify-center transition-colors',
+                  state === 'current' && 'bg-[rgb(var(--theme-primary))] text-white shadow-sm',
+                  state === 'completed' && 'bg-emerald-50 text-emerald-600',
+                  state === 'future' && 'bg-muted text-muted-foreground',
+                  isClickable && 'group-hover:bg-emerald-100'
+                )}
+              >
+                {state === 'completed' ? (
+                  <Check className="size-4" strokeWidth={2.5} />
+                ) : (
+                  <Icon className="size-4" />
+                )}
+              </div>
+              <span
+                className={cn(
+                  'text-xs leading-none text-center whitespace-nowrap',
+                  state === 'current' && 'font-bold text-[rgb(var(--theme-primary))]',
+                  state === 'completed' && 'font-medium text-emerald-600',
+                  state === 'future' && 'text-muted-foreground',
+                  isClickable && 'group-hover:text-emerald-700'
+                )}
+              >
+                {phase.label}
+              </span>
+            </>
+          );
 
           return (
             <div key={phase.id} className="flex items-center flex-1 min-w-0">
-              <div className="flex flex-col items-center gap-1.5 shrink-0">
+              {isClickable ? (
+                <button
+                  type="button"
+                  className="group flex flex-col items-center gap-1.5 shrink-0 cursor-pointer"
+                  onClick={() => onPhaseClick(phase.id)}
+                  aria-label={phase.label}
+                >
+                  {stepContent}
+                </button>
+              ) : (
                 <div
-                  className={cn(
-                    'size-8 rounded-full flex items-center justify-center transition-colors',
-                    state === 'current' && 'bg-[rgb(var(--theme-primary))] text-white shadow-sm',
-                    state === 'completed' && 'bg-emerald-50 text-emerald-600',
-                    state === 'future' && 'bg-muted text-muted-foreground'
-                  )}
+                  className="flex flex-col items-center gap-1.5 shrink-0"
                   aria-current={state === 'current' ? 'step' : undefined}
                 >
-                  {state === 'completed' ? (
-                    <Check className="size-4" strokeWidth={2.5} />
-                  ) : (
-                    <Icon className="size-4" />
-                  )}
+                  {stepContent}
                 </div>
-                <span
-                  className={cn(
-                    'text-xs leading-none text-center whitespace-nowrap',
-                    state === 'current' && 'font-bold text-[rgb(var(--theme-primary))]',
-                    state === 'completed' && 'font-medium text-emerald-600',
-                    state === 'future' && 'text-muted-foreground'
-                  )}
-                >
-                  {phase.label}
-                </span>
-              </div>
+              )}
 
               {!isLast && (
                 <div
