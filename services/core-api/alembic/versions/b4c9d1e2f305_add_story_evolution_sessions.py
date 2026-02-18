@@ -56,7 +56,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["conversation_id"],
             ["ai_conversations.id"],
-            ondelete="SET NULL",
+            ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"]),
         sa.ForeignKeyConstraint(

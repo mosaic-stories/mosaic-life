@@ -135,40 +135,45 @@ function processSSEStream(
   let done = false;
 
   (async () => {
-    while (!done) {
-      const result = await reader.read();
-      done = result.done;
-      if (done) break;
+    try {
+      while (!done) {
+        const result = await reader.read();
+        done = result.done;
+        if (done) break;
 
-      buffer += decoder.decode(result.value, { stream: true });
+        buffer += decoder.decode(result.value, { stream: true });
 
-      const lines = buffer.split('\n');
-      buffer = lines.pop() || '';
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
 
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const jsonStr = line.slice(6);
-          if (jsonStr.trim()) {
-            try {
-              const event = JSON.parse(jsonStr) as EvolutionSSEEvent;
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const jsonStr = line.slice(6);
+            if (jsonStr.trim()) {
+              try {
+                const event = JSON.parse(jsonStr) as EvolutionSSEEvent;
 
-              switch (event.type) {
-                case 'chunk':
-                  onChunk(event.text);
-                  break;
-                case 'done':
-                  onDone(event.version_id, event.version_number);
-                  break;
-                case 'error':
-                  onError(event.message, event.retryable);
-                  break;
+                switch (event.type) {
+                  case 'chunk':
+                    onChunk(event.text);
+                    break;
+                  case 'done':
+                    onDone(event.version_id, event.version_number);
+                    break;
+                  case 'error':
+                    onError(event.message, event.retryable);
+                    break;
+                }
+              } catch (parseError) {
+                console.error('Failed to parse SSE event:', parseError);
               }
-            } catch (parseError) {
-              console.error('Failed to parse SSE event:', parseError);
             }
           }
         }
       }
+    } catch (error) {
+      console.error('Error while processing SSE stream:', error);
+      onError('Connection error while processing stream. Please try again.', true);
     }
   })();
 }

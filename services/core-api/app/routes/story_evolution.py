@@ -212,6 +212,8 @@ async def generate_draft(
 
         except Exception:
             logger.exception("evolution.generate.error")
+            # Rollback database session to prevent invalid state
+            await db.rollback()
             error_event = SSEErrorEvent(
                 message="Draft generation failed. Please try again.",
                 retryable=True,
@@ -297,6 +299,8 @@ async def revise_draft(
 
         except Exception:
             logger.exception("evolution.revise.error")
+            # Rollback database session to prevent invalid state
+            await db.rollback()
             error_event = SSEErrorEvent(
                 message="Revision failed. Please try again.",
                 retryable=True,
