@@ -498,6 +498,8 @@ async def accept_session(
         current = current_active.scalar_one_or_none()
         if current:
             current.status = "inactive"
+            # Flush to ensure the unique constraint is satisfied before activating the draft
+            await db.flush()
 
     # Promote draft to active
     draft_version.status = "active"
