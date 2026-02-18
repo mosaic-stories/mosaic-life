@@ -24,7 +24,7 @@ import {
   useDiscardEvolution,
   useAcceptEvolution,
 } from '@/lib/hooks/useEvolution';
-import type { WritingStyle, LengthPreference } from '@/lib/api/evolution';
+import type { WritingStyle, LengthPreference, EvolutionPhase } from '@/lib/api/evolution';
 import { PhaseIndicator } from './PhaseIndicator';
 import { ElicitationPanel } from './ElicitationPanel';
 import { SummaryCheckpoint } from './SummaryCheckpoint';
@@ -149,6 +149,20 @@ export default function StoryEvolutionWorkspace({
       setDraftText(newText);
     },
     []
+  );
+
+  const handlePhaseClick = useCallback(
+    async (targetPhase: EvolutionPhase) => {
+      if (targetPhase === phase) return;
+      try {
+        await advancePhase.mutateAsync({ phase: targetPhase });
+        setDraftText('');
+        setStreamError(null);
+      } catch (err) {
+        console.error('Failed to navigate to phase:', err);
+      }
+    },
+    [advancePhase, phase]
   );
 
   const handleBack = () => {
@@ -365,7 +379,7 @@ export default function StoryEvolutionWorkspace({
       {/* Phase indicator */}
       <div className="border-b bg-white px-4 py-3 shrink-0">
         <div className="max-w-7xl mx-auto">
-          <PhaseIndicator currentPhase={phase} />
+          <PhaseIndicator currentPhase={phase} onPhaseClick={handlePhaseClick} />
         </div>
       </div>
 
