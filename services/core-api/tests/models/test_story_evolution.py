@@ -101,3 +101,92 @@ class TestStoryEvolutionSession:
 
         assert session.writing_style == "vivid"
         assert session.length_preference == "similar"
+
+
+class TestCanTransitionTo:
+    @pytest.mark.asyncio
+    async def test_forward_transitions_allowed(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        evolution_conversation: AIConversation,
+    ) -> None:
+        session = StoryEvolutionSession(
+            story_id=test_story.id,
+            base_version_number=1,
+            conversation_id=evolution_conversation.id,
+            phase="elicitation",
+            created_by=test_user.id,
+        )
+        db_session.add(session)
+        await db_session.flush()
+
+        assert session.can_transition_to("summary") is True
+        assert session.can_transition_to("discarded") is True
+        assert session.can_transition_to("review") is False
+
+    @pytest.mark.asyncio
+    async def test_style_selection_backward_to_summary(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        evolution_conversation: AIConversation,
+    ) -> None:
+        session = StoryEvolutionSession(
+            story_id=test_story.id,
+            base_version_number=1,
+            conversation_id=evolution_conversation.id,
+            phase="style_selection",
+            created_by=test_user.id,
+        )
+        db_session.add(session)
+        await db_session.flush()
+
+        assert session.can_transition_to("summary") is True
+        assert session.can_transition_to("elicitation") is True
+
+    @pytest.mark.asyncio
+    async def test_review_backward_transitions(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        evolution_conversation: AIConversation,
+    ) -> None:
+        session = StoryEvolutionSession(
+            story_id=test_story.id,
+            base_version_number=1,
+            conversation_id=evolution_conversation.id,
+            phase="review",
+            created_by=test_user.id,
+        )
+        db_session.add(session)
+        await db_session.flush()
+
+        assert session.can_transition_to("style_selection") is True
+        assert session.can_transition_to("summary") is True
+        assert session.can_transition_to("elicitation") is True
+
+    @pytest.mark.asyncio
+    async def test_drafting_no_backward_transitions(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        evolution_conversation: AIConversation,
+    ) -> None:
+        session = StoryEvolutionSession(
+            story_id=test_story.id,
+            base_version_number=1,
+            conversation_id=evolution_conversation.id,
+            phase="drafting",
+            created_by=test_user.id,
+        )
+        db_session.add(session)
+        await db_session.flush()
+
+        assert session.can_transition_to("style_selection") is False
+        assert session.can_transition_to("elicitation") is False
+        assert session.can_transition_to("review") is True
