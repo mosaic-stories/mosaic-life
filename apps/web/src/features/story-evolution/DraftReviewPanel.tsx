@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Check, X, MessageSquare, Loader2, Send } from 'lucide-react';
+import { Streamdown } from 'streamdown';
+import 'streamdown/styles.css';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -89,11 +91,10 @@ export function DraftReviewPanel({
       {/* Draft content */}
       <div ref={contentRef} className="flex-1 overflow-y-auto px-6 py-6">
         <Card className="p-6 bg-white">
-          <div className="font-serif text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-            {displayContent}
-            {isRevising && (
-              <span className="inline-block w-1.5 h-4 ml-0.5 bg-[rgb(var(--theme-primary))] animate-pulse" />
-            )}
+          <div className="font-serif text-sm leading-relaxed text-foreground/90">
+            <Streamdown isAnimating={isRevising} caret="block">
+              {displayContent}
+            </Streamdown>
           </div>
         </Card>
       </div>

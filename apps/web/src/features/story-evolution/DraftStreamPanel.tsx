@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Loader2, Sparkles } from 'lucide-react';
+import { Streamdown } from 'streamdown';
+import 'streamdown/styles.css';
 import { Card } from '@/components/ui/card';
 import { streamGenerate } from '@/lib/api/evolution';
 
@@ -89,11 +91,10 @@ export function DraftStreamPanel({
       {/* Streaming content */}
       <div ref={contentRef} className="flex-1 overflow-y-auto px-6 py-6">
         <Card className="p-6 bg-white">
-          <div className="font-serif text-sm leading-relaxed text-foreground/90 whitespace-pre-wrap">
-            {streamedText}
-            {isStreaming && (
-              <span className="inline-block w-1.5 h-4 ml-0.5 bg-[rgb(var(--theme-primary))] animate-pulse" />
-            )}
+          <div className="font-serif text-sm leading-relaxed text-foreground/90">
+            <Streamdown isAnimating={isStreaming} caret="block">
+              {streamedText}
+            </Streamdown>
           </div>
         </Card>
       </div>
