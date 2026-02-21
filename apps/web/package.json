@@ -68,7 +68,9 @@
     "react-router-dom": "^6.30.2",
     "recharts": "^2.15.4",
     "sonner": "^2.0.7",
+    "streamdown": "^2.3.0",
     "tailwind-merge": "^2.6.0",
+    "tiptap-markdown": "^0.9.0",
     "vaul": "^1.1.2",
     "zod": "^3.25.76",
     "zustand": "^5.0.9"
