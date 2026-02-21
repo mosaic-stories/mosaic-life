@@ -28,7 +28,9 @@ interface LegacyProfileProps {
 
 export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const { user: authUser } = useAuth();
-  const user = authUser ? { name: authUser.name || authUser.email, email: authUser.email, avatarUrl: authUser.avatar_url } : null;
+  const user = useMemo(() => {
+    return authUser ? { name: authUser.name || authUser.email, email: authUser.email, avatarUrl: authUser.avatar_url } : null;
+  }, [authUser]);
   const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState<SectionId>('stories');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
