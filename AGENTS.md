@@ -70,6 +70,10 @@ If a document is missing or outdated, prefer newer decisions captured in CLAUDE.
 
 ## 4) Critical Operational Rules
 
+### No Git Worktrees
+
+**CRITICAL:** Do NOT use git worktrees for feature development. Always work directly on `develop` (or a feature branch checked out in the main workspace). Worktrees create an isolated copy of the codebase that is disconnected from the running dev server, making it impossible to test changes locally without extra steps. Commit directly to the branch in the main workspace.
+
 ### Local Development: Docker Compose Only
 
 **CRITICAL:** Always use `docker compose` for local development. Never use standalone `docker` CLI commands without compose context.
