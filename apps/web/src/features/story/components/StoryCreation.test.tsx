@@ -136,6 +136,7 @@ vi.mock('@/features/story/hooks/useStories', () => ({
   useStory: () => mockStoryResult,
   useCreateStory: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateStory: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDeleteStory: () => ({ mutate: vi.fn(), isPending: false }),
   storyKeys: {
     all: ['stories'],
     lists: () => ['stories', 'list'],
