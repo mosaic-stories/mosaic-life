@@ -1,5 +1,6 @@
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { Markdown } from 'tiptap-markdown';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
@@ -8,7 +9,7 @@ interface UseStoryEditorOptions {
   content?: string;
   editable?: boolean;
   placeholder?: string;
-  onUpdate?: (html: string) => void;
+  onUpdate?: (markdown: string) => void;
 }
 
 export function useStoryEditor({
@@ -22,6 +23,7 @@ export function useStoryEditor({
       StarterKit.configure({
         heading: { levels: [2, 3] },
       }),
+      Markdown,
       Placeholder.configure({ placeholder }),
       Image.configure({ inline: false, allowBase64: false }),
       Link.configure({
@@ -33,7 +35,8 @@ export function useStoryEditor({
     content,
     editable,
     onUpdate: ({ editor: e }) => {
-      onUpdate?.(e.getHTML());
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      onUpdate?.((e.storage as any).markdown.getMarkdown());
     },
     editorProps: {
       attributes: {

@@ -6,7 +6,7 @@ import '../editor.css';
 
 interface StoryEditorProps {
   content: string;
-  onChange?: (html: string) => void;
+  onChange?: (markdown: string) => void;
   readOnly?: boolean;
   placeholder?: string;
 }
@@ -26,7 +26,8 @@ export default function StoryEditor({
 
   // Sync content from outside (e.g. loading existing story)
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (editor && content !== (editor.storage as any).markdown.getMarkdown()) {
       editor.commands.setContent(content);
     }
   }, [content, editor]);
