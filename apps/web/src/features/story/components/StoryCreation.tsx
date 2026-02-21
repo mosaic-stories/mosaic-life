@@ -6,9 +6,10 @@ import VersionHistoryDrawer from './VersionHistoryDrawer';
 import StoryToolbar from './StoryToolbar';
 import StoryViewer from './StoryViewer';
 import StoryEditForm from './StoryEditForm';
+import DeleteStoryDialog from './DeleteStoryDialog';
 import EvolutionResumeBanner from './EvolutionResumeBanner';
 import { useLegacy } from '@/features/legacy/hooks/useLegacies';
-import { useStory, useCreateStory, useUpdateStory } from '@/features/story/hooks/useStories';
+import { useStory, useCreateStory, useUpdateStory, useDeleteStory } from '@/features/story/hooks/useStories';
 import {
   useVersions,
   useVersionDetail,
@@ -47,12 +48,14 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   const [selectedLegacies, setSelectedLegacies] = useState<LegacyAssociationInput[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [previewVersionNumber, setPreviewVersionNumber] = useState<number | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const { data: legacy, isLoading: _legacyLoading } = useLegacy(legacyId);
   const { data: existingStory, isLoading: storyLoading } = useStory(storyId);
   const { data: activeEvolution } = useActiveEvolution(storyId, !!storyId);
   const createStory = useCreateStory();
   const updateStory = useUpdateStory();
+  const deleteStory = useDeleteStory();
   const isEditMode = !!storyId;
 
   // Version history (only fetch when drawer is open)
@@ -234,6 +237,16 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
     navigate(`/legacy/${legacyId}/story/${storyId}/evolve`);
   };
 
+  const handleDeleteStory = async () => {
+    if (!storyId) return;
+    try {
+      await deleteStory.mutateAsync({ storyId });
+      navigate(`/legacy/${legacyId}`);
+    } catch (error) {
+      console.error('Failed to delete story:', error);
+    }
+  };
+
   const legacyName = legacy?.name || 'Legacy';
   const isMutating = createStory.isPending || updateStory.isPending;
 
@@ -274,12 +287,14 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
         titleEmpty={!title.trim()}
         contentEmpty={!content.trim()}
         hasActiveEvolution={hasActiveEvolution}
+        canDelete={canEdit}
         onBack={handleBack}
         onEditClick={handleEditClick}
         onCancelEdit={handleCancelEdit}
         onPublish={handlePublish}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onEvolve={handleNavigateToEvolve}
+        onDelete={() => setShowDeleteDialog(true)}
       />
 
       {/* Main Content */}
@@ -332,6 +347,18 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
           )}
         </div>
       </main>
+
+      {/* Delete Story Dialog */}
+      {canEdit && storyId && (
+        <DeleteStoryDialog
+          open={showDeleteDialog}
+          onOpenChange={setShowDeleteDialog}
+          storyTitle={existingStory?.title ?? ''}
+          versionCount={existingStory?.version_count ?? 1}
+          isPending={deleteStory.isPending}
+          onConfirm={handleDeleteStory}
+        />
+      )}
 
       {/* Version History Drawer */}
       {showHistory && storyId && (

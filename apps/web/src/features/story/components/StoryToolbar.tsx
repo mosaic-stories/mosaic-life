@@ -1,4 +1,4 @@
-import { ArrowLeft, Loader2, Save, Pencil, Sparkles } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Pencil, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HeaderSlot } from '@/components/header';
 import VersionHistoryButton from './VersionHistoryButton';
@@ -14,12 +14,14 @@ interface StoryToolbarProps {
   titleEmpty: boolean;
   contentEmpty: boolean;
   hasActiveEvolution: boolean;
+  canDelete: boolean;
   onBack: () => void;
   onEditClick: () => void;
   onCancelEdit: () => void;
   onPublish: () => void;
   onOpenHistory: () => void;
   onEvolve: () => void;
+  onDelete: () => void;
 }
 
 export default function StoryToolbar({
@@ -33,12 +35,14 @@ export default function StoryToolbar({
   titleEmpty,
   contentEmpty,
   hasActiveEvolution,
+  canDelete,
   onBack,
   onEditClick,
   onCancelEdit,
   onPublish,
   onOpenHistory,
   onEvolve,
+  onDelete,
 }: StoryToolbarProps) {
   return (
     <HeaderSlot>
@@ -77,6 +81,17 @@ export default function StoryToolbar({
             >
               <Sparkles className="size-4" />
               {hasActiveEvolution ? 'Continue Evolving' : 'Evolve Story'}
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={onDelete}
+            >
+              <Trash2 className="size-4" />
+              Delete
             </Button>
           )}
         </>

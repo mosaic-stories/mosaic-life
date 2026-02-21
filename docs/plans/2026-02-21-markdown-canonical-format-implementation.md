@@ -4,9 +4,9 @@
 
 **Goal:** Switch story content storage from HTML to Markdown by converting at the TipTap editor boundary and rendering Markdown directly everywhere else.
 
-**Architecture:** TipTap's `@tiptap/markdown` extension handles Markdown ↔ ProseMirror conversion at the editor boundary. All other consumers (evolution workspace panels, LLM prompts, chunking, embedding) work with Markdown natively. Vercel's `streamdown` renders Markdown in non-editor read-only contexts, with streaming support for SSE draft generation.
+**Architecture:** The `tiptap-markdown` extension handles Markdown ↔ ProseMirror conversion at the editor boundary. All other consumers (evolution workspace panels, LLM prompts, chunking, embedding) work with Markdown natively. Vercel's `streamdown` renders Markdown in non-editor read-only contexts, with streaming support for SSE draft generation.
 
-**Tech Stack:** `@tiptap/markdown` (editor serialization), `streamdown` (Markdown rendering for evolution panels)
+**Tech Stack:** `tiptap-markdown` (editor serialization), `streamdown` (Markdown rendering for evolution panels)
 
 **Design Doc:** [docs/plans/2026-02-21-markdown-canonical-format-design.md](2026-02-21-markdown-canonical-format-design.md)
 
@@ -21,19 +21,19 @@
 
 Run from `apps/web/`:
 ```bash
-npm install @tiptap/markdown streamdown
+npm install tiptap-markdown streamdown
 ```
 
 **Step 2: Verify installation**
 
-Run: `ls node_modules/@tiptap/markdown/dist && ls node_modules/streamdown/dist`
+Run: `ls node_modules/tiptap-markdown/dist && ls node_modules/streamdown/dist`
 Expected: Files listed (packages installed correctly)
 
 **Step 3: Commit**
 
 ```bash
 git add apps/web/package.json apps/web/package-lock.json
-git commit -m "chore: add @tiptap/markdown and streamdown dependencies"
+git commit -m "chore: add tiptap-markdown and streamdown dependencies"
 ```
 
 ---
@@ -43,7 +43,7 @@ git commit -m "chore: add @tiptap/markdown and streamdown dependencies"
 **Files:**
 - Modify: `apps/web/src/features/editor/hooks/useStoryEditor.ts`
 
-This is the core change. The hook currently calls `e.getHTML()` on update and accepts HTML content. We switch to `Markdown` extension and `e.getMarkdown()`.
+This is the core change. The hook currently calls `e.getHTML()` on update and accepts HTML content. We switch to the `Markdown` extension from `tiptap-markdown` and use `e.storage.markdown.getMarkdown()`.
 
 **Step 1: Update the hook**
 
@@ -52,7 +52,7 @@ Replace the full contents of `apps/web/src/features/editor/hooks/useStoryEditor.
 ```typescript
 import { useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Markdown } from '@tiptap/markdown';
+import { Markdown } from 'tiptap-markdown';
 import Placeholder from '@tiptap/extension-placeholder';
 import Image from '@tiptap/extension-image';
 import Link from '@tiptap/extension-link';
@@ -87,7 +87,7 @@ export function useStoryEditor({
     content,
     editable,
     onUpdate: ({ editor: e }) => {
-      onUpdate?.(e.getMarkdown());
+      onUpdate?.(e.storage.markdown.getMarkdown());
     },
     editorProps: {
       attributes: {
@@ -101,9 +101,9 @@ export function useStoryEditor({
 ```
 
 Key changes from original:
-- Added `import { Markdown } from '@tiptap/markdown'`
+- Added `import { Markdown } from 'tiptap-markdown'`
 - Added `Markdown` to extensions array
-- Changed `e.getHTML()` → `e.getMarkdown()` on line 36
+- Changed `e.getHTML()` → `e.storage.markdown.getMarkdown()`
 - Changed `onUpdate` callback param name from `html` to `markdown` for clarity
 
 **Step 2: Verify TypeScript compiles**
@@ -118,7 +118,7 @@ Expected: No errors related to `useStoryEditor.ts`
 **Files:**
 - Modify: `apps/web/src/features/editor/components/StoryEditor.tsx`
 
-The `useEffect` content sync currently compares against `editor.getHTML()`. Switch to `editor.getMarkdown()` and use `setContent` with Markdown content type.
+The `useEffect` content sync currently compares against `editor.getHTML()`. Switch to `editor.storage.markdown.getMarkdown()`. The `tiptap-markdown` extension automatically parses markdown in `setContent()` — no extra option needed.
 
 **Step 1: Update the component**
 
@@ -153,8 +153,8 @@ export default function StoryEditor({
 
   // Sync content from outside (e.g. loading existing story, version preview)
   useEffect(() => {
-    if (editor && content !== editor.getMarkdown()) {
-      editor.commands.setContent(content, { contentType: 'markdown' });
+    if (editor && content !== editor.storage.markdown.getMarkdown()) {
+      editor.commands.setContent(content);
     }
   }, [content, editor]);
 
@@ -173,8 +173,8 @@ export default function StoryEditor({
 
 Key changes from original:
 - `onChange` callback param name: `html` → `markdown`
-- Content sync comparison: `editor.getHTML()` → `editor.getMarkdown()`
-- Content sync setter: `editor.commands.setContent(content)` → `editor.commands.setContent(content, { contentType: 'markdown' })`
+- Content sync comparison: `editor.getHTML()` → `editor.storage.markdown.getMarkdown()`
+- Content sync setter: unchanged (`editor.commands.setContent(content)`) — `tiptap-markdown` auto-parses markdown
 
 **Step 2: Verify TypeScript compiles**
 
@@ -336,7 +336,7 @@ git commit -m "feat(evolution): render story content as Markdown with streamdown
 **Files:**
 - Modify: `apps/web/vite.config.ts`
 
-Add `@tiptap/markdown` to the existing `tiptap` chunk so it bundles together.
+Add `tiptap-markdown` to the existing `tiptap` chunk so it bundles together.
 
 **Step 1: Update vite config**
 
@@ -357,7 +357,7 @@ Replace with:
   '@tiptap/react',
   '@tiptap/starter-kit',
   '@tiptap/pm',
-  '@tiptap/markdown',
+  'tiptap-markdown',
 ],
 ```
 
@@ -365,7 +365,7 @@ Replace with:
 
 ```bash
 git add apps/web/vite.config.ts
-git commit -m "chore: add @tiptap/markdown to tiptap vendor chunk"
+git commit -m "chore: add tiptap-markdown to tiptap vendor chunk"
 ```
 
 ---
