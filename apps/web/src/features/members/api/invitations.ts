@@ -1,5 +1,5 @@
 // Invitation API functions
-import { apiGet, apiPost, apiDelete } from './client';
+import { apiGet, apiPost, apiDelete } from '@/lib/api/client';
 
 export interface InvitationCreate {
   email?: string;

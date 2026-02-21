@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { versionKeys, useVersions, useVersionDetail } from './useVersions';
 
 // Mock the API module
-vi.mock('@/lib/api/versions', () => ({
+vi.mock('@/features/story/api/versions', () => ({
   getVersions: vi.fn(),
   getVersion: vi.fn(),
   restoreVersion: vi.fn(),
@@ -16,8 +16,8 @@ vi.mock('@/lib/api/versions', () => ({
 import {
   getVersions,
   getVersion,
-} from '@/lib/api/versions';
-import type { VersionListResponse, VersionDetail } from '@/lib/api/versions';
+} from '@/features/story/api/versions';
+import type { VersionListResponse, VersionDetail } from '@/features/story/api/versions';
 
 const mockedGetVersions = vi.mocked(getVersions);
 const mockedGetVersion = vi.mocked(getVersion);

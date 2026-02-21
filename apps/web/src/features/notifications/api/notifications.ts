@@ -1,6 +1,6 @@
 // Notification API client functions
 
-import { apiGet, apiPatch, apiPost } from './client';
+import { apiGet, apiPatch, apiPost } from '@/lib/api/client';
 
 export interface NotificationResponse {
   id: string;

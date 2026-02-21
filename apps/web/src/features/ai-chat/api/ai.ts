@@ -2,7 +2,7 @@
  * AI Chat API client with SSE streaming support.
  */
 
-import { apiGet, apiPost, apiDelete } from './client';
+import { apiGet, apiPost, apiDelete } from '@/lib/api/client';
 
 // ============================================================================
 // Types

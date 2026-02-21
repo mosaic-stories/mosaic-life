@@ -15,7 +15,7 @@ import {
   type CreateLegacyInput,
   type UpdateLegacyInput,
   type VisibilityFilter,
-} from '@/lib/api/legacies';
+} from '@/features/legacy/api/legacies';
 import { ApiError } from '@/lib/api/client';
 
 export const legacyKeys = {

@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { usePreferences, useUpdatePreferences } from '@/lib/hooks/useSettings';
+import { usePreferences, useUpdatePreferences } from '@/features/settings/hooks/useSettings';
 
 const AI_MODELS = [
   {

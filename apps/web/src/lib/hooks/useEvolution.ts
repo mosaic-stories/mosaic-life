@@ -10,7 +10,7 @@ import {
   type EvolutionSession,
   type PhaseAdvanceRequest,
 } from '@/lib/api/evolution';
-import { storyKeys } from './useStories';
+import { storyKeys } from '@/features/story/hooks/useStories';
 
 export const evolutionKeys = {
   all: ['evolution'] as const,

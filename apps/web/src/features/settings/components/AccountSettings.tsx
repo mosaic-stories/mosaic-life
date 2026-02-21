@@ -25,7 +25,7 @@ import {
   useRequestDataExport,
   useRevokeSession,
   useSessions,
-} from '@/lib/hooks/useSettings';
+} from '@/features/settings/hooks/useSettings';
 
 function relativeTime(value: string): string {
   const now = Date.now();

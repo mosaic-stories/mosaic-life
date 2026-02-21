@@ -1,7 +1,7 @@
-// API module barrel export
+// API module barrel export — re-export shims for migration
 export * from './client';
 export * from './auth';
-export * from './legacies';
-export * from './stories';
-export * from './invitations';
+export * from '@/features/legacy/api/legacies';
+export * from '@/features/story/api/stories';
+export * from '@/features/members/api/invitations';
 export * from './evolution';

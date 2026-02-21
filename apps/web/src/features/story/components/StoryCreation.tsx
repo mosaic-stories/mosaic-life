@@ -1,42 +1,42 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Save, AlertCircle, Pencil, Eye, Globe, Users, Lock, Sparkles } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Input } from './ui/input';
-import LegacyMultiSelect from './LegacyMultiSelect';
-import VersionHistoryButton from './VersionHistoryButton';
+import { Loader2, Globe, Users, Lock, AlertCircle } from 'lucide-react';
+import { Card } from '@/components/ui/card';
 import VersionHistoryDrawer from './VersionHistoryDrawer';
-import VersionPreviewBanner from './VersionPreviewBanner';
-import { getThemeClasses } from '../lib/themes';
-import { useLegacy } from '@/lib/hooks/useLegacies';
-import { useStory, useCreateStory, useUpdateStory } from '@/lib/hooks/useStories';
+import StoryToolbar from './StoryToolbar';
+import StoryViewer from './StoryViewer';
+import StoryEditForm from './StoryEditForm';
+import EvolutionResumeBanner from './EvolutionResumeBanner';
+import { useLegacy } from '@/features/legacy/hooks/useLegacies';
+import { useStory, useCreateStory, useUpdateStory } from '@/features/story/hooks/useStories';
 import {
   useVersions,
   useVersionDetail,
   useRestoreVersion,
   useApproveDraft,
   useDiscardDraft,
-} from '@/lib/hooks/useVersions';
-import type { LegacyAssociationInput } from '@/lib/api/stories';
+} from '@/features/story/hooks/useVersions';
+import type { LegacyAssociationInput } from '@/features/story/api/stories';
 import { useActiveEvolution } from '@/lib/hooks/useEvolution';
 import { useAuth } from '@/contexts/AuthContext';
 import { SEOHead } from '@/components/seo';
-import { HeaderSlot } from '@/components/header';
 
 interface StoryCreationProps {
-  onNavigate: (view: string) => void;
   legacyId: string;
   storyId?: string;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
 }
 
 function normalizeEmail(email: string | null | undefined): string {
   return (email ?? '').trim().toLowerCase();
 }
 
-export default function StoryCreation({ onNavigate: _onNavigate, legacyId, storyId, currentTheme, onThemeChange: _onThemeChange }: StoryCreationProps) {
+const VISIBILITY_MAP = {
+  public: { icon: Globe, label: 'Public', description: 'Anyone can read this story' },
+  private: { icon: Users, label: 'Members Only', description: 'Only legacy members can read this story' },
+  personal: { icon: Lock, label: 'Personal', description: 'Only you can see this story' },
+} as const;
+
+export default function StoryCreation({ legacyId, storyId }: StoryCreationProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [title, setTitle] = useState('');
@@ -53,8 +53,6 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
   const { data: activeEvolution } = useActiveEvolution(storyId, !!storyId);
   const createStory = useCreateStory();
   const updateStory = useUpdateStory();
-  const _theme = getThemeClasses(currentTheme);
-
   const isEditMode = !!storyId;
 
   // Version history (only fetch when drawer is open)
@@ -84,6 +82,9 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
   const canEdit = useMemo(() => {
     return !!existingStory && !!user && isAuthor;
   }, [existingStory, user, isAuthor]);
+
+  const hasActiveEvolution = !!activeEvolution
+    && !['completed', 'discarded'].includes(activeEvolution.phase);
 
   // For new stories, start in edit mode
   useEffect(() => {
@@ -229,6 +230,10 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
     });
   };
 
+  const handleNavigateToEvolve = () => {
+    navigate(`/legacy/${legacyId}/story/${storyId}/evolve`);
+  };
+
   const legacyName = legacy?.name || 'Legacy';
   const isMutating = createStory.isPending || updateStory.isPending;
 
@@ -241,20 +246,8 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
     );
   }
 
-  // Get visibility icon and label
-  const getVisibilityInfo = (vis: 'public' | 'private' | 'personal') => {
-    switch (vis) {
-      case 'public':
-        return { icon: Globe, label: 'Public', description: 'Anyone can read this story' };
-      case 'private':
-        return { icon: Users, label: 'Members Only', description: 'Only legacy members can read this story' };
-      case 'personal':
-        return { icon: Lock, label: 'Personal', description: 'Only you can see this story' };
-    }
-  };
+  const visibilityInfo = VISIBILITY_MAP[visibility];
 
-  const visibilityInfo = getVisibilityInfo(visibility);
-  const VisibilityIcon = visibilityInfo.icon;
   const associatedLegaciesLabel = existingStory?.legacies?.length
     ? existingStory.legacies
       .map((legacy) => legacy.role === 'primary'
@@ -270,91 +263,31 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
         description="Create or edit a story for this legacy"
         noIndex={true}
       />
-      <HeaderSlot>
-        <button
-          onClick={handleBack}
-          className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-          <span>Back to {legacyName}</span>
-        </button>
-
-        {isViewMode && isEditMode ? (
-          <>
-            {canEdit && (
-              <Button
-                size="sm"
-                className="gap-2"
-                onClick={handleEditClick}
-              >
-                <Pencil className="size-4" />
-                Edit Story
-              </Button>
-            )}
-            {showHistory && (
-              <VersionHistoryButton
-                versionCount={existingStory?.version_count ?? null}
-                onClick={() => setIsHistoryOpen(true)}
-              />
-            )}
-            {storyId && canEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => navigate(`/legacy/${legacyId}/story/${storyId}/evolve`)}
-              >
-                <Sparkles className="size-4" />
-                {activeEvolution && !['completed', 'discarded'].includes(activeEvolution.phase)
-                  ? 'Continue Evolving'
-                  : 'Evolve Story'}
-              </Button>
-            )}
-          </>
-        ) : (
-          <>
-            {isEditMode && (
-              <Button variant="ghost" size="sm" onClick={handleCancelEdit}>
-                Cancel
-              </Button>
-            )}
-            <Button variant="ghost" size="sm" disabled>
-              Save Draft
-            </Button>
-            <Button
-              size="sm"
-              className="gap-2"
-              onClick={handlePublish}
-              disabled={isMutating || !title.trim() || !content.trim()}
-            >
-              {isMutating ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Save className="size-4" />
-              )}
-              {isEditMode ? 'Update Story' : 'Publish Story'}
-            </Button>
-          </>
-        )}
-      </HeaderSlot>
+      <StoryToolbar
+        legacyName={legacyName}
+        isViewMode={isViewMode}
+        isEditMode={isEditMode}
+        canEdit={canEdit}
+        showHistory={showHistory}
+        versionCount={existingStory?.version_count ?? null}
+        isMutating={isMutating}
+        titleEmpty={!title.trim()}
+        contentEmpty={!content.trim()}
+        hasActiveEvolution={hasActiveEvolution}
+        onBack={handleBack}
+        onEditClick={handleEditClick}
+        onCancelEdit={handleCancelEdit}
+        onPublish={handlePublish}
+        onOpenHistory={() => setIsHistoryOpen(true)}
+        onEvolve={handleNavigateToEvolve}
+      />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="space-y-8">
           {/* Evolution resume banner */}
-          {activeEvolution && !['completed', 'discarded'].includes(activeEvolution.phase) && (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 flex items-center justify-between">
-              <span className="text-sm text-purple-700">
-                You have a story evolution in progress.
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(`/legacy/${legacyId}/story/${storyId}/evolve`)}
-              >
-                Continue &rarr;
-              </Button>
-            </div>
+          {hasActiveEvolution && (
+            <EvolutionResumeBanner onContinue={handleNavigateToEvolve} />
           )}
 
           {/* Error Message */}
@@ -368,144 +301,34 @@ export default function StoryCreation({ onNavigate: _onNavigate, legacyId, story
           )}
 
           {isViewMode && isEditMode ? (
-            // Read-only View Mode
-            <div className="space-y-8">
-              {/* Version Preview Banner */}
-              {isPreviewing && previewData && (
-                <VersionPreviewBanner
-                  versionNumber={previewData.version_number}
-                  source={previewData.source}
-                  createdAt={previewData.created_at}
-                  isActive={isPreviewActive}
-                  onRestore={handleRestore}
-                  isRestoring={restoreVersionMutation.isPending}
-                />
-              )}
-
-              {/* Story Header */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-sm text-neutral-500">
-                  <VisibilityIcon className="size-4" />
-                  <span>{visibilityInfo.label}</span>
-                  <span className="mx-2">|</span>
-                  <span>{existingStory?.author_name}</span>
-                  {existingStory && (
-                    <>
-                      <span className="mx-2">|</span>
-                      <span>
-                        {new Date(existingStory.created_at).toLocaleDateString('en-US', {
-                          month: 'long',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })}
-                      </span>
-                    </>
-                  )}
-                </div>
-                {associatedLegaciesLabel && (
-                  <p className="text-sm text-neutral-600">
-                    About: {associatedLegaciesLabel}
-                  </p>
-                )}
-                <h1 className="text-3xl font-semibold text-neutral-900">{displayTitle}</h1>
-              </div>
-
-              {/* Story Content */}
-              <Card className="p-8 bg-white">
-                <div className="prose prose-neutral max-w-none">
-                  {/* Render content - for now as plain text with line breaks preserved */}
-                  <div className="whitespace-pre-wrap text-neutral-800 leading-relaxed">
-                    {displayContent}
-                  </div>
-                </div>
-              </Card>
-
-              {/* View mode info */}
-              {canEdit && (
-                <div className="flex items-center justify-center gap-2 text-sm text-neutral-500">
-                  <Eye className="size-4" />
-                  <span>Viewing mode</span>
-                  <span className="mx-1">-</span>
-                  <button
-                    onClick={handleEditClick}
-                    className="text-[rgb(var(--theme-primary))] hover:underline"
-                  >
-                    Click to edit
-                  </button>
-                </div>
-              )}
-            </div>
+            <StoryViewer
+              displayTitle={displayTitle}
+              displayContent={displayContent}
+              visibilityIcon={visibilityInfo.icon}
+              visibilityLabel={visibilityInfo.label}
+              authorName={existingStory?.author_name}
+              createdAt={existingStory?.created_at}
+              associatedLegaciesLabel={associatedLegaciesLabel}
+              canEdit={canEdit}
+              onEditClick={handleEditClick}
+              isPreviewing={isPreviewing}
+              previewData={previewData}
+              isPreviewActive={isPreviewActive}
+              onRestore={handleRestore}
+              isRestoring={restoreVersionMutation.isPending}
+            />
           ) : (
-            // Edit Mode
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-sm text-neutral-600">Legacies *</label>
-                <LegacyMultiSelect
-                  value={selectedLegacies}
-                  onChange={setSelectedLegacies}
-                  requirePrimary={true}
-                  disabled={isMutating}
-                />
-                <p className="text-xs text-neutral-500">
-                  Select one or more legacies and mark one as primary.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm text-neutral-600">Story Title *</label>
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Give your story a title..."
-                  className="text-lg"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm text-neutral-600">Visibility</label>
-                <div className="flex gap-2">
-                  <Button
-                    variant={visibility === 'public' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setVisibility('public')}
-                  >
-                    Public
-                  </Button>
-                  <Button
-                    variant={visibility === 'private' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setVisibility('private')}
-                  >
-                    Members Only
-                  </Button>
-                  <Button
-                    variant={visibility === 'personal' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setVisibility('personal')}
-                  >
-                    Personal
-                  </Button>
-                </div>
-                <p className="text-xs text-neutral-500">
-                  {visibility === 'public' && 'Anyone can read this story'}
-                  {visibility === 'private' && 'Only legacy members can read this story'}
-                  {visibility === 'personal' && 'Only you can see this story'}
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm text-neutral-600">Your Story *</label>
-                <div className="relative">
-                  <textarea
-                    value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    placeholder="Start writing your story here... Use Markdown for formatting."
-                    className="w-full min-h-[400px] p-6 rounded-lg border border-neutral-200 focus:border-amber-300 focus:ring-2 focus:ring-amber-100 outline-none resize-none bg-white font-mono text-sm"
-                  />
-                </div>
-                <p className="text-sm text-neutral-500">{content.length} characters</p>
-              </div>
-            </div>
+            <StoryEditForm
+              title={title}
+              onTitleChange={setTitle}
+              content={content}
+              onContentChange={setContent}
+              visibility={visibility}
+              onVisibilityChange={setVisibility}
+              selectedLegacies={selectedLegacies}
+              onLegaciesChange={setSelectedLegacies}
+              isMutating={isMutating}
+            />
           )}
         </div>
       </main>

@@ -1,5 +1,5 @@
 // Stories API functions
-import { apiGet, apiPost, apiPut, apiDelete } from './client';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api/client';
 
 export interface LegacyAssociation {
   legacy_id: string;

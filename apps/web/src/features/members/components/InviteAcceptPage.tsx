@@ -1,11 +1,11 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { Check, X, Clock, User, Shield } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Badge } from './ui/badge';
-import { Alert, AlertDescription } from './ui/alert';
-import { useInvitationPreview, useAcceptInvitation } from '@/lib/hooks/useInvitations';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useInvitationPreview, useAcceptInvitation } from '@/features/members/hooks/useInvitations';
 import { useAuth } from '@/contexts/AuthContext';
 
 const ROLE_LABELS: Record<string, string> = {

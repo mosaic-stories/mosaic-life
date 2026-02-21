@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import VersionHistoryDrawer from './VersionHistoryDrawer';
-import type { VersionSummary, VersionListResponse } from '@/lib/api/versions';
+import type { VersionSummary, VersionListResponse } from '@/features/story/api/versions';
 
 // Radix ScrollArea uses ResizeObserver which is not available in jsdom
 beforeAll(() => {

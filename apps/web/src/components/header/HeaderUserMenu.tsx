@@ -17,7 +17,8 @@ import {
   useNotifications,
   useUpdateNotificationStatus,
   useMarkAllAsRead,
-} from '@/lib/hooks/useNotifications';
+} from '@/features/notifications/hooks/useNotifications';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderUserMenuProps {
   user: {
@@ -25,16 +26,15 @@ interface HeaderUserMenuProps {
     email: string;
     avatarUrl?: string;
   };
-  onNavigate: (view: string) => void;
-  onSignOut: () => void;
 }
 
-export default function HeaderUserMenu({ user, onNavigate, onSignOut }: HeaderUserMenuProps) {
+export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
   const navigate = useNavigate();
   const { data: unreadData } = useUnreadCount();
   const { data: notifications, refetch } = useNotifications(false);
   const updateStatus = useUpdateNotificationStatus();
   const markAllRead = useMarkAllAsRead();
+  const { logout } = useAuth();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
 
   const unreadCount = unreadData?.count ?? 0;
@@ -111,7 +111,7 @@ export default function HeaderUserMenu({ user, onNavigate, onSignOut }: HeaderUs
             </div>
           )}
           <button
-            onClick={() => onNavigate('notifications')}
+            onClick={() => navigate('/notifications')}
             className="w-full text-xs text-[rgb(var(--theme-primary))] hover:underline mt-2 text-left"
           >
             View all notifications
@@ -157,7 +157,7 @@ export default function HeaderUserMenu({ user, onNavigate, onSignOut }: HeaderUs
         <DropdownMenuSeparator />
 
         <DropdownMenuItem
-          onClick={onSignOut}
+          onClick={async () => { await logout(); navigate('/'); }}
           className="cursor-pointer py-2 text-red-600 focus:text-red-600"
         >
           <LogOut className="size-4 mr-3" />

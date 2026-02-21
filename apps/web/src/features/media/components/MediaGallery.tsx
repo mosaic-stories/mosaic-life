@@ -1,21 +1,20 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Calendar, Download, Grid3x3, Heart, List, Plus, Share2, X } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Badge } from './ui/badge';
-import { Dialog, DialogContent } from './ui/dialog';
-import { legacies, mediaItems } from '../lib/mockData';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { legacies, mediaItems } from '@/lib/mockData';
 import { SEOHead } from '@/components/seo';
 import { HeaderSlot } from '@/components/header';
 
 interface MediaGalleryProps {
-  onNavigate: (view: string) => void;
   legacyId: string;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
 }
 
-export default function MediaGallery({ onNavigate, legacyId, currentTheme: _currentTheme, onThemeChange: _onThemeChange }: MediaGalleryProps) {
+export default function MediaGallery({ legacyId }: MediaGalleryProps) {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedMedia, setSelectedMedia] = useState<typeof mediaItems[0] | null>(null);
   
@@ -31,7 +30,7 @@ export default function MediaGallery({ onNavigate, legacyId, currentTheme: _curr
       <HeaderSlot>
         <div className="flex items-center gap-3">
           <button
-            onClick={() => onNavigate('profile')}
+            onClick={() => navigate(`/legacy/${legacyId}`)}
             className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
           >
             <ArrowLeft className="size-4" />

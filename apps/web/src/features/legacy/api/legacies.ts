@@ -1,5 +1,5 @@
 // Legacies API functions
-import { apiGet, apiPost, apiPut, apiDelete, apiPatch } from './client';
+import { apiGet, apiPost, apiPut, apiDelete, apiPatch } from '@/lib/api/client';
 
 export interface LegacyMember {
   user_id: string;

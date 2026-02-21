@@ -4,7 +4,7 @@
 
 import { formatDistanceToNow } from 'date-fns';
 
-import { useStats } from '@/lib/hooks/useSettings';
+import { useStats } from '@/features/settings/hooks/useSettings';
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B';

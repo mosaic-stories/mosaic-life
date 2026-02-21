@@ -1,28 +1,26 @@
 import { ArrowRight, BookHeart, Sparkles, Plus, Loader2, Users, Globe, Lock } from 'lucide-react';
 import { useState } from 'react';
-import type { VisibilityFilter } from '@/lib/api/legacies';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Badge } from './ui/badge';
-import Footer from './Footer';
-import { useLegacies, useExploreLegacies } from '@/lib/hooks/useLegacies';
-import { formatLegacyDates, getLegacyContext } from '@/lib/api/legacies';
+import { useNavigate } from 'react-router-dom';
+import type { VisibilityFilter } from '@/features/legacy/api/legacies';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import Footer from '@/components/Footer';
+import { useLegacies, useExploreLegacies } from '@/features/legacy/hooks/useLegacies';
+import { formatLegacyDates, getLegacyContext } from '@/features/legacy/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import { SEOHead, getOrganizationSchema } from '@/components/seo';
 import { HeaderSlot } from '@/components/header';
-import ThemeSelector from './ThemeSelector';
+import ThemeSelector from '@/components/ThemeSelector';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/lib/hooks/useTheme';
+import { useAuthModal } from '@/lib/hooks/useAuthModal';
 
-interface HomepageProps {
-  onNavigate: (view: string) => void;
-  onSelectLegacy: (legacyId: string) => void;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
-  user: { name: string; email: string; avatarUrl?: string } | null;
-  onAuthClick: () => void;
-  onSignOut: () => void;
-}
-
-export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _currentTheme, onThemeChange: _onThemeChange, user, onAuthClick, onSignOut: _onSignOut }: HomepageProps) {
+export default function Homepage() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { currentTheme, setTheme } = useTheme();
+  const openAuthModal = useAuthModal((s) => s.open);
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
 
   // useLegacies for authenticated users' personal legacies (requires auth)
@@ -40,8 +38,13 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
     'living-tribute': 'bg-purple-100 text-purple-800 border-purple-200'
   };
 
-  const currentTheme = _currentTheme;
-  const onThemeChange = _onThemeChange;
+  const handleCreateLegacy = () => {
+    if (user) {
+      navigate('/legacy/new');
+    } else {
+      openAuthModal();
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -53,7 +56,7 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
         structuredData={getOrganizationSchema()}
       />
       <HeaderSlot>
-        <ThemeSelector currentTheme={currentTheme} onThemeChange={onThemeChange} />
+        <ThemeSelector currentTheme={currentTheme} onThemeChange={setTheme} />
       </HeaderSlot>
 
       {/* Hero Section */}
@@ -61,29 +64,29 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
         <div className="max-w-3xl mx-auto text-center space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgb(var(--theme-accent-light))] border border-[rgb(var(--theme-accent))]">
             <Sparkles className="size-4 text-[rgb(var(--theme-primary))]" />
-            <span className="text-sm text-[rgb(var(--theme-primary-dark))]\">Digital tributes powered by AI</span>
+            <span className="text-sm text-[rgb(var(--theme-primary-dark))]">Digital tributes powered by AI</span>
           </div>
-          
+
           <h1 className="text-neutral-900">
             Honor the lives and milestones that matter most
           </h1>
-          
+
           <p className="text-neutral-600">
-            Create meaningful digital tributes for memorials, retirements, graduations, and living legacies. 
+            Create meaningful digital tributes for memorials, retirements, graduations, and living legacies.
             Preserve memories, share stories, and celebrate what makes each person special.
           </p>
 
           <div className="flex gap-4 justify-center pt-4">
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
-              onClick={user ? () => onNavigate('story') : onAuthClick}
+              onClick={handleCreateLegacy}
             >
               Create a Legacy
               <ArrowRight className="size-4" />
             </Button>
-            <Button 
-              size="lg" 
+            <Button
+              size="lg"
               variant="outline"
               onClick={() => document.getElementById('explore-legacies')?.scrollIntoView({ behavior: 'smooth' })}
             >
@@ -105,7 +108,7 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
                 </p>
               </div>
               <Button
-                onClick={() => onNavigate('story')}
+                onClick={() => navigate('/legacy/new')}
                 className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
               >
                 <Plus className="size-4" />
@@ -129,7 +132,7 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
                   <Card
                     key={legacy.id}
                     className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-                    onClick={() => onSelectLegacy(legacy.id)}
+                    onClick={() => navigate(`/legacy/${legacy.id}`)}
                   >
                     <div className="aspect-[4/3] overflow-hidden bg-neutral-100 flex items-center justify-center">
                       {legacy.profile_image_url ? (
@@ -170,7 +173,7 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
               {/* Create New Card */}
               <Card
                 className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group border-2 border-dashed border-neutral-300 hover:border-[rgb(var(--theme-primary))] bg-neutral-50 hover:bg-white"
-                onClick={() => onNavigate('story')}
+                onClick={() => navigate('/legacy/new')}
               >
                 <div className="aspect-[4/3] flex items-center justify-center bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))]">
                   <div className="text-center space-y-3">
@@ -257,7 +260,7 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
                   <Card
                     key={legacy.id}
                     className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-                    onClick={() => onSelectLegacy(legacy.id)}
+                    onClick={() => navigate(`/legacy/${legacy.id}`)}
                   >
                     <div className="aspect-[4/3] overflow-hidden bg-neutral-100 flex items-center justify-center">
                       {legacy.profile_image_url ? (
@@ -323,10 +326,10 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
               <p className="text-neutral-600 max-w-xl mx-auto">
                 Whether you're honoring a loved one, celebrating a milestone, or preserving memories for the future, Mosaic Life helps you tell the story that matters.
               </p>
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="gap-2"
-                onClick={user ? () => onNavigate('story') : onAuthClick}
+                onClick={handleCreateLegacy}
               >
                 Create Your First Legacy
                 <ArrowRight className="size-4" />
@@ -337,7 +340,7 @@ export default function Homepage({ onNavigate, onSelectLegacy, currentTheme: _cu
       </section>
 
       {/* Footer */}
-      <Footer onNavigate={onNavigate} />
+      <Footer />
     </div>
   );
 }

@@ -1,26 +1,27 @@
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useIsMobile } from '@/components/ui/use-mobile';
 import { useHeaderContext } from './HeaderContext';
 import HeaderLogo from './HeaderLogo';
 import HeaderUserMenu from './HeaderUserMenu';
 import HeaderOverflowMenu from './HeaderOverflowMenu';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAuthModal } from '@/lib/hooks/useAuthModal';
 
-interface AppHeaderProps {
-  user: { name: string; email: string; avatarUrl?: string } | null;
-  onNavigate: (view: string) => void;
-  onAuthClick: () => void;
-  onSignOut: () => void;
-}
-
-export default function AppHeader({ user, onNavigate, onAuthClick, onSignOut }: AppHeaderProps) {
+export default function AppHeader() {
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { slotContent } = useHeaderContext();
+  const { user } = useAuth();
+  const openAuthModal = useAuthModal((s) => s.open);
+
+  const userInfo = user ? { name: user.name || user.email, email: user.email, avatarUrl: user.avatar_url } : null;
 
   return (
     <nav className="border-b bg-white/90 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
         {/* Left: Logo */}
-        <HeaderLogo onNavigateHome={() => onNavigate('home')} />
+        <HeaderLogo onNavigateHome={() => navigate('/')} />
 
         {/* Center: Slot content (desktop) or Overflow menu (mobile) */}
         {isMobile ? (
@@ -33,10 +34,10 @@ export default function AppHeader({ user, onNavigate, onAuthClick, onSignOut }: 
 
         {/* Right: Auth */}
         <div className="flex items-center gap-2 flex-shrink-0">
-          {user ? (
-            <HeaderUserMenu user={user} onNavigate={onNavigate} onSignOut={onSignOut} />
+          {userInfo ? (
+            <HeaderUserMenu user={userInfo} />
           ) : (
-            <Button onClick={onAuthClick} size="sm">
+            <Button onClick={openAuthModal} size="sm">
               Sign In
             </Button>
           )}

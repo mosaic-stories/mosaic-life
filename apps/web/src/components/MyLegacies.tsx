@@ -14,17 +14,14 @@ import {
 } from './ui/dialog';
 import { HeaderSlot } from '@/components/header';
 import SearchBar from './SearchBar';
-import { useLegacies } from '@/lib/hooks/useLegacies';
-import { useStories, useUpdateStory } from '@/lib/hooks/useStories';
-import type { StorySummary, LegacyAssociationInput } from '@/lib/api/stories';
-import { formatLegacyDates, getLegacyContext, type Legacy } from '@/lib/api/legacies';
+import { useLegacies } from '@/features/legacy/hooks/useLegacies';
+import { useStories, useUpdateStory } from '@/features/story/hooks/useStories';
+import type { StorySummary, LegacyAssociationInput } from '@/features/story/api/stories';
+import { formatLegacyDates, getLegacyContext, type Legacy } from '@/features/legacy/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import { SEOHead } from '@/components/seo';
-import LegacyMultiSelect from './LegacyMultiSelect';
+import LegacyMultiSelect from '@/features/legacy/components/LegacyMultiSelect';
 
-interface MyLegaciesProps {
-  onNavigate: (view: string) => void;
-}
 
 const contextLabels: Record<string, string> = {
   memorial: 'Memorial',
@@ -90,7 +87,7 @@ function LegacyCard({ legacy, onClick }: { legacy: Legacy; onClick: () => void }
   );
 }
 
-export default function MyLegacies({ onNavigate }: MyLegaciesProps) {
+export default function MyLegacies() {
   const navigate = useNavigate();
   const { data: legacies, isLoading, error } = useLegacies();
   const { data: orphanedStories, isLoading: orphanedLoading } = useStories(undefined, true);
@@ -110,7 +107,7 @@ export default function MyLegacies({ onNavigate }: MyLegaciesProps) {
 
   const handleCreateLegacy = () => {
     // For now, navigate to a create page (will need to be implemented)
-    onNavigate('create-legacy');
+    navigate('/legacy/new');
   };
 
   const handleSearchSelect = (type: string, id: string) => {

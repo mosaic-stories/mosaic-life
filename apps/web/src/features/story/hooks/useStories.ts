@@ -9,7 +9,7 @@ import {
   deleteStory,
   type CreateStoryInput,
   type UpdateStoryInput,
-} from '@/lib/api/stories';
+} from '@/features/story/api/stories';
 import { ApiError } from '@/lib/api/client';
 
 export const storyKeys = {

@@ -67,6 +67,11 @@ export default defineConfig({
             '@radix-ui/react-tabs',
             '@radix-ui/react-avatar',
           ],
+          'tiptap': [
+            '@tiptap/react',
+            '@tiptap/starter-kit',
+            '@tiptap/pm',
+          ],
         }
       }
     }

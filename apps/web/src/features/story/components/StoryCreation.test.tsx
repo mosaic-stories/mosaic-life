@@ -79,12 +79,8 @@ vi.mock('./VersionPreviewBanner', () => ({
 // Mock other heavy child components
 vi.mock('@/components/seo', () => ({ SEOHead: () => null }));
 
-vi.mock('./LegacyMultiSelect', () => ({
+vi.mock('@/features/legacy/components/LegacyMultiSelect', () => ({
   default: () => createElement('div', { 'data-testid': 'legacy-multi-select' }),
-}));
-
-vi.mock('../lib/themes', () => ({
-  getThemeClasses: () => ({}),
 }));
 
 // Mock auth context
@@ -105,7 +101,7 @@ const mockLegacyData = {
 const mockLegacyResult = { data: mockLegacyData, isLoading: false };
 const mockLegaciesResult = { data: [{ id: 'legacy-1', name: 'Test Legacy' }], isLoading: false };
 
-vi.mock('@/lib/hooks/useLegacies', () => ({
+vi.mock('@/features/legacy/hooks/useLegacies', () => ({
   useLegacies: () => mockLegaciesResult,
   useLegacy: () => mockLegacyResult,
 }));
@@ -136,7 +132,7 @@ const mockStoryData = {
 const mockStoryResult = { data: mockStoryData, isLoading: false };
 
 // Mock story hook to return story with version_count
-vi.mock('@/lib/hooks/useStories', () => ({
+vi.mock('@/features/story/hooks/useStories', () => ({
   useStory: () => mockStoryResult,
   useCreateStory: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateStory: () => ({ mutateAsync: vi.fn(), isPending: false }),
@@ -194,7 +190,7 @@ const mockVersionsResult = { data: mockVersionsData, isLoading: false };
 const mockVersionDetailResult2 = { data: mockVersionDetail2, isLoading: false };
 const mockVersionDetailResultEmpty = { data: undefined, isLoading: false };
 
-vi.mock('@/lib/hooks/useVersions', () => ({
+vi.mock('@/features/story/hooks/useVersions', () => ({
   useVersions: () => mockVersionsResult,
   useVersionDetail: (_storyId: string, versionNumber: number | null) =>
     versionNumber === 2 ? mockVersionDetailResult2 : mockVersionDetailResultEmpty,
@@ -209,7 +205,7 @@ vi.mock('@/lib/hooks/useVersions', () => ({
 }));
 
 // Mock API modules to prevent HTTP client import chain
-vi.mock('@/lib/api/versions', () => ({
+vi.mock('@/features/story/api/versions', () => ({
   getVersions: vi.fn(),
   getVersion: vi.fn(),
   restoreVersion: vi.fn(),
@@ -217,7 +213,7 @@ vi.mock('@/lib/api/versions', () => ({
   discardDraft: vi.fn(),
 }));
 
-vi.mock('@/lib/api/stories', () => ({
+vi.mock('@/features/story/api/stories', () => ({
   getStory: vi.fn(),
   getStories: vi.fn(),
   createStory: vi.fn(),
@@ -252,11 +248,8 @@ function renderStoryCreation(storyId?: string) {
           TestHeaderProvider,
           null,
           createElement(StoryCreation, {
-            onNavigate: vi.fn(),
             legacyId: 'legacy-1',
             storyId: storyId ?? 'story-1',
-            currentTheme: 'default',
-            onThemeChange: vi.fn(),
           })
         )
       )

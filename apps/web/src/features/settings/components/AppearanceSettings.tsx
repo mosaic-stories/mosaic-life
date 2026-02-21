@@ -7,7 +7,7 @@ import { Check } from 'lucide-react';
 import { cn } from '@/components/ui/utils';
 import { themes } from '@/lib/themes';
 import { applyTheme, themeColors } from '@/lib/themeUtils';
-import { usePreferences, useUpdatePreferences } from '@/lib/hooks/useSettings';
+import { usePreferences, useUpdatePreferences } from '@/features/settings/hooks/useSettings';
 
 type ThemeCategory = 'classic' | 'muted' | 'vibrant';
 

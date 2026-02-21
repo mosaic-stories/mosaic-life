@@ -11,11 +11,22 @@ vi.mock('@/components/ui/use-mobile', () => ({
 }));
 
 // Mock notification hooks
-vi.mock('@/lib/hooks/useNotifications', () => ({
+vi.mock('@/features/notifications/hooks/useNotifications', () => ({
   useUnreadCount: () => ({ data: { count: 0 } }),
   useNotifications: () => ({ data: [], refetch: vi.fn() }),
   useUpdateNotificationStatus: () => ({ mutate: vi.fn() }),
   useMarkAllAsRead: () => ({ mutate: vi.fn() }),
+}));
+
+// Mock auth
+let mockUser: { id: string; name: string; email: string; avatar_url?: string } | null = null;
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ user: mockUser, login: vi.fn(), logout: vi.fn() }),
+}));
+
+vi.mock('@/lib/hooks/useAuthModal', () => ({
+  useAuthModal: (selector: (s: { open: () => void }) => unknown) =>
+    selector({ open: vi.fn() }),
 }));
 
 function renderWithProviders(ui: React.ReactElement) {
@@ -33,40 +44,22 @@ function renderWithProviders(ui: React.ReactElement) {
 
 describe('AppHeader', () => {
   it('renders logo', () => {
-    renderWithProviders(
-      <AppHeader
-        user={null}
-        onNavigate={() => {}}
-        onAuthClick={() => {}}
-        onSignOut={() => {}}
-      />
-    );
+    mockUser = null;
+    renderWithProviders(<AppHeader />);
 
     expect(screen.getByRole('button', { name: /mosaic life/i })).toBeInTheDocument();
   });
 
   it('shows sign in button when not logged in', () => {
-    renderWithProviders(
-      <AppHeader
-        user={null}
-        onNavigate={() => {}}
-        onAuthClick={() => {}}
-        onSignOut={() => {}}
-      />
-    );
+    mockUser = null;
+    renderWithProviders(<AppHeader />);
 
     expect(screen.getByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
   it('shows user menu when logged in', () => {
-    renderWithProviders(
-      <AppHeader
-        user={{ name: 'John Doe', email: 'john@example.com' }}
-        onNavigate={() => {}}
-        onAuthClick={() => {}}
-        onSignOut={() => {}}
-      />
-    );
+    mockUser = { id: '1', name: 'John Doe', email: 'john@example.com' };
+    renderWithProviders(<AppHeader />);
 
     expect(screen.getByText('JD')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /sign in/i })).not.toBeInTheDocument();

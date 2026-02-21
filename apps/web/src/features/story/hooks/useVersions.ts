@@ -5,7 +5,7 @@ import {
   restoreVersion,
   approveDraft,
   discardDraft,
-} from '@/lib/api/versions';
+} from '@/features/story/api/versions';
 import { storyKeys } from './useStories';
 
 export const versionKeys = {

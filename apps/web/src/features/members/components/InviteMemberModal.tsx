@@ -1,25 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
 import { AlertCircle, Mail, Send, X, User, Loader2 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from './ui/dialog';
-import { Label } from './ui/label';
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select';
-import { Alert, AlertDescription } from './ui/alert';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { useSendInvitation } from '@/lib/hooks/useInvitations';
+} from '@/components/ui/select';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useSendInvitation } from '@/features/members/hooks/useInvitations';
 import { useUserSearch, UserSearchResult } from '@/lib/hooks/useUsers';
 
 interface InviteMemberModalProps {

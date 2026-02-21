@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import type { Message, Conversation } from '@/lib/api/ai';
+import type { Message, Conversation } from '@/features/ai-chat/api/ai';
 
 export interface ChatMessage extends Message {
   status?: 'sending' | 'streaming' | 'complete' | 'error';

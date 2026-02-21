@@ -1,20 +1,16 @@
+import { useNavigate } from 'react-router-dom';
 import { Users, Shield, Heart, Sparkles, ArrowRight, Mail } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import Footer from './Footer';
-import { SEOHead } from './seo';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import Footer from '@/components/Footer';
+import { SEOHead } from '@/components/seo';
+import { useAuth } from '@/contexts/AuthContext';
+import { useAuthModal } from '@/lib/hooks/useAuthModal';
 
-interface AboutProps {
-  onNavigate: (view: string) => void;
-  onSelectLegacy?: (legacyId: string) => void;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
-  user: { name: string; email: string; avatarUrl?: string } | null;
-  onAuthClick: () => void;
-  onSignOut: () => void;
-}
-
-export default function About({ onNavigate, user, onAuthClick }: AboutProps) {
+export default function About() {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const openAuthModal = useAuthModal((s) => s.open);
   return (
     <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300 flex flex-col">
       <SEOHead
@@ -195,7 +191,7 @@ export default function About({ onNavigate, user, onAuthClick }: AboutProps) {
                 <Button 
                   size="lg" 
                   className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
-                  onClick={user ? () => onNavigate('story') : onAuthClick}
+                  onClick={user ? () => navigate('/legacy/new') : openAuthModal}
                 >
                   Create Your First Legacy
                   <ArrowRight className="size-4" />
@@ -225,7 +221,7 @@ export default function About({ onNavigate, user, onAuthClick }: AboutProps) {
         </section>
       </main>
 
-      <Footer onNavigate={onNavigate} />
+      <Footer />
     </div>
   );
 }

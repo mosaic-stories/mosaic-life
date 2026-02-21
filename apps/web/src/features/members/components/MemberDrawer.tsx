@@ -1,38 +1,38 @@
 import { useState } from 'react';
 import { UserPlus, MoreVertical, Mail, Clock, Link, Check } from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
-} from './ui/sheet';
+} from '@/components/ui/sheet';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+} from '@/components/ui/dropdown-menu';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { Badge } from './ui/badge';
-import { Separator } from './ui/separator';
+} from '@/components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import {
   useMembers,
   useChangeMemberRole,
   useRemoveMember,
   useLeaveLegacy,
-} from '@/lib/hooks/useLegacies';
+} from '@/features/legacy/hooks/useLegacies';
 import {
   useInvitations,
   useRevokeInvitation,
-} from '@/lib/hooks/useInvitations';
+} from '@/features/members/hooks/useInvitations';
 import { useAuth } from '@/contexts/AuthContext';
 import InviteMemberModal from './InviteMemberModal';
 

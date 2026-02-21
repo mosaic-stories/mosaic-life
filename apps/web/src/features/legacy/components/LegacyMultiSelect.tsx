@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Checkbox } from './ui/checkbox';
-import { Button } from './ui/button';
-import { Badge } from './ui/badge';
-import { useLegacies } from '@/lib/hooks/useLegacies';
-import type { LegacyAssociationInput } from '@/lib/api/stories';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { useLegacies } from '@/features/legacy/hooks/useLegacies';
+import type { LegacyAssociationInput } from '@/features/story/api/stories';
 
 interface LegacyMultiSelectProps {
   value: LegacyAssociationInput[];

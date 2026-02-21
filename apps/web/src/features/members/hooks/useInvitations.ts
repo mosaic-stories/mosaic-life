@@ -7,8 +7,8 @@ import {
   getInvitationPreview,
   acceptInvitation,
   type InvitationCreate,
-} from '@/lib/api/invitations';
-import { legacyKeys } from './useLegacies';
+} from '@/features/members/api/invitations';
+import { legacyKeys } from '@/features/legacy/hooks/useLegacies';
 
 export const invitationKeys = {
   all: ['invitations'] as const,

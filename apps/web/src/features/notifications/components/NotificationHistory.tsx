@@ -1,20 +1,14 @@
 import {
   useNotifications,
   useUpdateNotificationStatus,
-} from '@/lib/hooks/useNotifications';
+} from '@/features/notifications/hooks/useNotifications';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { X, Bell } from 'lucide-react';
 import { SEOHead } from '@/components/seo';
 
-interface NotificationHistoryProps {
-  onNavigate: (view: string) => void;
-}
-
-export default function NotificationHistory({
-  onNavigate: _onNavigate,
-}: NotificationHistoryProps) {
+export default function NotificationHistory() {
   const navigate = useNavigate();
   const { data: notifications, isLoading } = useNotifications(true); // Include dismissed
   const updateStatus = useUpdateNotificationStatus();

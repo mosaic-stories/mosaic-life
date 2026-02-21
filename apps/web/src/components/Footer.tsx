@@ -1,10 +1,9 @@
+import { useNavigate } from 'react-router-dom';
 import { BookHeart, Mail } from 'lucide-react';
 
-interface FooterProps {
-  onNavigate: (view: string) => void;
-}
+export default function Footer() {
+  const navigate = useNavigate();
 
-export default function Footer({ onNavigate }: FooterProps) {
   return (
     <footer className="bg-white border-t mt-auto">
       <div className="max-w-7xl mx-auto px-6 py-12">
@@ -26,7 +25,7 @@ export default function Footer({ onNavigate }: FooterProps) {
             <ul className="space-y-3 text-sm">
               <li>
                 <button
-                  onClick={() => onNavigate('story')}
+                  onClick={() => navigate('/legacy/new')}
                   className="text-neutral-600 hover:text-neutral-900 transition-colors"
                 >
                   Create a Legacy
@@ -34,7 +33,7 @@ export default function Footer({ onNavigate }: FooterProps) {
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate('home')}
+                  onClick={() => navigate('/')}
                   className="text-neutral-600 hover:text-neutral-900 transition-colors"
                 >
                   Explore Legacies
@@ -42,7 +41,7 @@ export default function Footer({ onNavigate }: FooterProps) {
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate('community')}
+                  onClick={() => navigate('/community')}
                   className="text-neutral-600 hover:text-neutral-900 transition-colors"
                 >
                   Community
@@ -50,7 +49,7 @@ export default function Footer({ onNavigate }: FooterProps) {
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate('how-it-works')}
+                  onClick={() => navigate('/how-it-works')}
                   className="text-neutral-600 hover:text-neutral-900 transition-colors"
                 >
                   How It Works
@@ -65,7 +64,7 @@ export default function Footer({ onNavigate }: FooterProps) {
             <ul className="space-y-3 text-sm">
               <li>
                 <button
-                  onClick={() => onNavigate('about')}
+                  onClick={() => navigate('/about')}
                   className="text-neutral-600 hover:text-neutral-900 transition-colors"
                 >
                   About Us
@@ -73,7 +72,7 @@ export default function Footer({ onNavigate }: FooterProps) {
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate('contact')}
+                  onClick={() => navigate('/contact')}
                   className="text-neutral-600 hover:text-neutral-900 transition-colors"
                 >
                   Contact
@@ -81,7 +80,7 @@ export default function Footer({ onNavigate }: FooterProps) {
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate('privacy')}
+                  onClick={() => navigate('/privacy')}
                   className="text-neutral-600 hover:text-neutral-900 transition-colors"
                 >
                   Privacy Policy
@@ -89,7 +88,7 @@ export default function Footer({ onNavigate }: FooterProps) {
               </li>
               <li>
                 <button
-                  onClick={() => onNavigate('terms')}
+                  onClick={() => navigate('/terms')}
                   className="text-neutral-600 hover:text-neutral-900 transition-colors"
                 >
                   Terms of Service
@@ -126,7 +125,7 @@ export default function Footer({ onNavigate }: FooterProps) {
 
         {/* Bottom bar */}
         <div className="pt-8 border-t border-neutral-200 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-neutral-500">
-          <p>© 2025 Mosaic Life. All rights reserved.</p>
+          <p>&copy; 2025 Mosaic Life. All rights reserved.</p>
           <p className="text-neutral-400">mosaiclife.me</p>
         </div>
       </div>

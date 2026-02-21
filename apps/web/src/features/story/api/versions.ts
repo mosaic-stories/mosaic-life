@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiDelete } from './client';
+import { apiGet, apiPost, apiDelete } from '@/lib/api/client';
 
 // --- Types ---
 

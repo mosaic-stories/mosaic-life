@@ -16,7 +16,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/components/ui/utils';
-import { useStory } from '@/lib/hooks/useStories';
+import { useStory } from '@/features/story/hooks/useStories';
 import {
   useActiveEvolution,
   useStartEvolution,
@@ -37,17 +37,11 @@ import { SEOHead } from '@/components/seo';
 interface StoryEvolutionWorkspaceProps {
   storyId?: string;
   legacyId: string;
-  onNavigate: (view: string) => void;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
 }
 
 export default function StoryEvolutionWorkspace({
   storyId,
   legacyId,
-  onNavigate: _onNavigate,
-  currentTheme: _currentTheme,
-  onThemeChange: _onThemeChange,
 }: StoryEvolutionWorkspaceProps) {
   const navigate = useNavigate();
   const [draftText, setDraftText] = useState('');

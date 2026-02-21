@@ -6,12 +6,12 @@ import {
   SheetHeader,
   SheetTitle,
   SheetDescription,
-} from './ui/sheet';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
-import { ScrollArea } from './ui/scroll-area';
-import { Card } from './ui/card';
-import type { VersionSummary, VersionListResponse } from '@/lib/api/versions';
+} from '@/components/ui/sheet';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card } from '@/components/ui/card';
+import type { VersionSummary, VersionListResponse } from '@/features/story/api/versions';
 import { getSourceLabel } from '@/lib/utils/versionLabels';
 
 interface VersionHistoryDrawerProps {

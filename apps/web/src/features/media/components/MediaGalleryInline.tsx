@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Loader2, Trash2, Image as ImageIcon, Check } from 'lucide-react';
-import { Button } from './ui/button';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -8,9 +8,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog';
-import { useMedia, useDeleteMedia, useSetProfileImage } from '@/lib/hooks/useMedia';
-import type { MediaItem } from '@/lib/api/media';
+} from '@/components/ui/dialog';
+import { useMedia, useDeleteMedia, useSetProfileImage } from '@/features/media/hooks/useMedia';
+import type { MediaItem } from '@/features/media/api/media';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 
 interface MediaGalleryInlineProps {

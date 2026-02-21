@@ -1,7 +1,7 @@
 import { Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { Badge } from './ui/badge';
-import { Button } from './ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -12,7 +12,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from './ui/alert-dialog';
+} from '@/components/ui/alert-dialog';
 import { getSourceLabel } from '@/lib/utils/versionLabels';
 
 interface VersionPreviewBannerProps {

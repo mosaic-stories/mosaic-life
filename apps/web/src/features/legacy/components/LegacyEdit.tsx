@@ -1,24 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, BookHeart, Globe, Lock, Loader2, AlertCircle } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
-import { useLegacy, useUpdateLegacy } from '@/lib/hooks/useLegacies';
-import type { LegacyVisibility } from '@/lib/api/legacies';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useLegacy, useUpdateLegacy } from '@/features/legacy/hooks/useLegacies';
+import type { LegacyVisibility } from '@/features/legacy/api/legacies';
 import { SEOHead } from '@/components/seo';
 import { HeaderSlot } from '@/components/header';
 
 interface LegacyEditProps {
   legacyId: string;
-  onNavigate: (view: string) => void;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
 }
 
-export default function LegacyEdit({ legacyId, onNavigate: _onNavigate, currentTheme: _currentTheme, onThemeChange: _onThemeChange }: LegacyEditProps) {
+export default function LegacyEdit({ legacyId }: LegacyEditProps) {
   const navigate = useNavigate();
   const { data: legacy, isLoading: legacyLoading, error: legacyError } = useLegacy(legacyId);
   const updateLegacy = useUpdateLegacy();

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useProfile, useUpdateProfile } from '@/lib/hooks/useSettings';
+import { useProfile, useUpdateProfile } from '@/features/settings/hooks/useSettings';
 
 export default function ProfileSettings() {
   const { data: profile, isLoading } = useProfile();

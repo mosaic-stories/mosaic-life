@@ -13,8 +13,8 @@ import {
   getPersonas,
   listConversations,
   streamMessage,
-} from '@/lib/api/ai';
-import { useAIChatStore, type ChatMessage } from '@/stores/aiChatStore';
+} from '@/features/ai-chat/api/ai';
+import { useAIChatStore, type ChatMessage } from '@/features/ai-chat/store/aiChatStore';
 
 // Query keys
 export const aiChatKeys = {

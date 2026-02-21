@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
 import { Upload, X, Loader2, AlertCircle } from 'lucide-react';
-import { Button } from './ui/button';
-import { useMediaUpload } from '@/lib/hooks/useMedia';
-import { validateFile } from '@/lib/api/media';
+import { Button } from '@/components/ui/button';
+import { useMediaUpload } from '@/features/media/hooks/useMedia';
+import { validateFile } from '@/features/media/api/media';
 
 interface MediaUploaderProps {
   legacyId: string;

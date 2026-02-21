@@ -10,8 +10,8 @@ import {
   validateFile,
   type MediaItem,
   type LegacyAssociationInput,
-} from '@/lib/api/media';
-import { legacyKeys } from './useLegacies';
+} from '@/features/media/api/media';
+import { legacyKeys } from '@/features/legacy/hooks/useLegacies';
 
 export const mediaKeys = {
   all: ['media'] as const,

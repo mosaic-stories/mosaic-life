@@ -1,23 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, BookHeart, Globe, Lock, Loader2 } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
-import { useCreateLegacy } from '@/lib/hooks/useLegacies';
-import type { LegacyVisibility } from '@/lib/api/legacies';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { useCreateLegacy } from '@/features/legacy/hooks/useLegacies';
+import type { LegacyVisibility } from '@/features/legacy/api/legacies';
 import { SEOHead } from '@/components/seo';
 import { HeaderSlot } from '@/components/header';
 
-interface LegacyCreationProps {
-  onNavigate: (view: string) => void;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
-}
-
-export default function LegacyCreation({ onNavigate: _onNavigate, currentTheme: _currentTheme, onThemeChange: _onThemeChange }: LegacyCreationProps) {
+export default function LegacyCreation() {
   const navigate = useNavigate();
   const createLegacy = useCreateLegacy();
 

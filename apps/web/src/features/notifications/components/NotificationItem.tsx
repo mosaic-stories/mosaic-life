@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import type { NotificationResponse } from '@/lib/api/notifications';
+import type { NotificationResponse } from '@/features/notifications/api/notifications';
 import { formatDistanceToNow } from 'date-fns';
 
 interface NotificationItemProps {

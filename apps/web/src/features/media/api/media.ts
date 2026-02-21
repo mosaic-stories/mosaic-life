@@ -1,5 +1,5 @@
 // Media API client
-import { apiGet, apiPost, apiDelete, apiPatch } from './client';
+import { apiGet, apiPost, apiDelete, apiPatch } from '@/lib/api/client';
 
 export interface LegacyAssociation {
   legacy_id: string;

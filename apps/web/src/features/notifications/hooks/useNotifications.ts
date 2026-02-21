@@ -6,7 +6,7 @@ import {
   getUnreadCount,
   updateNotificationStatus,
   markAllAsRead,
-} from '@/lib/api/notifications';
+} from '@/features/notifications/api/notifications';
 
 export const notificationKeys = {
   all: ['notifications'] as const,

@@ -1,25 +1,24 @@
 import { useState } from 'react';
 import { Globe, Lock, Users, Info } from 'lucide-react';
-import { Button } from './ui/button';
-import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
-import { Label } from './ui/label';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from './ui/dialog';
-import { Card } from './ui/card';
+} from '@/components/ui/dialog';
+import { Card } from '@/components/ui/card';
 
 interface CreateCommunityModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onNavigate: (view: string) => void;
 }
 
-export default function CreateCommunityModal({ isOpen, onClose, onNavigate: _onNavigate }: CreateCommunityModalProps) {
+export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunityModalProps) {
   const [communityName, setCommunityName] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');

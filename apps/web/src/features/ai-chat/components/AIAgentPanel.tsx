@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, BookOpen, Heart, Search, Sparkles, Users, Rocket } from 'lucide-react';
-import { Button } from './ui/button';
-import { Card } from './ui/card';
-import { Badge } from './ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -11,17 +11,14 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog';
-import { aiAgents } from '../lib/mockData';
-import { useLegacy } from '@/lib/hooks/useLegacies';
+} from '@/components/ui/dialog';
+import { aiAgents } from '@/lib/mockData';
+import { useLegacy } from '@/features/legacy/hooks/useLegacies';
 import { SEOHead } from '@/components/seo';
 import { HeaderSlot } from '@/components/header';
 
 interface AIAgentPanelProps {
-  onNavigate: (view: string) => void;
   legacyId: string;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
 }
 
 interface Interaction {
@@ -31,7 +28,7 @@ interface Interaction {
   action: string;
 }
 
-export default function AIAgentPanel({ onNavigate: _onNavigate, legacyId, currentTheme: _currentTheme, onThemeChange: _onThemeChange }: AIAgentPanelProps) {
+export default function AIAgentPanel({ legacyId }: AIAgentPanelProps) {
   const navigate = useNavigate();
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null);
   const [comingSoonDialogOpen, setComingSoonDialogOpen] = useState(false);

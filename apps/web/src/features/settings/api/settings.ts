@@ -2,7 +2,7 @@
  * Settings API client for user preferences, profile, and stats.
  */
 
-import { apiDelete, apiGet, apiPatch, apiPost } from './client';
+import { apiDelete, apiGet, apiPatch, apiPost } from '@/lib/api/client';
 
 // Types
 export interface UserPreferences {
