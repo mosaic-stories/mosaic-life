@@ -70,7 +70,7 @@ export default defineConfig({
           'tiptap': [
             '@tiptap/react',
             '@tiptap/starter-kit',
-            '@tiptap/pm',
+            'tiptap-markdown',
           ],
         }
       }
