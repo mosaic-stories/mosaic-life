@@ -13,6 +13,11 @@ export class ApiError extends Error {
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
+    // On 401 Unauthorized, dispatch event so AuthProvider can clear session
+    if (response.status === 401) {
+      window.dispatchEvent(new Event('auth:expired'));
+    }
+
     let errorData: unknown;
     let bodyText: string | null = null;
     try {

@@ -53,6 +53,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     refreshUser();
   }, [refreshUser]);
 
+  // Listen for 401 events from API client
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setUser(null);
+      // Only redirect if on a protected page (not already on a public page)
+      const publicPaths = ['/', '/about', '/how-it-works'];
+      if (!publicPaths.includes(window.location.pathname)) {
+        window.location.href = '/';
+      }
+    };
+
+    window.addEventListener('auth:expired', handleAuthExpired);
+    return () => window.removeEventListener('auth:expired', handleAuthExpired);
+  }, []);
+
   // Redirect to Google OAuth
   const login = useCallback(() => {
     // Get the current URL to redirect back after login
