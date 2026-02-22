@@ -11,9 +11,9 @@ import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/components/ui/utils';
-import { useAIChat } from '@/hooks/useAIChat';
+import { useAIChat } from '@/features/ai-chat/hooks/useAIChat';
 import { useSummarizeEvolution } from '@/lib/hooks/useEvolution';
-import type { ChatMessage } from '@/stores/aiChatStore';
+import type { ChatMessage } from '@/features/ai-chat/store/aiChatStore';
 
 interface ElicitationPanelProps {
   conversationId: string;

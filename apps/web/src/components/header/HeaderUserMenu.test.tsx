@@ -6,11 +6,16 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HeaderUserMenu from './HeaderUserMenu';
 
 // Mock notification hooks
-vi.mock('@/lib/hooks/useNotifications', () => ({
+vi.mock('@/features/notifications/hooks/useNotifications', () => ({
   useUnreadCount: () => ({ data: { count: 3 } }),
   useNotifications: () => ({ data: [], refetch: vi.fn() }),
   useUpdateNotificationStatus: () => ({ mutate: vi.fn() }),
   useMarkAllAsRead: () => ({ mutate: vi.fn() }),
+}));
+
+const mockLogout = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/contexts/AuthContext', () => ({
+  useAuth: () => ({ logout: mockLogout }),
 }));
 
 const mockUser = {
@@ -33,7 +38,7 @@ function renderWithProviders(ui: React.ReactElement) {
 describe('HeaderUserMenu', () => {
   it('renders user avatar with initials', () => {
     renderWithProviders(
-      <HeaderUserMenu user={mockUser} onNavigate={() => {}} onSignOut={() => {}} />
+      <HeaderUserMenu user={mockUser} />
     );
 
     expect(screen.getByText('JD')).toBeInTheDocument();
@@ -41,7 +46,7 @@ describe('HeaderUserMenu', () => {
 
   it('shows notification badge when there are unread notifications', () => {
     renderWithProviders(
-      <HeaderUserMenu user={mockUser} onNavigate={() => {}} onSignOut={() => {}} />
+      <HeaderUserMenu user={mockUser} />
     );
 
     // Red dot indicator should be present
@@ -51,7 +56,7 @@ describe('HeaderUserMenu', () => {
   it('opens dropdown on click', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <HeaderUserMenu user={mockUser} onNavigate={() => {}} onSignOut={() => {}} />
+      <HeaderUserMenu user={mockUser} />
     );
 
     await user.click(screen.getByRole('button'));
@@ -64,11 +69,10 @@ describe('HeaderUserMenu', () => {
     expect(screen.getByText('Sign Out')).toBeInTheDocument();
   });
 
-  it('calls onSignOut when sign out is clicked', async () => {
+  it('calls logout when sign out is clicked', async () => {
     const user = userEvent.setup();
-    const handleSignOut = vi.fn();
     renderWithProviders(
-      <HeaderUserMenu user={mockUser} onNavigate={() => {}} onSignOut={handleSignOut} />
+      <HeaderUserMenu user={mockUser} />
     );
 
     await user.click(screen.getByRole('button'));
@@ -79,6 +83,6 @@ describe('HeaderUserMenu', () => {
 
     await user.click(screen.getByText('Sign Out'));
 
-    expect(handleSignOut).toHaveBeenCalled();
+    expect(mockLogout).toHaveBeenCalled();
   });
 });

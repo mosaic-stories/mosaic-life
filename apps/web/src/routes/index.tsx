@@ -2,53 +2,32 @@ import { createBrowserRouter, Navigate } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import RootLayout from './RootLayout';
 import ProtectedRoute from './ProtectedRoute';
-import { withSharedProps, withLegacyProps, withStoryProps } from './PageWrapper';
 import ErrorPage from '@/components/ErrorPage';
 
 // Lazy load page components for code splitting
-const HomepageBase = lazy(() => import('@/components/Homepage'));
-const AboutBase = lazy(() => import('@/components/About'));
-const HowItWorksBase = lazy(() => import('@/components/HowItWorks'));
-const CommunityBase = lazy(() => import('@/components/Community'));
-const LegacyProfileBase = lazy(() => import('@/components/LegacyProfile'));
-const MyLegaciesBase = lazy(() => import('@/components/MyLegacies'));
-const StoryCreationBase = lazy(() => import('@/components/StoryCreation'));
-const LegacyCreationBase = lazy(() => import('@/components/LegacyCreation'));
-const LegacyEditBase = lazy(() => import('@/components/LegacyEdit'));
-const MediaGalleryBase = lazy(() => import('@/components/MediaGallery'));
-const AIAgentChatBase = lazy(() => import('@/components/AIAgentChat'));
-const AIAgentPanelBase = lazy(() => import('@/components/AIAgentPanel'));
-const InviteAcceptPageBase = lazy(() => import('@/components/InviteAcceptPage'));
-const NotificationHistoryBase = lazy(() => import('@/components/NotificationHistory'));
-const StoryEvolutionBase = lazy(() => import('@/features/story-evolution/StoryEvolutionWorkspace'));
+const Homepage = lazy(() => import('@/pages/Homepage'));
+const About = lazy(() => import('@/pages/About'));
+const HowItWorks = lazy(() => import('@/pages/HowItWorks'));
+const Community = lazy(() => import('@/features/community/components/Community'));
+const LegacyProfile = lazy(() => import('@/features/legacy/components/LegacyProfile'));
+const MyLegacies = lazy(() => import('@/components/MyLegacies'));
+const StoryCreation = lazy(() => import('@/features/story/components/StoryCreation'));
+const LegacyCreation = lazy(() => import('@/features/legacy/components/LegacyCreation'));
+const LegacyEdit = lazy(() => import('@/features/legacy/components/LegacyEdit'));
+const MediaGallery = lazy(() => import('@/features/media/components/MediaGallery'));
+const AIAgentChat = lazy(() => import('@/features/ai-chat/components/AIAgentChat'));
+const AIAgentPanel = lazy(() => import('@/features/ai-chat/components/AIAgentPanel'));
+const InviteAcceptPage = lazy(() => import('@/features/members/components/InviteAcceptPage'));
+const NotificationHistory = lazy(() => import('@/features/notifications/components/NotificationHistory'));
+const StoryEvolution = lazy(() => import('@/features/story-evolution/StoryEvolutionWorkspace'));
 
 // Settings components
-const SettingsLayout = lazy(() => import('@/components/settings/SettingsLayout'));
-const ProfileSettings = lazy(() => import('@/components/settings/ProfileSettings'));
-const AppearanceSettings = lazy(() => import('@/components/settings/AppearanceSettings'));
-const AIPreferencesSettings = lazy(() => import('@/components/settings/AIPreferencesSettings'));
-const UsageStats = lazy(() => import('@/components/settings/UsageStats'));
-const AccountSettings = lazy(() => import('@/components/settings/AccountSettings'));
-
-// Wrapped components with shared props
-const Homepage = withSharedProps(HomepageBase);
-const About = withSharedProps(AboutBase);
-const HowItWorks = withSharedProps(HowItWorksBase);
-const Community = withSharedProps(CommunityBase);
-const MyLegacies = withSharedProps(MyLegaciesBase);
-const LegacyCreation = withSharedProps(LegacyCreationBase);
-const LegacyEdit = withLegacyProps(LegacyEditBase);
-const NotificationHistory = withSharedProps(NotificationHistoryBase);
-
-// Components that need legacyId from URL
-const LegacyProfile = withLegacyProps(LegacyProfileBase);
-const MediaGallery = withLegacyProps(MediaGalleryBase);
-const AIAgentChat = withLegacyProps(AIAgentChatBase);
-const AIAgentPanel = withLegacyProps(AIAgentPanelBase);
-
-// Components that need legacyId and optionally storyId
-const StoryCreation = withStoryProps(StoryCreationBase);
-const StoryEvolution = withStoryProps(StoryEvolutionBase);
+const SettingsLayout = lazy(() => import('@/features/settings/components/SettingsLayout'));
+const ProfileSettings = lazy(() => import('@/features/settings/components/ProfileSettings'));
+const AppearanceSettings = lazy(() => import('@/features/settings/components/AppearanceSettings'));
+const AIPreferencesSettings = lazy(() => import('@/features/settings/components/AIPreferencesSettings'));
+const UsageStats = lazy(() => import('@/features/settings/components/UsageStats'));
+const AccountSettings = lazy(() => import('@/features/settings/components/AccountSettings'));
 
 // Loading fallback component
 function PageLoader() {
@@ -62,6 +41,19 @@ function PageLoader() {
 // Wrapper for lazy loaded components
 function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
+}
+
+// Route param extractors — pass URL params as props to page components
+import { useParams } from 'react-router-dom';
+
+function WithLegacyId({ Component }: { Component: React.ComponentType<{ legacyId: string }> }) {
+  const { legacyId } = useParams<{ legacyId: string }>();
+  return <Component legacyId={legacyId || ''} />;
+}
+
+function WithStoryProps({ Component }: { Component: React.ComponentType<{ legacyId: string; storyId?: string }> }) {
+  const { legacyId, storyId } = useParams<{ legacyId: string; storyId?: string }>();
+  return <Component legacyId={legacyId || ''} storyId={storyId} />;
 }
 
 export const router = createBrowserRouter([
@@ -90,12 +82,12 @@ export const router = createBrowserRouter([
       // Public legacy view
       {
         path: 'legacy/:legacyId',
-        element: <LazyPage><LegacyProfile /></LazyPage>,
+        element: <LazyPage><WithLegacyId Component={LegacyProfile} /></LazyPage>,
       },
       // Invitation accept page (requires auth but not protected route)
       {
         path: 'invite/:token',
-        element: <LazyPage><InviteAcceptPageBase /></LazyPage>,
+        element: <LazyPage><InviteAcceptPage /></LazyPage>,
       },
 
       // Protected routes
@@ -127,7 +119,7 @@ export const router = createBrowserRouter([
         path: 'legacy/:legacyId/edit',
         element: (
           <ProtectedRoute>
-            <LazyPage><LegacyEdit /></LazyPage>
+            <LazyPage><WithLegacyId Component={LegacyEdit} /></LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -135,7 +127,7 @@ export const router = createBrowserRouter([
         path: 'legacy/:legacyId/story/new',
         element: (
           <ProtectedRoute>
-            <LazyPage><StoryCreation /></LazyPage>
+            <LazyPage><WithStoryProps Component={StoryCreation} /></LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -143,7 +135,7 @@ export const router = createBrowserRouter([
         path: 'legacy/:legacyId/story/:storyId',
         element: (
           <ProtectedRoute>
-            <LazyPage><StoryCreation /></LazyPage>
+            <LazyPage><WithStoryProps Component={StoryCreation} /></LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -151,7 +143,7 @@ export const router = createBrowserRouter([
         path: 'legacy/:legacyId/story/:storyId/evolve',
         element: (
           <ProtectedRoute>
-            <LazyPage><StoryEvolution /></LazyPage>
+            <LazyPage><WithStoryProps Component={StoryEvolution} /></LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -159,7 +151,7 @@ export const router = createBrowserRouter([
         path: 'legacy/:legacyId/gallery',
         element: (
           <ProtectedRoute>
-            <LazyPage><MediaGallery /></LazyPage>
+            <LazyPage><WithLegacyId Component={MediaGallery} /></LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -167,7 +159,7 @@ export const router = createBrowserRouter([
         path: 'legacy/:legacyId/ai-chat',
         element: (
           <ProtectedRoute>
-            <LazyPage><AIAgentChat /></LazyPage>
+            <LazyPage><WithLegacyId Component={AIAgentChat} /></LazyPage>
           </ProtectedRoute>
         ),
       },
@@ -175,7 +167,7 @@ export const router = createBrowserRouter([
         path: 'legacy/:legacyId/ai-panel',
         element: (
           <ProtectedRoute>
-            <LazyPage><AIAgentPanel /></LazyPage>
+            <LazyPage><WithLegacyId Component={AIAgentPanel} /></LazyPage>
           </ProtectedRoute>
         ),
       },

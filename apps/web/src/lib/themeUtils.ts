@@ -169,10 +169,32 @@ export const themeColors = {
   },
 };
 
+/** Convert an "R G B" triplet string to an HSL string suitable for shadcn's `hsl(var(--primary))` pattern. */
+function rgbStringToHsl(rgbStr: string): string {
+  const [r, g, b] = rgbStr.split(' ').map(Number);
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+
+  if (max === min) return `0 0% ${Math.round(l * 100)}%`;
+
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6;
+  else if (max === gn) h = ((bn - rn) / d + 2) / 6;
+  else h = ((rn - gn) / d + 4) / 6;
+
+  return `${Math.round(h * 360)} ${Math.round(s * 100)}% ${Math.round(l * 100)}%`;
+}
+
 export function applyTheme(themeId: string) {
   const colors = themeColors[themeId as keyof typeof themeColors] || themeColors['warm-amber'];
   const root = document.documentElement;
-  
+
   root.style.setProperty('--theme-primary', colors.primary);
   root.style.setProperty('--theme-primary-light', colors.primaryLight);
   root.style.setProperty('--theme-primary-dark', colors.primaryDark);
@@ -182,4 +204,8 @@ export function applyTheme(themeId: string) {
   root.style.setProperty('--theme-gradient-to', colors.gradientTo);
   root.style.setProperty('--theme-background', colors.background);
   root.style.setProperty('--theme-surface', colors.surface);
+
+  // Sync shadcn's --primary to the active theme so Button/Badge etc. match
+  root.style.setProperty('--primary', rgbStringToHsl(colors.primary));
+  root.style.setProperty('--primary-foreground', '0 0% 100%');
 }

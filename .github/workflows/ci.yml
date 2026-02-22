@@ -110,7 +110,7 @@ jobs:
       - name: Check bundle size
         run: |
           SIZE=$(du -sb dist/ | cut -f1)
-          MAX_SIZE=$((2 * 1024 * 1024))  # 2MB
+          MAX_SIZE=$((3 * 1024 * 1024))  # 3MB (increased for TipTap editor)
           echo "Bundle size: $SIZE bytes"
           echo "Max allowed: $MAX_SIZE bytes"
           if [ $SIZE -gt $MAX_SIZE ]; then

@@ -1,6 +1,8 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2, Sparkles, AlertCircle, X } from 'lucide-react';
+import { Streamdown } from 'streamdown';
+import 'streamdown/styles.css';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,7 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { cn } from '@/components/ui/utils';
-import { useStory } from '@/lib/hooks/useStories';
+import { useStory } from '@/features/story/hooks/useStories';
 import {
   useActiveEvolution,
   useStartEvolution,
@@ -37,17 +39,11 @@ import { SEOHead } from '@/components/seo';
 interface StoryEvolutionWorkspaceProps {
   storyId?: string;
   legacyId: string;
-  onNavigate: (view: string) => void;
-  currentTheme: string;
-  onThemeChange: (themeId: string) => void;
 }
 
 export default function StoryEvolutionWorkspace({
   storyId,
   legacyId,
-  onNavigate: _onNavigate,
-  currentTheme: _currentTheme,
-  onThemeChange: _onThemeChange,
 }: StoryEvolutionWorkspaceProps) {
   const navigate = useNavigate();
   const [draftText, setDraftText] = useState('');
@@ -414,8 +410,10 @@ export default function StoryEvolutionWorkspace({
             <h3 className="text-lg font-semibold text-foreground">
               {story?.title ?? 'Untitled'}
             </h3>
-            <div className="font-serif text-sm leading-relaxed text-foreground/80 whitespace-pre-wrap">
-              {story?.content ?? ''}
+            <div className="font-serif text-sm leading-relaxed text-foreground/80">
+              <Streamdown mode="static">
+                {story?.content ?? ''}
+              </Streamdown>
             </div>
           </div>
         </aside>

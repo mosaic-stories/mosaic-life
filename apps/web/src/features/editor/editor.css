@@ -1,0 +1,108 @@
+/* TipTap editor styles */
+
+.story-editor .tiptap {
+  outline: none;
+  min-height: 300px;
+}
+
+.story-editor .tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: rgb(163 163 163); /* neutral-400 */
+  pointer-events: none;
+  height: 0;
+}
+
+/* Typography for editor content */
+.story-editor .tiptap h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+.story-editor .tiptap h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+  line-height: 1.4;
+}
+
+.story-editor .tiptap p {
+  margin-bottom: 0.75em;
+  line-height: 1.75;
+}
+
+.story-editor .tiptap ul,
+.story-editor .tiptap ol {
+  padding-left: 1.5em;
+  margin-bottom: 0.75em;
+}
+
+.story-editor .tiptap ul {
+  list-style-type: disc;
+}
+
+.story-editor .tiptap ol {
+  list-style-type: decimal;
+}
+
+.story-editor .tiptap li {
+  margin-bottom: 0.25em;
+}
+
+.story-editor .tiptap blockquote {
+  border-left: 3px solid rgb(var(--theme-primary));
+  padding-left: 1em;
+  margin-left: 0;
+  margin-bottom: 0.75em;
+  color: rgb(82 82 82); /* neutral-600 */
+  font-style: italic;
+}
+
+.story-editor .tiptap hr {
+  border: none;
+  border-top: 1px solid rgb(229 229 229); /* neutral-200 */
+  margin: 1.5em 0;
+}
+
+.story-editor .tiptap a {
+  color: rgb(var(--theme-primary));
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.story-editor .tiptap a:hover {
+  opacity: 0.8;
+}
+
+.story-editor .tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  margin: 1em 0;
+}
+
+.story-editor .tiptap code {
+  background-color: rgb(245 245 245); /* neutral-100 */
+  border-radius: 0.25rem;
+  padding: 0.125em 0.25em;
+  font-size: 0.875em;
+}
+
+.story-editor .tiptap pre {
+  background-color: rgb(38 38 38); /* neutral-800 */
+  color: rgb(245 245 245); /* neutral-100 */
+  border-radius: 0.5rem;
+  padding: 1em;
+  margin-bottom: 0.75em;
+  overflow-x: auto;
+}
+
+.story-editor .tiptap pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
