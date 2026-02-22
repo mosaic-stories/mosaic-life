@@ -14,6 +14,7 @@ interface StoryEditFormProps {
   selectedLegacies: LegacyAssociationInput[];
   onLegaciesChange: (legacies: LegacyAssociationInput[]) => void;
   isMutating: boolean;
+  legacyId?: string;
 }
 
 export default function StoryEditForm({
@@ -26,6 +27,7 @@ export default function StoryEditForm({
   selectedLegacies,
   onLegaciesChange,
   isMutating,
+  legacyId,
 }: StoryEditFormProps) {
   return (
     <div className="space-y-6">
@@ -90,6 +92,7 @@ export default function StoryEditForm({
           content={content}
           onChange={onContentChange}
           placeholder="Start writing your story here..."
+          legacyId={legacyId}
         />
       </div>
     </div>

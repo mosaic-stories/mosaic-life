@@ -343,6 +343,7 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
               selectedLegacies={selectedLegacies}
               onLegaciesChange={setSelectedLegacies}
               isMutating={isMutating}
+              legacyId={legacyId}
             />
           )}
         </div>
