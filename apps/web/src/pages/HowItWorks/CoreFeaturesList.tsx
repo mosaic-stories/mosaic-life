@@ -17,7 +17,7 @@ export function CoreFeaturesList() {
             <Card key={feature.title} className="p-8 hover:shadow-lg transition-shadow">
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-shrink-0">
-                  <div className="size-16 rounded-xl bg-[rgb(var(--theme-accent-light))] flex items-center justify-center">
+                  <div className="size-16 rounded-xl bg-theme-accent-light flex items-center justify-center">
                     <feature.icon className={`size-8 ${feature.color}`} />
                   </div>
                 </div>

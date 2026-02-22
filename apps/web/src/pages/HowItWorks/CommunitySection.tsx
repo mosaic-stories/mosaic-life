@@ -21,9 +21,9 @@ export function CommunitySection() {
     <section className="bg-white py-16">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-12 space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgb(var(--theme-accent-light))] border border-[rgb(var(--theme-accent))]">
-            <Users className="size-4 text-[rgb(var(--theme-primary))]" />
-            <span className="text-sm text-[rgb(var(--theme-primary-dark))]">Connect & Support</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-theme-accent-light border border-theme-accent">
+            <Users className="size-4 text-theme-primary" />
+            <span className="text-sm text-theme-primary-dark">Connect & Support</span>
           </div>
           <h2 className="text-neutral-900">Community: Connect Without AI</h2>
           <p className="text-neutral-600 max-w-2xl mx-auto">
@@ -122,8 +122,8 @@ export function CommunitySection() {
         {/* Community Guidelines */}
         <Card className="p-8 bg-gradient-to-br from-neutral-50 to-neutral-100">
           <div className="flex items-start gap-4 mb-6">
-            <div className="size-12 rounded-full bg-[rgb(var(--theme-accent-light))] flex items-center justify-center flex-shrink-0">
-              <Shield className="size-6 text-[rgb(var(--theme-primary))]" />
+            <div className="size-12 rounded-full bg-theme-accent-light flex items-center justify-center flex-shrink-0">
+              <Shield className="size-6 text-theme-primary" />
             </div>
             <div>
               <h3 className="text-neutral-900 mb-2">Community Guidelines</h3>
@@ -204,7 +204,7 @@ export function CommunitySection() {
         <div className="mt-12 text-center">
           <Button
             size="lg"
-            className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
+            className="gap-2 bg-theme-primary hover:bg-theme-primary-dark"
             onClick={() => navigate('/community')}
           >
             <Users className="size-5" />

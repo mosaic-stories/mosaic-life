@@ -11,7 +11,7 @@ export default function HeaderLogo({ onNavigateHome }: HeaderLogoProps) {
       className="flex items-center gap-2 hover:opacity-80 transition-opacity flex-shrink-0"
       aria-label="Mosaic Life - Go to homepage"
     >
-      <BookHeart className="size-6 text-[rgb(var(--theme-primary))]" />
+      <BookHeart className="size-6 text-theme-primary" />
       <span className="tracking-tight hidden sm:inline">Mosaic Life</span>
     </button>
   );

@@ -50,7 +50,7 @@ export default function RootLayout() {
 
   return (
     <HeaderProvider>
-      <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+      <div className="min-h-screen bg-theme-background transition-colors duration-300">
         <AppHeader />
         <Outlet />
         <AuthModal

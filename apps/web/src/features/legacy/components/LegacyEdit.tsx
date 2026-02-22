@@ -71,15 +71,15 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
 
   if (legacyLoading) {
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-[rgb(var(--theme-primary))]" />
+      <div className="min-h-screen bg-theme-background flex items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-theme-primary" />
       </div>
     );
   }
 
   if (legacyError || !legacy) {
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center p-6">
+      <div className="min-h-screen bg-theme-background flex items-center justify-center p-6">
         <Card className="p-8 max-w-md text-center space-y-4">
           <div className="size-16 rounded-full bg-red-100 flex items-center justify-center mx-auto">
             <AlertCircle className="size-8 text-red-500" />
@@ -104,7 +104,7 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
   }
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+    <div className="min-h-screen bg-theme-background transition-colors duration-300">
       <SEOHead
         title="Edit Legacy"
         description="Edit your legacy information"
@@ -123,8 +123,8 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
       <main className="max-w-2xl mx-auto px-6 py-12">
         <div className="space-y-8">
           <div className="text-center space-y-2">
-            <div className="size-16 rounded-full bg-[rgb(var(--theme-accent-light))] flex items-center justify-center mx-auto">
-              <BookHeart className="size-8 text-[rgb(var(--theme-primary))]" />
+            <div className="size-16 rounded-full bg-theme-accent-light flex items-center justify-center mx-auto">
+              <BookHeart className="size-8 text-theme-primary" />
             </div>
             <h1 className="text-neutral-900">Edit Legacy</h1>
             <p className="text-neutral-600">
@@ -199,13 +199,13 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
                     onClick={() => setVisibility('private')}
                     className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
                       visibility === 'private'
-                        ? 'border-[rgb(var(--theme-primary))] bg-[rgb(var(--theme-accent-light))]'
+                        ? 'border-theme-primary bg-theme-accent-light'
                         : 'border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
-                    <Lock className={`size-5 ${visibility === 'private' ? 'text-[rgb(var(--theme-primary))]' : 'text-neutral-500'}`} />
+                    <Lock className={`size-5 ${visibility === 'private' ? 'text-theme-primary' : 'text-neutral-500'}`} />
                     <div className="text-left">
-                      <div className={`font-medium ${visibility === 'private' ? 'text-[rgb(var(--theme-primary))]' : 'text-neutral-900'}`}>
+                      <div className={`font-medium ${visibility === 'private' ? 'text-theme-primary' : 'text-neutral-900'}`}>
                         Private
                       </div>
                       <div className="text-xs text-neutral-500">
@@ -218,13 +218,13 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
                     onClick={() => setVisibility('public')}
                     className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
                       visibility === 'public'
-                        ? 'border-[rgb(var(--theme-primary))] bg-[rgb(var(--theme-accent-light))]'
+                        ? 'border-theme-primary bg-theme-accent-light'
                         : 'border-neutral-200 hover:border-neutral-300'
                     }`}
                   >
-                    <Globe className={`size-5 ${visibility === 'public' ? 'text-[rgb(var(--theme-primary))]' : 'text-neutral-500'}`} />
+                    <Globe className={`size-5 ${visibility === 'public' ? 'text-theme-primary' : 'text-neutral-500'}`} />
                     <div className="text-left">
-                      <div className={`font-medium ${visibility === 'public' ? 'text-[rgb(var(--theme-primary))]' : 'text-neutral-900'}`}>
+                      <div className={`font-medium ${visibility === 'public' ? 'text-theme-primary' : 'text-neutral-900'}`}>
                         Public
                       </div>
                       <div className="text-xs text-neutral-500">
@@ -250,7 +250,7 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
                 <Button
                   type="submit"
                   disabled={updateLegacy.isPending}
-                  className="flex-1 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
+                  className="flex-1 bg-theme-primary hover:bg-theme-primary-dark"
                 >
                   {updateLegacy.isPending ? (
                     <>

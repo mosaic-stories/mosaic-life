@@ -13,11 +13,11 @@ export default function CommunityCard({ community }: CommunityCardProps) {
     <Card className="p-6 space-y-4 hover:shadow-lg transition-all cursor-pointer group">
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="size-12 rounded-lg bg-[rgb(var(--theme-accent-light))] flex items-center justify-center text-2xl">
+          <div className="size-12 rounded-lg bg-theme-accent-light flex items-center justify-center text-2xl">
             {community.image}
           </div>
           <div>
-            <h3 className="text-neutral-900 group-hover:text-[rgb(var(--theme-primary))] transition-colors">
+            <h3 className="text-neutral-900 group-hover:text-theme-primary transition-colors">
               {community.name}
             </h3>
             <div className="flex items-center gap-2 mt-1">
@@ -59,7 +59,7 @@ export default function CommunityCard({ community }: CommunityCardProps) {
       ) : (
         <Button
           size="sm"
-          className="w-full gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
+          className="w-full gap-2 bg-theme-primary hover:bg-theme-primary-dark"
         >
           {community.type === 'private' ? 'Request to Join' : 'Join Community'}
           <ArrowRight className="size-4" />

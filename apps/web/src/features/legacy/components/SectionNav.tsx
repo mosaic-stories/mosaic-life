@@ -18,7 +18,7 @@ function DemoBadge() {
 
 export default function SectionNav({ activeSection, onSectionChange }: SectionNavProps) {
   const baseClass = 'py-4 border-b-2 transition-colors';
-  const activeClass = 'border-[rgb(var(--theme-primary))] text-neutral-900';
+  const activeClass = 'border-theme-primary text-neutral-900';
   const inactiveClass = 'border-transparent text-neutral-500 hover:text-neutral-900';
 
   return (

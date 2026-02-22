@@ -160,7 +160,7 @@ export default function SearchBar({ onSelectResult, compact }: SearchBarProps) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder={compact ? "Search..." : "Search legacies, communities, stories..."}
-          className={`w-full ${compact ? 'h-10 pl-10 pr-10 text-sm' : 'h-12 pl-12 pr-12'} bg-neutral-50 border border-neutral-200 rounded-full focus:outline-none focus:ring-2 focus:ring-[rgb(var(--theme-primary))] focus:bg-white transition-all`}
+          className={`w-full ${compact ? 'h-10 pl-10 pr-10 text-sm' : 'h-12 pl-12 pr-12'} bg-neutral-50 border border-neutral-200 rounded-full focus:outline-none focus:ring-2 focus:ring-theme-primary focus:bg-white transition-all`}
         />
         {query && (
           <button

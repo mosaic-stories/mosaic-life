@@ -8,9 +8,9 @@ export function AIAgentSection() {
     <section className="py-16">
       <div className="max-w-7xl mx-auto px-6">
         <div className="text-center mb-12 space-y-4">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgb(var(--theme-accent-light))] border border-[rgb(var(--theme-accent))]">
-            <Sparkles className="size-4 text-[rgb(var(--theme-primary))]" />
-            <span className="text-sm text-[rgb(var(--theme-primary-dark))]">AI-Powered Assistance</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-theme-accent-light border border-theme-accent">
+            <Sparkles className="size-4 text-theme-primary" />
+            <span className="text-sm text-theme-primary-dark">AI-Powered Assistance</span>
           </div>
           <h2 className="text-neutral-900">Meet Your AI Story Companions</h2>
           <p className="text-neutral-600 max-w-2xl mx-auto">

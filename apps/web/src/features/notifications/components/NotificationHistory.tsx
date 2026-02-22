@@ -32,7 +32,7 @@ export default function NotificationHistory() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))]">
+      <div className="min-h-screen bg-theme-background">
         <div className="max-w-2xl mx-auto px-6 py-12">
           <div className="flex items-center justify-center py-12">
             <div className="animate-pulse text-neutral-500">Loading...</div>
@@ -43,7 +43,7 @@ export default function NotificationHistory() {
   }
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))]">
+    <div className="min-h-screen bg-theme-background">
       <SEOHead
         title="Notification History"
         description="View your notification history"
@@ -97,7 +97,7 @@ export default function NotificationHistory() {
                       <AvatarImage
                         src={notification.actor_avatar_url || undefined}
                       />
-                      <AvatarFallback className="bg-[rgb(var(--theme-primary))] text-white text-sm">
+                      <AvatarFallback className="bg-theme-primary text-white text-sm">
                         {initials}
                       </AvatarFallback>
                     </Avatar>

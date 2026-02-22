@@ -73,8 +73,8 @@ export function DraftStreamPanel({
       <div className="flex items-center gap-3 px-4 py-3 border-b">
         {isStreaming ? (
           <>
-            <Loader2 className="size-4 animate-spin text-[rgb(var(--theme-primary))]" />
-            <span className="text-sm font-medium text-[rgb(var(--theme-primary))]">
+            <Loader2 className="size-4 animate-spin text-theme-primary" />
+            <span className="text-sm font-medium text-theme-primary">
               Generating your evolved draft...
             </span>
           </>

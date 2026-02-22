@@ -5,12 +5,12 @@ export default function CommunityHero() {
   return (
     <>
       {/* Hero Section */}
-      <section className="bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))] py-12">
+      <section className="bg-gradient-to-br from-theme-gradient-from to-theme-gradient-to py-12">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center space-y-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 backdrop-blur-sm border border-[rgb(var(--theme-accent))]">
-              <Users className="size-4 text-[rgb(var(--theme-primary))]" />
-              <span className="text-sm text-[rgb(var(--theme-primary-dark))]">Connect & Support</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/80 backdrop-blur-sm border border-theme-accent">
+              <Users className="size-4 text-theme-primary" />
+              <span className="text-sm text-theme-primary-dark">Connect & Support</span>
             </div>
             <h1 className="text-neutral-900">Community</h1>
             <p className="text-neutral-600 max-w-2xl mx-auto text-lg">
@@ -22,10 +22,10 @@ export default function CommunityHero() {
 
       {/* Community Guidelines */}
       <section className="max-w-7xl mx-auto px-6 -mt-6 relative z-10">
-        <Card className="p-6 md:p-8 bg-white shadow-lg border-2 border-[rgb(var(--theme-accent))]">
+        <Card className="p-6 md:p-8 bg-white shadow-lg border-2 border-theme-accent">
           <div className="flex items-start gap-4">
-            <div className="size-12 rounded-full bg-[rgb(var(--theme-accent-light))] flex items-center justify-center flex-shrink-0">
-              <Shield className="size-6 text-[rgb(var(--theme-primary))]" />
+            <div className="size-12 rounded-full bg-theme-accent-light flex items-center justify-center flex-shrink-0">
+              <Shield className="size-6 text-theme-primary" />
             </div>
             <div className="flex-1 space-y-4">
               <div>

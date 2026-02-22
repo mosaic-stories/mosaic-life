@@ -35,7 +35,7 @@ export default function NotificationItem({
       <button onClick={onClick} className="flex gap-3 flex-1 text-left">
         <Avatar className="size-9 flex-shrink-0">
           <AvatarImage src={notification.actor_avatar_url || undefined} />
-          <AvatarFallback className="bg-[rgb(var(--theme-primary))] text-white text-xs">
+          <AvatarFallback className="bg-theme-primary text-white text-xs">
             {initials}
           </AvatarFallback>
         </Avatar>

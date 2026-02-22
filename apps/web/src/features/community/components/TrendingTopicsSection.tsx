@@ -34,7 +34,7 @@ export default function TrendingTopicsSection() {
     <section className="bg-white py-16">
       <div className="max-w-7xl mx-auto px-6">
         <div className="flex items-center gap-2 mb-8">
-          <TrendingUp className="size-5 text-[rgb(var(--theme-primary))]" />
+          <TrendingUp className="size-5 text-theme-primary" />
           <h2 className="text-neutral-900">Trending Topics</h2>
         </div>
 

@@ -83,7 +83,7 @@ export default function ProfileSettings() {
         <div className="mt-2 flex items-center gap-4">
           <Avatar className="size-16">
             <AvatarImage src={profile?.avatar_url || undefined} />
-            <AvatarFallback className="bg-[rgb(var(--theme-primary))]/10 text-[rgb(var(--theme-primary))] text-lg">
+            <AvatarFallback className="bg-theme-primary/10 text-theme-primary text-lg">
               {initials}
             </AvatarFallback>
           </Avatar>

@@ -41,7 +41,7 @@ export default function CommunitySearchBar({
         </div>
         <Button
           onClick={onCreateClick}
-          className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))] w-full md:w-auto"
+          className="gap-2 bg-theme-primary hover:bg-theme-primary-dark w-full md:w-auto"
         >
           <Plus className="size-4" />
           Create Community
@@ -56,7 +56,7 @@ export default function CommunitySearchBar({
             onClick={() => onTabChange(tab.value)}
             className={`px-4 py-2 border-b-2 transition-colors ${
               selectedTab === tab.value
-                ? 'border-[rgb(var(--theme-primary))] text-[rgb(var(--theme-primary))]'
+                ? 'border-theme-primary text-theme-primary'
                 : 'border-transparent text-neutral-600 hover:text-neutral-900'
             }`}
           >

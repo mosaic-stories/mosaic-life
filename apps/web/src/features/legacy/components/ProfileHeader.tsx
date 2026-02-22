@@ -41,7 +41,7 @@ export default function ProfileHeader({
                 <h1 className="text-neutral-900">{legacy.name}</h1>
                 <Badge variant="outline" className={legacy.visibility === 'public'
                   ? "bg-green-50 text-green-700 border-green-200"
-                  : "bg-[rgb(var(--theme-accent-light))] text-[rgb(var(--theme-primary-dark))] border-[rgb(var(--theme-accent))]"
+                  : "bg-theme-accent-light text-theme-primary-dark border-theme-accent"
                 }>
                   {legacy.visibility === 'public' ? (
                     <><Globe className="size-3 mr-1" /> Public</>
@@ -61,7 +61,7 @@ export default function ProfileHeader({
               </div>
               <button
                 onClick={onMembersClick}
-                className="flex items-center gap-2 text-neutral-600 hover:text-[rgb(var(--theme-primary))] transition-colors"
+                className="flex items-center gap-2 text-neutral-600 hover:text-theme-primary transition-colors"
               >
                 <Users className="size-4" />
                 <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>

@@ -245,7 +245,7 @@ export default function InviteMemberModal({
               <div className="flex items-center gap-2 p-2 border rounded-md bg-neutral-50">
                 <Avatar className="size-8">
                   <AvatarImage src={selectedUser.avatar_url || undefined} />
-                  <AvatarFallback className="bg-[rgb(var(--theme-primary))] text-white text-xs">
+                  <AvatarFallback className="bg-theme-primary text-white text-xs">
                     {getInitials(selectedUser.name)}
                   </AvatarFallback>
                 </Avatar>
@@ -301,7 +301,7 @@ export default function InviteMemberModal({
                             >
                               <Avatar className="size-8">
                                 <AvatarImage src={user.avatar_url || undefined} />
-                                <AvatarFallback className="bg-[rgb(var(--theme-primary))] text-white text-xs">
+                                <AvatarFallback className="bg-theme-primary text-white text-xs">
                                   {getInitials(user.name)}
                                 </AvatarFallback>
                               </Avatar>

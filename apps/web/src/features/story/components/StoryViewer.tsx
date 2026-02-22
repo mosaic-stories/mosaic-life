@@ -77,7 +77,7 @@ export default function StoryViewer({
           <span className="mx-1">-</span>
           <button
             onClick={onEditClick}
-            className="text-[rgb(var(--theme-primary))] hover:underline"
+            className="text-theme-primary hover:underline"
           >
             Click to edit
           </button>

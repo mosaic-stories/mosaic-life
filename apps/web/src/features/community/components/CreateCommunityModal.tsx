@@ -84,7 +84,7 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
               id="category"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full px-3 py-2 border border-neutral-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-[rgb(var(--theme-primary))]"
+              className="w-full px-3 py-2 border border-neutral-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary"
             >
               <option value="">Select a category...</option>
               {categories.map((cat) => (
@@ -102,7 +102,7 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
               <Card
                 className={`p-4 cursor-pointer transition-all ${
                   privacyType === 'public'
-                    ? 'border-2 border-[rgb(var(--theme-primary))] bg-[rgb(var(--theme-accent-light))]'
+                    ? 'border-2 border-theme-primary bg-theme-accent-light'
                     : 'border hover:border-neutral-400'
                 }`}
                 onClick={() => setPrivacyType('public')}
@@ -115,7 +115,7 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="text-neutral-900">Public Community</h4>
                       {privacyType === 'public' && (
-                        <div className="size-5 rounded-full bg-[rgb(var(--theme-primary))] flex items-center justify-center">
+                        <div className="size-5 rounded-full bg-theme-primary flex items-center justify-center">
                           <span className="text-white text-xs">✓</span>
                         </div>
                       )}
@@ -131,7 +131,7 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
               <Card
                 className={`p-4 cursor-pointer transition-all ${
                   privacyType === 'private'
-                    ? 'border-2 border-[rgb(var(--theme-primary))] bg-[rgb(var(--theme-accent-light))]'
+                    ? 'border-2 border-theme-primary bg-theme-accent-light'
                     : 'border hover:border-neutral-400'
                 }`}
                 onClick={() => setPrivacyType('private')}
@@ -144,7 +144,7 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="text-neutral-900">Private Community</h4>
                       {privacyType === 'private' && (
-                        <div className="size-5 rounded-full bg-[rgb(var(--theme-primary))] flex items-center justify-center">
+                        <div className="size-5 rounded-full bg-theme-primary flex items-center justify-center">
                           <span className="text-white text-xs">✓</span>
                         </div>
                       )}
@@ -200,7 +200,7 @@ export default function CreateCommunityModal({ isOpen, onClose }: CreateCommunit
           <Button
             onClick={handleCreate}
             disabled={!communityName || !description || !category}
-            className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
+            className="gap-2 bg-theme-primary hover:bg-theme-primary-dark"
           >
             Create Community
           </Button>

@@ -22,7 +22,7 @@ export default function StoriesSection({
     <div className="max-w-3xl space-y-6">
       {storiesLoading && (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="size-6 animate-spin text-[rgb(var(--theme-primary))]" />
+          <Loader2 className="size-6 animate-spin text-theme-primary" />
         </div>
       )}
 
@@ -52,12 +52,12 @@ export default function StoriesSection({
       )}
 
       <Card
-        className="p-8 border-dashed hover:border-[rgb(var(--theme-accent))] hover:bg-[rgb(var(--theme-accent-light))]/30 transition-colors cursor-pointer"
+        className="p-8 border-dashed hover:border-theme-accent hover:bg-theme-accent-light/30 transition-colors cursor-pointer"
         onClick={onAddStory}
       >
         <div className="text-center space-y-3">
-          <div className="size-12 rounded-full bg-[rgb(var(--theme-accent-light))] flex items-center justify-center mx-auto">
-            <Plus className="size-6 text-[rgb(var(--theme-primary))]" />
+          <div className="size-12 rounded-full bg-theme-accent-light flex items-center justify-center mx-auto">
+            <Plus className="size-6 text-theme-primary" />
           </div>
           <div>
             <p className="text-neutral-900">Add a new story</p>

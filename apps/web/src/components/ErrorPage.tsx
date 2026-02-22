@@ -48,7 +48,7 @@ export default function ErrorPage({ error: propError, resetError }: ErrorPagePro
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-white to-[rgb(var(--theme-gradient-to))] flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-white to-theme-gradient-to flex flex-col">
       {/* Minimal Header */}
       <nav className="border-b bg-white/90 backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-4">
@@ -56,7 +56,7 @@ export default function ErrorPage({ error: propError, resetError }: ErrorPagePro
             onClick={handleGoHome}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity"
           >
-            <BookHeart className="size-6 text-[rgb(var(--theme-primary))]" />
+            <BookHeart className="size-6 text-theme-primary" />
             <span className="tracking-tight font-medium">Mosaic Life</span>
           </button>
         </div>
@@ -67,11 +67,11 @@ export default function ErrorPage({ error: propError, resetError }: ErrorPagePro
         <div className="max-w-md w-full text-center space-y-8">
           {/* Icon */}
           <div className="flex justify-center">
-            <div className="w-24 h-24 rounded-full bg-[rgb(var(--theme-accent-light))] flex items-center justify-center">
+            <div className="w-24 h-24 rounded-full bg-theme-accent-light flex items-center justify-center">
               {is404 ? (
-                <FileQuestion className="size-12 text-[rgb(var(--theme-primary))]" />
+                <FileQuestion className="size-12 text-theme-primary" />
               ) : (
-                <AlertTriangle className="size-12 text-[rgb(var(--theme-primary))]" />
+                <AlertTriangle className="size-12 text-theme-primary" />
               )}
             </div>
           </div>
@@ -98,7 +98,7 @@ export default function ErrorPage({ error: propError, resetError }: ErrorPagePro
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button
               onClick={handleGoHome}
-              className="bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))] text-white gap-2"
+              className="bg-theme-primary hover:bg-theme-primary-dark text-white gap-2"
             >
               <Home className="size-4" />
               Go to Homepage
@@ -127,7 +127,7 @@ export default function ErrorPage({ error: propError, resetError }: ErrorPagePro
           {/* Decorative element */}
           <div className="pt-8">
             <p className="text-sm text-neutral-400">
-              Need help? <a href="mailto:support@mosaiclife.com" className="text-[rgb(var(--theme-primary))] hover:underline">Contact Support</a>
+              Need help? <a href="mailto:support@mosaiclife.com" className="text-theme-primary hover:underline">Contact Support</a>
             </p>
           </div>
         </div>
