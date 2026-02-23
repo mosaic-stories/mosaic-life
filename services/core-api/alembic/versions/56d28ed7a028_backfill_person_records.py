@@ -5,13 +5,13 @@ Revises: dee19bfd2478
 Create Date: 2026-02-23 14:09:37.437521
 
 """
+
 from alembic import op
-import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = '56d28ed7a028'
-down_revision = 'dee19bfd2478'
+revision = "56d28ed7a028"
+down_revision = "dee19bfd2478"
 branch_labels = None
 depends_on = None
 
