@@ -109,8 +109,7 @@ jobs:
 
       - name: Check bundle size
         run: |
-          # Exclude stats.html (bundle visualizer output) from size calculation
-          SIZE=$(du -sb dist/assets dist/index.html 2>/dev/null | awk '{sum+=$1} END {print sum}')
+          SIZE=$(du -sb dist/ | cut -f1)
           MAX_SIZE=$((3 * 1024 * 1024))  # 3MB (increased for TipTap editor)
           echo "Bundle size: $SIZE bytes"
           echo "Max allowed: $MAX_SIZE bytes"

@@ -118,6 +118,7 @@ infra/cdk/bin/*.d.ts
 infra/cdk/cdk.out/
 
 # Bundle analysis
+**/bundle-stats.html
 **/dist/stats.html
 
 # Git worktrees
