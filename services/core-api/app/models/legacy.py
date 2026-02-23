@@ -67,15 +67,15 @@ class Legacy(Base):
         index=True,
     )
 
-    person_id: Mapped[UUID | None] = mapped_column(
+    person_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("persons.id", ondelete="SET NULL"),
-        nullable=True,
+        nullable=False,
         index=True,
     )
 
     # Relationships
-    person: Mapped["Person | None"] = relationship("Person", foreign_keys=[person_id])
+    person: Mapped["Person"] = relationship("Person", foreign_keys=[person_id])
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
     members: Mapped[list["LegacyMember"]] = relationship(
         "LegacyMember",
