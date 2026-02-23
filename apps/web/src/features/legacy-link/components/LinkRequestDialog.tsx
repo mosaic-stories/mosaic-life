@@ -28,7 +28,7 @@ export default function LinkRequestDialog({
   onOpenChange,
   legacyId,
   personId,
-  legacyName,
+  legacyName: _legacyName,
 }: LinkRequestDialogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLegacy, setSelectedLegacy] = useState<LegacySearchResult | null>(null);
