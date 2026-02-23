@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.associations import StoryLegacy
 from app.models.legacy import Legacy, LegacyMember
+from app.models.person import Person
 from app.models.story import Story
 from app.models.user import User
 from app.schemas.associations import LegacyAssociationCreate
@@ -20,10 +21,14 @@ async def test_create_story_with_multiple_legacy_associations(
     test_legacy: Legacy,
 ) -> None:
     """Story creation persists primary/secondary legacy associations."""
+    person = Person(canonical_name="Second Legacy Person")
+    db_session.add(person)
+    await db_session.flush()
     second_legacy = Legacy(
         name="Second Legacy",
         visibility="private",
         created_by=test_user.id,
+        person_id=person.id,
     )
     db_session.add(second_legacy)
     await db_session.commit()
@@ -65,10 +70,14 @@ async def test_update_story_replaces_associations(
     test_story_public: Story,
 ) -> None:
     """Updating `legacies` replaces existing associations and ordering."""
+    person = Person(canonical_name="Third Legacy Person")
+    db_session.add(person)
+    await db_session.flush()
     third_legacy = Legacy(
         name="Third Legacy",
         visibility="private",
         created_by=test_user.id,
+        person_id=person.id,
     )
     db_session.add(third_legacy)
     await db_session.flush()
