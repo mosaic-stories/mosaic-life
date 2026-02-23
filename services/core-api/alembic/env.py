@@ -17,6 +17,7 @@ from app.models import (  # noqa: F401
     LegacyMember,
     Media,
     Notification,
+    Person,
     Story,
     StoryEvolutionSession,
     StoryVersion,
