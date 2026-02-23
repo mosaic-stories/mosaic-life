@@ -8,6 +8,7 @@ from .legacy import Legacy, LegacyMember
 from .memory import ConversationChunk, LegacyFact
 from .media import Media
 from .notification import Notification
+from .person import Person
 from .story import Story
 from .story_evolution import StoryEvolutionSession
 from .story_version import StoryVersion
@@ -28,6 +29,7 @@ __all__ = [
     "Media",
     "MediaLegacy",
     "Notification",
+    "Person",
     "Story",
     "StoryChunk",
     "StoryEvolutionSession",
