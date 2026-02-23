@@ -294,6 +294,7 @@ async def list_user_legacies(
             updated_at=legacy.updated_at,
             creator_email=legacy.creator.email,
             creator_name=legacy.creator.name,
+            person_id=legacy.person_id,
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
         )
@@ -467,6 +468,7 @@ async def explore_legacies(
             ]
             if legacy.members
             else [],
+            person_id=legacy.person_id,
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
         )
@@ -549,6 +551,7 @@ async def get_legacy_public(
         creator_email=legacy.creator.email if legacy.creator else None,
         creator_name=legacy.creator.name if legacy.creator else None,
         members=members,
+        person_id=legacy.person_id,
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
     )
@@ -635,6 +638,7 @@ async def get_legacy_detail(
         creator_email=legacy.creator.email,
         creator_name=legacy.creator.name,
         members=members,
+        person_id=legacy.person_id,
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
     )
@@ -849,6 +853,7 @@ async def update_legacy(
         updated_at=legacy.updated_at,
         creator_email=legacy.creator.email,
         creator_name=legacy.creator.name,
+        person_id=legacy.person_id,
     )
 
 

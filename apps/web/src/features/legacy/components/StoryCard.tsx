@@ -1,4 +1,4 @@
-import { Calendar, Heart } from 'lucide-react';
+import { Calendar, Heart, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -32,7 +32,15 @@ export default function StoryCard({ story, onClick }: StoryCardProps) {
     >
       <div className="flex items-start justify-between">
         <div className="space-y-1 flex-1">
-          <h3 className="text-neutral-900">{story.title}</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-neutral-900">{story.title}</h3>
+            {story.shared_from && (
+              <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
+                <Link2 className="size-3" />
+                Shared from {story.shared_from}
+              </span>
+            )}
+          </div>
           {story.content_preview && (
             <p className="text-neutral-600 text-sm line-clamp-2 mt-2">{story.content_preview}</p>
           )}
@@ -61,9 +69,11 @@ export default function StoryCard({ story, onClick }: StoryCardProps) {
             )}
           </div>
         </div>
-        <Button variant="ghost" size="sm">
-          <Heart className="size-4" />
-        </Button>
+        {!story.shared_from && (
+          <Button variant="ghost" size="sm">
+            <Heart className="size-4" />
+          </Button>
+        )}
       </div>
     </Card>
   );

@@ -27,6 +27,7 @@ export interface Legacy {
   members?: LegacyMember[] | null;
   profile_image_id?: string | null;
   profile_image_url?: string | null;
+  person_id?: string | null;
 }
 
 export interface CreateLegacyInput {
@@ -35,6 +36,7 @@ export interface CreateLegacyInput {
   death_date?: string | null;
   biography?: string | null;
   visibility?: LegacyVisibility;
+  person_id?: string | null;
 }
 
 export interface UpdateLegacyInput {

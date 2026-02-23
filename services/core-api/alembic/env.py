@@ -14,6 +14,8 @@ from app.models import (  # noqa: F401
     AIMessage,
     Invitation,
     Legacy,
+    LegacyLink,
+    LegacyLinkShare,
     LegacyMember,
     Media,
     Notification,

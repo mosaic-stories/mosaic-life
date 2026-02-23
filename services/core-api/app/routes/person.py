@@ -33,7 +33,7 @@ async def get_match_candidates(
         "person.match_candidates",
         extra={
             "user_id": str(session.user_id),
-            "name": name,
+            "search_name": name,
         },
     )
 

@@ -1,7 +1,7 @@
-import { Sparkles } from 'lucide-react';
+import { Link2, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
-export type SectionId = 'stories' | 'media' | 'ai';
+export type SectionId = 'stories' | 'media' | 'links' | 'ai';
 
 export interface SectionNavProps {
   activeSection: SectionId;
@@ -36,6 +36,13 @@ export default function SectionNav({ activeSection, onSectionChange }: SectionNa
             className={`${baseClass} ${activeSection === 'media' ? activeClass : inactiveClass}`}
           >
             Media Gallery
+          </button>
+          <button
+            onClick={() => onSectionChange('links')}
+            className={`${baseClass} ${activeSection === 'links' ? activeClass : inactiveClass} flex items-center gap-2`}
+          >
+            <Link2 className="size-4" />
+            Linked Legacies
           </button>
           <button
             onClick={() => onSectionChange('ai')}
