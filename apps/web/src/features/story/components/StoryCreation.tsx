@@ -253,8 +253,8 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   // Show loading state while fetching existing story in edit mode
   if (isEditMode && storyLoading) {
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-[rgb(var(--theme-primary))]" />
+      <div className="min-h-screen bg-theme-background flex items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-theme-primary" />
       </div>
     );
   }
@@ -270,7 +270,7 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
     : null;
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+    <div className="min-h-screen bg-theme-background transition-colors duration-300">
       <SEOHead
         title={isEditMode ? "Edit Story" : "Create Story"}
         description="Create or edit a story for this legacy"
@@ -343,6 +343,7 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
               selectedLegacies={selectedLegacies}
               onLegaciesChange={setSelectedLegacies}
               isMutating={isMutating}
+              legacyId={legacyId}
             />
           )}
         </div>

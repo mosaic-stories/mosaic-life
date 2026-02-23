@@ -62,9 +62,9 @@ export default function Homepage() {
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-6 py-20">
         <div className="max-w-3xl mx-auto text-center space-y-6">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgb(var(--theme-accent-light))] border border-[rgb(var(--theme-accent))]">
-            <Sparkles className="size-4 text-[rgb(var(--theme-primary))]" />
-            <span className="text-sm text-[rgb(var(--theme-primary-dark))]">Digital tributes powered by AI</span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-theme-accent-light border border-theme-accent">
+            <Sparkles className="size-4 text-theme-primary" />
+            <span className="text-sm text-theme-primary-dark">Digital tributes powered by AI</span>
           </div>
 
           <h1 className="text-neutral-900">
@@ -79,7 +79,7 @@ export default function Homepage() {
           <div className="flex gap-4 justify-center pt-4">
             <Button
               size="lg"
-              className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
+              className="gap-2 bg-theme-primary hover:bg-theme-primary-dark"
               onClick={handleCreateLegacy}
             >
               Create a Legacy
@@ -109,7 +109,7 @@ export default function Homepage() {
               </div>
               <Button
                 onClick={() => navigate('/legacy/new')}
-                className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
+                className="gap-2 bg-theme-primary hover:bg-theme-primary-dark"
               >
                 <Plus className="size-4" />
                 Create New
@@ -119,7 +119,7 @@ export default function Homepage() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {myLegaciesLoading && (
                 <div className="col-span-full flex items-center justify-center py-12">
-                  <Loader2 className="size-6 animate-spin text-[rgb(var(--theme-primary))]" />
+                  <Loader2 className="size-6 animate-spin text-theme-primary" />
                 </div>
               )}
 
@@ -172,13 +172,13 @@ export default function Homepage() {
 
               {/* Create New Card */}
               <Card
-                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group border-2 border-dashed border-neutral-300 hover:border-[rgb(var(--theme-primary))] bg-neutral-50 hover:bg-white"
+                className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group border-2 border-dashed border-neutral-300 hover:border-theme-primary bg-neutral-50 hover:bg-white"
                 onClick={() => navigate('/legacy/new')}
               >
-                <div className="aspect-[4/3] flex items-center justify-center bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))]">
+                <div className="aspect-[4/3] flex items-center justify-center bg-gradient-to-br from-theme-gradient-from to-theme-gradient-to">
                   <div className="text-center space-y-3">
                     <div className="size-16 rounded-full bg-white/80 flex items-center justify-center mx-auto">
-                      <Plus className="size-8 text-[rgb(var(--theme-primary))]" />
+                      <Plus className="size-8 text-theme-primary" />
                     </div>
                     <p className="text-neutral-700">Create New Legacy</p>
                   </div>
@@ -212,8 +212,8 @@ export default function Homepage() {
                 onClick={() => setVisibilityFilter('all')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                   visibilityFilter === 'all'
-                    ? 'bg-[rgb(var(--theme-primary))] text-white'
-                    : 'border border-neutral-200 hover:border-[rgb(var(--theme-primary))]'
+                    ? 'bg-theme-primary text-white'
+                    : 'border border-neutral-200 hover:border-theme-primary'
                 }`}
               >
                 All
@@ -222,8 +222,8 @@ export default function Homepage() {
                 onClick={() => setVisibilityFilter('public')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                   visibilityFilter === 'public'
-                    ? 'bg-[rgb(var(--theme-primary))] text-white'
-                    : 'border border-neutral-200 hover:border-[rgb(var(--theme-primary))]'
+                    ? 'bg-theme-primary text-white'
+                    : 'border border-neutral-200 hover:border-theme-primary'
                 }`}
               >
                 <Globe className="size-4" />
@@ -233,8 +233,8 @@ export default function Homepage() {
                 onClick={() => setVisibilityFilter('private')}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                   visibilityFilter === 'private'
-                    ? 'bg-[rgb(var(--theme-primary))] text-white'
-                    : 'border border-neutral-200 hover:border-[rgb(var(--theme-primary))]'
+                    ? 'bg-theme-primary text-white'
+                    : 'border border-neutral-200 hover:border-theme-primary'
                 }`}
               >
                 <Lock className="size-4" />
@@ -245,7 +245,7 @@ export default function Homepage() {
 
           {exploreLoading && (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-8 animate-spin text-[rgb(var(--theme-primary))]" />
+              <Loader2 className="size-8 animate-spin text-theme-primary" />
             </div>
           )}
 
@@ -320,7 +320,7 @@ export default function Homepage() {
       {/* CTA Section */}
       <section className="py-20">
         <div className="max-w-4xl mx-auto px-6">
-          <Card className="bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))] border border-[rgb(var(--theme-accent))] p-12 text-center">
+          <Card className="bg-gradient-to-br from-theme-gradient-from to-theme-gradient-to border border-theme-accent p-12 text-center">
             <div className="space-y-6">
               <h2 className="text-neutral-900">Start creating today</h2>
               <p className="text-neutral-600 max-w-xl mx-auto">

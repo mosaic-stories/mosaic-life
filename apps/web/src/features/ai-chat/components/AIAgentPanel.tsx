@@ -181,7 +181,7 @@ export default function AIAgentPanel({ legacyId }: AIAgentPanelProps) {
   };
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+    <div className="min-h-screen bg-theme-background transition-colors duration-300">
       <SEOHead
         title="AI Agent Panel"
         description="Interact with AI agents for this legacy"

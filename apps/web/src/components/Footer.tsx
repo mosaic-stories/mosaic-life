@@ -11,7 +11,7 @@ export default function Footer() {
           {/* Column 1 - Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <BookHeart className="size-6 text-[rgb(var(--theme-primary))]" />
+              <BookHeart className="size-6 text-theme-primary" />
               <span className="tracking-tight text-neutral-900">Mosaic Life</span>
             </div>
             <p className="text-sm text-neutral-600">

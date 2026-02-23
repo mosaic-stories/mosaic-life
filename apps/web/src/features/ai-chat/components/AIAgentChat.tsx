@@ -142,7 +142,7 @@ export default function AIAgentChat({
   // Loading state
   if (personasLoading) {
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center">
+      <div className="min-h-screen bg-theme-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="size-8 animate-spin text-amber-600" />
           <p className="text-neutral-600">Loading AI agents...</p>
@@ -154,7 +154,7 @@ export default function AIAgentChat({
   // Error state
   if (personasError) {
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center">
+      <div className="min-h-screen bg-theme-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-4 max-w-md text-center">
           <AlertCircle className="size-12 text-red-500" />
           <h2 className="text-xl font-semibold text-neutral-900">Failed to load AI agents</h2>
@@ -171,7 +171,7 @@ export default function AIAgentChat({
   }
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300 flex flex-col">
+    <div className="min-h-screen bg-theme-background transition-colors duration-300 flex flex-col">
       <SEOHead
         title="AI Chat"
         description="Chat with AI agents about this legacy"

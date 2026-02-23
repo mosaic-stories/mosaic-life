@@ -54,7 +54,7 @@ export default function LegacyHeaderControls({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-      <Button size="sm" onClick={onAddStory} className="bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]">
+      <Button size="sm" onClick={onAddStory} className="bg-theme-primary hover:bg-theme-primary-dark">
         <Plus className="size-4 mr-2" />
         <span className="hidden sm:inline">Add Story</span>
       </Button>

@@ -12,7 +12,7 @@ export default function About() {
   const { user } = useAuth();
   const openAuthModal = useAuthModal((s) => s.open);
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300 flex flex-col">
+    <div className="min-h-screen bg-theme-background transition-colors duration-300 flex flex-col">
       <SEOHead
         title="About Mosaic Life"
         description="Learn about Mosaic Life and our mission to preserve meaningful stories and memories. Discover how we help families and communities honor the people who matter most."
@@ -22,9 +22,9 @@ export default function About() {
         {/* Hero Section */}
         <section className="max-w-4xl mx-auto px-6 py-20">
           <div className="text-center space-y-6">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[rgb(var(--theme-accent-light))] border border-[rgb(var(--theme-accent))]">
-              <Heart className="size-4 text-[rgb(var(--theme-primary))]" />
-              <span className="text-sm text-[rgb(var(--theme-primary-dark))]">Our Story</span>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-theme-accent-light border border-theme-accent">
+              <Heart className="size-4 text-theme-primary" />
+              <span className="text-sm text-theme-primary-dark">Our Story</span>
             </div>
             
             <h1 className="text-neutral-900">
@@ -73,11 +73,11 @@ export default function About() {
         <section className="py-20">
           <div className="max-w-7xl mx-auto px-6">
             <div className="max-w-4xl mx-auto">
-              <Card className="p-12 bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))] border-[rgb(var(--theme-accent))]">
+              <Card className="p-12 bg-gradient-to-br from-theme-gradient-from to-theme-gradient-to border-theme-accent">
                 <div className="space-y-6">
                   <div className="flex items-center gap-3">
                     <div className="size-12 rounded-full bg-white/80 flex items-center justify-center">
-                      <Users className="size-6 text-[rgb(var(--theme-primary))]" />
+                      <Users className="size-6 text-theme-primary" />
                     </div>
                     <h2 className="text-neutral-900">The Mosaic</h2>
                   </div>
@@ -103,7 +103,7 @@ export default function About() {
             <div className="max-w-3xl mx-auto space-y-8">
               <div className="text-center space-y-4">
                 <div className="flex items-center justify-center gap-2">
-                  <Sparkles className="size-6 text-[rgb(var(--theme-primary))]" />
+                  <Sparkles className="size-6 text-theme-primary" />
                   <h2 className="text-neutral-900">Technology That Enhances, Never Replaces</h2>
                 </div>
                 <p className="text-neutral-600 text-lg">
@@ -137,8 +137,8 @@ export default function About() {
 
               <div className="grid md:grid-cols-3 gap-6">
                 <Card className="p-6 space-y-4">
-                  <div className="size-12 rounded-lg bg-[rgb(var(--theme-accent-light))] flex items-center justify-center">
-                    <Shield className="size-6 text-[rgb(var(--theme-primary))]" />
+                  <div className="size-12 rounded-lg bg-theme-accent-light flex items-center justify-center">
+                    <Shield className="size-6 text-theme-primary" />
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-neutral-900">Privacy & Security</h3>
@@ -150,8 +150,8 @@ export default function About() {
                 </Card>
 
                 <Card className="p-6 space-y-4">
-                  <div className="size-12 rounded-lg bg-[rgb(var(--theme-accent-light))] flex items-center justify-center">
-                    <Users className="size-6 text-[rgb(var(--theme-primary))]" />
+                  <div className="size-12 rounded-lg bg-theme-accent-light flex items-center justify-center">
+                    <Users className="size-6 text-theme-primary" />
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-neutral-900">User Control</h3>
@@ -163,8 +163,8 @@ export default function About() {
                 </Card>
 
                 <Card className="p-6 space-y-4">
-                  <div className="size-12 rounded-lg bg-[rgb(var(--theme-accent-light))] flex items-center justify-center">
-                    <Heart className="size-6 text-[rgb(var(--theme-primary))]" />
+                  <div className="size-12 rounded-lg bg-theme-accent-light flex items-center justify-center">
+                    <Heart className="size-6 text-theme-primary" />
                   </div>
                   <div className="space-y-2">
                     <h3 className="text-neutral-900">Respectful Preservation</h3>
@@ -182,7 +182,7 @@ export default function About() {
         {/* CTA Section */}
         <section className="bg-white py-20">
           <div className="max-w-4xl mx-auto px-6">
-            <Card className="bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))] border border-[rgb(var(--theme-accent))] p-12 text-center">
+            <Card className="bg-gradient-to-br from-theme-gradient-from to-theme-gradient-to border border-theme-accent p-12 text-center">
               <div className="space-y-6">
                 <h2 className="text-neutral-900">Start Creating a Legacy</h2>
                 <p className="text-neutral-600 max-w-xl mx-auto">
@@ -190,7 +190,7 @@ export default function About() {
                 </p>
                 <Button 
                   size="lg" 
-                  className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
+                  className="gap-2 bg-theme-primary hover:bg-theme-primary-dark"
                   onClick={user ? () => navigate('/legacy/new') : openAuthModal}
                 >
                   Create Your First Legacy

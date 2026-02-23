@@ -83,7 +83,7 @@ export default function AppearanceSettings() {
                     className={cn(
                       'relative flex flex-col items-center p-3 rounded-lg border-2 transition-all',
                       currentTheme === theme.id
-                        ? 'border-[rgb(var(--theme-primary))] bg-[rgb(var(--theme-primary))]/5'
+                        ? 'border-theme-primary bg-theme-primary/5'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     )}
                   >
@@ -102,7 +102,7 @@ export default function AppearanceSettings() {
 
                     {/* Checkmark */}
                     {currentTheme === theme.id && (
-                      <div className="absolute top-1 right-1 size-4 bg-[rgb(var(--theme-primary))] rounded-full flex items-center justify-center">
+                      <div className="absolute top-1 right-1 size-4 bg-theme-primary rounded-full flex items-center justify-center">
                         <Check className="size-3 text-white" />
                       </div>
                     )}

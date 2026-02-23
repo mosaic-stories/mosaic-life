@@ -20,14 +20,14 @@ export default function SettingsLayout() {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))]">
+    <div className="min-h-screen bg-theme-background">
       <SEOHead
         title="Settings"
         description="Manage your account settings and preferences"
         noIndex={true}
       />
       {/* Header */}
-      <div className="border-b border-[rgb(var(--theme-primary))]/10 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+      <div className="border-b border-theme-primary/10 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center gap-4">
           <button
             onClick={() => navigate(-1)}
@@ -53,7 +53,7 @@ export default function SettingsLayout() {
                       cn(
                         'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                         isActive
-                          ? 'bg-[rgb(var(--theme-primary))]/10 text-[rgb(var(--theme-primary))]'
+                          ? 'bg-theme-primary/10 text-theme-primary'
                           : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
                       )
                     }

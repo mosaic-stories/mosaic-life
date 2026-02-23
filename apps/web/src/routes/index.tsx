@@ -32,8 +32,8 @@ const AccountSettings = lazy(() => import('@/features/settings/components/Accoun
 // Loading fallback component
 function PageLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[rgb(var(--theme-background))]">
-      <div className="animate-pulse text-[rgb(var(--theme-primary))]">Loading...</div>
+    <div className="min-h-screen flex items-center justify-center bg-theme-background">
+      <div className="animate-pulse text-theme-primary">Loading...</div>
     </div>
   );
 }

@@ -63,10 +63,10 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
     <>
       <DropdownMenu onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
-        <button className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-[rgb(var(--theme-primary))] focus:ring-offset-2 transition-all">
+        <button className="relative rounded-full focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 transition-all">
           <Avatar className="size-9 cursor-pointer hover:ring-2 hover:ring-neutral-300 transition-all">
             <AvatarImage src={user.avatarUrl} alt={user.name} />
-            <AvatarFallback className="bg-[rgb(var(--theme-primary))] text-white text-sm">
+            <AvatarFallback className="bg-theme-primary text-white text-sm">
               {initials}
             </AvatarFallback>
           </Avatar>
@@ -112,7 +112,7 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
           )}
           <button
             onClick={() => navigate('/notifications')}
-            className="w-full text-xs text-[rgb(var(--theme-primary))] hover:underline mt-2 text-left"
+            className="w-full text-xs text-theme-primary hover:underline mt-2 text-left"
           >
             View all notifications
           </button>
@@ -125,7 +125,7 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
           <div className="flex items-center gap-3">
             <Avatar className="size-8">
               <AvatarImage src={user.avatarUrl} alt={user.name} />
-              <AvatarFallback className="bg-[rgb(var(--theme-primary))] text-white text-xs">
+              <AvatarFallback className="bg-theme-primary text-white text-xs">
                 {initials}
               </AvatarFallback>
             </Avatar>

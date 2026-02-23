@@ -61,13 +61,13 @@ export function StyleSelector({
                 type="button"
                 onClick={() => setSelectedStyle(id as WritingStyle)}
                 aria-pressed={isSelected}
-                className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[rgb(var(--theme-primary))] focus-visible:ring-offset-2 rounded-xl"
+                className="text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-theme-primary focus-visible:ring-offset-2 rounded-xl"
               >
                 <Card
                   className={cn(
                     'cursor-pointer transition-colors duration-150 h-full',
                     isSelected
-                      ? 'border-2 border-[rgb(var(--theme-primary))] bg-[rgb(var(--theme-primary))]/5'
+                      ? 'border-2 border-theme-primary bg-theme-primary/5'
                       : 'border hover:bg-accent/50'
                   )}
                 >
@@ -76,7 +76,7 @@ export function StyleSelector({
                       className={cn(
                         'size-5 shrink-0',
                         isSelected
-                          ? 'text-[rgb(var(--theme-primary))]'
+                          ? 'text-theme-primary'
                           : 'text-muted-foreground'
                       )}
                     />
@@ -84,7 +84,7 @@ export function StyleSelector({
                       className={cn(
                         'text-sm font-medium leading-tight',
                         isSelected
-                          ? 'text-[rgb(var(--theme-primary))]'
+                          ? 'text-theme-primary'
                           : 'text-foreground'
                       )}
                     >
@@ -133,7 +133,7 @@ export function StyleSelector({
           disabled={!canSubmit}
           className={cn(
             'w-full sm:w-auto',
-            'bg-[rgb(var(--theme-primary))] text-white hover:bg-[rgb(var(--theme-primary))]/90'
+            'bg-theme-primary text-white hover:bg-theme-primary/90'
           )}
         >
           {isSubmitting ? (

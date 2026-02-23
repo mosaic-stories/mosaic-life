@@ -171,7 +171,7 @@ export default function StoryEvolutionWorkspace({
   // Guard: storyId is required
   if (!storyId) {
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center">
+      <div className="min-h-screen bg-theme-background flex items-center justify-center">
         <p className="text-muted-foreground">No story selected.</p>
       </div>
     );
@@ -180,9 +180,9 @@ export default function StoryEvolutionWorkspace({
   // Loading state
   if (storyLoading || sessionLoading) {
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center">
+      <div className="min-h-screen bg-theme-background flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <Loader2 className="size-8 animate-spin text-[rgb(var(--theme-primary))]" />
+          <Loader2 className="size-8 animate-spin text-theme-primary" />
           <p className="text-sm text-muted-foreground">Loading...</p>
         </div>
       </div>
@@ -192,7 +192,7 @@ export default function StoryEvolutionWorkspace({
   // No session — show start screen
   if (!session || sessionError) {
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))]">
+      <div className="min-h-screen bg-theme-background">
         <SEOHead
           title="Evolve Story"
           description="Evolve your story with AI"
@@ -222,7 +222,7 @@ export default function StoryEvolutionWorkspace({
             <Button
               onClick={handleStart}
               disabled={startEvolution.isPending}
-              className="bg-[rgb(var(--theme-primary))] text-white hover:bg-[rgb(var(--theme-primary))]/90"
+              className="bg-theme-primary text-white hover:bg-theme-primary/90"
             >
               {startEvolution.isPending ? (
                 <Loader2 className="size-4 animate-spin mr-2" />
@@ -311,7 +311,7 @@ export default function StoryEvolutionWorkspace({
   };
 
   return (
-    <div className="h-[calc(100dvh-3.5rem)] bg-[rgb(var(--theme-background))] flex flex-col overflow-hidden">
+    <div className="h-[calc(100dvh-3.5rem)] bg-theme-background flex flex-col overflow-hidden">
       <SEOHead
         title="Evolve Story"
         description="Evolve your story with AI"

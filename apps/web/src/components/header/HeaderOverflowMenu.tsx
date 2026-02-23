@@ -19,7 +19,7 @@ export default function HeaderOverflowMenu({ children }: HeaderOverflowMenuProps
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="p-2 rounded-full hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-[rgb(var(--theme-primary))] focus:ring-offset-2 transition-all"
+          className="p-2 rounded-full hover:bg-neutral-100 focus:outline-none focus:ring-2 focus:ring-theme-primary focus:ring-offset-2 transition-all"
           aria-label="More options"
         >
           <MoreHorizontal className="size-5 text-neutral-600" />

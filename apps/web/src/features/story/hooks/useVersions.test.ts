@@ -1,26 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement } from 'react';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/test/mocks/server';
 import { versionKeys, useVersions, useVersionDetail } from './useVersions';
-
-// Mock the API module
-vi.mock('@/features/story/api/versions', () => ({
-  getVersions: vi.fn(),
-  getVersion: vi.fn(),
-  restoreVersion: vi.fn(),
-  approveDraft: vi.fn(),
-  discardDraft: vi.fn(),
-}));
-
-import {
-  getVersions,
-  getVersion,
-} from '@/features/story/api/versions';
 import type { VersionListResponse, VersionDetail } from '@/features/story/api/versions';
-
-const mockedGetVersions = vi.mocked(getVersions);
-const mockedGetVersion = vi.mocked(getVersion);
 
 function createWrapper() {
   const queryClient = new QueryClient({
@@ -30,6 +15,48 @@ function createWrapper() {
     return createElement(QueryClientProvider, { client: queryClient }, children);
   };
 }
+
+const mockVersionsResponse: VersionListResponse = {
+  versions: [
+    {
+      version_number: 2,
+      status: 'active',
+      source: 'edit',
+      source_version: null,
+      change_summary: 'Updated title',
+      stale: false,
+      created_by: 'user-1',
+      created_at: '2026-02-16T10:00:00Z',
+    },
+    {
+      version_number: 1,
+      status: 'inactive',
+      source: 'creation',
+      source_version: null,
+      change_summary: null,
+      stale: false,
+      created_by: 'user-1',
+      created_at: '2026-02-15T10:00:00Z',
+    },
+  ],
+  total: 2,
+  page: 1,
+  page_size: 20,
+  warning: null,
+};
+
+const mockVersionDetail: VersionDetail = {
+  version_number: 1,
+  title: 'Original Title',
+  content: 'Original content',
+  status: 'inactive',
+  source: 'creation',
+  source_version: null,
+  change_summary: null,
+  stale: false,
+  created_by: 'user-1',
+  created_at: '2026-02-15T10:00:00Z',
+};
 
 describe('versionKeys', () => {
   it('generates correct key hierarchy', () => {
@@ -41,90 +68,53 @@ describe('versionKeys', () => {
 
 describe('useVersions', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    // Override default handler with test-specific data
+    server.use(
+      http.get('/api/stories/:storyId/versions', () => {
+        return HttpResponse.json(mockVersionsResponse);
+      })
+    );
   });
 
   it('does not fetch when enabled is false', () => {
-    renderHook(() => useVersions('story-1', false), {
+    const { result } = renderHook(() => useVersions('story-1', false), {
       wrapper: createWrapper(),
     });
-    expect(mockedGetVersions).not.toHaveBeenCalled();
+    expect(result.current.isFetching).toBe(false);
   });
 
   it('fetches versions when enabled', async () => {
-    const mockResponse: VersionListResponse = {
-      versions: [
-        {
-          version_number: 2,
-          status: 'active',
-          source: 'edit',
-          source_version: null,
-          change_summary: 'Updated title',
-          stale: false,
-          created_by: 'user-1',
-          created_at: '2026-02-16T10:00:00Z',
-        },
-        {
-          version_number: 1,
-          status: 'inactive',
-          source: 'creation',
-          source_version: null,
-          change_summary: null,
-          stale: false,
-          created_by: 'user-1',
-          created_at: '2026-02-15T10:00:00Z',
-        },
-      ],
-      total: 2,
-      page: 1,
-      page_size: 20,
-      warning: null,
-    };
-    mockedGetVersions.mockResolvedValue(mockResponse);
-
     const { result } = renderHook(() => useVersions('story-1', true), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual(mockResponse);
-    expect(mockedGetVersions).toHaveBeenCalledWith('story-1', 1, 20);
+    expect(result.current.data).toEqual(mockVersionsResponse);
   });
 });
 
 describe('useVersionDetail', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    server.use(
+      http.get('/api/stories/:storyId/versions/:versionNumber', () => {
+        return HttpResponse.json(mockVersionDetail);
+      })
+    );
   });
 
   it('does not fetch when versionNumber is null', () => {
-    renderHook(() => useVersionDetail('story-1', null), {
+    const { result } = renderHook(() => useVersionDetail('story-1', null), {
       wrapper: createWrapper(),
     });
-    expect(mockedGetVersion).not.toHaveBeenCalled();
+    expect(result.current.isFetching).toBe(false);
   });
 
   it('fetches version detail when versionNumber is provided', async () => {
-    const mockDetail: VersionDetail = {
-      version_number: 1,
-      title: 'Original Title',
-      content: 'Original content',
-      status: 'inactive',
-      source: 'creation',
-      source_version: null,
-      change_summary: null,
-      stale: false,
-      created_by: 'user-1',
-      created_at: '2026-02-15T10:00:00Z',
-    };
-    mockedGetVersion.mockResolvedValue(mockDetail);
-
     const { result } = renderHook(() => useVersionDetail('story-1', 1), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual(mockDetail);
-    expect(mockedGetVersion).toHaveBeenCalledWith('story-1', 1);
+    expect(result.current.data).toEqual(mockVersionDetail);
   });
 });

@@ -19,9 +19,9 @@ function DemoBadge() {
 export default function AISection({ legacyName, onChatClick, onPanelClick }: AISectionProps) {
   return (
     <div className="max-w-3xl space-y-6">
-      <Card className="p-8 space-y-4 bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))] border-[rgb(var(--theme-accent))]">
+      <Card className="p-8 space-y-4 bg-gradient-to-br from-theme-gradient-from to-theme-gradient-to border-theme-accent">
         <div className="flex items-start gap-4">
-          <div className="size-12 rounded-full bg-[rgb(var(--theme-primary))] flex items-center justify-center flex-shrink-0">
+          <div className="size-12 rounded-full bg-theme-primary flex items-center justify-center flex-shrink-0">
             <Sparkles className="size-6 text-white" />
           </div>
           <div className="space-y-2 flex-1">

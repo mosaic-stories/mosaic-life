@@ -15,11 +15,11 @@ export function CTASection() {
       {/* Privacy & Security */}
       <section className="py-16">
         <div className="max-w-5xl mx-auto px-6">
-          <Card className="bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))] border-[rgb(var(--theme-accent))] p-8 md:p-12">
+          <Card className="bg-gradient-to-br from-theme-gradient-from to-theme-gradient-to border-theme-accent p-8 md:p-12">
             <div className="flex flex-col md:flex-row items-start gap-8">
               <div className="flex-shrink-0">
                 <div className="size-16 rounded-full bg-white/80 flex items-center justify-center">
-                  <Shield className="size-8 text-[rgb(var(--theme-primary))]" />
+                  <Shield className="size-8 text-theme-primary" />
                 </div>
               </div>
               <div className="space-y-4">
@@ -47,7 +47,7 @@ export function CTASection() {
       {/* CTA Section */}
       <section className="bg-white py-16">
         <div className="max-w-4xl mx-auto px-6">
-          <Card className="bg-gradient-to-br from-[rgb(var(--theme-gradient-from))] to-[rgb(var(--theme-gradient-to))] border border-[rgb(var(--theme-accent))] p-12 text-center">
+          <Card className="bg-gradient-to-br from-theme-gradient-from to-theme-gradient-to border border-theme-accent p-12 text-center">
             <div className="space-y-6">
               <h2 className="text-neutral-900">Ready to Start Creating?</h2>
               <p className="text-neutral-600 max-w-xl mx-auto">
@@ -56,7 +56,7 @@ export function CTASection() {
               <div className="flex gap-4 justify-center flex-wrap">
                 <Button
                   size="lg"
-                  className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
+                  className="gap-2 bg-theme-primary hover:bg-theme-primary-dark"
                   onClick={user ? () => navigate('/legacy/new') : openAuthModal}
                 >
                   Create Your First Legacy

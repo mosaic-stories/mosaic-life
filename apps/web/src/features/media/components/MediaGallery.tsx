@@ -21,7 +21,7 @@ export default function MediaGallery({ legacyId }: MediaGalleryProps) {
   const legacy = legacies.find(l => l.id === legacyId) || legacies[0];
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+    <div className="min-h-screen bg-theme-background transition-colors duration-300">
       <SEOHead
         title="Media Gallery"
         description="View and manage media for this legacy"

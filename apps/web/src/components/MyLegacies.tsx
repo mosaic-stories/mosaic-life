@@ -157,7 +157,7 @@ export default function MyLegacies() {
         <Button
           onClick={handleCreateLegacy}
           size="sm"
-          className="gap-2 bg-[rgb(var(--theme-primary))] hover:bg-[rgb(var(--theme-primary-dark))]"
+          className="gap-2 bg-theme-primary hover:bg-theme-primary-dark"
         >
           <Plus className="size-4" />
           <span className="hidden sm:inline">Create Legacy</span>
@@ -218,7 +218,7 @@ export default function MyLegacies() {
 
           {isLoading && (
             <div className="flex items-center justify-center py-12">
-              <Loader2 className="size-8 animate-spin text-[rgb(var(--theme-primary))]" />
+              <Loader2 className="size-8 animate-spin text-theme-primary" />
             </div>
           )}
 
@@ -238,12 +238,12 @@ export default function MyLegacies() {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {/* Create new legacy card */}
               <Card
-                className="p-8 border-dashed hover:border-[rgb(var(--theme-accent))] hover:bg-[rgb(var(--theme-accent-light))]/30 transition-colors cursor-pointer"
+                className="p-8 border-dashed hover:border-theme-accent hover:bg-theme-accent-light/30 transition-colors cursor-pointer"
                 onClick={handleCreateLegacy}
               >
                 <div className="text-center space-y-3">
-                  <div className="size-12 rounded-full bg-[rgb(var(--theme-accent-light))] flex items-center justify-center mx-auto">
-                    <Plus className="size-6 text-[rgb(var(--theme-primary))]" />
+                  <div className="size-12 rounded-full bg-theme-accent-light flex items-center justify-center mx-auto">
+                    <Plus className="size-6 text-theme-primary" />
                   </div>
                   <div>
                     <p className="text-neutral-900">Create a new legacy</p>

@@ -69,7 +69,7 @@ export function PhaseIndicator({ currentPhase, onPhaseClick, className }: PhaseI
               ? 'text-muted-foreground line-through'
               : currentPhase === 'completed'
                 ? 'text-emerald-600'
-                : 'text-[rgb(var(--theme-primary))]'
+                : 'text-theme-primary'
           )}
         >
           {mobileLabel}
@@ -92,7 +92,7 @@ export function PhaseIndicator({ currentPhase, onPhaseClick, className }: PhaseI
               <div
                 className={cn(
                   'size-8 rounded-full flex items-center justify-center transition-colors',
-                  state === 'current' && 'bg-[rgb(var(--theme-primary))] text-white shadow-sm',
+                  state === 'current' && 'bg-theme-primary text-white shadow-sm',
                   state === 'completed' && 'bg-emerald-50 text-emerald-600',
                   state === 'future' && 'bg-muted text-muted-foreground',
                   isClickable && 'group-hover:bg-emerald-100'
@@ -107,7 +107,7 @@ export function PhaseIndicator({ currentPhase, onPhaseClick, className }: PhaseI
               <span
                 className={cn(
                   'text-xs leading-none text-center whitespace-nowrap',
-                  state === 'current' && 'font-bold text-[rgb(var(--theme-primary))]',
+                  state === 'current' && 'font-bold text-theme-primary',
                   state === 'completed' && 'font-medium text-emerald-600',
                   state === 'future' && 'text-muted-foreground',
                   isClickable && 'group-hover:text-emerald-700'

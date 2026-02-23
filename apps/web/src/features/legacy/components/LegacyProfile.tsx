@@ -91,8 +91,8 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
 
   if (legacyLoading) {
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center">
-        <Loader2 className="size-8 animate-spin text-[rgb(var(--theme-primary))]" />
+      <div className="min-h-screen bg-theme-background flex items-center justify-center">
+        <Loader2 className="size-8 animate-spin text-theme-primary" />
       </div>
     );
   }
@@ -102,7 +102,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
     const is404 = legacyError && 'status' in legacyError && (legacyError as unknown as { status: number }).status === 404;
 
     return (
-      <div className="min-h-screen bg-[rgb(var(--theme-background))] flex items-center justify-center p-6">
+      <div className="min-h-screen bg-theme-background flex items-center justify-center p-6">
         <Card className="p-8 max-w-md text-center space-y-4">
           <div className="size-16 rounded-full bg-neutral-100 flex items-center justify-center mx-auto">
             <Lock className="size-8 text-neutral-400" />
@@ -137,7 +137,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const storyCount = stories?.length || 0;
 
   return (
-    <div className="min-h-screen bg-[rgb(var(--theme-background))] transition-colors duration-300">
+    <div className="min-h-screen bg-theme-background transition-colors duration-300">
       {legacy && seoSchema && (
         <SEOHead
           title={legacy.name}

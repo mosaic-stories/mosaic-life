@@ -100,7 +100,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticate: _onAuthenti
               {mode === 'login' ? "Don't have an account? " : 'Already have an account? '}
               <button
                 onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                className="text-[rgb(var(--theme-primary))] hover:text-[rgb(var(--theme-primary-dark))] transition-colors"
+                className="text-theme-primary hover:text-theme-primary-dark transition-colors"
               >
                 {mode === 'login' ? 'Sign up' : 'Sign in'}
               </button>

@@ -117,5 +117,9 @@ infra/cdk/bin/*.d.ts
 # CDK Synthesized Output (regenerated on cdk synth)
 infra/cdk/cdk.out/
 
+# Bundle analysis
+**/bundle-stats.html
+**/dist/stats.html
+
 # Git worktrees
 .worktrees/

@@ -12,8 +12,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   // Show loading state while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[rgb(var(--theme-background))]">
-        <div className="animate-pulse text-[rgb(var(--theme-primary))]">
+      <div className="min-h-screen flex items-center justify-center bg-theme-background">
+        <div className="animate-pulse text-theme-primary">
           Checking authentication...
         </div>
       </div>

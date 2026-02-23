@@ -9,6 +9,7 @@ interface StoryEditorProps {
   onChange?: (markdown: string) => void;
   readOnly?: boolean;
   placeholder?: string;
+  legacyId?: string;
 }
 
 export default function StoryEditor({
@@ -16,6 +17,7 @@ export default function StoryEditor({
   onChange,
   readOnly = false,
   placeholder,
+  legacyId,
 }: StoryEditorProps) {
   const editor = useStoryEditor({
     content,
@@ -35,8 +37,8 @@ export default function StoryEditor({
   if (!editor) return null;
 
   return (
-    <div className="story-editor rounded-lg border border-neutral-200 bg-white overflow-hidden focus-within:border-[rgb(var(--theme-primary))] focus-within:ring-2 focus-within:ring-[rgb(var(--theme-primary))]/20 transition-colors">
-      {!readOnly && <EditorToolbar editor={editor} />}
+    <div className="story-editor rounded-lg border border-neutral-200 bg-white overflow-hidden focus-within:border-theme-primary focus-within:ring-2 focus-within:ring-theme-primary/20 transition-colors">
+      {!readOnly && <EditorToolbar editor={editor} legacyId={legacyId} />}
       <div className={readOnly ? 'px-0 py-0' : 'px-6 py-4'}>
         <EditorContent editor={editor} />
       </div>

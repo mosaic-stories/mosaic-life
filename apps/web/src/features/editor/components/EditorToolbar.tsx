@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { Editor } from '@tiptap/react';
 import {
   Bold,
@@ -12,15 +13,21 @@ import {
   Undo,
   Redo,
   Minus,
+  Loader2,
 } from 'lucide-react';
 import { Toggle } from '@/components/ui/toggle';
 import { Separator } from '@/components/ui/separator';
+import { useMediaUpload } from '@/features/media/hooks/useMedia';
 
 interface EditorToolbarProps {
   editor: Editor;
+  legacyId?: string;
 }
 
-export default function EditorToolbar({ editor }: EditorToolbarProps) {
+export default function EditorToolbar({ editor, legacyId }: EditorToolbarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const upload = useMediaUpload(legacyId);
+
   const addLink = () => {
     const url = window.prompt('Enter URL:');
     if (url) {
@@ -28,11 +35,23 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
     }
   };
 
-  const addImage = () => {
-    const url = window.prompt('Enter image URL:');
-    if (url) {
-      editor.chain().focus().setImage({ src: url }).run();
+  const handleImageClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const media = await upload.mutateAsync(file);
+      editor.chain().focus().setImage({ src: media.download_url }).run();
+    } catch {
+      // Upload failed — useMediaUpload handles error state
     }
+
+    // Reset input so the same file can be re-selected
+    e.target.value = '';
   };
 
   return (
@@ -124,11 +143,24 @@ export default function EditorToolbar({ editor }: EditorToolbarProps) {
       <Toggle
         size="sm"
         pressed={false}
-        onPressedChange={addImage}
+        onPressedChange={handleImageClick}
+        disabled={upload.isPending}
         aria-label="Image"
       >
-        <ImageIcon className="size-4" />
+        {upload.isPending ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <ImageIcon className="size-4" />
+        )}
       </Toggle>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        className="hidden"
+        onChange={handleFileSelected}
+      />
 
       <Separator orientation="vertical" className="mx-1 h-6" />
 

@@ -1,12 +1,20 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
+import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 
 // Get backend URL from environment, default to localhost for local development
 const BACKEND_URL = process.env.VITE_BACKEND_URL || 'http://localhost:8080'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    visualizer({
+      filename: './bundle-stats.html',
+      open: false,
+      gzipSize: true,
+    }),
+  ],
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: {

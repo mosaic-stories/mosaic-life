@@ -108,7 +108,7 @@ export function ElicitationPanel({
             className={cn(
               'p-3',
               isUser
-                ? 'bg-[rgb(var(--theme-primary))] text-white border-[rgb(var(--theme-primary))]'
+                ? 'bg-theme-primary text-white border-theme-primary'
                 : hasError
                   ? 'bg-red-50 border-red-200'
                   : 'bg-white'
@@ -187,7 +187,7 @@ export function ElicitationPanel({
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="flex flex-col items-center gap-3">
-              <Loader2 className="size-6 animate-spin text-[rgb(var(--theme-primary))]" />
+              <Loader2 className="size-6 animate-spin text-theme-primary" />
               <p className="text-sm text-muted-foreground">
                 Loading conversation...
               </p>
