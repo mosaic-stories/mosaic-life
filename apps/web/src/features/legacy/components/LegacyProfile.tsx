@@ -21,6 +21,7 @@ import StoriesSection from './StoriesSection';
 import MediaSection from './MediaSection';
 import AISection from './AISection';
 import DeleteLegacyDialog from './DeleteLegacyDialog';
+import LegacyLinkPanel from '@/features/legacy-link/components/LegacyLinkPanel';
 
 interface LegacyProfileProps {
   legacyId: string;
@@ -180,6 +181,14 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
             storiesError={storiesError}
             onStoryClick={(storyId) => navigate(`/legacy/${legacyId}/story/${storyId}`)}
             onAddStory={handleAddStory}
+          />
+        )}
+
+        {activeSection === 'links' && (
+          <LegacyLinkPanel
+            legacyId={legacyId}
+            personId={legacy.person_id}
+            legacyName={legacy.name}
           />
         )}
 

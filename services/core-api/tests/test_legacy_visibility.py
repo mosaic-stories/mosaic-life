@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.legacy import Legacy, LegacyMember
+from app.models.person import Person
 from app.models.user import User
 from app.schemas.legacy import LegacyCreate, LegacyResponse, LegacyUpdate
 from app.services import legacy as legacy_service
@@ -23,9 +24,13 @@ class TestLegacyVisibilityModel:
         test_user: User,
     ):
         """Test that new legacies default to private visibility."""
+        person = Person(canonical_name="Test Person")
+        db_session.add(person)
+        await db_session.flush()
         legacy = Legacy(
             name="Test Legacy",
             created_by=test_user.id,
+            person_id=person.id,
         )
         db_session.add(legacy)
         await db_session.commit()
@@ -40,10 +45,14 @@ class TestLegacyVisibilityModel:
         test_user: User,
     ):
         """Test that legacies can be created with public visibility."""
+        person = Person(canonical_name="Test Person")
+        db_session.add(person)
+        await db_session.flush()
         legacy = Legacy(
             name="Public Legacy",
             created_by=test_user.id,
             visibility="public",
+            person_id=person.id,
         )
         db_session.add(legacy)
         await db_session.commit()
@@ -139,7 +148,15 @@ class TestServiceFunctionsReturnVisibility:
     ):
         """Test list_user_legacies includes visibility."""
         # Create a legacy
-        legacy = Legacy(name="Test", created_by=test_user.id, visibility="public")
+        person = Person(canonical_name="Test Person")
+        db_session.add(person)
+        await db_session.flush()
+        legacy = Legacy(
+            name="Test",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person.id,
+        )
         db_session.add(legacy)
         await db_session.flush()
 
@@ -160,7 +177,15 @@ class TestServiceFunctionsReturnVisibility:
         test_user: User,
     ):
         """Test get_legacy_detail includes visibility."""
-        legacy = Legacy(name="Test", created_by=test_user.id, visibility="private")
+        person = Person(canonical_name="Test Person")
+        db_session.add(person)
+        await db_session.flush()
+        legacy = Legacy(
+            name="Test",
+            created_by=test_user.id,
+            visibility="private",
+            person_id=person.id,
+        )
         db_session.add(legacy)
         await db_session.flush()
 
@@ -182,7 +207,15 @@ class TestServiceFunctionsReturnVisibility:
         test_user: User,
     ):
         """Test explore_legacies includes visibility."""
-        legacy = Legacy(name="Test", created_by=test_user.id, visibility="public")
+        person = Person(canonical_name="Test Person")
+        db_session.add(person)
+        await db_session.flush()
+        legacy = Legacy(
+            name="Test",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person.id,
+        )
         db_session.add(legacy)
         await db_session.commit()
 
@@ -200,7 +233,15 @@ class TestServiceFunctionsReturnVisibility:
         test_user: User,
     ):
         """Test search_legacies includes visibility."""
-        legacy = Legacy(name="Searchable", created_by=test_user.id, visibility="public")
+        person = Person(canonical_name="Test Person")
+        db_session.add(person)
+        await db_session.flush()
+        legacy = Legacy(
+            name="Searchable",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person.id,
+        )
         db_session.add(legacy)
         await db_session.commit()
 
@@ -222,11 +263,21 @@ class TestExploreVisibilityFiltering:
     ):
         """Test unauthenticated explore only returns public legacies."""
         # Create public and private legacies
+        person1 = Person(canonical_name="Person One")
+        person2 = Person(canonical_name="Person Two")
+        db_session.add_all([person1, person2])
+        await db_session.flush()
         public_legacy = Legacy(
-            name="Public One", created_by=test_user.id, visibility="public"
+            name="Public One",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person1.id,
         )
         private_legacy = Legacy(
-            name="Private One", created_by=test_user.id, visibility="private"
+            name="Private One",
+            created_by=test_user.id,
+            visibility="private",
+            person_id=person2.id,
         )
         db_session.add_all([public_legacy, private_legacy])
         await db_session.commit()
@@ -247,14 +298,25 @@ class TestExploreVisibilityFiltering:
     ):
         """Test authenticated explore shows public + private legacies user is member of."""
         # Create public legacy by user 2
+        person1 = Person(canonical_name="Public By Other Person")
+        person2 = Person(canonical_name="Private Member Person")
+        person3 = Person(canonical_name="Private Other Person")
+        db_session.add_all([person1, person2, person3])
+        await db_session.flush()
         public_legacy = Legacy(
-            name="Public By Other", created_by=test_user_2.id, visibility="public"
+            name="Public By Other",
+            created_by=test_user_2.id,
+            visibility="public",
+            person_id=person1.id,
         )
         db_session.add(public_legacy)
 
         # Create private legacy user is member of
         private_member = Legacy(
-            name="Private Member", created_by=test_user_2.id, visibility="private"
+            name="Private Member",
+            created_by=test_user_2.id,
+            visibility="private",
+            person_id=person2.id,
         )
         db_session.add(private_member)
         await db_session.flush()
@@ -265,7 +327,10 @@ class TestExploreVisibilityFiltering:
 
         # Create private legacy user is NOT member of
         private_other = Legacy(
-            name="Private Other", created_by=test_user_2.id, visibility="private"
+            name="Private Other",
+            created_by=test_user_2.id,
+            visibility="private",
+            person_id=person3.id,
         )
         db_session.add(private_other)
         await db_session.commit()
@@ -286,11 +351,21 @@ class TestExploreVisibilityFiltering:
         test_user: User,
     ):
         """Test explore with visibility_filter='public'."""
+        person1 = Person(canonical_name="Filter Public Person")
+        person2 = Person(canonical_name="Filter Private Person")
+        db_session.add_all([person1, person2])
+        await db_session.flush()
         public_legacy = Legacy(
-            name="Filter Public", created_by=test_user.id, visibility="public"
+            name="Filter Public",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person1.id,
         )
         private_legacy = Legacy(
-            name="Filter Private", created_by=test_user.id, visibility="private"
+            name="Filter Private",
+            created_by=test_user.id,
+            visibility="private",
+            person_id=person2.id,
         )
         db_session.add_all([public_legacy, private_legacy])
         await db_session.flush()
@@ -319,11 +394,21 @@ class TestExploreVisibilityFiltering:
         test_user: User,
     ):
         """Test explore with visibility_filter='private'."""
+        person1 = Person(canonical_name="Filter Public 2 Person")
+        person2 = Person(canonical_name="Filter Private 2 Person")
+        db_session.add_all([person1, person2])
+        await db_session.flush()
         public_legacy = Legacy(
-            name="Filter Public 2", created_by=test_user.id, visibility="public"
+            name="Filter Public 2",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person1.id,
         )
         private_legacy = Legacy(
-            name="Filter Private 2", created_by=test_user.id, visibility="private"
+            name="Filter Private 2",
+            created_by=test_user.id,
+            visibility="private",
+            person_id=person2.id,
         )
         db_session.add_all([public_legacy, private_legacy])
         await db_session.flush()
@@ -357,11 +442,21 @@ class TestExploreAPI:
     ):
         """Test explore without auth returns only public legacies."""
         # Create public and private legacies
+        person1 = Person(canonical_name="API Public Person")
+        person2 = Person(canonical_name="API Private Person")
+        db_session.add_all([person1, person2])
+        await db_session.flush()
         public_legacy = Legacy(
-            name="API Public", created_by=test_user.id, visibility="public"
+            name="API Public",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person1.id,
         )
         private_legacy = Legacy(
-            name="API Private", created_by=test_user.id, visibility="private"
+            name="API Private",
+            created_by=test_user.id,
+            visibility="private",
+            person_id=person2.id,
         )
         db_session.add_all([public_legacy, private_legacy])
         await db_session.commit()
@@ -381,11 +476,21 @@ class TestExploreAPI:
         test_user: User,
     ):
         """Test explore with visibility_filter parameter."""
+        person1 = Person(canonical_name="API Filter Public Person")
+        person2 = Person(canonical_name="API Filter Private Person")
+        db_session.add_all([person1, person2])
+        await db_session.flush()
         public_legacy = Legacy(
-            name="API Filter Public", created_by=test_user.id, visibility="public"
+            name="API Filter Public",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person1.id,
         )
         private_legacy = Legacy(
-            name="API Filter Private", created_by=test_user.id, visibility="private"
+            name="API Filter Private",
+            created_by=test_user.id,
+            visibility="private",
+            person_id=person2.id,
         )
         db_session.add_all([public_legacy, private_legacy])
         await db_session.flush()
@@ -427,11 +532,21 @@ class TestSearchVisibility:
         test_user: User,
     ):
         """Test unauthenticated search returns only public legacies."""
+        person1 = Person(canonical_name="Search Public Person")
+        person2 = Person(canonical_name="Search Private Person")
+        db_session.add_all([person1, person2])
+        await db_session.flush()
         public_legacy = Legacy(
-            name="Search Public", created_by=test_user.id, visibility="public"
+            name="Search Public",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person1.id,
         )
         private_legacy = Legacy(
-            name="Search Private", created_by=test_user.id, visibility="private"
+            name="Search Private",
+            created_by=test_user.id,
+            visibility="private",
+            person_id=person2.id,
         )
         db_session.add_all([public_legacy, private_legacy])
         await db_session.commit()
@@ -454,18 +569,28 @@ class TestSearchVisibility:
         test_user_2: User,
     ):
         """Test authenticated search shows public + accessible private."""
+        person1 = Person(canonical_name="Search2 Public Person")
+        person2 = Person(canonical_name="Search2 Private Member Person")
+        person3 = Person(canonical_name="Search2 Private Other Person")
+        db_session.add_all([person1, person2, person3])
+        await db_session.flush()
         public_legacy = Legacy(
-            name="Search2 Public", created_by=test_user_2.id, visibility="public"
+            name="Search2 Public",
+            created_by=test_user_2.id,
+            visibility="public",
+            person_id=person1.id,
         )
         private_member = Legacy(
             name="Search2 Private Member",
             created_by=test_user_2.id,
             visibility="private",
+            person_id=person2.id,
         )
         private_other = Legacy(
             name="Search2 Private Other",
             created_by=test_user_2.id,
             visibility="private",
+            person_id=person3.id,
         )
 
         db_session.add_all([public_legacy, private_member, private_other])
@@ -499,8 +624,14 @@ class TestPublicEndpointVisibility:
         test_user: User,
     ):
         """Test get_legacy_public returns public legacies."""
+        person = Person(canonical_name="Public Legacy Person")
+        db_session.add(person)
+        await db_session.flush()
         legacy = Legacy(
-            name="Public Legacy", created_by=test_user.id, visibility="public"
+            name="Public Legacy",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person.id,
         )
         db_session.add(legacy)
         await db_session.commit()
@@ -518,8 +649,14 @@ class TestPublicEndpointVisibility:
         test_user: User,
     ):
         """Test get_legacy_public returns 404 for private legacies."""
+        person = Person(canonical_name="Private Legacy Person")
+        db_session.add(person)
+        await db_session.flush()
         legacy = Legacy(
-            name="Private Legacy", created_by=test_user.id, visibility="private"
+            name="Private Legacy",
+            created_by=test_user.id,
+            visibility="private",
+            person_id=person.id,
         )
         db_session.add(legacy)
         await db_session.commit()
@@ -537,8 +674,14 @@ class TestPublicEndpointVisibility:
         test_user: User,
     ):
         """Test public API endpoint returns public legacies."""
+        person = Person(canonical_name="API Public Legacy Person")
+        db_session.add(person)
+        await db_session.flush()
         legacy = Legacy(
-            name="API Public Legacy", created_by=test_user.id, visibility="public"
+            name="API Public Legacy",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person.id,
         )
         db_session.add(legacy)
         await db_session.commit()
@@ -555,8 +698,14 @@ class TestPublicEndpointVisibility:
         test_user: User,
     ):
         """Test public API endpoint returns 404 for private legacies."""
+        person = Person(canonical_name="API Private Legacy Person")
+        db_session.add(person)
+        await db_session.flush()
         legacy = Legacy(
-            name="API Private Legacy", created_by=test_user.id, visibility="private"
+            name="API Private Legacy",
+            created_by=test_user.id,
+            visibility="private",
+            person_id=person.id,
         )
         db_session.add(legacy)
         await db_session.commit()
@@ -576,8 +725,14 @@ class TestUpdateVisibility:
     ):
         """Test creator can update visibility from private to public."""
         # Create private legacy
+        person = Person(canonical_name="Test Legacy Person")
+        db_session.add(person)
+        await db_session.flush()
         legacy = Legacy(
-            name="Test Legacy", created_by=test_user.id, visibility="private"
+            name="Test Legacy",
+            created_by=test_user.id,
+            visibility="private",
+            person_id=person.id,
         )
         db_session.add(legacy)
         await db_session.flush()
@@ -606,8 +761,14 @@ class TestUpdateVisibility:
     ):
         """Test creator can update visibility from public to private."""
         # Create public legacy
+        person = Person(canonical_name="Test Legacy Person")
+        db_session.add(person)
+        await db_session.flush()
         legacy = Legacy(
-            name="Test Legacy", created_by=test_user.id, visibility="public"
+            name="Test Legacy",
+            created_by=test_user.id,
+            visibility="public",
+            person_id=person.id,
         )
         db_session.add(legacy)
         await db_session.flush()
@@ -637,8 +798,14 @@ class TestUpdateVisibility:
     ):
         """Test non-creator cannot update visibility."""
         # Create legacy by user 2
+        person = Person(canonical_name="Test Legacy Person")
+        db_session.add(person)
+        await db_session.flush()
         legacy = Legacy(
-            name="Test Legacy", created_by=test_user_2.id, visibility="private"
+            name="Test Legacy",
+            created_by=test_user_2.id,
+            visibility="private",
+            person_id=person.id,
         )
         db_session.add(legacy)
         await db_session.flush()

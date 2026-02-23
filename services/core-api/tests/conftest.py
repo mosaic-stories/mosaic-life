@@ -23,6 +23,7 @@ from app.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
 from app.models.associations import MediaLegacy, StoryLegacy  # noqa: E402
 from app.models.legacy import Legacy, LegacyMember  # noqa: E402
+from app.models.person import Person  # noqa: E402
 from app.models.media import Media  # noqa: E402
 from app.models.story import Story  # noqa: E402
 from app.models.story_version import StoryVersion  # noqa: E402
@@ -184,7 +185,19 @@ def auth_headers(test_user: User) -> dict[str, str]:
 
 
 @pytest_asyncio.fixture
-async def test_legacy(db_session: AsyncSession, test_user: User) -> Legacy:
+async def test_person(db_session: AsyncSession) -> Person:
+    """Create a test person."""
+    person = Person(canonical_name="Test Legacy")
+    db_session.add(person)
+    await db_session.commit()
+    await db_session.refresh(person)
+    return person
+
+
+@pytest_asyncio.fixture
+async def test_legacy(
+    db_session: AsyncSession, test_user: User, test_person: Person
+) -> Legacy:
     """Create a test legacy with creator membership.
 
     Note: Created as public for backwards compatibility with tests
@@ -197,6 +210,7 @@ async def test_legacy(db_session: AsyncSession, test_user: User) -> Legacy:
         biography="Test biography",
         created_by=test_user.id,
         visibility="public",
+        person_id=test_person.id,
     )
     db_session.add(legacy)
     await db_session.flush()
@@ -220,12 +234,17 @@ async def test_legacy_with_pending(
     test_user_2: User,
 ) -> Legacy:
     """Create a test legacy with a pending join request."""
+    person = Person(canonical_name="Legacy with Pending")
+    db_session.add(person)
+    await db_session.flush()
+
     legacy = Legacy(
         name="Legacy with Pending",
         birth_date=None,
         death_date=None,
         biography="Test biography",
         created_by=test_user.id,
+        person_id=person.id,
     )
     db_session.add(legacy)
     await db_session.flush()
@@ -254,10 +273,15 @@ async def test_legacy_with_pending(
 @pytest_asyncio.fixture
 async def test_legacy_2(db_session: AsyncSession, test_user: User) -> Legacy:
     """Create a second test legacy for multi-legacy scenarios."""
+    person = Person(canonical_name="Second Legacy")
+    db_session.add(person)
+    await db_session.flush()
+
     legacy = Legacy(
         name="Second Legacy",
         created_by=test_user.id,
         visibility="private",
+        person_id=person.id,
     )
     db_session.add(legacy)
     await db_session.flush()

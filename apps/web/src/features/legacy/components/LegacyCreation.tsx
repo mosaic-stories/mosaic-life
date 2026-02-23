@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookHeart, Globe, Lock, Loader2 } from 'lucide-react';
+import { ArrowLeft, BookHeart, Globe, Lock, Loader2, Users, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useCreateLegacy } from '@/features/legacy/hooks/useLegacies';
+import { usePersonMatch } from '@/features/person/hooks/usePersonMatch';
+import type { PersonMatchCandidate } from '@/features/person/api/persons';
 import type { LegacyVisibility } from '@/features/legacy/api/legacies';
 import { SEOHead } from '@/components/seo';
 import { HeaderSlot } from '@/components/header';
@@ -21,6 +23,18 @@ export default function LegacyCreation() {
   const [biography, setBiography] = useState('');
   const [visibility, setVisibility] = useState<LegacyVisibility>('private');
   const [error, setError] = useState<string | null>(null);
+  const [selectedPerson, setSelectedPerson] = useState<PersonMatchCandidate | null>(null);
+
+  const matchQuery = usePersonMatch(name, birthDate || null, deathDate || null);
+  const candidates = matchQuery.data?.candidates ?? [];
+
+  const handleSelectPerson = (candidate: PersonMatchCandidate) => {
+    if (selectedPerson?.person_id === candidate.person_id) {
+      setSelectedPerson(null);
+    } else {
+      setSelectedPerson(candidate);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +52,7 @@ export default function LegacyCreation() {
         death_date: deathDate || null,
         biography: biography.trim() || null,
         visibility,
+        person_id: selectedPerson?.person_id ?? null,
       });
 
       // Navigate to the newly created legacy
@@ -91,13 +106,78 @@ export default function LegacyCreation() {
                   id="name"
                   placeholder="Enter the person's name"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    setSelectedPerson(null);
+                  }}
                   required
                 />
                 <p className="text-xs text-neutral-500">
                   This is the name that will appear on the legacy page.
                 </p>
               </div>
+
+              {candidates.length > 0 && !selectedPerson && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-amber-800 text-sm font-medium">
+                    <Users className="size-4" />
+                    <span>Existing people with a similar name</span>
+                  </div>
+                  <p className="text-xs text-amber-700">
+                    Select a match to link this legacy to an existing person, or continue to create a new one.
+                  </p>
+                  <div className="space-y-2">
+                    {candidates.map((candidate) => (
+                      <button
+                        key={candidate.person_id}
+                        type="button"
+                        onClick={() => handleSelectPerson(candidate)}
+                        className="w-full flex items-center justify-between p-3 rounded-md border border-amber-200 bg-white hover:border-theme-primary hover:bg-theme-accent-light transition-colors text-left"
+                      >
+                        <div>
+                          <div className="text-sm font-medium text-neutral-900">
+                            {candidate.canonical_name}
+                          </div>
+                          <div className="text-xs text-neutral-500 flex items-center gap-2">
+                            {candidate.birth_year_range && (
+                              <span>Born {candidate.birth_year_range}</span>
+                            )}
+                            {candidate.death_year_range && (
+                              <span>Died {candidate.death_year_range}</span>
+                            )}
+                            {candidate.legacy_count > 0 && (
+                              <span>
+                                {candidate.legacy_count} {candidate.legacy_count === 1 ? 'legacy' : 'legacies'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-xs text-neutral-400">
+                          {Math.round(candidate.confidence * 100)}% match
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {selectedPerson && (
+                <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-green-800 text-sm font-medium">
+                      <Check className="size-4" />
+                      <span>Linked to {selectedPerson.canonical_name}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedPerson(null)}
+                      className="text-xs text-green-700 hover:text-green-900 underline"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">

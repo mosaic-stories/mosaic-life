@@ -7,15 +7,16 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from opentelemetry import trace
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, func, or_, select, text
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.knowledge import StoryChunk
-from ..observability.metrics import AI_RETRIEVAL_DURATION
 from ..models.legacy import LegacyMember
+from ..models.legacy_link import LegacyLink, LegacyLinkShare
+from ..observability.metrics import AI_RETRIEVAL_DURATION
 from ..providers.registry import get_provider_registry
-from ..schemas.retrieval import ChunkResult, VisibilityFilter
+from ..schemas.retrieval import ChunkResult, LinkedLegacyFilter, VisibilityFilter
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.retrieval")
@@ -197,6 +198,88 @@ async def count_chunks_for_story(db: AsyncSession, story_id: UUID) -> int:
     return result.scalar() or 0
 
 
+async def get_linked_legacy_filters(
+    db: AsyncSession,
+    legacy_id: UUID,
+) -> list[LinkedLegacyFilter]:
+    """Return filters describing which chunks from linked legacies to include.
+
+    For each active link involving ``legacy_id`` this function determines:
+
+    - ``all`` share mode   → include all public/private chunks from that legacy.
+    - ``selective`` mode   → include only the specifically shared story IDs.
+
+    The function is intentionally free of vector/pgvector logic so it can be
+    tested against the in-memory SQLite engine used in the test suite.
+
+    Args:
+        db: Database session.
+        legacy_id: The primary legacy whose links should be resolved.
+
+    Returns:
+        List of :class:`LinkedLegacyFilter` objects, one per active linked legacy.
+    """
+    # Find active links where this legacy is either the requester or target
+    result = await db.execute(
+        select(LegacyLink).where(
+            LegacyLink.status == "active",
+            or_(
+                LegacyLink.requester_legacy_id == legacy_id,
+                LegacyLink.target_legacy_id == legacy_id,
+            ),
+        )
+    )
+    links = result.scalars().all()
+
+    if not links:
+        return []
+
+    filters: list[LinkedLegacyFilter] = []
+
+    for link in links:
+        # Determine which side is "ours" and which is the linked legacy
+        if link.requester_legacy_id == legacy_id:
+            linked_legacy_id = link.target_legacy_id
+            # The target's share mode governs what the target shares with us
+            share_mode = link.target_share_mode
+        else:
+            linked_legacy_id = link.requester_legacy_id
+            # The requester's share mode governs what the requester shares with us
+            share_mode = link.requester_share_mode
+
+        if share_mode == "all":
+            filters.append(
+                LinkedLegacyFilter(
+                    legacy_id=linked_legacy_id,
+                    share_mode="all",
+                    story_ids=[],
+                )
+            )
+        else:
+            # selective: collect the story IDs explicitly shared by the linked legacy
+            shares_result = await db.execute(
+                select(LegacyLinkShare).where(
+                    LegacyLinkShare.legacy_link_id == link.id,
+                    LegacyLinkShare.source_legacy_id == linked_legacy_id,
+                    LegacyLinkShare.resource_type == "story",
+                )
+            )
+            shares = shares_result.scalars().all()
+            story_ids = [share.resource_id for share in shares]
+
+            # Only add a filter entry if there are shared stories to include
+            if story_ids:
+                filters.append(
+                    LinkedLegacyFilter(
+                        legacy_id=linked_legacy_id,
+                        share_mode="selective",
+                        story_ids=story_ids,
+                    )
+                )
+
+    return filters
+
+
 async def retrieve_context(
     db: AsyncSession,
     query: str,
@@ -269,7 +352,7 @@ async def retrieve_context(
         """)
 
         # Build parameter dict with visibility values
-        params = {
+        params: dict[str, Any] = {
             "query_embedding": embedding_str,
             "legacy_id": str(legacy_id),
             "author_id": str(visibility_filter.personal_author_id),
@@ -279,10 +362,9 @@ async def retrieve_context(
             params[f"vis_{i}"] = vis
 
         result = await db.execute(query_sql, params)
-
         rows = result.fetchall()
 
-        chunks = [
+        primary_chunks = [
             ChunkResult(
                 chunk_id=row.id,
                 story_id=row.story_id,
@@ -291,6 +373,78 @@ async def retrieve_context(
             )
             for row in rows
         ]
+
+        # 4. Retrieve chunks from linked legacies
+        linked_filters = await get_linked_legacy_filters(db, legacy_id)
+        span.set_attribute("linked_legacy_count", len(linked_filters))
+
+        linked_chunks: list[ChunkResult] = []
+        for lf in linked_filters:
+            if lf.share_mode == "all":
+                # Include all public/private chunks from the linked legacy
+                linked_sql = text("""
+                    SELECT
+                        id,
+                        story_id,
+                        content,
+                        1 - (embedding <=> (:query_embedding)::vector) AS similarity
+                    FROM story_chunks
+                    WHERE
+                        legacy_id = :linked_legacy_id
+                        AND visibility IN ('public', 'private')
+                    ORDER BY embedding <=> (:query_embedding)::vector
+                    LIMIT :top_k
+                """)
+                linked_result = await db.execute(
+                    linked_sql,
+                    {
+                        "query_embedding": embedding_str,
+                        "linked_legacy_id": str(lf.legacy_id),
+                        "top_k": top_k,
+                    },
+                )
+            else:
+                # selective: only include explicitly shared stories
+                story_id_strs = [str(sid) for sid in lf.story_ids]
+                story_id_list = ", ".join(f"'{sid}'" for sid in story_id_strs)
+                linked_sql = text(f"""
+                    SELECT
+                        id,
+                        story_id,
+                        content,
+                        1 - (embedding <=> (:query_embedding)::vector) AS similarity
+                    FROM story_chunks
+                    WHERE
+                        legacy_id = :linked_legacy_id
+                        AND story_id IN ({story_id_list})
+                        AND visibility IN ('public', 'private')
+                    ORDER BY embedding <=> (:query_embedding)::vector
+                    LIMIT :top_k
+                """)
+                linked_result = await db.execute(
+                    linked_sql,
+                    {
+                        "query_embedding": embedding_str,
+                        "linked_legacy_id": str(lf.legacy_id),
+                        "top_k": top_k,
+                    },
+                )
+
+            linked_rows = linked_result.fetchall()
+            linked_chunks.extend(
+                ChunkResult(
+                    chunk_id=row.id,
+                    story_id=row.story_id,
+                    content=row.content,
+                    similarity=float(row.similarity),
+                )
+                for row in linked_rows
+            )
+
+        # 5. Merge primary + linked results, re-rank by similarity, return top-k
+        all_chunks = primary_chunks + linked_chunks
+        all_chunks.sort(key=lambda c: c.similarity, reverse=True)
+        chunks = all_chunks[:top_k]
 
         span.set_attribute("results_count", len(chunks))
 
@@ -301,6 +455,7 @@ async def retrieve_context(
                 "user_id": str(user_id),
                 "query_length": len(query),
                 "results_count": len(chunks),
+                "linked_legacy_count": len(linked_filters),
             },
         )
 

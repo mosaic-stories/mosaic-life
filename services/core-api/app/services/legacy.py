@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from ..adapters.storage import get_storage_adapter
 from ..models.legacy import Legacy, LegacyMember
+from ..models.person import Person
 from ..models.user import User
 from ..schemas.legacy import (
     LegacyCreate,
@@ -172,6 +173,25 @@ async def create_legacy(
     Returns:
         Created legacy with creator role
     """
+    # Resolve or create Person
+    if data.person_id:
+        person_result = await db.execute(
+            select(Person).where(Person.id == data.person_id)
+        )
+        person = person_result.scalar_one_or_none()
+        if not person:
+            raise HTTPException(status_code=404, detail="Person not found")
+        person_id = person.id
+    else:
+        person = Person(
+            canonical_name=data.name,
+            birth_date=data.birth_date,
+            death_date=data.death_date,
+        )
+        db.add(person)
+        await db.flush()
+        person_id = person.id
+
     # Create legacy
     legacy = Legacy(
         name=data.name,
@@ -180,6 +200,7 @@ async def create_legacy(
         biography=data.biography,
         visibility=data.visibility,
         created_by=user_id,
+        person_id=person_id,
     )
     db.add(legacy)
     await db.flush()  # Get the legacy ID
@@ -220,6 +241,7 @@ async def create_legacy(
         updated_at=legacy.updated_at,
         creator_email=creator.email,
         creator_name=creator.name,
+        person_id=legacy.person_id,
     )
 
 
@@ -272,6 +294,7 @@ async def list_user_legacies(
             updated_at=legacy.updated_at,
             creator_email=legacy.creator.email,
             creator_name=legacy.creator.name,
+            person_id=legacy.person_id,
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
         )
@@ -445,6 +468,7 @@ async def explore_legacies(
             ]
             if legacy.members
             else [],
+            person_id=legacy.person_id,
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
         )
@@ -527,6 +551,7 @@ async def get_legacy_public(
         creator_email=legacy.creator.email if legacy.creator else None,
         creator_name=legacy.creator.name if legacy.creator else None,
         members=members,
+        person_id=legacy.person_id,
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
     )
@@ -613,6 +638,7 @@ async def get_legacy_detail(
         creator_email=legacy.creator.email,
         creator_name=legacy.creator.name,
         members=members,
+        person_id=legacy.person_id,
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
     )
@@ -827,6 +853,7 @@ async def update_legacy(
         updated_at=legacy.updated_at,
         creator_email=legacy.creator.email,
         creator_name=legacy.creator.name,
+        person_id=legacy.person_id,
     )
 
 

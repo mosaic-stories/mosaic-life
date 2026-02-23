@@ -28,7 +28,9 @@ from .routes.user import router as user_router
 from .routes.settings import router as settings_router
 from .routes.support import router as support_router
 from .routes.seo import router as seo_router
+from .routes.person import router as person_router
 from .routes.story_evolution import router as story_evolution_router
+from .routes.legacy_link import router as legacy_link_router
 
 logger = logging.getLogger(__name__)
 
@@ -116,5 +118,7 @@ app.include_router(notification_router)
 app.include_router(user_router)
 app.include_router(settings_router)
 app.include_router(support_router)
+app.include_router(person_router)
 app.include_router(seo_router)
 app.include_router(story_evolution_router)
+app.include_router(legacy_link_router)

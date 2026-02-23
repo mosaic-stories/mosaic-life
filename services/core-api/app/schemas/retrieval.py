@@ -22,3 +22,15 @@ class VisibilityFilter(BaseModel):
 
     allowed_visibilities: list[str]
     personal_author_id: UUID  # For filtering personal stories to author only
+
+
+class LinkedLegacyFilter(BaseModel):
+    """Filter describing which chunks from a linked legacy to include.
+
+    - share_mode ``all``: include all public/private chunks from the legacy.
+    - share_mode ``selective``: include only the specifically shared story IDs.
+    """
+
+    legacy_id: UUID
+    share_mode: str  # "all" | "selective"
+    story_ids: list[UUID]  # Populated for "selective" mode; ignored for "all"

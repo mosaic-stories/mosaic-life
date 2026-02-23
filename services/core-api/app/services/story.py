@@ -265,6 +265,98 @@ async def create_story(
     )
 
 
+async def get_shared_story_ids(
+    db: AsyncSession, legacy_id: UUID
+) -> tuple[set[UUID], dict[UUID, str]]:
+    """Get story IDs shared to this legacy via active links.
+
+    For each active link involving this legacy, determine which stories the
+    *other* legacy is sharing. The share mode (``requester_share_mode`` /
+    ``target_share_mode``) on the *other* side controls how many stories are
+    included:
+
+    - ``"all"``        – every story belonging to the other legacy
+    - ``"selective"``  – only stories explicitly listed in LegacyLinkShare
+
+    Args:
+        db: Database session
+        legacy_id: The legacy whose story feed we are enriching
+
+    Returns:
+        Tuple of:
+          - ``story_ids`` – set of UUIDs for stories shared into this legacy
+          - ``source_map`` – mapping of story_id → human-readable source name
+    """
+    from ..models.associations import StoryLegacy as _StoryLegacy
+    from ..models.legacy_link import LegacyLink, LegacyLinkShare
+
+    # 1. Find all active links where this legacy participates
+    links_result = await db.execute(
+        select(LegacyLink).where(
+            LegacyLink.status == "active",
+            or_(
+                LegacyLink.requester_legacy_id == legacy_id,
+                LegacyLink.target_legacy_id == legacy_id,
+            ),
+        )
+    )
+    links = links_result.scalars().all()
+
+    if not links:
+        return set(), {}
+
+    story_ids: set[UUID] = set()
+    source_map: dict[UUID, str] = {}
+
+    for link in links:
+        # Determine which side "we" are and which side is the "other"
+        if link.requester_legacy_id == legacy_id:
+            other_legacy_id = link.target_legacy_id
+            other_share_mode = link.target_share_mode
+        else:
+            other_legacy_id = link.requester_legacy_id
+            other_share_mode = link.requester_share_mode
+
+        # Fetch the other legacy to resolve its name and visibility
+        other_legacy_result = await db.execute(
+            select(Legacy).where(Legacy.id == other_legacy_id)
+        )
+        other_legacy = other_legacy_result.scalar_one_or_none()
+        if other_legacy is None:
+            continue
+
+        source_name = (
+            other_legacy.name
+            if other_legacy.visibility == "public"
+            else "another legacy"
+        )
+
+        if other_share_mode == "all":
+            # Collect all story IDs belonging to the other legacy
+            sl_result = await db.execute(
+                select(_StoryLegacy.story_id).where(
+                    _StoryLegacy.legacy_id == other_legacy_id
+                )
+            )
+            for (sid,) in sl_result.all():
+                story_ids.add(sid)
+                source_map[sid] = source_name
+        else:
+            # "selective" – only explicitly shared stories
+            shares_result = await db.execute(
+                select(LegacyLinkShare).where(
+                    LegacyLinkShare.legacy_link_id == link.id,
+                    LegacyLinkShare.source_legacy_id == other_legacy_id,
+                    LegacyLinkShare.resource_type == "story",
+                )
+            )
+            for share in shares_result.scalars().all():
+                story_ids.add(share.resource_id)
+                source_map[share.resource_id] = source_name
+
+    return story_ids, source_map
+
+
 async def list_legacy_stories(
     db: AsyncSession,
     user_id: UUID,
@@ -336,6 +428,9 @@ async def list_legacy_stories(
     story_result = await db.execute(query)
     stories = story_result.scalars().unique().all()
 
+    # Collect IDs of stories already in the main result set
+    own_story_ids: set[UUID] = {s.id for s in stories}
+
     # Get all unique legacy IDs from all stories
     all_legacy_ids: set[UUID] = set()
     for story in stories:
@@ -343,17 +438,8 @@ async def list_legacy_stories(
 
     legacy_names = await _get_legacy_names(db, list(all_legacy_ids))
 
-    logger.info(
-        "story.list",
-        extra={
-            "legacy_id": str(legacy_id) if legacy_id else None,
-            "user_id": str(user_id),
-            "orphaned": orphaned,
-            "count": len(stories),
-        },
-    )
-
-    return [
+    # Build the base list of summaries from the legacy's own stories
+    summaries: list[StorySummary] = [
         StorySummary(
             id=story.id,
             title=story.title,
@@ -375,6 +461,78 @@ async def list_legacy_stories(
         )
         for story in stories
     ]
+
+    # Append shared stories from linked legacies (only when listing by legacy_id)
+    if legacy_id and not orphaned:
+        shared_ids, source_map = await get_shared_story_ids(db, legacy_id)
+
+        # Exclude stories already present in the main result and non-public stories
+        new_shared_ids = shared_ids - own_story_ids
+        if new_shared_ids:
+            shared_result = await db.execute(
+                select(Story)
+                .options(
+                    selectinload(Story.author),
+                    selectinload(Story.legacy_associations),
+                )
+                .where(
+                    Story.id.in_(new_shared_ids),
+                    Story.visibility == "public",
+                )
+                .order_by(Story.created_at.desc())
+            )
+            shared_stories = shared_result.scalars().unique().all()
+
+            # Resolve legacy names for the shared stories
+            shared_legacy_ids: set[UUID] = set()
+            for story in shared_stories:
+                shared_legacy_ids.update(
+                    assoc.legacy_id for assoc in story.legacy_associations
+                )
+            shared_legacy_names = await _get_legacy_names(
+                db, list(shared_legacy_ids - set(legacy_names.keys()))
+            )
+            all_legacy_names = {**legacy_names, **shared_legacy_names}
+
+            for story in shared_stories:
+                summaries.append(
+                    StorySummary(
+                        id=story.id,
+                        title=story.title,
+                        content_preview=create_content_preview(story.content),
+                        author_id=story.author_id,
+                        author_name=story.author.name,
+                        visibility=story.visibility,
+                        legacies=[
+                            LegacyAssociationResponse(
+                                legacy_id=assoc.legacy_id,
+                                legacy_name=all_legacy_names.get(
+                                    assoc.legacy_id, "Unknown"
+                                ),
+                                role=assoc.role,
+                                position=assoc.position,
+                            )
+                            for assoc in sorted(
+                                story.legacy_associations, key=lambda a: a.position
+                            )
+                        ],
+                        shared_from=source_map.get(story.id),
+                        created_at=story.created_at,
+                        updated_at=story.updated_at,
+                    )
+                )
+
+    logger.info(
+        "story.list",
+        extra={
+            "legacy_id": str(legacy_id) if legacy_id else None,
+            "user_id": str(user_id),
+            "orphaned": orphaned,
+            "count": len(summaries),
+        },
+    )
+
+    return summaries
 
 
 async def list_public_stories(

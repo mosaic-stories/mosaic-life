@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime
+from html import escape as html_escape
 from typing import Any
 
 import boto3  # type: ignore[import-untyped]
@@ -94,6 +95,11 @@ def _build_invitation_email(
     Returns:
         Tuple of (subject, html_body, text_body)
     """
+    # Escape user-controlled values for safe HTML interpolation
+    safe_inviter = html_escape(inviter_name)
+    safe_legacy = html_escape(legacy_name)
+    safe_url = html_escape(invite_url)
+
     subject = f"You're invited to join {legacy_name} on Mosaic Life"
 
     role_description = {
@@ -134,13 +140,13 @@ Mosaic Life
     <div class="container">
         <p>Hi,</p>
 
-        <p><strong>{inviter_name}</strong> has invited you to join "<strong>{legacy_name}</strong>" as {role_description} on Mosaic Life.</p>
+        <p><strong>{safe_inviter}</strong> has invited you to join "<strong>{safe_legacy}</strong>" as {role_description} on Mosaic Life.</p>
 
         <p>Mosaic Life is a platform for creating and preserving memorial stories and memories of loved ones.</p>
 
-        <p><a href="{invite_url}" class="button">View Invitation</a></p>
+        <p><a href="{safe_url}" class="button">View Invitation</a></p>
 
-        <p>Or copy and paste this link: {invite_url}</p>
+        <p>Or copy and paste this link: {safe_url}</p>
 
         <p>This invitation expires in 7 days.</p>
 

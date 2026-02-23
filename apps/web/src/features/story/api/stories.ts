@@ -22,6 +22,7 @@ export interface StorySummary {
   author_id: string;
   author_name: string;
   visibility: 'public' | 'private' | 'personal';
+  shared_from: string | null;
   created_at: string;
   updated_at: string;
 }

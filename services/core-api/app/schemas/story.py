@@ -81,6 +81,10 @@ class StorySummary(BaseModel):
     author_name: str
     visibility: str
     legacies: list[LegacyAssociationResponse]
+    shared_from: str | None = Field(
+        default=None,
+        description="Name of the linked legacy this story was shared from, if applicable",
+    )
     created_at: datetime
     updated_at: datetime
 
