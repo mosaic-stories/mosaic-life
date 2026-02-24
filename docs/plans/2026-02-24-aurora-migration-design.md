@@ -13,7 +13,7 @@
 
 ## Approach: Snapshot-Based Migration
 
-Create an Aurora PostgreSQL cluster from an RDS snapshot, swap the Helm `dbEndpoint` value, validate, then decommission RDS.
+Create an Aurora PostgreSQL cluster from an RDS snapshot. The cutover happens by updating the `host` field in AWS Secrets Manager (which External Secrets reads to construct DB_URL). Validate, then decommission RDS.
 
 ### Why not fresh Aurora + Alembic?
 
@@ -43,13 +43,21 @@ Coexists alongside `database-stack.ts` during migration. Key configuration:
 
 **Unchanged: `database-stack.ts`** — remains fully intact during migration. Both stacks coexist.
 
+### Cutover Mechanism — Secrets Manager Update
+
+**Important discovery:** The production Helm chart (`infra/helm/mosaic-life/templates/external-secrets.yaml:27`) constructs DB_URL by reading `host`, `port`, `username`, `password`, and `dbname` directly from the Secrets Manager secret — there is no `dbEndpoint` Helm value override in the mosaic-life chart.
+
+RDS automatically populates these fields in the secret when `credentials: rds.Credentials.fromSecret()` is used. The cutover is:
+
+1. Update the `host` field in the Secrets Manager secret (`mosaic/prod/rds/credentials`) to the Aurora writer endpoint
+2. Trigger an External Secrets refresh (or wait for the 1h interval)
+3. Restart pods to pick up the new DB_URL
+
+Alternatively, for Aurora's CDK construct, if we pass the same secret via `credentials: rds.Credentials.fromSecret()`, Aurora will automatically update the `host` field to its own writer endpoint. This is the cleanest approach — CDK deploy handles the secret update.
+
 ### Helm Changes
 
-Single value update in `infra/helm/mosaic-life/values.yaml`:
-
-- Change `dbEndpoint` from the RDS endpoint to the Aurora cluster writer endpoint
-- No changes to External Secrets template, IRSA annotations, or deployment template
-- The DB_URL format (`postgresql+psycopg://user:pass@endpoint:5432/mosaic?sslmode=require`) remains identical
+None required for the cutover itself. The External Secrets template reads from the same secret path and the DB_URL format remains identical: `postgresql+psycopg://user:pass@endpoint:5432/mosaic?sslmode=require`
 
 ### Application Changes
 
@@ -79,8 +87,8 @@ During migration (both running): ~$68-84/month. After decommission: ~$53-65/mont
 1. Scale down application: `kubectl scale deployment core-api --replicas=0 -n mosaic-prod`
 2. Take a final RDS snapshot to capture any last writes
 3. If delta matters, restore Aurora from this final snapshot; otherwise accept Phase 1 snapshot (traffic is negligible)
-4. Update Helm values: change `dbEndpoint` to Aurora cluster writer endpoint
-5. Deploy Helm chart — migration job runs `alembic upgrade head` (no-op since schema came from snapshot), then app pods start with new endpoint
+4. Update `host` field in Secrets Manager secret to Aurora writer endpoint (either manually via AWS CLI or by having Aurora CDK share the same secret)
+5. Trigger External Secrets refresh and restart pods — migration job runs `alembic upgrade head` (no-op since schema came from snapshot), then app pods start with new endpoint
 6. Verify application works: health checks, key user flows, log monitoring
 
 ### Phase 3 — Validation (several days)
@@ -88,7 +96,7 @@ During migration (both running): ~$68-84/month. After decommission: ~$53-65/mont
 - Run application against Aurora
 - Monitor logs, error rates, query performance
 - Old RDS instance remains running but idle (~$15/month)
-- **Rollback plan:** Revert `dbEndpoint` in Helm values to the RDS endpoint and redeploy
+- **Rollback plan:** Update `host` field in Secrets Manager back to the RDS endpoint, refresh External Secrets, and restart pods
 
 ### Phase 4 — Decommission
 
