@@ -1292,7 +1292,9 @@ git commit -m "feat: add circuit breaker for graph operations"
 
 ---
 
-## Phase 2: Entity Extraction Pipeline
+## Phase 2: Entity Extraction Pipeline  -- COMPLETED
+
+> **Status:** All 3 tasks complete. Tests passing. `just validate-backend` passes (ruff + mypy).
 
 ### Task 9: EntityExtractionService
 
