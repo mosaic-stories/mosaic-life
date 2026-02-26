@@ -1,0 +1,32 @@
+{{- if .Values.entityBackfill.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: entity-backfill-{{ .Release.Revision }}
+  labels:
+    app.kubernetes.io/name: entity-backfill
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-weight: "10"
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      serviceAccountName: {{ .Values.coreApi.serviceAccountName | default "default" }}
+      containers:
+        - name: backfill
+          image: "{{ .Values.coreApi.image.repository }}:{{ .Values.coreApi.image.tag }}"
+          command: ["uv", "run", "python", "scripts/backfill_entities.py"]
+          envFrom:
+            - secretRef:
+                name: core-api-secrets
+            - secretRef:
+                name: neptune-connection
+                optional: true
+          env:
+            - name: GRAPH_AUGMENTATION_ENABLED
+              value: "true"
+      restartPolicy: Never
+{{- end }}
