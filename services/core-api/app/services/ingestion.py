@@ -197,59 +197,68 @@ async def _sync_entities_to_graph(
     entities: ExtractedEntities,
 ) -> None:
     """Sync extracted entities to the graph database."""
-    sid = str(story_id)
+    with tracer.start_as_current_span("entity_extraction.sync_graph") as span:
+        span.set_attribute("story_id", str(story_id))
+        sid = str(story_id)
 
-    for place in entities.places:
-        place_id = f"place-{place.name.lower().replace(' ', '-')}-{legacy_id}"
-        await graph_adapter.upsert_node(
-            "Place",
-            place_id,
-            {"name": place.name, "type": place.type, "location": place.location},
-        )
-        await graph_adapter.create_relationship(
-            "Story",
-            sid,
-            "TOOK_PLACE_AT",
-            "Place",
-            place_id,
-        )
+        for place in entities.places:
+            place_id = f"place-{place.name.lower().replace(' ', '-')}-{legacy_id}"
+            await graph_adapter.upsert_node(
+                "Place",
+                place_id,
+                {"name": place.name, "type": place.type, "location": place.location},
+            )
+            await graph_adapter.create_relationship(
+                "Story",
+                sid,
+                "TOOK_PLACE_AT",
+                "Place",
+                place_id,
+            )
 
-    for event in entities.events:
-        event_id = f"event-{event.name.lower().replace(' ', '-')}-{legacy_id}"
-        await graph_adapter.upsert_node(
-            "Event",
-            event_id,
-            {"name": event.name, "type": event.type, "date": event.date},
-        )
-        await graph_adapter.create_relationship(
-            "Story",
-            sid,
-            "REFERENCES",
-            "Event",
-            event_id,
-        )
+        for event in entities.events:
+            event_id = f"event-{event.name.lower().replace(' ', '-')}-{legacy_id}"
+            await graph_adapter.upsert_node(
+                "Event",
+                event_id,
+                {"name": event.name, "type": event.type, "date": event.date},
+            )
+            await graph_adapter.create_relationship(
+                "Story",
+                sid,
+                "REFERENCES",
+                "Event",
+                event_id,
+            )
 
-    for obj in entities.objects:
-        obj_id = f"object-{obj.name.lower().replace(' ', '-')}-{legacy_id}"
-        await graph_adapter.upsert_node(
-            "Object",
-            obj_id,
-            {"name": obj.name, "type": obj.type, "description": obj.context},
-        )
-        await graph_adapter.create_relationship(
-            "Story",
-            sid,
-            "REFERENCES",
-            "Object",
-            obj_id,
-        )
+        for obj in entities.objects:
+            obj_id = f"object-{obj.name.lower().replace(' ', '-')}-{legacy_id}"
+            await graph_adapter.upsert_node(
+                "Object",
+                obj_id,
+                {"name": obj.name, "type": obj.type, "description": obj.context},
+            )
+            await graph_adapter.create_relationship(
+                "Story",
+                sid,
+                "REFERENCES",
+                "Object",
+                obj_id,
+            )
 
-    logger.info(
-        "ingestion.entities_synced",
-        extra={
-            "story_id": str(story_id),
-            "places": len(entities.places),
-            "events": len(entities.events),
-            "objects": len(entities.objects),
-        },
-    )
+        nodes_upserted = (
+            len(entities.places) + len(entities.events) + len(entities.objects)
+        )
+        edges_created = nodes_upserted  # one edge per node
+        span.set_attribute("nodes_upserted", nodes_upserted)
+        span.set_attribute("edges_created", edges_created)
+
+        logger.info(
+            "ingestion.entities_synced",
+            extra={
+                "story_id": str(story_id),
+                "places": len(entities.places),
+                "events": len(entities.events),
+                "objects": len(entities.objects),
+            },
+        )

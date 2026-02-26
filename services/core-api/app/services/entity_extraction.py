@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
 
+from ..observability.metrics import ENTITY_EXTRACTION_ENTITIES
+
 if TYPE_CHECKING:
     from ..adapters.ai import LLMProvider
 
@@ -143,6 +145,13 @@ class EntityExtractionService:
                     + len(result.places)
                     + len(result.events)
                     + len(result.objects),
+                )
+
+                ENTITY_EXTRACTION_ENTITIES.labels(type="person").inc(len(result.people))
+                ENTITY_EXTRACTION_ENTITIES.labels(type="place").inc(len(result.places))
+                ENTITY_EXTRACTION_ENTITIES.labels(type="event").inc(len(result.events))
+                ENTITY_EXTRACTION_ENTITIES.labels(type="object").inc(
+                    len(result.objects)
                 )
 
                 logger.info(

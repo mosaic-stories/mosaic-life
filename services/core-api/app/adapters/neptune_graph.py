@@ -5,11 +5,17 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from opentelemetry import trace
+
+import time
+
 import httpx
 
+from ..observability.metrics import NEPTUNE_QUERY_LATENCY
 from .graph_adapter import GraphAdapter, _prefix_label
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("core-api.graph_adapter")
 
 
 class NeptuneGraphAdapter(GraphAdapter):
@@ -43,28 +49,37 @@ class NeptuneGraphAdapter(GraphAdapter):
         self, cypher: str, params: dict[str, Any] | None = None
     ) -> list[dict[str, Any]]:
         """Execute an openCypher query against Neptune's HTTPS endpoint."""
-        headers: dict[str, str] = {"Content-Type": "application/x-www-form-urlencoded"}
+        with tracer.start_as_current_span("graph_adapter.query") as span:
+            span.set_attribute("query_type", "cypher")
+            started = time.perf_counter()
+            headers: dict[str, str] = {
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
 
-        if self.iam_auth:
-            # SigV4 signing for IAM auth
-            headers = await self._sign_request(headers)
+            if self.iam_auth:
+                # SigV4 signing for IAM auth
+                headers = await self._sign_request(headers)
 
-        body = f"query={cypher}"
-        if params:
-            import json
+            body = f"query={cypher}"
+            if params:
+                import json
 
-            body += f"&parameters={json.dumps(params)}"
+                body += f"&parameters={json.dumps(params)}"
 
-        async with httpx.AsyncClient(timeout=10.0, verify=True) as client:
-            response = await client.post(
-                f"{self._base_url}/openCypher",
-                content=body,
-                headers=headers,
-            )
-            response.raise_for_status()
-            data: dict[str, Any] = response.json()
-            results: list[dict[str, Any]] = data.get("results", [])
-            return results
+            async with httpx.AsyncClient(timeout=10.0, verify=True) as client:
+                response = await client.post(
+                    f"{self._base_url}/openCypher",
+                    content=body,
+                    headers=headers,
+                )
+                response.raise_for_status()
+                data: dict[str, Any] = response.json()
+                results: list[dict[str, Any]] = data.get("results", [])
+                span.set_attribute("result_count", len(results))
+                NEPTUNE_QUERY_LATENCY.labels(query_type="cypher").observe(
+                    time.perf_counter() - started
+                )
+                return results
 
     async def _sign_request(self, headers: dict[str, str]) -> dict[str, str]:
         """Sign request with SigV4 for IAM authentication."""

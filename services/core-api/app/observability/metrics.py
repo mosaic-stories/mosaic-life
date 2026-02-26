@@ -1,6 +1,6 @@
 """Prometheus metric definitions for AI observability."""
 
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Gauge, Histogram
 
 # --- Bucket configurations ---
 
@@ -45,4 +45,40 @@ AI_EMBEDDING_DURATION = Histogram(
     "Embedding generation latency in seconds",
     ["provider", "model"],
     buckets=EMBEDDING_LATENCY_BUCKETS,
+)
+
+# --- Graph context metrics ---
+
+GRAPH_LATENCY_BUCKETS = (0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5)
+
+GRAPH_CONTEXT_LATENCY = Histogram(
+    "core_api_graph_context_latency_seconds",
+    "Graph context assembly latency in seconds",
+    ["phase"],
+    buckets=GRAPH_LATENCY_BUCKETS,
+)
+
+GRAPH_CONTEXT_RESULTS = Counter(
+    "core_api_graph_context_results_total",
+    "Graph context results by source",
+    ["source"],
+)
+
+GRAPH_CONTEXT_CIRCUIT_STATE = Gauge(
+    "core_api_graph_context_circuit_state",
+    "Graph context circuit breaker state (0=closed, 1=open, 2=half_open)",
+    ["state"],
+)
+
+ENTITY_EXTRACTION_ENTITIES = Counter(
+    "core_api_entity_extraction_entities_total",
+    "Entities extracted by type",
+    ["type"],
+)
+
+NEPTUNE_QUERY_LATENCY = Histogram(
+    "core_api_neptune_query_latency_seconds",
+    "Neptune graph query latency in seconds",
+    ["query_type"],
+    buckets=GRAPH_LATENCY_BUCKETS,
 )

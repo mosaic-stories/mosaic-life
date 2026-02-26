@@ -66,6 +66,7 @@ class PreparedStoryTurn:
     chunks_count: int
     guardrail_id: str | None
     guardrail_version: str | None
+    graph_context_metadata: object | None = None
 
 
 class PostgresVectorStoreAdapter:
@@ -194,6 +195,7 @@ class DefaultStorytellingAgent:
 
             chunks: list[ChunkResult] = []
             story_context = ""
+            graph_metadata: object | None = None
 
             if self.graph_context_service:
                 # Graph-augmented path: delegate to GraphContextService
@@ -212,6 +214,7 @@ class DefaultStorytellingAgent:
                     )
                     story_context = assembled.formatted_context
                     chunks = assembled.embedding_results
+                    graph_metadata = assembled.metadata
                     span.set_attribute("context_source", "graph_augmented")
                 except Exception as exc:
                     logger.warning(
@@ -315,6 +318,7 @@ class DefaultStorytellingAgent:
                 chunks_count=len(chunks),
                 guardrail_id=guardrail_id,
                 guardrail_version=guardrail_version,
+                graph_context_metadata=graph_metadata,
             )
 
     async def stream_response(

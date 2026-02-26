@@ -2422,7 +2422,9 @@ See design doc Section 9.3 for details.
 
 ---
 
-## Phase 7: Observability + Debug
+## Phase 7: Observability + Debug  -- COMPLETED
+
+> **Status:** All 4 tasks complete. 770 tests passing (770 passed, 2 skipped, 1 warning). `just validate-backend` passes (ruff + mypy).
 
 ### Task 21: Add OTel Spans and Structured Logging
 

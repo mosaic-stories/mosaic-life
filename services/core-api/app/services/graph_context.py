@@ -15,6 +15,10 @@ from uuid import UUID
 
 from opentelemetry import trace
 
+from ..observability.metrics import (
+    GRAPH_CONTEXT_LATENCY,
+    GRAPH_CONTEXT_RESULTS,
+)
 from ..schemas.retrieval import ChunkResult
 from ..services.retrieval import retrieve_context
 from .circuit_breaker import CircuitBreaker
@@ -271,6 +275,16 @@ class GraphContextService:
                 ),
                 sources=sources,
             )
+
+            # Record Prometheus metrics
+            GRAPH_CONTEXT_LATENCY.labels(phase="total").observe(total_latency / 1000)
+            GRAPH_CONTEXT_LATENCY.labels(phase="graph").observe(graph_latency / 1000)
+            for source in sources:
+                GRAPH_CONTEXT_RESULTS.labels(source=source).inc(
+                    metadata.embedding_count
+                    if source == "embedding"
+                    else metadata.graph_count
+                )
 
             logger.info(
                 "graph_context.assembled",

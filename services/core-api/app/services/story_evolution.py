@@ -6,6 +6,8 @@ import logging
 import uuid
 from typing import TYPE_CHECKING
 
+from opentelemetry import trace
+
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +25,7 @@ if TYPE_CHECKING:
     from app.services.graph_context import GraphContextService
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("core-api.story_evolution")
 
 
 async def _require_story_author(
@@ -68,85 +71,93 @@ async def start_session(
     persona_id: str,
 ) -> StoryEvolutionSession:
     """Start a new evolution session for a story."""
-    story = await _require_story_author(db, story_id, user_id)
+    with tracer.start_as_current_span("story_evolution.start_session") as span:
+        span.set_attribute("story_id", str(story_id))
+        span.set_attribute("user_id", str(user_id))
+        span.set_attribute("persona_id", persona_id)
+        story = await _require_story_author(db, story_id, user_id)
 
-    # Check for existing non-terminal session
-    existing = await db.execute(
-        select(StoryEvolutionSession).where(
-            StoryEvolutionSession.story_id == story_id,
-            StoryEvolutionSession.phase.notin_(StoryEvolutionSession.TERMINAL_PHASES),
-        )
-    )
-    if existing.scalar_one_or_none():
-        raise HTTPException(
-            status_code=409,
-            detail="An active evolution session already exists for this story",
-        )
-
-    # Get primary legacy for conversation
-    legacy_result = await db.execute(
-        select(StoryLegacy).where(
-            StoryLegacy.story_id == story_id,
-            StoryLegacy.role == "primary",
-        )
-    )
-    primary_legacy = legacy_result.scalar_one_or_none()
-    if not primary_legacy:
-        raise HTTPException(status_code=422, detail="Story must have a primary legacy")
-
-    # Determine base version number
-    base_version_number = 1
-    if story.active_version_id:
-        version_result = await db.execute(
-            select(StoryVersion.version_number).where(
-                StoryVersion.id == story.active_version_id
+        # Check for existing non-terminal session
+        existing = await db.execute(
+            select(StoryEvolutionSession).where(
+                StoryEvolutionSession.story_id == story_id,
+                StoryEvolutionSession.phase.notin_(
+                    StoryEvolutionSession.TERMINAL_PHASES
+                ),
             )
         )
-        vn = version_result.scalar_one_or_none()
-        if vn:
-            base_version_number = vn
+        if existing.scalar_one_or_none():
+            raise HTTPException(
+                status_code=409,
+                detail="An active evolution session already exists for this story",
+            )
 
-    # Create conversation for elicitation
-    conversation = AIConversation(
-        user_id=user_id,
-        persona_id=persona_id,
-        title=f"Story Evolution: {story.title}",
-    )
-    db.add(conversation)
-    await db.flush()
+        # Get primary legacy for conversation
+        legacy_result = await db.execute(
+            select(StoryLegacy).where(
+                StoryLegacy.story_id == story_id,
+                StoryLegacy.role == "primary",
+            )
+        )
+        primary_legacy = legacy_result.scalar_one_or_none()
+        if not primary_legacy:
+            raise HTTPException(
+                status_code=422, detail="Story must have a primary legacy"
+            )
 
-    # Link conversation to legacy
-    conv_legacy = ConversationLegacy(
-        conversation_id=conversation.id,
-        legacy_id=primary_legacy.legacy_id,
-        role="primary",
-        position=0,
-    )
-    db.add(conv_legacy)
+        # Determine base version number
+        base_version_number = 1
+        if story.active_version_id:
+            version_result = await db.execute(
+                select(StoryVersion.version_number).where(
+                    StoryVersion.id == story.active_version_id
+                )
+            )
+            vn = version_result.scalar_one_or_none()
+            if vn:
+                base_version_number = vn
 
-    # Create session
-    session = StoryEvolutionSession(
-        story_id=story_id,
-        base_version_number=base_version_number,
-        conversation_id=conversation.id,
-        phase="elicitation",
-        created_by=user_id,
-    )
-    db.add(session)
-    await db.commit()
-    await db.refresh(session)
+        # Create conversation for elicitation
+        conversation = AIConversation(
+            user_id=user_id,
+            persona_id=persona_id,
+            title=f"Story Evolution: {story.title}",
+        )
+        db.add(conversation)
+        await db.flush()
 
-    logger.info(
-        "evolution.session.started",
-        extra={
-            "session_id": str(session.id),
-            "story_id": str(story_id),
-            "user_id": str(user_id),
-            "persona_id": persona_id,
-        },
-    )
+        # Link conversation to legacy
+        conv_legacy = ConversationLegacy(
+            conversation_id=conversation.id,
+            legacy_id=primary_legacy.legacy_id,
+            role="primary",
+            position=0,
+        )
+        db.add(conv_legacy)
 
-    return session
+        # Create session
+        session = StoryEvolutionSession(
+            story_id=story_id,
+            base_version_number=base_version_number,
+            conversation_id=conversation.id,
+            phase="elicitation",
+            created_by=user_id,
+        )
+        db.add(session)
+        await db.commit()
+        await db.refresh(session)
+
+        logger.info(
+            "evolution.session.started",
+            extra={
+                "session_id": str(session.id),
+                "story_id": str(story_id),
+                "user_id": str(user_id),
+                "persona_id": persona_id,
+            },
+        )
+
+        return session
 
 
 _OPENING_INSTRUCTION = (
@@ -175,125 +186,130 @@ async def generate_opening_message(
     instruction (not saved), and saves the assistant response as the first
     message in the conversation.
     """
-    from app.config.personas import build_system_prompt, get_persona
-    from app.models.legacy import Legacy
+    with tracer.start_as_current_span("story_evolution.generate_opening") as span:
+        span.set_attribute("session_id", str(session.id))
+        from app.config.personas import build_system_prompt, get_persona
+        from app.models.legacy import Legacy
 
-    # Load story content
-    story_result = await db.execute(select(Story).where(Story.id == session.story_id))
-    story = story_result.scalar_one_or_none()
-    if not story:
-        logger.warning(
-            "evolution.opening.story_not_found",
-            extra={"session_id": str(session.id)},
+        # Load story content
+        story_result = await db.execute(
+            select(Story).where(Story.id == session.story_id)
         )
-        return
-
-    # Load legacy name
-    legacy_result = await db.execute(
-        select(StoryLegacy).where(
-            StoryLegacy.story_id == session.story_id,
-            StoryLegacy.role == "primary",
-        )
-    )
-    primary = legacy_result.scalar_one_or_none()
-    legacy_name = "the person"
-    if primary:
-        leg = await db.execute(select(Legacy).where(Legacy.id == primary.legacy_id))
-        legacy = leg.scalar_one_or_none()
-        if legacy:
-            legacy_name = legacy.name
-
-    # Get persona config for model_id
-    conv_result = await db.execute(
-        select(AIConversation).where(AIConversation.id == session.conversation_id)
-    )
-    conv = conv_result.scalar_one_or_none()
-    persona_id = conv.persona_id if conv else "biographer"
-    persona = get_persona(persona_id)
-    if not persona:
-        logger.warning(
-            "evolution.opening.persona_not_found",
-            extra={"persona_id": persona_id},
-        )
-        return
-
-    # Best-effort graph context for enriched opening
-    story_context = ""
-    if graph_context_service and primary is not None:
-        try:
-            assembled = await graph_context_service.assemble_context(
-                query=story.content,
-                legacy_id=primary.legacy_id,
-                user_id=session.created_by,
-                persona_type=persona_id,
-                db=db,
-                token_budget=2000,
-                legacy_name=legacy_name,
+        story = story_result.scalar_one_or_none()
+        if not story:
+            logger.warning(
+                "evolution.opening.story_not_found",
+                extra={"session_id": str(session.id)},
             )
-            story_context = assembled.formatted_context
+            return
+
+        # Load legacy name
+        legacy_result = await db.execute(
+            select(StoryLegacy).where(
+                StoryLegacy.story_id == session.story_id,
+                StoryLegacy.role == "primary",
+            )
+        )
+        primary = legacy_result.scalar_one_or_none()
+        legacy_name = "the person"
+        if primary:
+            leg = await db.execute(select(Legacy).where(Legacy.id == primary.legacy_id))
+            legacy = leg.scalar_one_or_none()
+            if legacy:
+                legacy_name = legacy.name
+
+        # Get persona config for model_id
+        conv_result = await db.execute(
+            select(AIConversation).where(AIConversation.id == session.conversation_id)
+        )
+        conv = conv_result.scalar_one_or_none()
+        persona_id = conv.persona_id if conv else "biographer"
+        span.set_attribute("persona_id", persona_id)
+        persona = get_persona(persona_id)
+        if not persona:
+            logger.warning(
+                "evolution.opening.persona_not_found",
+                extra={"persona_id": persona_id},
+            )
+            return
+
+        # Best-effort graph context for enriched opening
+        story_context = ""
+        if graph_context_service and primary is not None:
+            try:
+                assembled = await graph_context_service.assemble_context(
+                    query=story.content,
+                    legacy_id=primary.legacy_id,
+                    user_id=session.created_by,
+                    persona_type=persona_id,
+                    db=db,
+                    token_budget=2000,
+                    legacy_name=legacy_name,
+                )
+                story_context = assembled.formatted_context
+                logger.info(
+                    "evolution.opening.graph_context",
+                    extra={
+                        "session_id": str(session.id),
+                        "intent": assembled.metadata.intent,
+                        "embedding_count": assembled.metadata.embedding_count,
+                        "graph_count": assembled.metadata.graph_count,
+                    },
+                )
+            except Exception:
+                logger.warning(
+                    "evolution.opening.graph_context_failed",
+                    extra={"session_id": str(session.id)},
+                )
+
+        # Build system prompt with elicitation mode active
+        system_prompt = build_system_prompt(
+            persona_id=persona_id,
+            legacy_name=legacy_name,
+            story_context=story_context,
+            elicitation_mode=True,
+            original_story_text=story.content,
+            include_graph_suggestions=bool(story_context),
+        )
+        if not system_prompt:
+            return
+
+        # Generate the opening message (collect streamed chunks)
+        try:
+            chunks: list[str] = []
+            async for chunk in llm_provider.stream_generate(
+                messages=[{"role": "user", "content": _OPENING_INSTRUCTION}],
+                system_prompt=system_prompt,
+                model_id=persona.model_id,
+                max_tokens=persona.max_tokens,
+            ):
+                chunks.append(chunk)
+
+            opening_text = "".join(chunks).strip()
+            if not opening_text:
+                return
+
+            # Save as assistant message (the synthetic user message is NOT saved)
+            await memory.save_message(
+                db=db,
+                conversation_id=session.conversation_id,
+                role="assistant",
+                content=opening_text,
+            )
+
             logger.info(
-                "evolution.opening.graph_context",
+                "evolution.opening.generated",
                 extra={
                     "session_id": str(session.id),
-                    "intent": assembled.metadata.intent,
-                    "embedding_count": assembled.metadata.embedding_count,
-                    "graph_count": assembled.metadata.graph_count,
+                    "length": len(opening_text),
                 },
             )
         except Exception:
-            logger.warning(
-                "evolution.opening.graph_context_failed",
+            # Opening message is best-effort — don't fail session creation
+            logger.exception(
+                "evolution.opening.generation_failed",
                 extra={"session_id": str(session.id)},
             )
-
-    # Build system prompt with elicitation mode active
-    system_prompt = build_system_prompt(
-        persona_id=persona_id,
-        legacy_name=legacy_name,
-        story_context=story_context,
-        elicitation_mode=True,
-        original_story_text=story.content,
-        include_graph_suggestions=bool(story_context),
-    )
-    if not system_prompt:
-        return
-
-    # Generate the opening message (collect streamed chunks)
-    try:
-        chunks: list[str] = []
-        async for chunk in llm_provider.stream_generate(
-            messages=[{"role": "user", "content": _OPENING_INSTRUCTION}],
-            system_prompt=system_prompt,
-            model_id=persona.model_id,
-            max_tokens=persona.max_tokens,
-        ):
-            chunks.append(chunk)
-
-        opening_text = "".join(chunks).strip()
-        if not opening_text:
-            return
-
-        # Save as assistant message (the synthetic user message is NOT saved)
-        await memory.save_message(
-            db=db,
-            conversation_id=session.conversation_id,
-            role="assistant",
-            content=opening_text,
-        )
-
-        logger.info(
-            "evolution.opening.generated",
-            extra={
-                "session_id": str(session.id),
-                "length": len(opening_text),
-            },
-        )
-    except Exception:
-        # Opening message is best-effort — don't fail session creation
-        logger.exception(
-            "evolution.opening.generation_failed",
-            extra={"session_id": str(session.id)},
-        )
 
 
 _SUMMARIZE_SYSTEM_PROMPT = """\
@@ -326,127 +342,132 @@ async def summarize_conversation(
     graph_context_service: GraphContextService | None = None,
 ) -> StoryEvolutionSession:
     """Generate a structured summary from the elicitation conversation."""
-    from app.config.settings import get_settings
-    from app.services.ai import get_context_messages
+    with tracer.start_as_current_span("story_evolution.summarize") as span:
+        span.set_attribute("session_id", str(session_id))
+        span.set_attribute("story_id", str(story_id))
+        from app.config.settings import get_settings
+        from app.services.ai import get_context_messages
 
-    session = await _get_session(db, session_id, story_id, user_id)
+        session = await _get_session(db, session_id, story_id, user_id)
 
-    if session.phase != "elicitation":
-        raise HTTPException(
-            status_code=422,
-            detail="Can only summarize from elicitation phase",
-        )
-
-    # Load conversation messages
-    messages = await get_context_messages(db, session.conversation_id)
-    if not messages:
-        raise HTTPException(
-            status_code=422,
-            detail="No conversation messages to summarize",
-        )
-
-    # Load original story text for context
-    story_result = await db.execute(select(Story).where(Story.id == session.story_id))
-    story = story_result.scalar_one_or_none()
-    original_story = story.content if story else ""
-
-    # Build the user message with conversation transcript
-    transcript_lines: list[str] = []
-    for msg in messages:
-        role_label = "User" if msg["role"] == "user" else "Interviewer"
-        transcript_lines.append(f"{role_label}: {msg['content']}")
-    transcript = "\n\n".join(transcript_lines)
-
-    user_message = (
-        f"## Original Story\n\n{original_story}\n\n"
-        f"## Conversation Transcript\n\n{transcript}"
-    )
-
-    # Best-effort graph enrichment: discover connections across entities
-    # mentioned in the conversation
-    if graph_context_service:
-        try:
-            # Load primary legacy for graph context
-            legacy_result = await db.execute(
-                select(StoryLegacy).where(
-                    StoryLegacy.story_id == session.story_id,
-                    StoryLegacy.role == "primary",
-                )
-            )
-            primary = legacy_result.scalar_one_or_none()
-            if primary:
-                from app.models.legacy import Legacy
-
-                leg = await db.execute(
-                    select(Legacy).where(Legacy.id == primary.legacy_id)
-                )
-                legacy = leg.scalar_one_or_none()
-                legacy_name = legacy.name if legacy else ""
-
-                assembled = await graph_context_service.assemble_context(
-                    query=transcript,
-                    legacy_id=primary.legacy_id,
-                    user_id=user_id,
-                    persona_type="biographer",  # summarization uses neutral traversal
-                    db=db,
-                    conversation_history=messages,
-                    token_budget=1500,
-                    legacy_name=legacy_name,
-                )
-                if assembled.formatted_context:
-                    user_message = (
-                        f"{user_message}\n\n"
-                        f"## Additional Context from Connected Stories\n\n"
-                        f"{assembled.formatted_context}"
-                    )
-                    logger.info(
-                        "evolution.summarize.graph_context",
-                        extra={
-                            "session_id": str(session_id),
-                            "graph_count": assembled.metadata.graph_count,
-                            "embedding_count": assembled.metadata.embedding_count,
-                        },
-                    )
-        except Exception:
-            # Graph enrichment is best-effort — never block summarization
-            logger.warning(
-                "evolution.summarize.graph_context_failed",
-                extra={"session_id": str(session_id)},
+        if session.phase != "elicitation":
+            raise HTTPException(
+                status_code=422,
+                detail="Can only summarize from elicitation phase",
             )
 
-    # Generate summary (collect streamed chunks)
-    settings = get_settings()
-    chunks: list[str] = []
-    async for chunk in llm_provider.stream_generate(
-        messages=[{"role": "user", "content": user_message}],
-        system_prompt=_SUMMARIZE_SYSTEM_PROMPT,
-        model_id=settings.evolution_summarization_model_id,
-        max_tokens=2048,
-    ):
-        chunks.append(chunk)
+        # Load conversation messages
+        messages = await get_context_messages(db, session.conversation_id)
+        if not messages:
+            raise HTTPException(
+                status_code=422,
+                detail="No conversation messages to summarize",
+            )
 
-    summary_text = "".join(chunks).strip()
-    if not summary_text:
-        raise HTTPException(
-            status_code=500,
-            detail="Summary generation returned empty result",
+        # Load original story text for context
+        story_result = await db.execute(
+            select(Story).where(Story.id == session.story_id)
+        )
+        story = story_result.scalar_one_or_none()
+        original_story = story.content if story else ""
+
+        # Build the user message with conversation transcript
+        transcript_lines: list[str] = []
+        for msg in messages:
+            role_label = "User" if msg["role"] == "user" else "Interviewer"
+            transcript_lines.append(f"{role_label}: {msg['content']}")
+        transcript = "\n\n".join(transcript_lines)
+
+        user_message = (
+            f"## Original Story\n\n{original_story}\n\n"
+            f"## Conversation Transcript\n\n{transcript}"
         )
 
-    # Save summary and advance phase
-    session.summary_text = summary_text
-    session.phase = "summary"
-    await db.commit()
-    await db.refresh(session)
+        # Best-effort graph enrichment: discover connections across entities
+        # mentioned in the conversation
+        if graph_context_service:
+            try:
+                # Load primary legacy for graph context
+                legacy_result = await db.execute(
+                    select(StoryLegacy).where(
+                        StoryLegacy.story_id == session.story_id,
+                        StoryLegacy.role == "primary",
+                    )
+                )
+                primary = legacy_result.scalar_one_or_none()
+                if primary:
+                    from app.models.legacy import Legacy
 
-    logger.info(
-        "evolution.conversation.summarized",
-        extra={
-            "session_id": str(session_id),
-            "summary_length": len(summary_text),
-        },
-    )
+                    leg = await db.execute(
+                        select(Legacy).where(Legacy.id == primary.legacy_id)
+                    )
+                    legacy = leg.scalar_one_or_none()
+                    legacy_name = legacy.name if legacy else ""
 
-    return session
+                    assembled = await graph_context_service.assemble_context(
+                        query=transcript,
+                        legacy_id=primary.legacy_id,
+                        user_id=user_id,
+                        persona_type="biographer",  # summarization uses neutral traversal
+                        db=db,
+                        conversation_history=messages,
+                        token_budget=1500,
+                        legacy_name=legacy_name,
+                    )
+                    if assembled.formatted_context:
+                        user_message = (
+                            f"{user_message}\n\n"
+                            f"## Additional Context from Connected Stories\n\n"
+                            f"{assembled.formatted_context}"
+                        )
+                        logger.info(
+                            "evolution.summarize.graph_context",
+                            extra={
+                                "session_id": str(session_id),
+                                "graph_count": assembled.metadata.graph_count,
+                                "embedding_count": assembled.metadata.embedding_count,
+                            },
+                        )
+            except Exception:
+                # Graph enrichment is best-effort — never block summarization
+                logger.warning(
+                    "evolution.summarize.graph_context_failed",
+                    extra={"session_id": str(session_id)},
+                )
+
+        # Generate summary (collect streamed chunks)
+        settings = get_settings()
+        chunks: list[str] = []
+        async for chunk in llm_provider.stream_generate(
+            messages=[{"role": "user", "content": user_message}],
+            system_prompt=_SUMMARIZE_SYSTEM_PROMPT,
+            model_id=settings.evolution_summarization_model_id,
+            max_tokens=2048,
+        ):
+            chunks.append(chunk)
+
+        summary_text = "".join(chunks).strip()
+        if not summary_text:
+            raise HTTPException(
+                status_code=500,
+                detail="Summary generation returned empty result",
+            )
+
+        # Save summary and advance phase
+        session.summary_text = summary_text
+        session.phase = "summary"
+        await db.commit()
+        await db.refresh(session)
+
+        logger.info(
+            "evolution.conversation.summarized",
+            extra={
+                "session_id": str(session_id),
+                "summary_length": len(summary_text),
+            },
+        )
+
+        return session
 
 
 async def get_active_session(

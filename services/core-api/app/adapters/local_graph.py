@@ -5,11 +5,17 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from opentelemetry import trace
+
+import time
+
 import httpx
 
+from ..observability.metrics import NEPTUNE_QUERY_LATENCY
 from .graph_adapter import GraphAdapter, _prefix_label
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer("core-api.graph_adapter")
 
 
 class LocalGraphAdapter(GraphAdapter):
@@ -33,15 +39,22 @@ class LocalGraphAdapter(GraphAdapter):
 
     async def _execute_gremlin(self, gremlin: str) -> list[dict[str, Any]]:
         """Execute a Gremlin query via the REST API."""
-        async with httpx.AsyncClient(timeout=5.0) as client:
-            response = await client.post(
-                f"{self._base_url}/gremlin",
-                json={"gremlin": gremlin},
-            )
-            response.raise_for_status()
-            data: dict[str, Any] = response.json()
-            result: list[dict[str, Any]] = data.get("result", {}).get("data", [])
-            return result
+        with tracer.start_as_current_span("graph_adapter.query") as span:
+            span.set_attribute("query_type", "gremlin")
+            started = time.perf_counter()
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.post(
+                    f"{self._base_url}/gremlin",
+                    json={"gremlin": gremlin},
+                )
+                response.raise_for_status()
+                data: dict[str, Any] = response.json()
+                result: list[dict[str, Any]] = data.get("result", {}).get("data", [])
+                span.set_attribute("result_count", len(result))
+                NEPTUNE_QUERY_LATENCY.labels(query_type="gremlin").observe(
+                    time.perf_counter() - started
+                )
+                return result
 
     async def upsert_node(
         self, label: str, node_id: str, properties: dict[str, object]
