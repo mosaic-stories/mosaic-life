@@ -12,13 +12,13 @@
         <meta name="author" content="Mosaic Stories">
       
       
-        <link rel="canonical" href="https://docs.mosaiclife.me/api/overview/">
+        <link rel="canonical" href="https://docs.mosaiclife.me/developer-guide/graph-augmented-rag/">
       
       
-        <link rel="prev" href="../../developer-guide/contributing/">
+        <link rel="prev" href="../architecture/">
       
       
-        <link rel="next" href="../openapi/">
+        <link rel="next" href="../graph-rag-configuration/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Overview - Mosaic Life Documentation</title>
+        <title>Graph-Augmented RAG - Mosaic Life Documentation</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#api-overview" class="md-skip">
+        <a href="#graph-augmented-rag-architecture" class="md-skip">
           Skip to content
         </a>
       
@@ -122,7 +122,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Overview
+              Graph-Augmented RAG
             
           </span>
         </div>
@@ -286,11 +286,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../developer-guide/environment-setup/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../environment-setup/" class="md-tabs__link">
           
   
   
@@ -306,13 +308,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../api/overview/" class="md-tabs__link">
           
   
   
@@ -707,28 +707,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4" >
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -746,7 +749,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -764,7 +767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../developer-guide/environment-setup/" class="md-nav__link">
+      <a href="../environment-setup/" class="md-nav__link">
         
   
   
@@ -792,7 +795,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../developer-guide/local-setup/" class="md-nav__link">
+      <a href="../local-setup/" class="md-nav__link">
         
   
   
@@ -820,7 +823,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../developer-guide/architecture/" class="md-nav__link">
+      <a href="../architecture/" class="md-nav__link">
         
   
   
@@ -845,10 +848,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../developer-guide/graph-augmented-rag/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Graph-Augmented RAG
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -864,6 +894,198 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#processing-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#key-services" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Services
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Services">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#intent-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intent Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#graph-adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graph Adapters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Graph Adapters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#environment-prefix-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Prefix Isolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#persona-traversal-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persona Traversal Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#circuit-breaker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Circuit Breaker
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entity-extraction-pipeline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entity Extraction Pipeline
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#story-evolution-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story Evolution Integration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#observability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Observability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Observability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opentelemetry-spans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenTelemetry Spans
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prometheus-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prometheus Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debug-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debug Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Further Reading
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -876,7 +1098,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../developer-guide/graph-rag-configuration/" class="md-nav__link">
+      <a href="../graph-rag-configuration/" class="md-nav__link">
         
   
   
@@ -904,7 +1126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../developer-guide/contributing/" class="md-nav__link">
+      <a href="../contributing/" class="md-nav__link">
         
   
   
@@ -936,31 +1158,28 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   
@@ -978,7 +1197,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -993,37 +1212,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Overview
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../api/overview/" class="md-nav__link">
         
   
   
@@ -1039,92 +1231,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#base-url" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Base URL
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#authentication" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Authentication
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#request-format" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Request Format
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#response-format" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Response Format
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#error-handling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Error Handling
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rate-limiting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Rate Limiting
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1137,7 +1243,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../openapi/" class="md-nav__link">
+      <a href="../../api/openapi/" class="md-nav__link">
         
   
   
@@ -1336,10 +1442,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#base-url" class="md-nav__link">
+  <a href="#processing-pipeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Base URL
+        Processing Pipeline
       
     </span>
   </a>
@@ -1347,10 +1453,66 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#authentication" class="md-nav__link">
+  <a href="#key-services" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Authentication
+        Key Services
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Key Services">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#intent-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Intent Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#graph-adapters" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Graph Adapters
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Graph Adapters">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#environment-prefix-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Prefix Isolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#persona-traversal-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persona Traversal Configuration
       
     </span>
   </a>
@@ -1358,10 +1520,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#request-format" class="md-nav__link">
+  <a href="#circuit-breaker" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Request Format
+        Circuit Breaker
       
     </span>
   </a>
@@ -1369,10 +1531,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#response-format" class="md-nav__link">
+  <a href="#entity-extraction-pipeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Response Format
+        Entity Extraction Pipeline
       
     </span>
   </a>
@@ -1380,10 +1542,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#error-handling" class="md-nav__link">
+  <a href="#story-evolution-integration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Error Handling
+        Story Evolution Integration
       
     </span>
   </a>
@@ -1391,10 +1553,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#rate-limiting" class="md-nav__link">
+  <a href="#observability" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Rate Limiting
+        Observability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Observability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opentelemetry-spans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenTelemetry Spans
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#prometheus-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prometheus Metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#debug-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Debug Mode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#further-reading" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Further Reading
       
     </span>
   </a>
@@ -1421,86 +1633,361 @@
   
 
 
-<h1 id="api-overview">API Overview<a class="headerlink" href="#api-overview" title="Permanent link">&para;</a></h1>
-<p>The Mosaic Life API is a RESTful HTTP API built with FastAPI.</p>
-<h2 id="base-url">Base URL<a class="headerlink" href="#base-url" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Environment</th>
-<th>URL</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Production</td>
-<td><code>https://api.mosaiclife.me</code></td>
-</tr>
-<tr>
-<td>Staging</td>
-<td><code>https://stage-api.mosaiclife.me</code></td>
-</tr>
-<tr>
-<td>Local</td>
-<td><code>http://localhost:8080</code></td>
-</tr>
-</tbody>
-</table>
-<h2 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h2>
-<p>The API uses session-based authentication with Google OAuth.</p>
+<h1 id="graph-augmented-rag-architecture">Graph-Augmented RAG Architecture<a class="headerlink" href="#graph-augmented-rag-architecture" title="Permanent link">&para;</a></h1>
+<p>The Graph-Augmented RAG system enhances AI persona conversations by combining pgvector embedding search with Neptune graph traversals. Instead of relying solely on vector similarity to find relevant story context, the system also traverses a knowledge graph of people, places, events, and objects extracted from stories — producing richer, more connected context for persona responses.</p>
+<p>For the full design rationale, see the <a href="https://github.com/mosaic-stories/mosaic-life/blob/develop/docs/plans/2026-02-26-graph-augmented-rag-design.md">design document</a>.</p>
+<h2 id="processing-pipeline">Processing Pipeline<a class="headerlink" href="#processing-pipeline" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>sequenceDiagram
+    participant PT as prepare_turn()
+    participant GCS as GraphContextService
+    participant IA as IntentAnalyzer
+    participant VS as VectorStore
+    participant GTS as GraphTraversalService
+    participant GAF as GraphAccessFilter
+    participant CB as CircuitBreaker
+
+    PT-&gt;&gt;GCS: assemble_context(query, legacy_id, ...)
+
+    par Parallel Execution
+        GCS-&gt;&gt;IA: analyze(query, legacy_name)
+        IA--&gt;&gt;GCS: QueryIntent
+    and
+        GCS-&gt;&gt;VS: retrieve_context(query, ...)
+        VS--&gt;&gt;GCS: ChunkResult[]
+    end
+
+    GCS-&gt;&gt;CB: allow_request()
+    alt Circuit Closed
+        CB--&gt;&gt;GCS: true
+        GCS-&gt;&gt;GTS: traverse(intent, person_id, ...)
+        GTS--&gt;&gt;GCS: GraphResult[]
+        GCS-&gt;&gt;GAF: filter_story_ids(results, user_id, ...)
+        GAF--&gt;&gt;GCS: filtered results
+    else Circuit Open
+        CB--&gt;&gt;GCS: false
+        Note over GCS: Skip graph, use embeddings only
+    end
+
+    GCS-&gt;&gt;GCS: merge + rank + deduplicate
+    GCS-&gt;&gt;GCS: token budget + format
+    GCS--&gt;&gt;PT: AssembledContext</code></pre>
+<p><strong>Pipeline steps:</strong></p>
 <ol>
-<li>Initiate login: <code>GET /auth/login</code></li>
-<li>Complete OAuth flow</li>
-<li>Session cookie set automatically</li>
+<li>
+<p><strong>Intent Analysis + Embedding Search</strong> (parallel, ~200-400ms) — An LLM classifier identifies the query type (relational, temporal, spatial, entity-focused, general, or cross-legacy) and extracts mentioned entities. Simultaneously, pgvector retrieves embedding-similar story chunks.</p>
+</li>
+<li>
+<p><strong>Graph Traversal</strong> (~100-200ms) — Based on the classified intent, parameterized graph queries find connected stories through the knowledge graph. The persona's traversal configuration controls relationship weights, hop depth, and cross-legacy inclusion.</p>
+</li>
+<li>
+<p><strong>Access Filtering</strong> (~10ms) — Graph results are filtered against the user's visibility permissions using the same access rules as direct story queries.</p>
+</li>
+<li>
+<p><strong>Merge + Rank + Deduplicate</strong> (~5ms) — Embedding results and graph results are merged, scored, and deduplicated. Graph results get a boost based on hop distance and relationship weight.</p>
+</li>
+<li>
+<p><strong>Token Budget + Format</strong> (~5ms) — Results are trimmed to fit within the token budget (default 4000 tokens) and formatted for LLM prompt insertion.</p>
+</li>
 </ol>
-<h2 id="request-format">Request Format<a class="headerlink" href="#request-format" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>curl<span class="w"> </span>-X<span class="w"> </span>GET<span class="w"> </span>https://api.mosaiclife.me/legacies<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span>-H<span class="w"> </span><span class="s2">&quot;Content-Type: application/json&quot;</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span>--cookie<span class="w"> </span><span class="s2">&quot;session=...&quot;</span>
-</span></code></pre></div>
-<h2 id="response-format">Response Format<a class="headerlink" href="#response-format" title="Permanent link">&para;</a></h2>
-<p>All responses follow this structure:</p>
-<div class="language-json highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;data&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="err">...</span><span class="w"> </span><span class="p">},</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span><span class="nt">&quot;meta&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="nt">&quot;request_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;abc123&quot;</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="p">}</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">}</span>
-</span></code></pre></div>
-<h2 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
-<p>Errors return appropriate HTTP status codes:</p>
+<h2 id="key-services">Key Services<a class="headerlink" href="#key-services" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Code</th>
-<th>Meaning</th>
+<th>Service</th>
+<th>File</th>
+<th>Purpose</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>400</td>
-<td>Bad Request - Invalid input</td>
+<td><code>GraphContextService</code></td>
+<td><code>app/services/graph_context.py</code></td>
+<td>Orchestrates the full pipeline: parallel intent+embedding, graph traversal, filtering, ranking, formatting</td>
 </tr>
 <tr>
-<td>401</td>
-<td>Unauthorized - Not logged in</td>
+<td><code>IntentAnalyzer</code></td>
+<td><code>app/services/intent_analyzer.py</code></td>
+<td>LLM-based query classifier — identifies intent type and extracts entities</td>
 </tr>
 <tr>
-<td>403</td>
-<td>Forbidden - Insufficient permissions</td>
+<td><code>GraphTraversalService</code></td>
+<td><code>app/services/graph_traversal.py</code></td>
+<td>Maps <code>(QueryIntent, TraversalConfig)</code> to parameterized graph queries</td>
 </tr>
 <tr>
-<td>404</td>
-<td>Not Found - Resource doesn't exist</td>
+<td><code>GraphAccessFilter</code></td>
+<td><code>app/services/graph_context.py</code></td>
+<td>Filters graph-discovered story IDs against user visibility permissions</td>
 </tr>
 <tr>
-<td>500</td>
-<td>Internal Error - Server issue</td>
+<td><code>EntityExtractionService</code></td>
+<td><code>app/services/entity_extraction.py</code></td>
+<td>Extracts people, places, events, objects from story content at ingestion time</td>
+</tr>
+<tr>
+<td><code>CircuitBreaker</code></td>
+<td><code>app/services/circuit_breaker.py</code></td>
+<td>Three-state fault tolerance for Neptune connectivity</td>
 </tr>
 </tbody>
 </table>
-<h2 id="rate-limiting">Rate Limiting<a class="headerlink" href="#rate-limiting" title="Permanent link">&para;</a></h2>
-<p>API requests are limited to 100 requests per minute per user.</p>
+<h3 id="intent-types">Intent Types<a class="headerlink" href="#intent-types" title="Permanent link">&para;</a></h3>
+<p>The <code>IntentAnalyzer</code> classifies queries into one of six intent types, each triggering different graph traversal strategies:</p>
+<table>
+<thead>
+<tr>
+<th>Intent</th>
+<th>Example Query</th>
+<th>Graph Strategy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>relational</code></td>
+<td>"Tell me about Jim's family"</td>
+<td>Traverse FAMILY_OF, KNEW edges from mentioned person</td>
+</tr>
+<tr>
+<td><code>temporal</code></td>
+<td>"What happened in the 1980s?"</td>
+<td>Filter by time period properties on story nodes</td>
+</tr>
+<tr>
+<td><code>spatial</code></td>
+<td>"Stories about Chicago"</td>
+<td>Traverse TOOK_PLACE_AT edges to place nodes</td>
+</tr>
+<tr>
+<td><code>entity_focused</code></td>
+<td>"Tell me more about the cabin"</td>
+<td>Direct lookup of entity node + connected stories</td>
+</tr>
+<tr>
+<td><code>general</code></td>
+<td>"What else can you tell me?"</td>
+<td>Broad traversal from current story context</td>
+</tr>
+<tr>
+<td><code>cross_legacy</code></td>
+<td>"Did grandma know Uncle Jim?"</td>
+<td>Cross-legacy traversal through shared connections</td>
+</tr>
+</tbody>
+</table>
+<h2 id="graph-adapters">Graph Adapters<a class="headerlink" href="#graph-adapters" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>classDiagram
+    class GraphAdapter {
+        &lt;&lt;abstract&gt;&gt;
+        +upsert_node(label, node_id, properties)
+        +delete_node(label, node_id)
+        +create_relationship(from_label, from_id, rel_type, to_label, to_id)
+        +delete_relationship(from_label, from_id, rel_type, to_label, to_id)
+        +get_connections(label, node_id, rel_types, depth)
+        +find_path(from_id, to_id, max_depth)
+        +get_related_stories(story_id, limit)
+        +query(query_str, params)
+        +health_check()
+    }
+    class LocalGraphAdapter {
+        -host: str
+        -port: int
+        -env_prefix: str
+        +_execute_gremlin(gremlin)
+    }
+    class NeptuneGraphAdapter {
+        -host: str
+        -port: int
+        -region: str
+        -iam_auth: bool
+        -env_prefix: str
+        +_execute_cypher(cypher, params)
+        +_sign_request(headers)
+    }
+    GraphAdapter &lt;|-- LocalGraphAdapter : Gremlin REST API
+    GraphAdapter &lt;|-- NeptuneGraphAdapter : openCypher HTTPS</code></pre>
+<ul>
+<li><strong><code>LocalGraphAdapter</code></strong> — Uses TinkerPop Gremlin Server's REST API (<code>POST /gremlin</code>). For local development only.</li>
+<li><strong><code>NeptuneGraphAdapter</code></strong> — Uses AWS Neptune's openCypher HTTPS endpoint with optional IAM SigV4 signing.</li>
+<li><strong><code>create_graph_adapter()</code></strong> factory in <code>app/adapters/graph_factory.py</code> selects the adapter based on configuration: Neptune when <code>NEPTUNE_HOST</code> is set, local TinkerPop otherwise. Returns <code>None</code> when graph augmentation is disabled.</li>
+</ul>
+<h3 id="environment-prefix-isolation">Environment Prefix Isolation<a class="headerlink" href="#environment-prefix-isolation" title="Permanent link">&para;</a></h3>
+<p>All labels and relationship types are prefixed with the environment name (e.g., <code>prod-Person</code>, <code>staging-FAMILY_OF</code>). This allows multiple environments to share a single Neptune cluster. The prefix is injected transparently by the adapter — callers always use unprefixed logical names.</p>
+<h2 id="persona-traversal-configuration">Persona Traversal Configuration<a class="headerlink" href="#persona-traversal-configuration" title="Permanent link">&para;</a></h2>
+<p>Each persona has a <code>TraversalConfig</code> in <code>app/config/personas.yaml</code> that shapes how graph queries are constructed:</p>
+<table>
+<thead>
+<tr>
+<th>Setting</th>
+<th>Biographer</th>
+<th>Friend</th>
+<th>Colleague</th>
+<th>Family</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>max_hops</code></td>
+<td>2</td>
+<td>1</td>
+<td>1</td>
+<td>2</td>
+</tr>
+<tr>
+<td><code>FAMILY_OF</code> weight</td>
+<td>1.0</td>
+<td>0.5</td>
+<td>0.2</td>
+<td>1.0</td>
+</tr>
+<tr>
+<td><code>KNEW</code> weight</td>
+<td>0.8</td>
+<td>1.0</td>
+<td>0.6</td>
+<td>0.3</td>
+</tr>
+<tr>
+<td><code>WORKED_WITH</code> weight</td>
+<td>0.7</td>
+<td>0.4</td>
+<td>1.0</td>
+<td>0.2</td>
+</tr>
+<tr>
+<td><code>FRIENDS_WITH</code> weight</td>
+<td>0.8</td>
+<td>1.0</td>
+<td>0.5</td>
+<td>0.4</td>
+</tr>
+<tr>
+<td><code>max_graph_results</code></td>
+<td>20</td>
+<td>15</td>
+<td>15</td>
+<td>20</td>
+</tr>
+<tr>
+<td><code>include_cross_legacy</code></td>
+<td>true</td>
+<td>true</td>
+<td>false</td>
+<td>true</td>
+</tr>
+<tr>
+<td><code>temporal_range</code></td>
+<td>full</td>
+<td>recent</td>
+<td>career</td>
+<td>full</td>
+</tr>
+</tbody>
+</table>
+<p>These weights multiply with hop distance factors to produce a final relevance score:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>relevance_score = hop_factor * relationship_weight + entity_match_bonus
+</span></code></pre></div>
+<p>Where <code>hop_factor</code> is <code>1.0</code> for 1-hop, <code>0.6</code> for 2-hop, and <code>0.3</code> beyond that. The <code>entity_match_bonus</code> of <code>0.2</code> is added when the traversed entity matches one extracted from the user's query.</p>
+<h2 id="circuit-breaker">Circuit Breaker<a class="headerlink" href="#circuit-breaker" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>stateDiagram-v2
+    [*] --&gt; Closed
+    Closed --&gt; Open : 3 consecutive failures
+    Open --&gt; HalfOpen : 30s recovery timeout
+    HalfOpen --&gt; Closed : success
+    HalfOpen --&gt; Open : failure
+    Closed --&gt; Closed : success (reset counter)</code></pre>
+<p>The circuit breaker wraps all Neptune/graph operations. When Neptune is unavailable:</p>
+<ul>
+<li>After <strong>3 consecutive failures</strong>, the circuit opens and all graph operations are skipped.</li>
+<li>The system falls back to <strong>embedding-only RAG</strong> (the pre-graph behavior) with no user-visible degradation beyond slightly less connected suggestions.</li>
+<li>After <strong>30 seconds</strong>, the circuit transitions to half-open and allows one trial request.</li>
+<li>A successful trial closes the circuit and restores full graph-augmented behavior.</li>
+</ul>
+<h2 id="entity-extraction-pipeline">Entity Extraction Pipeline<a class="headerlink" href="#entity-extraction-pipeline" title="Permanent link">&para;</a></h2>
+<pre class="mermaid"><code>flowchart LR
+    A[Story Ingested] --&gt; B[LLM Extraction]
+    B --&gt; C[Confidence Filtering]
+    C --&gt; D{Confidence &gt;= 0.7?}
+    D --&gt;|Yes| E[Sync to Graph]
+    D --&gt;|No| F[Discard]
+    E --&gt; G[Places]
+    E --&gt; H[Events]
+    E --&gt; I[Objects]
+
+    style A fill:#e1f5fe
+    style E fill:#c8e6c9
+    style F fill:#ffcdd2</code></pre>
+<p>Entity extraction runs as a <strong>best-effort</strong> step during story ingestion. An LLM extracts people, places, events, objects, and time references from story content. Entities with confidence &gt;= 0.7 are synced to the graph database as nodes with relationships to the story node.</p>
+<p>For existing stories, the <code>scripts/backfill_entities.py</code> script processes all stories and populates the graph. A Kubernetes Job manifest is available for production backfill.</p>
+<h2 id="story-evolution-integration">Story Evolution Integration<a class="headerlink" href="#story-evolution-integration" title="Permanent link">&para;</a></h2>
+<p>Graph context enriches the story evolution pipeline at two points:</p>
+<ol>
+<li>
+<p><strong>Opening message</strong> — When a user starts a conversation to evolve a story, <code>GraphContextService</code> is called with the story's content to discover connections. These are included in the system prompt so the persona can suggest graph-discovered exploration directions.</p>
+</li>
+<li>
+<p><strong>Pre-summarization</strong> — Before summarizing the conversation into story updates, a graph traversal discovers additional context from entities mentioned during the conversation. This is appended as "Additional Context from Connected Stories" to help the summarizer produce richer updates.</p>
+</li>
+</ol>
+<h2 id="observability">Observability<a class="headerlink" href="#observability" title="Permanent link">&para;</a></h2>
+<h3 id="opentelemetry-spans">OpenTelemetry Spans<a class="headerlink" href="#opentelemetry-spans" title="Permanent link">&para;</a></h3>
+<p>All services emit OTel spans under the <code>core-api.*</code> tracer namespace:</p>
+<ul>
+<li><code>graph_context.assemble</code> — Full pipeline span with attributes for intent, result counts, latency</li>
+<li><code>intent_analyzer.analyze</code> — Intent classification span</li>
+<li><code>graph_traversal.traverse</code> — Graph query span</li>
+<li><code>entity_extraction.extract</code> — Entity extraction span</li>
+</ul>
+<h3 id="prometheus-metrics">Prometheus Metrics<a class="headerlink" href="#prometheus-metrics" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Metric</th>
+<th>Type</th>
+<th>Labels</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>core_api_graph_context_latency_seconds</code></td>
+<td>Histogram</td>
+<td><code>phase</code> (total, graph)</td>
+<td>Context assembly latency</td>
+</tr>
+<tr>
+<td><code>core_api_graph_context_results_total</code></td>
+<td>Counter</td>
+<td><code>source</code> (embedding, graph)</td>
+<td>Results by source</td>
+</tr>
+<tr>
+<td><code>core_api_graph_context_circuit_state</code></td>
+<td>Gauge</td>
+<td><code>state</code></td>
+<td>Circuit breaker state (0=closed, 1=open, 2=half_open)</td>
+</tr>
+<tr>
+<td><code>core_api_entity_extraction_entities_total</code></td>
+<td>Counter</td>
+<td><code>type</code> (person, place, event, object)</td>
+<td>Extracted entities</td>
+</tr>
+<tr>
+<td><code>core_api_neptune_query_latency_seconds</code></td>
+<td>Histogram</td>
+<td><code>query_type</code> (gremlin, cypher)</td>
+<td>Neptune query latency</td>
+</tr>
+</tbody>
+</table>
+<h3 id="debug-mode">Debug Mode<a class="headerlink" href="#debug-mode" title="Permanent link">&para;</a></h3>
+<p>Add <code>?debug=true</code> to persona chat endpoints to include <code>AssembledContext.metadata</code> in the response. This exposes intent classification, result counts, latency breakdown, and circuit breaker state for troubleshooting.</p>
+<h2 id="further-reading">Further Reading<a class="headerlink" href="#further-reading" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="https://github.com/mosaic-stories/mosaic-life/blob/develop/docs/plans/2026-02-26-graph-augmented-rag-design.md">Design Document</a> — Full design rationale, query templates, token budgeting details</li>
+<li><a href="https://github.com/mosaic-stories/mosaic-life/blob/develop/docs/plans/2026-02-26-graph-augmented-rag-plan.md">Implementation Plan</a> — Phase-by-phase implementation with 24 tasks</li>
+<li><a href="../graph-rag-configuration/">Graph RAG Configuration</a> — Environment variables, persona tuning, operations guide</li>
+</ul>
 
 
 
@@ -1538,7 +2025,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../../developer-guide/contributing/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Contributing">
+          <a href="../architecture/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Architecture">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1548,20 +2035,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Contributing
+                Architecture
               </div>
             </div>
           </a>
         
         
           
-          <a href="../openapi/" class="md-footer__link md-footer__link--next" aria-label="Next: OpenAPI">
+          <a href="../graph-rag-configuration/" class="md-footer__link md-footer__link--next" aria-label="Next: Graph RAG Configuration">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                OpenAPI
+                Graph RAG Configuration
               </div>
             </div>
             <div class="md-footer__button md-icon">
