@@ -2384,7 +2384,9 @@ See design doc Section 4 for the integration point details. Reference `services/
 
 ---
 
-## Phase 6: Story Evolution Enhancement
+## Phase 6: Story Evolution Enhancement  -- COMPLETED
+
+> **Status:** All 3 tasks complete. 770 tests passing (770 passed, 2 skipped, 1 warning). `just validate-backend` passes (ruff + mypy).
 
 ### Task 18: Graph-Enriched Opening Message
 
