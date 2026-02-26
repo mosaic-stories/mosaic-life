@@ -3,8 +3,9 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { DnsCertificateStack } from '../lib/dns-certificate-stack';
 import { MosaicLifeStack } from '../lib/mosaic-life-stack';
-import { DatabaseStack } from '../lib/database-stack';
+import { AuroraDatabaseStack } from '../lib/aurora-database-stack';
 import { StagingResourcesStack } from '../lib/staging-resources-stack';
+import { NeptuneDatabaseStack } from '../lib/neptune-database-stack';
 
 const app = new cdk.App();
 
@@ -46,15 +47,24 @@ const appStack = new MosaicLifeStack(app, 'MosaicLifeStack', {
   },
 });
 
-// Database Stack - RDS PostgreSQL (shared across environments)
-new DatabaseStack(app, 'MosaicDatabaseStack', {
+// Aurora Database Stack - migrated from RDS PostgreSQL for AGE extension support
+// Originally restored from snapshot 'mosaic-pre-aurora-migration'; now the primary database.
+new AuroraDatabaseStack(app, 'MosaicAuroraDatabaseStack', {
   env,
   vpc: appStack.vpc,
   environment: prodEnvironment,
+  snapshotIdentifier: 'arn:aws:rds:us-east-1:033691785857:snapshot:mosaic-pre-aurora-migration',
+});
+
+// Neptune Graph Database Stack — single shared cluster for all environments
+// Data isolation via prefix-label strategy (see design doc)
+new NeptuneDatabaseStack(app, 'MosaicNeptuneDatabaseStack', {
+  env,
+  vpc: appStack.vpc,
+  environments: [prodEnvironment, 'staging'],
 });
 
 // Staging Resources Stack - S3 buckets, IAM roles, secrets for staging
-// These resources use the shared RDS instance but have isolated storage/secrets
 new StagingResourcesStack(app, 'MosaicStagingResourcesStack', {
   env,
   vpc: appStack.vpc,

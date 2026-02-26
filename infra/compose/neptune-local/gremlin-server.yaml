@@ -1,0 +1,24 @@
+# Gremlin Server configuration for local Neptune development
+# Supports both Gremlin and openCypher queries via HTTP
+host: 0.0.0.0
+port: 8182
+evaluationTimeout: 120000
+channelizer: org.apache.tinkerpop.gremlin.server.channel.HttpChannelizer
+graphs: {
+  graph: conf/tinkergraph-empty.properties
+}
+scriptEngines: {
+  gremlin-groovy: {
+    plugins: {
+      org.apache.tinkerpop.gremlin.server.jsr223.GremlinServerGremlinPlugin: {},
+      org.apache.tinkerpop.gremlin.tinkergraph.jsr223.TinkerGraphGremlinPlugin: {},
+      org.apache.tinkerpop.gremlin.jsr223.ImportGremlinPlugin: {
+        classImports: [java.lang.Math],
+        methodImports: [java.lang.Math#*]
+      },
+      org.apache.tinkerpop.gremlin.jsr223.ScriptFileGremlinPlugin: {
+        files: [scripts/empty-sample.groovy]
+      }
+    }
+  }
+}

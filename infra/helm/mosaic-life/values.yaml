@@ -221,7 +221,34 @@ coreApi:
         secretKeyRef:
           name: database-credentials
           key: DB_URL
-    
+
+    # Neptune Graph Database
+    - name: NEPTUNE_HOST
+      valueFrom:
+        secretKeyRef:
+          name: neptune-connection
+          key: host
+    - name: NEPTUNE_PORT
+      valueFrom:
+        secretKeyRef:
+          name: neptune-connection
+          key: port
+    - name: NEPTUNE_REGION
+      valueFrom:
+        secretKeyRef:
+          name: neptune-connection
+          key: region
+    - name: NEPTUNE_IAM_AUTH
+      valueFrom:
+        secretKeyRef:
+          name: neptune-connection
+          key: iam_auth
+    - name: NEPTUNE_ENV_PREFIX
+      valueFrom:
+        secretKeyRef:
+          name: neptune-connection
+          key: env_prefix
+
     # Legacy Cognito (commented out - using Google OAuth instead)
     # - name: COGNITO_USER_POOL_ID
     #   value: "us-east-1_JLppKC09m"
@@ -359,3 +386,5 @@ externalSecrets:
     # Optional: set to AWS Secrets Manager path containing {token: "<shared secret>"}
     secretKey: ""
     property: "token"
+  neptune:
+    secretKey: "mosaic/prod/neptune/connection"

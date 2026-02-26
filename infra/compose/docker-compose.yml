@@ -115,6 +115,21 @@ services:
       retries: 5
     restart: unless-stopped
 
+  # Graph Database (TinkerPop Gremlin Server - Neptune-compatible local dev)
+  neptune-local:
+    image: tinkerpop/gremlin-server:3.7.3
+    container_name: mosaic-neptune-local
+    ports:
+      - "18182:8182"
+    volumes:
+      - neptune-data:/opt/gremlin-server/data
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8182 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
   # Documentation Site (MkDocs)
   docs:
     build:
@@ -153,4 +168,6 @@ volumes:
   web-node-modules:
     driver: local
   media-data:
+    driver: local
+  neptune-data:
     driver: local

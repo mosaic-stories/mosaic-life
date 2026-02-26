@@ -23,3 +23,8 @@ web:
 # Core API - staging configuration
 coreApi:
   replicaCount: 2
+
+# External Secrets - staging overrides
+externalSecrets:
+  neptune:
+    secretKey: "mosaic/staging/neptune/connection"
