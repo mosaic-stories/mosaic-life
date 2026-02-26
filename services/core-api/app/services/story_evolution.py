@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from typing import Any
 
     from app.adapters.ai import LLMProvider, AgentMemory
+    from app.services.graph_context import GraphContextService
 
 logger = logging.getLogger(__name__)
 
@@ -155,7 +156,7 @@ _OPENING_INSTRUCTION = (
     "2. Share what stood out to you about the story — key moments, themes, "
     "or details that caught your attention\n"
     "3. Suggest 2-3 specific directions they could explore to deepen the story "
-    "(based on what you read)\n"
+    "(use the story context provided, including any connected stories or people)\n"
     "4. Let them know they're free to take the conversation in any direction\n\n"
     "Keep it warm, concise, and inviting. Use 2-3 short paragraphs."
 )
@@ -166,6 +167,7 @@ async def generate_opening_message(
     session: StoryEvolutionSession,
     llm_provider: LLMProvider,
     memory: AgentMemory,
+    graph_context_service: GraphContextService | None = None,
 ) -> None:
     """Generate an opening message from the persona for a new evolution session.
 
@@ -215,12 +217,43 @@ async def generate_opening_message(
         )
         return
 
+    # Best-effort graph context for enriched opening
+    story_context = ""
+    if graph_context_service and primary is not None:
+        try:
+            assembled = await graph_context_service.assemble_context(
+                query=story.content,
+                legacy_id=primary.legacy_id,
+                user_id=session.created_by,
+                persona_type=persona_id,
+                db=db,
+                token_budget=2000,
+                legacy_name=legacy_name,
+            )
+            story_context = assembled.formatted_context
+            logger.info(
+                "evolution.opening.graph_context",
+                extra={
+                    "session_id": str(session.id),
+                    "intent": assembled.metadata.intent,
+                    "embedding_count": assembled.metadata.embedding_count,
+                    "graph_count": assembled.metadata.graph_count,
+                },
+            )
+        except Exception:
+            logger.warning(
+                "evolution.opening.graph_context_failed",
+                extra={"session_id": str(session.id)},
+            )
+
     # Build system prompt with elicitation mode active
     system_prompt = build_system_prompt(
         persona_id=persona_id,
         legacy_name=legacy_name,
+        story_context=story_context,
         elicitation_mode=True,
         original_story_text=story.content,
+        include_graph_suggestions=bool(story_context),
     )
     if not system_prompt:
         return
@@ -290,6 +323,7 @@ async def summarize_conversation(
     story_id: uuid.UUID,
     user_id: uuid.UUID,
     llm_provider: LLMProvider,
+    graph_context_service: GraphContextService | None = None,
 ) -> StoryEvolutionSession:
     """Generate a structured summary from the elicitation conversation."""
     from app.config.settings import get_settings
@@ -327,6 +361,58 @@ async def summarize_conversation(
         f"## Original Story\n\n{original_story}\n\n"
         f"## Conversation Transcript\n\n{transcript}"
     )
+
+    # Best-effort graph enrichment: discover connections across entities
+    # mentioned in the conversation
+    if graph_context_service:
+        try:
+            # Load primary legacy for graph context
+            legacy_result = await db.execute(
+                select(StoryLegacy).where(
+                    StoryLegacy.story_id == session.story_id,
+                    StoryLegacy.role == "primary",
+                )
+            )
+            primary = legacy_result.scalar_one_or_none()
+            if primary:
+                from app.models.legacy import Legacy
+
+                leg = await db.execute(
+                    select(Legacy).where(Legacy.id == primary.legacy_id)
+                )
+                legacy = leg.scalar_one_or_none()
+                legacy_name = legacy.name if legacy else ""
+
+                assembled = await graph_context_service.assemble_context(
+                    query=transcript,
+                    legacy_id=primary.legacy_id,
+                    user_id=user_id,
+                    persona_type="biographer",  # summarization uses neutral traversal
+                    db=db,
+                    conversation_history=messages,
+                    token_budget=1500,
+                    legacy_name=legacy_name,
+                )
+                if assembled.formatted_context:
+                    user_message = (
+                        f"{user_message}\n\n"
+                        f"## Additional Context from Connected Stories\n\n"
+                        f"{assembled.formatted_context}"
+                    )
+                    logger.info(
+                        "evolution.summarize.graph_context",
+                        extra={
+                            "session_id": str(session_id),
+                            "graph_count": assembled.metadata.graph_count,
+                            "embedding_count": assembled.metadata.embedding_count,
+                        },
+                    )
+        except Exception:
+            # Graph enrichment is best-effort — never block summarization
+            logger.warning(
+                "evolution.summarize.graph_context_failed",
+                extra={"session_id": str(session_id)},
+            )
 
     # Generate summary (collect streamed chunks)
     settings = get_settings()

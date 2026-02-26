@@ -292,6 +292,7 @@ class DefaultStorytellingAgent:
                 facts=facts,
                 elicitation_mode=elicitation_mode,
                 original_story_text=original_story_text,
+                include_graph_suggestions=(elicitation_mode and bool(story_context)),
             )
             if not system_prompt:
                 raise AIProviderError(
