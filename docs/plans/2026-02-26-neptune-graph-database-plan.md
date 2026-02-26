@@ -4,7 +4,7 @@
 
 **Goal:** Add AWS Neptune as a dedicated graph database for social networks and story-extracted entity connections, with CDK infrastructure, Secrets Manager integration, and local development via TinkerPop.
 
-**Architecture:** A new CDK stack (`NeptuneDatabaseStack`) creates a Neptune cluster (db.t4g.medium, openCypher, IAM auth) in private subnets. Connection metadata is stored in Secrets Manager and exposed to Kubernetes via External Secrets. Locally, a TinkerPop Gremlin Server container in Docker Compose provides a compatible development environment.
+**Architecture:** A new CDK stack (`NeptuneDatabaseStack`) creates a **single shared** Neptune cluster (db.t4g.medium, openCypher, IAM auth) in private subnets, serving both prod and staging via **prefix-label isolation**. Per-environment connection metadata (with `env_prefix` field) is stored in Secrets Manager and exposed to Kubernetes via External Secrets. Locally, a TinkerPop Gremlin Server container in Docker Compose provides a compatible development environment.
 
 **Tech Stack:** AWS CDK (`@aws-cdk/aws-neptune-alpha`), Neptune (openCypher), Secrets Manager, IRSA, External Secrets Operator, TinkerPop Gremlin Server (Docker), Helm
 
@@ -61,14 +61,19 @@ import { Construct } from 'constructs';
 
 export interface NeptuneDatabaseStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
-  environment: string;
+  environments: string[];  // e.g., ['prod', 'staging'] — creates secrets + IRSA per env
 }
 
 /**
- * Neptune Graph Database Stack
+ * Neptune Graph Database Stack (Shared Cluster)
  *
- * Dedicated graph database for social network relationships
- * and story-extracted entity connections (places, objects, events).
+ * A SINGLE Neptune cluster shared by all environments (prod, staging).
+ * Data isolation is handled at the application layer via prefix-label strategy.
+ *
+ * The stack creates:
+ * - One Neptune cluster (shared)
+ * - One Secrets Manager secret PER environment (same host, different env_prefix)
+ * - One IRSA role PER environment (scoped to its K8s namespace)
  *
  * Configuration:
  * - db.t4g.medium writer (2 vCPU, 4 GB RAM) - ~$70/month
@@ -81,20 +86,19 @@ export interface NeptuneDatabaseStackProps extends cdk.StackProps {
 export class NeptuneDatabaseStack extends cdk.Stack {
   public readonly dbCluster: neptune.DatabaseCluster;
   public readonly dbSecurityGroup: ec2.SecurityGroup;
-  public readonly connectionSecret: secretsmanager.Secret;
 
   constructor(scope: Construct, id: string, props: NeptuneDatabaseStackProps) {
     super(scope, id, props);
 
-    const { vpc, environment } = props;
+    const { vpc, environments } = props;
 
     // ============================================================
     // Security Group for Neptune
     // ============================================================
     this.dbSecurityGroup = new ec2.SecurityGroup(this, 'NeptuneSecurityGroup', {
       vpc,
-      securityGroupName: `mosaic-${environment}-neptune-sg`,
-      description: 'Security group for Neptune graph database cluster',
+      securityGroupName: 'mosaic-neptune-sg',
+      description: 'Security group for Neptune graph database cluster (shared)',
       allowAllOutbound: false,
     });
 
@@ -130,7 +134,7 @@ export class NeptuneDatabaseStack extends cdk.Stack {
     // Neptune Database Cluster
     // ============================================================
     this.dbCluster = new neptune.DatabaseCluster(this, 'NeptuneCluster', {
-      dbClusterName: `mosaic-${environment}-neptune`,
+      dbClusterName: 'mosaic-neptune',  // Single shared cluster (not per-environment)
       vpc,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
@@ -159,9 +163,9 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       // Auto minor version upgrade
       autoMinorVersionUpgrade: true,
 
-      // Deletion protection
-      deletionProtection: environment === 'prod',
-      removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
+      // Deletion protection (always on — shared cluster holds prod data)
+      deletionProtection: true,
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
 
       // CloudWatch log exports
       cloudwatchLogsExports: [neptune.LogType.AUDIT],
@@ -169,95 +173,96 @@ export class NeptuneDatabaseStack extends cdk.Stack {
     });
 
     // ============================================================
-    // Connection Secret (Secrets Manager)
+    // Per-Environment: Connection Secrets + IRSA Roles
     // ============================================================
-    this.connectionSecret = new secretsmanager.Secret(this, 'NeptuneConnectionSecret', {
-      secretName: `mosaic/${environment}/neptune/connection`,
-      description: 'Neptune graph database connection metadata',
-      secretObjectValue: {
-        host: cdk.SecretValue.unsafePlainText(this.dbCluster.clusterEndpoint.hostname),
-        port: cdk.SecretValue.unsafePlainText('8182'),
-        engine: cdk.SecretValue.unsafePlainText('neptune'),
-        iam_auth: cdk.SecretValue.unsafePlainText('true'),
-        region: cdk.SecretValue.unsafePlainText(this.region),
-      },
-    });
-
-    // ============================================================
-    // IRSA Role for Neptune Access
-    // ============================================================
+    // Both environments share the same cluster endpoint.
+    // The env_prefix field tells the GraphAdapter which label prefix to use.
     const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
 
-    const neptuneAccessRole = new iam.Role(this, 'NeptuneAccessRole', {
-      roleName: `mosaic-${environment}-neptune-access-role`,
-      description: 'IAM role for core-api to access Neptune and connection secret via IRSA',
-      assumedBy: new iam.FederatedPrincipal(
-        `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`,
-        {
-          StringEquals: {
-            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]:
-              `system:serviceaccount:mosaic-${environment}:core-api-secrets-sa`,
-            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]:
-              'sts.amazonaws.com',
-          },
+    for (const environment of environments) {
+      const envTitle = environment.charAt(0).toUpperCase() + environment.slice(1);
+
+      // Connection Secret (same host/port, different env_prefix)
+      const connectionSecret = new secretsmanager.Secret(this, `NeptuneConnectionSecret${envTitle}`, {
+        secretName: `mosaic/${environment}/neptune/connection`,
+        description: `Neptune connection metadata for ${environment}`,
+        secretObjectValue: {
+          host: cdk.SecretValue.unsafePlainText(this.dbCluster.clusterEndpoint.hostname),
+          port: cdk.SecretValue.unsafePlainText('8182'),
+          engine: cdk.SecretValue.unsafePlainText('neptune'),
+          iam_auth: cdk.SecretValue.unsafePlainText('true'),
+          region: cdk.SecretValue.unsafePlainText(this.region),
+          env_prefix: cdk.SecretValue.unsafePlainText(environment),
         },
-        'sts:AssumeRoleWithWebIdentity'
-      ),
-    });
+      });
 
-    // Grant read access to connection secret
-    this.connectionSecret.grantRead(neptuneAccessRole);
+      // IRSA Role (scoped to this environment's K8s namespace)
+      const neptuneAccessRole = new iam.Role(this, `NeptuneAccessRole${envTitle}`, {
+        roleName: `mosaic-${environment}-neptune-access-role`,
+        description: `IAM role for ${environment} core-api to access Neptune via IRSA`,
+        assumedBy: new iam.FederatedPrincipal(
+          `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`,
+          {
+            StringEquals: {
+              [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]:
+                `system:serviceaccount:mosaic-${environment}:core-api-secrets-sa`,
+              [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]:
+                'sts.amazonaws.com',
+            },
+          },
+          'sts:AssumeRoleWithWebIdentity'
+        ),
+      });
 
-    // Grant Neptune IAM DB connect access
-    neptuneAccessRole.addToPolicy(new iam.PolicyStatement({
-      effect: iam.Effect.ALLOW,
-      actions: ['neptune-db:connect'],
-      resources: [
-        `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`,
-      ],
-    }));
+      // Grant read access to this environment's connection secret only
+      connectionSecret.grantRead(neptuneAccessRole);
+
+      // Grant Neptune IAM DB connect access (same cluster for all envs)
+      neptuneAccessRole.addToPolicy(new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['neptune-db:connect'],
+        resources: [
+          `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`,
+        ],
+      }));
+
+      // Per-environment outputs
+      new cdk.CfnOutput(this, `NeptuneSecretArn${envTitle}`, {
+        value: connectionSecret.secretArn,
+        description: `ARN of Neptune connection secret (${environment})`,
+        exportName: `mosaic-${environment}-neptune-secret-arn`,
+      });
+
+      new cdk.CfnOutput(this, `NeptuneAccessRoleArn${envTitle}`, {
+        value: neptuneAccessRole.roleArn,
+        description: `IAM role ARN for Neptune access (${environment})`,
+        exportName: `mosaic-${environment}-neptune-access-role-arn`,
+      });
+    }
 
     // ============================================================
-    // Outputs
+    // Shared Outputs
     // ============================================================
     new cdk.CfnOutput(this, 'NeptuneClusterEndpoint', {
       value: this.dbCluster.clusterEndpoint.hostname,
-      description: 'Neptune cluster writer endpoint',
-      exportName: `mosaic-${environment}-neptune-endpoint`,
+      description: 'Neptune cluster writer endpoint (shared)',
+      exportName: 'mosaic-neptune-endpoint',
     });
 
     new cdk.CfnOutput(this, 'NeptuneClusterPort', {
       value: '8182',
       description: 'Neptune cluster port',
-      exportName: `mosaic-${environment}-neptune-port`,
-    });
-
-    new cdk.CfnOutput(this, 'NeptuneClusterIdentifier', {
-      value: `mosaic-${environment}-neptune`,
-      description: 'Neptune cluster identifier',
-      exportName: `mosaic-${environment}-neptune-cluster-id`,
+      exportName: 'mosaic-neptune-port',
     });
 
     new cdk.CfnOutput(this, 'NeptuneSecurityGroupId', {
       value: this.dbSecurityGroup.securityGroupId,
       description: 'Security group ID for Neptune cluster',
-      exportName: `mosaic-${environment}-neptune-sg-id`,
-    });
-
-    new cdk.CfnOutput(this, 'NeptuneConnectionSecretArn', {
-      value: this.connectionSecret.secretArn,
-      description: 'ARN of Neptune connection secret',
-      exportName: `mosaic-${environment}-neptune-secret-arn`,
-    });
-
-    new cdk.CfnOutput(this, 'NeptuneAccessRoleArn', {
-      value: neptuneAccessRole.roleArn,
-      description: 'IAM role ARN for Neptune access',
-      exportName: `mosaic-${environment}-neptune-access-role-arn`,
+      exportName: 'mosaic-neptune-sg-id',
     });
 
     new cdk.CfnOutput(this, 'EstimatedMonthlyCost', {
-      value: 'db.t4g.medium: ~$70/month + storage/IO: ~$6-11/month = ~$76-81/month total',
+      value: 'db.t4g.medium: ~$70/month + storage/IO: ~$6-11/month = ~$76-81/month total (shared by all envs)',
       description: 'Estimated monthly cost for Neptune configuration',
     });
   }
@@ -294,11 +299,12 @@ import { NeptuneDatabaseStack } from '../lib/neptune-database-stack';
 Add the Neptune stack instantiation after the Aurora block (around line 67), before the Staging Resources Stack:
 
 ```typescript
-// Neptune Graph Database Stack - dedicated graph DB for social networks and entity connections
+// Neptune Graph Database Stack — single shared cluster for all environments
+// Data isolation via prefix-label strategy (see design doc)
 new NeptuneDatabaseStack(app, 'MosaicNeptuneDatabaseStack', {
   env,
   vpc: appStack.vpc,
-  environment: prodEnvironment,
+  environments: [prodEnvironment, 'staging'],
 });
 ```
 
@@ -365,6 +371,10 @@ spec:
       remoteRef:
         key: {{ .Values.externalSecrets.neptune.secretKey }}
         property: iam_auth
+    - secretKey: env_prefix
+      remoteRef:
+        key: {{ .Values.externalSecrets.neptune.secretKey }}
+        property: env_prefix
 {{- end }}
 ```
 
@@ -375,6 +385,13 @@ Add the following under the `externalSecrets` section in `infra/helm/mosaic-life
 ```yaml
   neptune:
     secretKey: "mosaic/prod/neptune/connection"
+```
+
+And in `infra/helm/mosaic-life/values-staging.yaml`, override with the staging secret:
+
+```yaml
+  neptune:
+    secretKey: "mosaic/staging/neptune/connection"
 ```
 
 **Step 3: Add Neptune environment variables to core-api**
@@ -403,6 +420,11 @@ Add the following env vars to the `coreApi.env` list in `infra/helm/mosaic-life/
         secretKeyRef:
           name: neptune-connection
           key: iam_auth
+    - name: NEPTUNE_ENV_PREFIX
+      valueFrom:
+        secretKeyRef:
+          name: neptune-connection
+          key: env_prefix
 ```
 
 **Step 4: Verify Helm template renders correctly**
