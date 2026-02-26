@@ -1,14 +1,22 @@
 """Service for indexing story content into vector store."""
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import get_settings
 from ..models.knowledge import KnowledgeAuditLog
 from ..providers.registry import get_provider_registry
 from .chunking import chunk_story
+
+if TYPE_CHECKING:
+    from ..adapters.graph_adapter import GraphAdapter
+    from .entity_extraction import ExtractedEntities
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.ingestion")
@@ -114,6 +122,34 @@ async def index_story_chunks(
             },
         )
 
+        # 6. Best-effort entity extraction for graph database
+        try:
+            settings = get_settings()
+            if settings.graph_augmentation_enabled:
+                registry = get_provider_registry()
+                graph_adapter = registry.get_graph_adapter()
+                if graph_adapter:
+                    from .entity_extraction import EntityExtractionService
+
+                    llm_provider = registry.get_llm_provider()
+                    extraction_service = EntityExtractionService(
+                        llm_provider=llm_provider,
+                        model_id=settings.entity_extraction_model_id,
+                    )
+                    entities = await extraction_service.extract_entities(content)
+                    filtered = entities.filter_by_confidence(0.7)
+
+                    # Sync extracted entities to graph
+                    await _sync_entities_to_graph(
+                        graph_adapter, story_id, legacy_id, filtered
+                    )
+        except Exception as exc:
+            # Entity extraction is best-effort — never block ingestion
+            logger.warning(
+                "ingestion.entity_extraction_failed",
+                extra={"story_id": str(story_id), "error": str(exc)},
+            )
+
         return chunk_count
 
 
@@ -150,5 +186,70 @@ async def log_deletion_audit(
             "story_id": str(story_id),
             "user_id": str(user_id),
             "chunk_count": chunk_count,
+        },
+    )
+
+
+async def _sync_entities_to_graph(
+    graph_adapter: GraphAdapter,
+    story_id: UUID,
+    legacy_id: UUID,
+    entities: ExtractedEntities,
+) -> None:
+    """Sync extracted entities to the graph database."""
+    sid = str(story_id)
+
+    for place in entities.places:
+        place_id = f"place-{place.name.lower().replace(' ', '-')}-{legacy_id}"
+        await graph_adapter.upsert_node(
+            "Place",
+            place_id,
+            {"name": place.name, "type": place.type, "location": place.location},
+        )
+        await graph_adapter.create_relationship(
+            "Story",
+            sid,
+            "TOOK_PLACE_AT",
+            "Place",
+            place_id,
+        )
+
+    for event in entities.events:
+        event_id = f"event-{event.name.lower().replace(' ', '-')}-{legacy_id}"
+        await graph_adapter.upsert_node(
+            "Event",
+            event_id,
+            {"name": event.name, "type": event.type, "date": event.date},
+        )
+        await graph_adapter.create_relationship(
+            "Story",
+            sid,
+            "REFERENCES",
+            "Event",
+            event_id,
+        )
+
+    for obj in entities.objects:
+        obj_id = f"object-{obj.name.lower().replace(' ', '-')}-{legacy_id}"
+        await graph_adapter.upsert_node(
+            "Object",
+            obj_id,
+            {"name": obj.name, "type": obj.type, "description": obj.context},
+        )
+        await graph_adapter.create_relationship(
+            "Story",
+            sid,
+            "REFERENCES",
+            "Object",
+            obj_id,
+        )
+
+    logger.info(
+        "ingestion.entities_synced",
+        extra={
+            "story_id": str(story_id),
+            "places": len(entities.places),
+            "events": len(entities.events),
+            "objects": len(entities.objects),
         },
     )
