@@ -1951,7 +1951,9 @@ git commit -m "feat: add entity extraction backfill script and Kubernetes Job"
 
 ---
 
-## Phase 3: Persona Expansion
+## Phase 3: Persona Expansion  -- COMPLETED
+
+> **Status:** Task 12 complete. 26 tests passing. `just validate-backend` passes (ruff + mypy).
 
 ### Task 12: Add Colleague and Family Personas
 
