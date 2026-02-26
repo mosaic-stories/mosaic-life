@@ -12,7 +12,9 @@
 
 ---
 
-## Phase 1: GraphAdapter Foundation
+## Phase 1: GraphAdapter Foundation  -- COMPLETED
+
+> **Status:** All 8 tasks complete. 20 tests passing. `just validate-backend` passes (ruff + mypy).
 
 ### Task 1: Add Python Dependencies
 
