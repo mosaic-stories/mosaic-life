@@ -2361,7 +2361,9 @@ See design doc Sections 4, 8, and 10 for details on ranking, token budgeting, an
 
 ---
 
-## Phase 5: Integration
+## Phase 5: Integration  -- COMPLETED
+
+> **Status:** Task 17 complete. 764 tests passing (760 passed, 2 skipped, 1 warning). `just validate-backend` passes (ruff + mypy).
 
 ### Task 17: Refactor prepare_turn() to Use GraphContextService
 

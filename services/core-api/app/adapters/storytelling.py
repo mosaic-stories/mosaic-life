@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 
     from ..models.ai import AIMessage
     from ..schemas.retrieval import ChunkResult
+    from ..services.graph_context import GraphContextService
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.storytelling")
@@ -166,12 +167,14 @@ class DefaultStorytellingAgent:
         memory: AgentMemory,
         guardrail: ContentGuardrail,
         context_formatter: Callable[[list[ChunkResult]], str] = format_story_context,
+        graph_context_service: GraphContextService | None = None,
     ):
         self.llm_provider = llm_provider
         self.vector_store = vector_store
         self.memory = memory
         self.guardrail = guardrail
         self.context_formatter = context_formatter
+        self.graph_context_service = graph_context_service
 
     async def prepare_turn(
         self,
@@ -190,25 +193,56 @@ class DefaultStorytellingAgent:
             span.set_attribute("persona_id", persona_id)
 
             chunks: list[ChunkResult] = []
+            story_context = ""
 
-            try:
-                chunks = await self.vector_store.retrieve_context(
-                    db=db,
-                    query=user_query,
-                    legacy_id=legacy_id,
-                    user_id=user_id,
-                    top_k=top_k,
-                )
-            except Exception as exc:
-                logger.warning(
-                    "ai.chat.rag_retrieval_failed",
-                    extra={
-                        "conversation_id": str(conversation_id),
-                        "error": str(exc),
-                    },
-                )
+            if self.graph_context_service:
+                # Graph-augmented path: delegate to GraphContextService
+                try:
+                    assembled = await self.graph_context_service.assemble_context(
+                        query=user_query,
+                        legacy_id=legacy_id,
+                        user_id=user_id,
+                        persona_type=persona_id,
+                        db=db,
+                        conversation_history=await self.memory.get_context_messages(
+                            db=db,
+                            conversation_id=conversation_id,
+                        ),
+                        legacy_name=legacy_name,
+                    )
+                    story_context = assembled.formatted_context
+                    chunks = assembled.embedding_results
+                    span.set_attribute("context_source", "graph_augmented")
+                except Exception as exc:
+                    logger.warning(
+                        "ai.chat.graph_context_failed",
+                        extra={
+                            "conversation_id": str(conversation_id),
+                            "error": str(exc),
+                        },
+                    )
+                    # Fall through to embedding-only retrieval below
 
-            story_context = self.context_formatter(chunks)
+            if not story_context:
+                # Embedding-only path (default or graph fallback)
+                try:
+                    chunks = await self.vector_store.retrieve_context(
+                        db=db,
+                        query=user_query,
+                        legacy_id=legacy_id,
+                        user_id=user_id,
+                        top_k=top_k,
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "ai.chat.rag_retrieval_failed",
+                        extra={
+                            "conversation_id": str(conversation_id),
+                            "error": str(exc),
+                        },
+                    )
+                story_context = self.context_formatter(chunks)
+                span.set_attribute("context_source", "embedding_only")
 
             # Fetch legacy facts for system prompt injection
             facts = []
