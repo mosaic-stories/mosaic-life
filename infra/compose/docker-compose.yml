@@ -123,6 +123,7 @@ services:
       - "18182:8182"
     volumes:
       - neptune-data:/opt/gremlin-server/data
+      - ./neptune-local/gremlin-server.yaml:/opt/gremlin-server/conf/gremlin-server.yaml:ro
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 8182 || exit 1"]
       interval: 10s
