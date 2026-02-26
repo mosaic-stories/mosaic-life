@@ -108,10 +108,13 @@ nav:
   - User Guide:
     - Creating Stories: user-guide/creating-stories.md
     - Sharing Memories: user-guide/sharing-memories.md
+    - AI Personas & Smart Connections: user-guide/ai-personas.md
   - Developer Guide:
     - Environment Setup: developer-guide/environment-setup.md
     - Local Setup: developer-guide/local-setup.md
     - Architecture: developer-guide/architecture.md
+    - Graph-Augmented RAG: developer-guide/graph-augmented-rag.md
+    - Graph RAG Configuration: developer-guide/graph-rag-configuration.md
     - Contributing: developer-guide/contributing.md
   - API Reference:
     - Overview: api/overview.md
