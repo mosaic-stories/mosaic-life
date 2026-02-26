@@ -4,6 +4,7 @@ import * as cdk from 'aws-cdk-lib';
 import { DnsCertificateStack } from '../lib/dns-certificate-stack';
 import { MosaicLifeStack } from '../lib/mosaic-life-stack';
 import { DatabaseStack } from '../lib/database-stack';
+import { AuroraDatabaseStack } from '../lib/aurora-database-stack';
 import { StagingResourcesStack } from '../lib/staging-resources-stack';
 
 const app = new cdk.App();
@@ -51,6 +52,15 @@ new DatabaseStack(app, 'MosaicDatabaseStack', {
   env,
   vpc: appStack.vpc,
   environment: prodEnvironment,
+});
+
+// Aurora Database Stack - migrated from RDS PostgreSQL for AGE extension support
+// Originally restored from snapshot 'mosaic-pre-aurora-migration'; now the primary database.
+new AuroraDatabaseStack(app, 'MosaicAuroraDatabaseStack', {
+  env,
+  vpc: appStack.vpc,
+  environment: prodEnvironment,
+  snapshotIdentifier: 'arn:aws:rds:us-east-1:033691785857:snapshot:mosaic-pre-aurora-migration',
 });
 
 // Staging Resources Stack - S3 buckets, IAM roles, secrets for staging

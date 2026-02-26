@@ -2,7 +2,6 @@ import * as cdk from 'aws-cdk-lib';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
 
 export interface DatabaseStackProps extends cdk.StackProps {
@@ -69,22 +68,13 @@ export class DatabaseStack extends cdk.Stack {
       removalPolicy: environment === 'prod' ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
 
-    // ============================================================
-    // Database Credentials (managed by Secrets Manager)
-    // ============================================================
-    this.dbSecret = new secretsmanager.Secret(this, 'DatabaseSecret', {
-      secretName: `mosaic/${environment}/rds/credentials`,
-      description: 'Master credentials for RDS PostgreSQL',
-      generateSecretString: {
-        secretStringTemplate: JSON.stringify({
-          username: 'mosaicadmin',
-        }),
-        generateStringKey: 'password',
-        excludePunctuation: true, // Avoid URL encoding issues
-        passwordLength: 32,
-        requireEachIncludedType: true,
-      },
-    });
+    // Secret (mosaic/prod/rds/credentials) was removed with RETAIN policy.
+    // It is now referenced by the Aurora stack via fromSecretNameV2.
+
+    // Reference the retained secret for RDS credentials prop
+    this.dbSecret = secretsmanager.Secret.fromSecretNameV2(
+      this, 'DatabaseSecret', `mosaic/${environment}/rds/credentials`
+    );
 
     // ============================================================
     // Parameter Group (PostgreSQL optimizations)
@@ -192,58 +182,8 @@ export class DatabaseStack extends cdk.Stack {
       cloudwatchLogsRetention: cdk.aws_logs.RetentionDays.ONE_WEEK, // Increase for production
     });
 
-    // ============================================================
-    // Note: The application will use External Secrets Operator to fetch
-    // credentials from dbSecret and construct the connection URL with
-    // the database endpoint address and port.
-    // ============================================================
-
-    // Grant core-api service account read access to secrets
-    // This will be used by External Secrets Operator in Kubernetes
-    const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
-    
-    const eksServiceAccountRole = new iam.Role(this, 'CoreApiSecretsAccessRole', {
-      roleName: `mosaic-${environment}-core-api-secrets-role`,
-      description: 'IAM role for core-api to access database secrets and send emails via IRSA',
-      assumedBy: new iam.FederatedPrincipal(
-        `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`,
-        {
-          StringEquals: {
-            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]: 
-              `system:serviceaccount:mosaic-${environment}:core-api-secrets-sa`,
-            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]: 
-              'sts.amazonaws.com',
-          },
-        },
-        'sts:AssumeRoleWithWebIdentity'
-      ),
-      inlinePolicies: {
-        'SESEmailSendPolicy': new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: [
-                'ses:SendEmail',
-                'ses:SendRawEmail',
-              ],
-              resources: ['*'], // SES actions don't support resource-level permissions
-            }),
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: [
-                'ses:GetSendQuota',
-                'ses:GetSendStatistics',
-                'ses:ListVerifiedEmailAddresses',
-              ],
-              resources: ['*'],
-            }),
-          ],
-        }),
-      },
-    });
-
-    // Grant read access to database credentials secret
-    this.dbSecret.grantRead(eksServiceAccountRole);
+    // IRSA role (CoreApiSecretsAccessRole) was removed with RETAIN policy.
+    // It is now managed by the Aurora stack.
 
     // ============================================================
     // Outputs
@@ -266,22 +206,10 @@ export class DatabaseStack extends cdk.Stack {
       exportName: `mosaic-${environment}-db-name`,
     });
 
-    new cdk.CfnOutput(this, 'DatabaseSecretArn', {
-      value: this.dbSecret.secretArn,
-      description: 'ARN of the database credentials secret (username/password)',
-      exportName: `mosaic-${environment}-db-secret-arn`,
-    });
-
     new cdk.CfnOutput(this, 'DatabaseSecurityGroupId', {
       value: this.dbSecurityGroup.securityGroupId,
       description: 'Security group ID for database access',
       exportName: `mosaic-${environment}-db-sg-id`,
-    });
-
-    new cdk.CfnOutput(this, 'CoreApiSecretsRoleArn', {
-      value: eksServiceAccountRole.roleArn,
-      description: 'IAM role ARN for core-api to access database secrets',
-      exportName: `mosaic-${environment}-core-api-secrets-role-arn`,
     });
 
     // Cost estimation output
