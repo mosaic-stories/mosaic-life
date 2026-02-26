@@ -24,6 +24,17 @@ CONFIG_PATH = Path(__file__).parent / "personas.yaml"
 
 
 @dataclass
+class TraversalConfig:
+    """Graph traversal configuration for a persona."""
+
+    max_hops: int = 1
+    relationship_weights: dict[str, float] = field(default_factory=dict)
+    max_graph_results: int = 15
+    include_cross_legacy: bool = True
+    temporal_range: str = "full"
+
+
+@dataclass
 class PersonaConfig:
     """Configuration for an AI persona."""
 
@@ -34,6 +45,7 @@ class PersonaConfig:
     model_id: str
     system_prompt: str
     max_tokens: int = field(default=1024)
+    traversal: TraversalConfig = field(default_factory=TraversalConfig)
 
 
 _personas: dict[str, PersonaConfig] = {}
@@ -65,6 +77,14 @@ def load_personas() -> dict[str, PersonaConfig]:
 
     personas_config: dict[str, Any] = config.get("personas", {})
     for persona_id, data in personas_config.items():
+        traversal_data = data.get("traversal", {})
+        traversal = TraversalConfig(
+            max_hops=traversal_data.get("max_hops", 1),
+            relationship_weights=traversal_data.get("relationship_weights", {}),
+            max_graph_results=traversal_data.get("max_graph_results", 15),
+            include_cross_legacy=traversal_data.get("include_cross_legacy", True),
+            temporal_range=traversal_data.get("temporal_range", "full"),
+        )
         _personas[persona_id] = PersonaConfig(
             id=persona_id,
             name=data["name"],
@@ -73,6 +93,7 @@ def load_personas() -> dict[str, PersonaConfig]:
             model_id=data["model_id"],
             system_prompt=data["system_prompt"],
             max_tokens=data.get("max_tokens", 1024),
+            traversal=traversal,
         )
 
     logger.info(
