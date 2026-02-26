@@ -3,7 +3,6 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { DnsCertificateStack } from '../lib/dns-certificate-stack';
 import { MosaicLifeStack } from '../lib/mosaic-life-stack';
-import { DatabaseStack } from '../lib/database-stack';
 import { AuroraDatabaseStack } from '../lib/aurora-database-stack';
 import { StagingResourcesStack } from '../lib/staging-resources-stack';
 
@@ -47,13 +46,6 @@ const appStack = new MosaicLifeStack(app, 'MosaicLifeStack', {
   },
 });
 
-// Database Stack - RDS PostgreSQL (shared across environments)
-new DatabaseStack(app, 'MosaicDatabaseStack', {
-  env,
-  vpc: appStack.vpc,
-  environment: prodEnvironment,
-});
-
 // Aurora Database Stack - migrated from RDS PostgreSQL for AGE extension support
 // Originally restored from snapshot 'mosaic-pre-aurora-migration'; now the primary database.
 new AuroraDatabaseStack(app, 'MosaicAuroraDatabaseStack', {
@@ -64,7 +56,6 @@ new AuroraDatabaseStack(app, 'MosaicAuroraDatabaseStack', {
 });
 
 // Staging Resources Stack - S3 buckets, IAM roles, secrets for staging
-// These resources use the shared RDS instance but have isolated storage/secrets
 new StagingResourcesStack(app, 'MosaicStagingResourcesStack', {
   env,
   vpc: appStack.vpc,
