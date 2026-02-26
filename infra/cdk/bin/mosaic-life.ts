@@ -5,6 +5,7 @@ import { DnsCertificateStack } from '../lib/dns-certificate-stack';
 import { MosaicLifeStack } from '../lib/mosaic-life-stack';
 import { AuroraDatabaseStack } from '../lib/aurora-database-stack';
 import { StagingResourcesStack } from '../lib/staging-resources-stack';
+import { NeptuneDatabaseStack } from '../lib/neptune-database-stack';
 
 const app = new cdk.App();
 
@@ -53,6 +54,14 @@ new AuroraDatabaseStack(app, 'MosaicAuroraDatabaseStack', {
   vpc: appStack.vpc,
   environment: prodEnvironment,
   snapshotIdentifier: 'arn:aws:rds:us-east-1:033691785857:snapshot:mosaic-pre-aurora-migration',
+});
+
+// Neptune Graph Database Stack — single shared cluster for all environments
+// Data isolation via prefix-label strategy (see design doc)
+new NeptuneDatabaseStack(app, 'MosaicNeptuneDatabaseStack', {
+  env,
+  vpc: appStack.vpc,
+  environments: [prodEnvironment, 'staging'],
 });
 
 // Staging Resources Stack - S3 buckets, IAM roles, secrets for staging

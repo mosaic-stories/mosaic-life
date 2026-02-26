@@ -21,11 +21,11 @@ The MVP uses a **simplified stack** to enable rapid delivery:
 - **Web App** (React/TypeScript/Vite): SPA with TanStack Query, Zustand, React Router
 - **PostgreSQL**: Primary database for all data (users, legacies, stories, media references)
 - **S3**: Media storage (images, videos)
+- **Neptune** (graph database): Social network relationships and story-extracted entity connections
 - **Google OAuth**: User authentication (no Cognito)
 
 **What we're NOT using (deferred to future phases)**:
 - ❌ OpenSearch / Elasticsearch (using Postgres search)
-- ❌ Neo4j graph database (using Postgres foreign keys)
 - ❌ SNS/SQS event bus (direct database writes)
 - ❌ LiteLLM proxy (direct OpenAI/Anthropic calls in Phase 3)
 - ❌ Module Federation plugins (deferred)
@@ -200,6 +200,19 @@ docker compose -f infra/compose/docker-compose.yml exec postgres pg_dump -U post
 # Connection details (local):
 # Host: localhost, Port: 15432
 # Database: core, User: postgres, Password: postgres
+```
+
+### Graph Database (Neptune/TinkerPop)
+
+```bash
+# Start the local graph database
+docker compose -f infra/compose/docker-compose.yml up -d neptune-local
+
+# Test connectivity
+curl http://localhost:18182
+
+# Submit a Gremlin query
+curl -X POST http://localhost:18182/gremlin -d '{"gremlin": "g.V().count()"}'
 ```
 
 ### Documentation Development
@@ -426,6 +439,7 @@ OpenSearch indexes with tenant isolation:
 - OpenSearch: http://localhost:9200
 - Localstack (AWS): http://localhost:4566
 - Jaeger UI: http://localhost:16686
+- Neptune (TinkerPop): http://localhost:18182
 
 **Default Credentials:**
 - PostgreSQL: postgres/postgres (database: core)
