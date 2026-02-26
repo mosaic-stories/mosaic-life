@@ -104,6 +104,28 @@ class Settings(BaseModel):
     # Story versioning
     story_version_soft_cap: int = int(os.getenv("STORY_VERSION_SOFT_CAP", "50"))
 
+    # Neptune / Graph Database
+    neptune_host: str | None = os.getenv("NEPTUNE_HOST")
+    neptune_port: int = int(os.getenv("NEPTUNE_PORT", "8182"))
+    neptune_region: str = os.getenv("NEPTUNE_REGION", "us-east-1")
+    neptune_iam_auth: bool = _as_bool(os.getenv("NEPTUNE_IAM_AUTH"), False)
+    neptune_env_prefix: str = os.getenv("NEPTUNE_ENV_PREFIX", "local")
+    graph_augmentation_enabled: bool = _as_bool(
+        os.getenv("GRAPH_AUGMENTATION_ENABLED"), True
+    )
+
+    # Intent analysis model (lightweight, fast)
+    intent_analysis_model_id: str = os.getenv(
+        "INTENT_ANALYSIS_MODEL_ID",
+        "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    )
+
+    # Entity extraction model
+    entity_extraction_model_id: str = os.getenv(
+        "ENTITY_EXTRACTION_MODEL_ID",
+        "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    )
+
 
 @lru_cache
 def get_settings() -> Settings:
