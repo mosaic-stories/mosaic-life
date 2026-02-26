@@ -16,6 +16,7 @@ if TYPE_CHECKING:
         StorytellingAgent,
         VectorStore,
     )
+    from ..adapters.graph_adapter import GraphAdapter
     from ..config.settings import Settings
 
 
@@ -135,6 +136,12 @@ class ProviderRegistry:
             guardrail=self.get_content_guardrail(),
             context_formatter=format_story_context,
         )
+
+    def get_graph_adapter(self) -> GraphAdapter | None:
+        """Return the configured graph adapter, or None if disabled."""
+        from ..adapters.graph_factory import create_graph_adapter
+
+        return create_graph_adapter(self._settings)
 
 
 _provider_registry: ProviderRegistry | None = None
