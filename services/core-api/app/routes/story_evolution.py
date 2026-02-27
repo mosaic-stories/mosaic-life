@@ -53,6 +53,7 @@ async def start_evolution(
         session=evo_session,
         llm_provider=registry.get_llm_provider(),
         memory=registry.get_agent_memory(),
+        graph_context_service=registry.get_graph_context_service(),
     )
 
     return EvolutionSessionResponse.model_validate(evo_session)
@@ -163,6 +164,7 @@ async def summarize_conversation(
         story_id=story_id,
         user_id=session_data.user_id,
         llm_provider=registry.get_llm_provider(),
+        graph_context_service=registry.get_graph_context_service(),
     )
     return EvolutionSessionResponse.model_validate(evo_session)
 

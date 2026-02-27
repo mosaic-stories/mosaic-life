@@ -388,3 +388,7 @@ externalSecrets:
     property: "token"
   neptune:
     secretKey: "mosaic/prod/neptune/connection"
+
+# Entity Backfill Job (one-time graph population)
+entityBackfill:
+  enabled: false

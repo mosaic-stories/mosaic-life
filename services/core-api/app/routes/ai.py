@@ -31,6 +31,7 @@ from ..schemas.ai import (
     MessageListResponse,
     PersonaResponse,
     SSEChunkEvent,
+    SSEDebugEvent,
     SSEDoneEvent,
     SSEErrorEvent,
 )
@@ -280,6 +281,9 @@ async def send_message(
     conversation_id: UUID,
     data: MessageCreate,
     request: Request,
+    debug: bool = Query(
+        False, description="Include graph-augmented RAG debug metadata"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """Send message and stream AI response."""
@@ -382,6 +386,22 @@ async def send_message(
                     token_count=token_count,
                 )
                 yield f"data: {done_event.model_dump_json()}\n\n"
+
+                # Send debug event if requested
+                if debug and turn.graph_context_metadata is not None:
+                    from ..services.graph_context import ContextMetadata
+
+                    meta = turn.graph_context_metadata
+                    if isinstance(meta, ContextMetadata):
+                        debug_event = SSEDebugEvent(
+                            intent={
+                                "type": meta.intent,
+                                "confidence": meta.intent_confidence,
+                            },
+                            context_sources=[{"source": s} for s in meta.sources],
+                            circuit_state=meta.circuit_breaker_state,
+                        )
+                        yield f"data: {debug_event.model_dump_json()}\n\n"
 
                 logger.info(
                     "ai.chat.complete",

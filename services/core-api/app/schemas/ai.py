@@ -134,3 +134,13 @@ class SSEErrorEvent(BaseModel):
     type: Literal["error"] = "error"
     message: str
     retryable: bool = False
+
+
+class SSEDebugEvent(BaseModel):
+    """SSE event carrying graph-augmented RAG debug metadata."""
+
+    type: Literal["debug"] = "debug"
+    intent: dict[str, object] | None = None
+    context_sources: list[dict[str, object]] = Field(default_factory=list)
+    graph_traversals: list[dict[str, object]] = Field(default_factory=list)
+    circuit_state: str = "N/A"

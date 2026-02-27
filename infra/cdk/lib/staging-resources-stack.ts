@@ -264,6 +264,22 @@ export class StagingResourcesStack extends cdk.Stack {
       })
     );
 
+    // Grant AWS Marketplace permissions required by newer Bedrock models (e.g. Claude Haiku 4.5+)
+    // These models require a marketplace agreement before first use; the IAM role must be
+    // authorised to read and complete that subscription handshake.
+    this.coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowBedrockMarketplaceSubscription',
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'aws-marketplace:ViewSubscriptions',
+          'aws-marketplace:Subscribe',
+          'aws-marketplace:Unsubscribe',
+        ],
+        resources: ['*'],
+      })
+    );
+
     // ============================================================
     // Bedrock Guardrail for AI Chat (Staging)
     // ============================================================

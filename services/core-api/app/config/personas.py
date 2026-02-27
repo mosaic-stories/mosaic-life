@@ -18,9 +18,31 @@ def _load_elicitation_directive() -> str:
     return _elicitation_directive
 
 
+GRAPH_SUGGESTIONS_PROMPT_PATH = Path(__file__).parent / "graph_suggestions.txt"
+_graph_suggestions_directive: str | None = None
+
+
+def _load_graph_suggestions_directive() -> str:
+    global _graph_suggestions_directive
+    if _graph_suggestions_directive is None:
+        _graph_suggestions_directive = GRAPH_SUGGESTIONS_PROMPT_PATH.read_text().strip()
+    return _graph_suggestions_directive
+
+
 logger = logging.getLogger(__name__)
 
 CONFIG_PATH = Path(__file__).parent / "personas.yaml"
+
+
+@dataclass
+class TraversalConfig:
+    """Graph traversal configuration for a persona."""
+
+    max_hops: int = 1
+    relationship_weights: dict[str, float] = field(default_factory=dict)
+    max_graph_results: int = 15
+    include_cross_legacy: bool = True
+    temporal_range: str = "full"
 
 
 @dataclass
@@ -34,6 +56,7 @@ class PersonaConfig:
     model_id: str
     system_prompt: str
     max_tokens: int = field(default=1024)
+    traversal: TraversalConfig = field(default_factory=TraversalConfig)
 
 
 _personas: dict[str, PersonaConfig] = {}
@@ -42,9 +65,11 @@ _base_rules: str = ""
 
 def _reset_cache() -> None:
     """Reset the cached personas (for testing)."""
-    global _personas, _base_rules
+    global _personas, _base_rules, _elicitation_directive, _graph_suggestions_directive
     _personas = {}
     _base_rules = ""
+    _elicitation_directive = None
+    _graph_suggestions_directive = None
 
 
 def load_personas() -> dict[str, PersonaConfig]:
@@ -65,6 +90,14 @@ def load_personas() -> dict[str, PersonaConfig]:
 
     personas_config: dict[str, Any] = config.get("personas", {})
     for persona_id, data in personas_config.items():
+        traversal_data = data.get("traversal", {})
+        traversal = TraversalConfig(
+            max_hops=traversal_data.get("max_hops", 1),
+            relationship_weights=traversal_data.get("relationship_weights", {}),
+            max_graph_results=traversal_data.get("max_graph_results", 15),
+            include_cross_legacy=traversal_data.get("include_cross_legacy", True),
+            temporal_range=traversal_data.get("temporal_range", "full"),
+        )
         _personas[persona_id] = PersonaConfig(
             id=persona_id,
             name=data["name"],
@@ -73,6 +106,7 @@ def load_personas() -> dict[str, PersonaConfig]:
             model_id=data["model_id"],
             system_prompt=data["system_prompt"],
             max_tokens=data.get("max_tokens", 1024),
+            traversal=traversal,
         )
 
     logger.info(
@@ -123,6 +157,7 @@ def build_system_prompt(
     facts: list[Any] | None = None,
     elicitation_mode: bool = False,
     original_story_text: str | None = None,
+    include_graph_suggestions: bool = False,
 ) -> str | None:
     """Build complete system prompt for a persona with legacy context.
 
@@ -133,6 +168,8 @@ def build_system_prompt(
         facts: Optional list of LegacyFact objects to inject.
         elicitation_mode: Whether to append elicitation mode directive.
         original_story_text: The story text being evolved (used in elicitation mode).
+        include_graph_suggestions: Whether to append the graph suggestions directive
+            (only relevant when elicitation_mode is True).
 
     Returns:
         Complete system prompt with base rules, persona prompt, story context,
@@ -159,6 +196,8 @@ def build_system_prompt(
 
     if elicitation_mode:
         prompt = f"{prompt}\n\n{_load_elicitation_directive()}"
+        if include_graph_suggestions:
+            prompt = f"{prompt}\n\n{_load_graph_suggestions_directive()}"
         if original_story_text:
             prompt = f"{prompt}\n\n## Story Being Evolved\n\n{original_story_text}"
 

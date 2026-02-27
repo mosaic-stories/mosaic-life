@@ -16,7 +16,9 @@ if TYPE_CHECKING:
         StorytellingAgent,
         VectorStore,
     )
+    from ..adapters.graph_adapter import GraphAdapter
     from ..config.settings import Settings
+    from ..services.graph_context import GraphContextService
 
 
 class ProviderRegistry:
@@ -118,6 +120,27 @@ class ProviderRegistry:
             guardrail_version=self._settings.bedrock_guardrail_version,
         )
 
+    def get_graph_context_service(
+        self, region: str | None = None
+    ) -> GraphContextService | None:
+        """Return a GraphContextService if graph augmentation is enabled."""
+        if not self._settings.graph_augmentation_enabled:
+            return None
+
+        graph_adapter = self.get_graph_adapter()
+        if not graph_adapter:
+            return None
+
+        from ..services.circuit_breaker import CircuitBreaker
+        from ..services.graph_context import GraphContextService as _GCS
+
+        return _GCS(
+            graph_adapter=graph_adapter,
+            llm_provider=self.get_llm_provider(region=region),
+            intent_model_id=self._settings.intent_analysis_model_id,
+            circuit_breaker=CircuitBreaker(failure_threshold=3, recovery_timeout=30.0),
+        )
+
     def get_storytelling_agent(
         self,
         region: str | None = None,
@@ -134,7 +157,14 @@ class ProviderRegistry:
             memory=self.get_agent_memory(),
             guardrail=self.get_content_guardrail(),
             context_formatter=format_story_context,
+            graph_context_service=self.get_graph_context_service(region=region),
         )
+
+    def get_graph_adapter(self) -> GraphAdapter | None:
+        """Return the configured graph adapter, or None if disabled."""
+        from ..adapters.graph_factory import create_graph_adapter
+
+        return create_graph_adapter(self._settings)
 
 
 _provider_registry: ProviderRegistry | None = None

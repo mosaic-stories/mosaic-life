@@ -83,9 +83,15 @@ jobs:
         run: |
           cd infra/cdk
 
-          # Extract guardrail outputs from CDK outputs file
-          GUARDRAIL_ID=$(jq -r '.MosaicLifeStack.AIGuardrailId // empty' cdk-outputs.json)
-          GUARDRAIL_VERSION=$(jq -r '.MosaicLifeStack.AIGuardrailVersion // empty' cdk-outputs.json)
+          # Extract guardrail from the environment-appropriate stack.
+          # MosaicLifeStack is prod-only. Staging guardrail lives in MosaicStagingResourcesStack.
+          if [ "${{ steps.env.outputs.environment }}" == "staging" ]; then
+            GUARDRAIL_ID=$(jq -r '.MosaicStagingResourcesStack.AIGuardrailId // empty' cdk-outputs.json)
+            GUARDRAIL_VERSION=$(jq -r '.MosaicStagingResourcesStack.AIGuardrailVersion // empty' cdk-outputs.json)
+          else
+            GUARDRAIL_ID=$(jq -r '.MosaicLifeStack.AIGuardrailId // empty' cdk-outputs.json)
+            GUARDRAIL_VERSION=$(jq -r '.MosaicLifeStack.AIGuardrailVersion // empty' cdk-outputs.json)
+          fi
 
           if [ -n "$GUARDRAIL_ID" ] && [ -n "$GUARDRAIL_VERSION" ]; then
             echo "guardrail-id=${GUARDRAIL_ID}" >> $GITHUB_OUTPUT
