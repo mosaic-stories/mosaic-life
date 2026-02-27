@@ -1,5 +1,5 @@
 import { MessageSquare, GitBranch, History, Image, Pen } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn } from '@/components/ui/utils';
 import { type ToolId, useEvolveWorkspaceStore } from '../store/useEvolveWorkspaceStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
