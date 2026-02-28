@@ -104,6 +104,18 @@ export function discardEvolution(
   );
 }
 
+/**
+ * Discard the active evolution session for a story without needing the
+ * session ID.  Returns null if there was no active session (idempotent).
+ */
+export function discardActiveEvolution(
+  storyId: string
+): Promise<EvolutionSession | null> {
+  return apiPost<EvolutionSession | null>(
+    `/api/stories/${storyId}/evolution/discard-active`
+  );
+}
+
 export function acceptEvolution(
   storyId: string,
   sessionId: string

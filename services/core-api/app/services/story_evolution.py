@@ -591,6 +591,46 @@ async def discard_session(
     return session
 
 
+async def discard_active_session(
+    db: AsyncSession,
+    story_id: uuid.UUID,
+    user_id: uuid.UUID,
+) -> StoryEvolutionSession | None:
+    """Discard the active (non-terminal) session for a story, if one exists.
+
+    Unlike ``discard_session``, this does not require a session_id and is
+    idempotent: if no active session exists it returns ``None`` rather than
+    raising 404.  This is the preferred endpoint for the evolution workspace
+    "Discard session" button where the caller may not hold the session ID.
+    """
+    await _require_story_author(db, story_id, user_id)
+
+    result = await db.execute(
+        select(StoryEvolutionSession).where(
+            StoryEvolutionSession.story_id == story_id,
+            StoryEvolutionSession.phase.notin_(StoryEvolutionSession.TERMINAL_PHASES),
+        )
+    )
+    session = result.scalar_one_or_none()
+
+    if session is None:
+        return None
+
+    # Delete draft version if one exists
+    await _delete_draft_version(db, session)
+
+    session.phase = "discarded"
+    await db.commit()
+    await db.refresh(session)
+
+    logger.info(
+        "evolution.session.discarded_active",
+        extra={"session_id": str(session.id), "story_id": str(story_id)},
+    )
+
+    return session
+
+
 async def accept_session(
     db: AsyncSession,
     session_id: uuid.UUID,

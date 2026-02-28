@@ -125,6 +125,33 @@ async def discard_session(
 
 
 @router.post(
+    "/discard-active",
+    response_model=EvolutionSessionResponse | None,
+    status_code=200,
+)
+async def discard_active_session(
+    story_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> EvolutionSessionResponse | None:
+    """Discard the active evolution session for a story, if one exists.
+
+    Idempotent: returns 200 with null body when there is no active session,
+    rather than 404.  Use this endpoint when the caller does not hold the
+    session ID (e.g. the evolution workspace "Discard session" button).
+    """
+    session_data = require_auth(request)
+    evo_session = await evolution_service.discard_active_session(
+        db=db,
+        story_id=story_id,
+        user_id=session_data.user_id,
+    )
+    if evo_session is None:
+        return None
+    return EvolutionSessionResponse.model_validate(evo_session)
+
+
+@router.post(
     "/{session_id}/accept",
     response_model=EvolutionSessionResponse,
 )

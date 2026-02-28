@@ -10,7 +10,7 @@ import {
 import { useStory, useUpdateStory } from '@/features/story/hooks/useStories';
 import { useIsMobile } from '@/components/ui/use-mobile';
 import { evolutionKeys } from '@/lib/hooks/useEvolution';
-import { getActiveEvolution, discardEvolution as discardEvolutionApi } from '@/lib/api/evolution';
+import { discardActiveEvolution } from '@/lib/api/evolution';
 import { WorkspaceHeader } from './components/WorkspaceHeader';
 import { EditorPanel } from './components/EditorPanel';
 import { ToolStrip } from './components/ToolStrip';
@@ -98,20 +98,14 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const handleDiscard = useCallback(async () => {
     setIsDiscarding(true);
     try {
-      // Lazily fetch the active session only at discard time — avoids polling
-      // on mount and the resulting 404s when no session exists.
-      const session = await queryClient
-        .fetchQuery({
-          queryKey: evolutionKeys.active(storyId),
-          queryFn: () => getActiveEvolution(storyId),
-          staleTime: 0,
-        })
-        .catch(() => null); // treat 404 / any error as "no session"
-
-      if (session?.id) {
-        await discardEvolutionApi(storyId, session.id);
-        queryClient.removeQueries({ queryKey: evolutionKeys.active(storyId) });
-      }
+      // POST to a single idempotent endpoint — no GET-first needed.
+      // The backend finds and discards the active session atomically;
+      // if no active session exists it returns null (not 404).
+      await discardActiveEvolution(storyId);
+      queryClient.removeQueries({ queryKey: evolutionKeys.active(storyId) });
+    } catch (err) {
+      // Log but do not block navigation — the session may already be gone.
+      console.error('Failed to discard active evolution session:', err);
     } finally {
       setIsDiscarding(false);
       navigate(`/legacy/${legacyId}/story/${storyId}`);
