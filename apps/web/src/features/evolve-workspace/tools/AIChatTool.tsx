@@ -3,6 +3,7 @@ import { Send, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAIChat } from '@/features/ai-chat/hooks/useAIChat';
+import { useConversationSeed } from '../hooks/useConversationSeed';
 import { Streamdown } from 'streamdown';
 import 'streamdown/styles.css';
 
@@ -12,7 +13,7 @@ interface AIChatToolProps {
   conversationId: string | null;
 }
 
-export function AIChatTool({ legacyId, conversationId }: AIChatToolProps) {
+export function AIChatTool({ legacyId, storyId, conversationId }: AIChatToolProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -28,6 +29,9 @@ export function AIChatTool({ legacyId, conversationId }: AIChatToolProps) {
     personaId: 'biographer',
     conversationId,
   });
+
+  // Stream opening message when conversation is empty
+  useConversationSeed(conversationId, storyId);
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -52,9 +56,9 @@ export function AIChatTool({ legacyId, conversationId }: AIChatToolProps) {
     <div className="flex flex-col h-full">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
-        {messages.length === 0 && (
+        {messages.length === 0 && !isStreaming && (
           <p className="text-sm text-neutral-400 text-center py-8">
-            Chat with the AI to discuss the story before rewriting.
+            Preparing your AI companion...
           </p>
         )}
         {messages.map((msg, i) => (
