@@ -25,6 +25,7 @@ export function ToolPanel({ legacyId, storyId, conversationId, currentContent }:
       <div className="flex-1 overflow-y-auto">
         {activeTool === 'ai-chat' && (
           <AIChatTool
+            key={conversationId}
             legacyId={legacyId}
             storyId={storyId}
             conversationId={conversationId}

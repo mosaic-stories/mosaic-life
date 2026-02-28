@@ -35,7 +35,7 @@ export function MobileToolSheet({
         </div>
         <div className="overflow-y-auto flex-1">
           {activeTool === 'ai-chat' && (
-            <AIChatTool legacyId={legacyId} storyId={storyId} conversationId={conversationId} />
+            <AIChatTool key={conversationId} legacyId={legacyId} storyId={storyId} conversationId={conversationId} />
           )}
           {activeTool === 'context' && <ContextTool storyId={storyId} />}
           {activeTool === 'versions' && <VersionsTool storyId={storyId} currentContent={currentContent} />}

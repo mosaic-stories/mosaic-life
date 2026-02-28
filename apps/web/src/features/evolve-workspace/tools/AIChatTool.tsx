@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAIChat } from '@/features/ai-chat/hooks/useAIChat';
 import { useConversationSeed } from '../hooks/useConversationSeed';
+import { PersonaSelector } from '../components/PersonaSelector';
+import { useEvolveWorkspaceStore } from '../store/useEvolveWorkspaceStore';
 import { Streamdown } from 'streamdown';
 import 'streamdown/styles.css';
 
@@ -16,6 +18,7 @@ interface AIChatToolProps {
 export function AIChatTool({ legacyId, storyId, conversationId }: AIChatToolProps) {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const activePersonaId = useEvolveWorkspaceStore((s) => s.activePersonaId);
 
   const {
     messages,
@@ -26,7 +29,7 @@ export function AIChatTool({ legacyId, storyId, conversationId }: AIChatToolProp
     clearError,
   } = useAIChat({
     legacyId,
-    personaId: 'biographer',
+    personaId: activePersonaId,
     conversationId,
   });
 
@@ -54,6 +57,9 @@ export function AIChatTool({ legacyId, storyId, conversationId }: AIChatToolProp
 
   return (
     <div className="flex flex-col h-full">
+      {/* Persona selector */}
+      <PersonaSelector disabled={isStreaming} />
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {messages.length === 0 && !isStreaming && (
