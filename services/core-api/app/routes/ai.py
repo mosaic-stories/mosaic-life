@@ -12,7 +12,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from opentelemetry import trace
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..adapters.ai import AIProviderError
@@ -21,7 +21,9 @@ from ..auth.middleware import require_auth
 from ..config.personas import get_persona, get_personas
 from ..config.settings import get_settings
 from ..database import get_db
+from ..models.ai import AIMessage as AIMessageModel
 from ..models.legacy import Legacy
+from ..models.story import Story
 from ..providers.registry import get_provider_registry
 from ..schemas.ai import (
     ConversationCreate,
@@ -128,6 +130,171 @@ async def create_new_conversation(
         user_id=session.user_id,
         data=data,
     )
+
+
+@router.post(
+    "/conversations/{conversation_id}/seed",
+    summary="Seed conversation with AI opening message",
+    description="Stream an AI-generated opening message into an empty conversation. "
+    "Requires a story_id to provide context. Idempotent: returns 204 if "
+    "the conversation already has messages.",
+)
+async def seed_conversation(
+    conversation_id: UUID,
+    request: Request,
+    story_id: UUID = Query(
+        ..., description="Story to use as context for the opening message"
+    ),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Seed a conversation with a contextual AI opening message via SSE."""
+    session = require_auth(request)
+
+    with tracer.start_as_current_span("ai.conversation.seed") as span:
+        span.set_attribute("user_id", str(session.user_id))
+        span.set_attribute("conversation_id", str(conversation_id))
+        span.set_attribute("story_id", str(story_id))
+
+        # Get conversation and verify ownership
+        conversation = await ai_service.get_conversation(
+            db=db,
+            conversation_id=conversation_id,
+            user_id=session.user_id,
+        )
+
+        # Idempotency: if conversation already has messages, return 204
+        msg_count_result = await db.execute(
+            select(func.count(AIMessageModel.id)).where(
+                AIMessageModel.conversation_id == conversation_id
+            )
+        )
+        if (msg_count_result.scalar() or 0) > 0:
+            return StreamingResponse(
+                content=iter([]),
+                status_code=204,
+                media_type="text/plain",
+            )
+
+        # Load story
+        story_result = await db.execute(select(Story).where(Story.id == story_id))
+        story = story_result.scalar_one_or_none()
+        if not story:
+            raise HTTPException(status_code=404, detail="Story not found")
+
+        # Load legacy name from conversation's linked legacy
+        primary_legacy_id = ai_service.get_primary_legacy_id(conversation)
+        legacy_result = await db.execute(
+            select(Legacy).where(Legacy.id == primary_legacy_id)
+        )
+        legacy = legacy_result.scalar_one()
+
+        # Get persona config
+        persona = get_persona(conversation.persona_id)
+        if not persona:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid persona: {conversation.persona_id}",
+            )
+
+        # Best-effort graph context
+        story_context = ""
+        registry = get_provider_registry()
+        try:
+            graph_context_service = registry.get_graph_context_service()
+            if graph_context_service:
+                assembled = await graph_context_service.assemble_context(
+                    query=story.content[:500],
+                    legacy_id=primary_legacy_id,
+                    user_id=session.user_id,
+                    persona_type=conversation.persona_id,
+                    db=db,
+                    token_budget=2000,
+                    legacy_name=legacy.name,
+                )
+                story_context = assembled.formatted_context
+                span.set_attribute("graph.context_length", len(story_context))
+        except Exception:
+            logger.warning(
+                "ai.seed.graph_context_failed",
+                extra={"conversation_id": str(conversation_id)},
+            )
+
+        # Build elicitation-mode system prompt
+        from ..config.personas import build_system_prompt
+
+        system_prompt = build_system_prompt(
+            persona_id=conversation.persona_id,
+            legacy_name=legacy.name,
+            story_context=story_context,
+            elicitation_mode=True,
+            original_story_text=story.content,
+            include_graph_suggestions=bool(story_context),
+        )
+        if not system_prompt:
+            raise HTTPException(status_code=500, detail="Failed to build system prompt")
+
+        # Seed instruction (not saved to conversation)
+        seed_instruction = (
+            "[System] The user has just started a story evolution session. "
+            "This is the very first message in the conversation. Please:\n"
+            "1. Briefly greet the user and introduce what you'll be doing together\n"
+            "2. Share what stood out to you about the story — key moments, themes, "
+            "or details that caught your attention\n"
+            "3. Suggest 2-3 specific directions they could explore to deepen the story "
+            "(use the story context provided, including any connected stories or people)\n"
+            "4. Let them know they're free to take the conversation in any direction\n\n"
+            "Keep it warm, concise, and inviting. Use 2-3 short paragraphs."
+        )
+
+        llm = registry.get_llm_provider()
+
+        async def seed_stream() -> AsyncGenerator[str, None]:
+            full_response = ""
+            try:
+                async for chunk in llm.stream_generate(
+                    messages=[{"role": "user", "content": seed_instruction}],
+                    system_prompt=system_prompt,
+                    model_id=persona.model_id,
+                    max_tokens=persona.max_tokens,
+                ):
+                    full_response += chunk
+                    event = SSEChunkEvent(content=chunk)
+                    yield f"data: {event.model_dump_json()}\n\n"
+
+                # Save as assistant message (seed instruction NOT saved)
+                message = await ai_service.save_message(
+                    db=db,
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=full_response,
+                )
+
+                done_event = SSEDoneEvent(
+                    message_id=message.id,
+                    token_count=None,
+                )
+                yield f"data: {done_event.model_dump_json()}\n\n"
+
+            except Exception:
+                logger.exception(
+                    "ai.seed.stream_error",
+                    extra={"conversation_id": str(conversation_id)},
+                )
+                error_event = SSEErrorEvent(
+                    message="Failed to generate opening message.",
+                    retryable=True,
+                )
+                yield f"data: {error_event.model_dump_json()}\n\n"
+
+        return StreamingResponse(
+            seed_stream(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
 
 
 @router.get(
