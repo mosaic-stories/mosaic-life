@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   ResizablePanelGroup,
@@ -8,7 +9,8 @@ import {
 } from '@/components/ui/resizable';
 import { useStory, useUpdateStory } from '@/features/story/hooks/useStories';
 import { useIsMobile } from '@/components/ui/use-mobile';
-import { useActiveEvolution, useDiscardEvolution } from '@/lib/hooks/useEvolution';
+import { evolutionKeys } from '@/lib/hooks/useEvolution';
+import { getActiveEvolution, discardEvolution as discardEvolutionApi } from '@/lib/api/evolution';
 import { WorkspaceHeader } from './components/WorkspaceHeader';
 import { EditorPanel } from './components/EditorPanel';
 import { ToolStrip } from './components/ToolStrip';
@@ -30,19 +32,16 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const legacyId = propLegacyId ?? params.legacyId ?? '';
 
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
+  const [isDiscarding, setIsDiscarding] = useState(false);
   const [conversationId] = useState<string | null>(null);
 
   const { data: story, isLoading } = useStory(storyId);
   const updateStory = useUpdateStory();
-  const { data: activeSession } = useActiveEvolution(storyId);
-  const discardEvolution = useDiscardEvolution(
-    storyId,
-    activeSession?.id ?? '',
-  );
   const { triggerRewrite } = useAIRewrite(storyId);
 
   const writingStyle = useEvolveWorkspaceStore((s) => s.writingStyle);
@@ -97,11 +96,27 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   );
 
   const handleDiscard = useCallback(async () => {
-    if (activeSession?.id) {
-      await discardEvolution.mutateAsync();
+    setIsDiscarding(true);
+    try {
+      // Lazily fetch the active session only at discard time — avoids polling
+      // on mount and the resulting 404s when no session exists.
+      const session = await queryClient
+        .fetchQuery({
+          queryKey: evolutionKeys.active(storyId),
+          queryFn: () => getActiveEvolution(storyId),
+          staleTime: 0,
+        })
+        .catch(() => null); // treat 404 / any error as "no session"
+
+      if (session?.id) {
+        await discardEvolutionApi(storyId, session.id);
+        queryClient.removeQueries({ queryKey: evolutionKeys.active(storyId) });
+      }
+    } finally {
+      setIsDiscarding(false);
+      navigate(`/legacy/${legacyId}/story/${storyId}`);
     }
-    navigate(`/legacy/${legacyId}/story/${storyId}`);
-  }, [activeSession?.id, discardEvolution, navigate, legacyId, storyId]);
+  }, [queryClient, storyId, legacyId, navigate]);
 
   const wordCount = useMemo(
     () => content.split(/\s+/).filter(Boolean).length,
@@ -137,7 +152,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
           title={story?.title ?? 'Untitled'}
           isSaving={updateStory.isPending}
           isDirty={isDirty}
-          isDiscarding={discardEvolution.isPending}
+          isDiscarding={isDiscarding}
           onSave={handleSave}
           onDiscard={handleDiscard}
         />
