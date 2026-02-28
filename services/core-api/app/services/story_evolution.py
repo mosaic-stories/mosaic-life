@@ -501,6 +501,83 @@ async def _delete_draft_version(
         session.draft_version_id = None
 
 
+async def _restore_base_version(
+    db: AsyncSession,
+    session: StoryEvolutionSession,
+    user_id: uuid.UUID,
+) -> None:
+    """Restore story content to the base version recorded when the session started.
+
+    If the story content is unchanged from the base version, this is a no-op.
+    Otherwise it creates a new active version (preserving version history) and
+    updates ``story.content`` to match the base version.
+    """
+    from app.services.story_version import get_active_version, get_next_version_number
+
+    story_result = await db.execute(select(Story).where(Story.id == session.story_id))
+    story = story_result.scalar_one_or_none()
+    if not story:
+        return
+
+    # Look up the base version
+    base_result = await db.execute(
+        select(StoryVersion).where(
+            StoryVersion.story_id == session.story_id,
+            StoryVersion.version_number == session.base_version_number,
+        )
+    )
+    base_version = base_result.scalar_one_or_none()
+    if not base_version:
+        logger.warning(
+            "evolution.restore_base.version_not_found",
+            extra={
+                "session_id": str(session.id),
+                "base_version_number": session.base_version_number,
+            },
+        )
+        return
+
+    # Skip if content hasn't changed
+    if story.content == base_version.content and story.title == base_version.title:
+        return
+
+    # Deactivate current active version
+    current_active = await get_active_version(db, session.story_id)
+    if current_active:
+        current_active.status = "inactive"
+
+    # Create a new active version from the base content
+    next_num = await get_next_version_number(db, session.story_id)
+    restored = StoryVersion(
+        story_id=session.story_id,
+        version_number=next_num,
+        title=base_version.title,
+        content=base_version.content,
+        status="active",
+        source="session_discard",
+        source_version=session.base_version_number,
+        change_summary=f"Restored from version {session.base_version_number} (evolution session discarded)",
+        created_by=user_id,
+    )
+    db.add(restored)
+    await db.flush()
+
+    # Update story to reflect restored content
+    story.title = base_version.title
+    story.content = base_version.content
+    story.active_version_id = restored.id
+
+    logger.info(
+        "evolution.restore_base.restored",
+        extra={
+            "session_id": str(session.id),
+            "story_id": str(session.story_id),
+            "base_version_number": session.base_version_number,
+            "new_version_number": next_num,
+        },
+    )
+
+
 async def advance_phase(
     db: AsyncSession,
     session_id: uuid.UUID,
@@ -579,6 +656,9 @@ async def discard_session(
     # Delete draft version if one exists
     await _delete_draft_version(db, session)
 
+    # Restore story content to the version from before the session started
+    await _restore_base_version(db, session, user_id)
+
     session.phase = "discarded"
     await db.commit()
     await db.refresh(session)
@@ -618,6 +698,9 @@ async def discard_active_session(
 
     # Delete draft version if one exists
     await _delete_draft_version(db, session)
+
+    # Restore story content to the version from before the session started
+    await _restore_base_version(db, session, user_id)
 
     session.phase = "discarded"
     await db.commit()

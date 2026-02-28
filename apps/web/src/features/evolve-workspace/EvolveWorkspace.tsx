@@ -7,7 +7,7 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable';
-import { useStory, useUpdateStory } from '@/features/story/hooks/useStories';
+import { useStory, useUpdateStory, storyKeys } from '@/features/story/hooks/useStories';
 import { useIsMobile } from '@/components/ui/use-mobile';
 import { evolutionKeys } from '@/lib/hooks/useEvolution';
 import { discardActiveEvolution } from '@/lib/api/evolution';
@@ -101,6 +101,8 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
       // POST to a single idempotent endpoint — no GET-first needed.
       // The backend finds and discards the active session atomically;
       // if no active session exists it returns null (not 404).
+      // When a session IS discarded, the backend also reverts story.content
+      // to the base version from before the session started.
       await discardActiveEvolution(storyId);
     } catch (err) {
       // Log but do not block navigation — the session may already be gone.
@@ -111,6 +113,9 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
       // data on the story page (TQ keeps last-successful data on error).
       queryClient.setQueryData(evolutionKeys.active(storyId), null);
       queryClient.removeQueries({ queryKey: evolutionKeys.active(storyId) });
+      // Invalidate the story query so the story page re-fetches the
+      // reverted content from the backend.
+      await queryClient.invalidateQueries({ queryKey: storyKeys.detail(storyId) });
       setIsDiscarding(false);
       navigate(`/legacy/${legacyId}/story/${storyId}`);
     }
