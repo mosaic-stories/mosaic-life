@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeDiff, type DiffSegment } from './diffEngine';
+import { computeDiff } from './diffEngine';
 
 describe('diffEngine', () => {
   it('returns single equal segment for identical text', () => {
