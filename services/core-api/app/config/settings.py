@@ -103,6 +103,10 @@ class Settings(BaseModel):
 
     # Story versioning
     story_version_soft_cap: int = int(os.getenv("STORY_VERSION_SOFT_CAP", "50"))
+    change_summary_model_id: str = os.getenv(
+        "CHANGE_SUMMARY_MODEL_ID",
+        "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+    )
 
     # Neptune / Graph Database
     neptune_host: str | None = os.getenv("NEPTUNE_HOST")
