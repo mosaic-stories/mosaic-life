@@ -20,9 +20,14 @@ import { MobileToolSheet } from './components/MobileToolSheet';
 import { MobileBottomBar } from './components/MobileBottomBar';
 import { useAIRewrite } from './hooks/useAIRewrite';
 import { type ToolId, useEvolveWorkspaceStore } from './store/useEvolveWorkspaceStore';
+import { useAIChatStore } from '@/features/ai-chat/store/aiChatStore';
+import { createNewConversation } from '@/features/ai-chat/api/ai';
 
-/** Reset the entire Zustand workspace store (no React hook needed). */
-const resetWorkspaceStore = () => useEvolveWorkspaceStore.getState().reset();
+/** Reset both workspace stores (no React hook needed). */
+function resetAllStores() {
+  useEvolveWorkspaceStore.getState().reset();
+  useAIChatStore.getState().reset();
+}
 
 interface EvolveWorkspaceProps {
   storyId?: string;
@@ -41,7 +46,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
-  const [conversationId] = useState<string | null>(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
   const { data: story, isLoading } = useStory(storyId);
   const updateStory = useUpdateStory();
@@ -52,14 +57,36 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const pinnedContextIds = useEvolveWorkspaceStore((s) => s.pinnedContextIds);
   const setActiveTool = useEvolveWorkspaceStore((s) => s.setActiveTool);
 
-  // Reset the workspace Zustand store when the component unmounts so that
-  // navigating away (Back button, browser nav) doesn't leak stale rewrite
-  // content, tool selections, or style preferences into the next visit.
+  // Create a fresh AI conversation scoped to this story on mount.
+  // Without this, useAIChat falls back to get_or_create which returns the
+  // same legacy-level conversation for every story under the same legacy,
+  // causing chat history to leak across stories.
   useEffect(() => {
+    let mounted = true;
+
+    async function initConversation() {
+      try {
+        const conv = await createNewConversation({
+          persona_id: 'biographer',
+          legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
+        });
+        if (mounted) {
+          setConversationId(conv.id);
+        }
+      } catch (err) {
+        console.error('Failed to create evolve conversation:', err);
+      }
+    }
+
+    initConversation();
+
+    // Reset both workspace and AI chat stores on unmount so that navigating
+    // away doesn't leak stale rewrite content, chat messages, or tool state.
     return () => {
-      resetWorkspaceStore();
+      mounted = false;
+      resetAllStores();
     };
-  }, []);
+  }, [legacyId]);
 
   // Initialize content from story data
   useEffect(() => {
@@ -126,7 +153,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
 
       // Reset the entire workspace store (tool selections, pinned context,
       // style prefs, etc.) so a future visit starts clean.
-      resetWorkspaceStore();
+      resetAllStores();
 
       setIsDiscarding(false);
       navigate(`/legacy/${legacyId}/story/${storyId}`);
