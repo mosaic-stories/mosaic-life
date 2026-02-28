@@ -3,6 +3,7 @@
 import logging
 import re
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -30,6 +31,37 @@ logger = logging.getLogger(__name__)
 
 # Maximum length for content preview
 PREVIEW_MAX_LENGTH = 200
+
+MEDIA_OBJECT_PATH_RE = re.compile(r"^/users/[0-9a-fA-F-]+/([0-9a-fA-F-]{36})\.[^/]+$")
+
+
+def normalize_media_urls_for_story_content(content: str) -> str:
+    """Replace legacy direct S3 media URLs with stable API content URLs."""
+
+    def _replace(match: re.Match[str]) -> str:
+        alt_text = match.group(1)
+        url = match.group(2)
+        title_part = match.group(3) or ""
+
+        try:
+            parsed = urlparse(url)
+        except ValueError:
+            return match.group(0)
+
+        if parsed.scheme not in {"http", "https"}:
+            return match.group(0)
+
+        path_match = MEDIA_OBJECT_PATH_RE.match(parsed.path)
+        if not path_match:
+            return match.group(0)
+
+        media_id = path_match.group(1)
+        stable_url = f"/api/media/{media_id}/content"
+        return f"![{alt_text}]({stable_url}{title_part})"
+
+    image_link_re = re.compile(r"!\[([^\]]*)\]\(([^)\s]+)(\s+\"[^\"]*\")?\)")
+    return image_link_re.sub(_replace, content)
+
 
 # Role levels used for update authorization.
 ROLE_LEVELS: dict[str, int] = {
@@ -698,7 +730,7 @@ async def get_story_detail(
         author_name=story.author.name,
         author_email=story.author.email,
         title=story.title,
-        content=story.content,
+        content=normalize_media_urls_for_story_content(story.content),
         visibility=story.visibility,
         legacies=[
             LegacyAssociationResponse(

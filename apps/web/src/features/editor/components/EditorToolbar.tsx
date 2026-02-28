@@ -18,6 +18,7 @@ import {
 import { Toggle } from '@/components/ui/toggle';
 import { Separator } from '@/components/ui/separator';
 import { useMediaUpload } from '@/features/media/hooks/useMedia';
+import { getMediaContentUrl } from '@/features/media/api/media';
 
 interface EditorToolbarProps {
   editor: Editor;
@@ -45,7 +46,7 @@ export default function EditorToolbar({ editor, legacyId }: EditorToolbarProps) 
 
     try {
       const media = await upload.mutateAsync(file);
-      editor.chain().focus().setImage({ src: media.download_url }).run();
+      editor.chain().focus().setImage({ src: getMediaContentUrl(media.id) }).run();
     } catch {
       // Upload failed — useMediaUpload handles error state
     }

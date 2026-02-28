@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Upload, Image as ImageIcon } from 'lucide-react';
 import { useMediaUpload, useMedia } from '@/features/media/hooks/useMedia';
+import { getMediaContentUrl } from '@/features/media/api/media';
 
 interface MediaToolProps {
   legacyId: string;
@@ -72,7 +73,7 @@ export function MediaTool({ legacyId }: MediaToolProps) {
               >
                 {item.download_url ? (
                   <img
-                    src={item.download_url}
+                    src={getMediaContentUrl(item.id)}
                     alt={item.filename || 'Media'}
                     className="w-full h-full object-cover"
                   />
