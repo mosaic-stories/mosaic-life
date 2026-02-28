@@ -102,11 +102,15 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
       // The backend finds and discards the active session atomically;
       // if no active session exists it returns null (not 404).
       await discardActiveEvolution(storyId);
-      queryClient.removeQueries({ queryKey: evolutionKeys.active(storyId) });
     } catch (err) {
       // Log but do not block navigation — the session may already be gone.
       console.error('Failed to discard active evolution session:', err);
     } finally {
+      // Always clear the cached active-session data, even if the API call
+      // failed.  This prevents TanStack Query from serving stale "success"
+      // data on the story page (TQ keeps last-successful data on error).
+      queryClient.setQueryData(evolutionKeys.active(storyId), null);
+      queryClient.removeQueries({ queryKey: evolutionKeys.active(storyId) });
       setIsDiscarding(false);
       navigate(`/legacy/${legacyId}/story/${storyId}`);
     }

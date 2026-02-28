@@ -52,7 +52,7 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
 
   const { data: legacy, isLoading: _legacyLoading } = useLegacy(legacyId);
   const { data: existingStory, isLoading: storyLoading } = useStory(storyId);
-  const { data: activeEvolution } = useActiveEvolution(storyId, !!storyId);
+  const { data: activeEvolution, isSuccess: hasEvolutionData } = useActiveEvolution(storyId, !!storyId);
   const createStory = useCreateStory();
   const updateStory = useUpdateStory();
   const deleteStory = useDeleteStory();
@@ -86,7 +86,7 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
     return !!existingStory && !!user && isAuthor;
   }, [existingStory, user, isAuthor]);
 
-  const hasActiveEvolution = !!activeEvolution
+  const hasActiveEvolution = hasEvolutionData && !!activeEvolution
     && !['completed', 'discarded'].includes(activeEvolution.phase);
 
   // For new stories, start in edit mode
