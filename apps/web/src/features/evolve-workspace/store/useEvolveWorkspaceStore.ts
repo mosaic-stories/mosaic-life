@@ -4,6 +4,7 @@ import type { WritingStyle, LengthPreference } from '@/lib/api/evolution';
 export type ToolId = 'ai-chat' | 'context' | 'versions' | 'media' | 'style';
 export type RewriteState = 'idle' | 'streaming' | 'reviewing';
 export type ViewMode = 'editor' | 'diff';
+export type CompareState = 'idle' | 'loading' | 'comparing';
 
 interface EvolveWorkspaceState {
   // Tool panel
@@ -22,6 +23,12 @@ interface EvolveWorkspaceState {
   discardRewrite: () => void;
   acceptRewrite: () => void;
   setViewMode: (mode: ViewMode) => void;
+
+  // Version comparison
+  compareState: CompareState;
+  compareVersionNumber: number | null;
+  startCompare: (versionNumber: number, versionContent: string, currentDraftContent: string) => void;
+  closeCompare: () => void;
 
   // Style preferences
   writingStyle: WritingStyle | null;
@@ -43,6 +50,8 @@ const initialState = {
   rewriteContent: null as string | null,
   originalContent: null as string | null,
   viewMode: 'editor' as ViewMode,
+  compareState: 'idle' as CompareState,
+  compareVersionNumber: null as number | null,
   writingStyle: null as WritingStyle | null,
   lengthPreference: null as LengthPreference | null,
   pinnedContextIds: [] as string[],
@@ -58,6 +67,8 @@ export const useEvolveWorkspaceStore = create<EvolveWorkspaceState>((set) => ({
       rewriteState: 'streaming',
       originalContent: currentContent,
       rewriteContent: '',
+      compareState: 'idle',
+      compareVersionNumber: null,
     }),
 
   appendRewriteChunk: (chunk) =>
@@ -82,6 +93,27 @@ export const useEvolveWorkspaceStore = create<EvolveWorkspaceState>((set) => ({
     }),
 
   setViewMode: (mode) => set({ viewMode: mode }),
+
+  startCompare: (versionNumber, versionContent, currentDraftContent) =>
+    set((state) => {
+      if (state.rewriteState !== 'idle') return state;
+      return {
+        compareState: 'comparing',
+        compareVersionNumber: versionNumber,
+        originalContent: versionContent,
+        rewriteContent: currentDraftContent,
+        viewMode: 'diff',
+      };
+    }),
+
+  closeCompare: () =>
+    set({
+      compareState: 'idle',
+      compareVersionNumber: null,
+      originalContent: null,
+      rewriteContent: null,
+      viewMode: 'editor',
+    }),
 
   setWritingStyle: (style) => set({ writingStyle: style }),
   setLengthPreference: (pref) => set({ lengthPreference: pref }),
