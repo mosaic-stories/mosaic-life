@@ -21,6 +21,9 @@ import { MobileBottomBar } from './components/MobileBottomBar';
 import { useAIRewrite } from './hooks/useAIRewrite';
 import { type ToolId, useEvolveWorkspaceStore } from './store/useEvolveWorkspaceStore';
 
+/** Reset the entire Zustand workspace store (no React hook needed). */
+const resetWorkspaceStore = () => useEvolveWorkspaceStore.getState().reset();
+
 interface EvolveWorkspaceProps {
   storyId?: string;
   legacyId?: string;
@@ -42,12 +45,21 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
 
   const { data: story, isLoading } = useStory(storyId);
   const updateStory = useUpdateStory();
-  const { triggerRewrite } = useAIRewrite(storyId);
+  const { triggerRewrite, abort: abortRewrite } = useAIRewrite(storyId);
 
   const writingStyle = useEvolveWorkspaceStore((s) => s.writingStyle);
   const lengthPreference = useEvolveWorkspaceStore((s) => s.lengthPreference);
   const pinnedContextIds = useEvolveWorkspaceStore((s) => s.pinnedContextIds);
   const setActiveTool = useEvolveWorkspaceStore((s) => s.setActiveTool);
+
+  // Reset the workspace Zustand store when the component unmounts so that
+  // navigating away (Back button, browser nav) doesn't leak stale rewrite
+  // content, tool selections, or style preferences into the next visit.
+  useEffect(() => {
+    return () => {
+      resetWorkspaceStore();
+    };
+  }, []);
 
   // Initialize content from story data
   useEffect(() => {
@@ -97,29 +109,29 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
 
   const handleDiscard = useCallback(async () => {
     setIsDiscarding(true);
+
+    // Abort any in-flight AI rewrite and clear its Zustand state immediately
+    // so the EditorPanel stops showing the rewrite preview.
+    abortRewrite();
+
     try {
-      // POST to a single idempotent endpoint — no GET-first needed.
-      // The backend finds and discards the active session atomically;
-      // if no active session exists it returns null (not 404).
-      // When a session IS discarded, the backend also reverts story.content
-      // to the base version from before the session started.
       await discardActiveEvolution(storyId);
     } catch (err) {
-      // Log but do not block navigation — the session may already be gone.
       console.error('Failed to discard active evolution session:', err);
     } finally {
-      // Always clear the cached active-session data, even if the API call
-      // failed.  This prevents TanStack Query from serving stale "success"
-      // data on the story page (TQ keeps last-successful data on error).
+      // Clear TanStack Query caches so the story page doesn't show stale data.
       queryClient.setQueryData(evolutionKeys.active(storyId), null);
       queryClient.removeQueries({ queryKey: evolutionKeys.active(storyId) });
-      // Invalidate the story query so the story page re-fetches the
-      // reverted content from the backend.
       await queryClient.invalidateQueries({ queryKey: storyKeys.detail(storyId) });
+
+      // Reset the entire workspace store (tool selections, pinned context,
+      // style prefs, etc.) so a future visit starts clean.
+      resetWorkspaceStore();
+
       setIsDiscarding(false);
       navigate(`/legacy/${legacyId}/story/${storyId}`);
     }
-  }, [queryClient, storyId, legacyId, navigate]);
+  }, [queryClient, storyId, legacyId, navigate, abortRewrite]);
 
   const wordCount = useMemo(
     () => content.split(/\s+/).filter(Boolean).length,
