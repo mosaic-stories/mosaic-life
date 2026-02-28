@@ -12,7 +12,7 @@
 
 ---
 
-## Task 1: Zustand Store — Add Comparison State
+## Task 1: Zustand Store — Add Comparison State ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/store/useEvolveWorkspaceStore.ts`
@@ -165,7 +165,7 @@ git commit -m "feat: add version comparison state to evolve workspace store"
 
 ---
 
-## Task 2: VersionsTool — Wire Compare Button
+## Task 2: VersionsTool — Wire Compare Button ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/tools/VersionsTool.tsx`
@@ -301,7 +301,7 @@ git commit -m "feat: wire Compare button to fetch version content and enter comp
 
 ---
 
-## Task 3: EditorPanel — Add Comparison Mode
+## Task 3: EditorPanel — Add Comparison Mode ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/components/EditorPanel.tsx`
@@ -526,7 +526,7 @@ git commit -m "feat: add version comparison mode to EditorPanel with restore act
 
 ---
 
-## Task 4: Integration — Wire Everything Together
+## Task 4: Integration — Wire Everything Together ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/components/ToolPanel.tsx:8-9,14,33`
@@ -737,7 +737,7 @@ git commit -m "feat: wire version comparison through workspace, tool panel, and 
 
 ---
 
-## Task 5: Manual Testing & Validation
+## Task 5: Manual Testing & Validation ✅
 
 **Step 1: Start the dev server**
 
