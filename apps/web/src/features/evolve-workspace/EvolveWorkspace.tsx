@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
   ResizablePanelGroup,
@@ -8,6 +8,7 @@ import {
 } from '@/components/ui/resizable';
 import { useStory, useUpdateStory } from '@/features/story/hooks/useStories';
 import { useIsMobile } from '@/components/ui/use-mobile';
+import { useActiveEvolution, useDiscardEvolution } from '@/lib/hooks/useEvolution';
 import { WorkspaceHeader } from './components/WorkspaceHeader';
 import { EditorPanel } from './components/EditorPanel';
 import { ToolStrip } from './components/ToolStrip';
@@ -28,6 +29,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const storyId = propStoryId ?? params.storyId ?? '';
   const legacyId = propLegacyId ?? params.legacyId ?? '';
 
+  const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
   const [content, setContent] = useState('');
@@ -36,6 +38,11 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
 
   const { data: story, isLoading } = useStory(storyId);
   const updateStory = useUpdateStory();
+  const { data: activeSession } = useActiveEvolution(storyId);
+  const discardEvolution = useDiscardEvolution(
+    storyId,
+    activeSession?.id ?? '',
+  );
   const { triggerRewrite } = useAIRewrite(storyId);
 
   const writingStyle = useEvolveWorkspaceStore((s) => s.writingStyle);
@@ -89,6 +96,13 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     [],
   );
 
+  const handleDiscard = useCallback(async () => {
+    if (activeSession?.id) {
+      await discardEvolution.mutateAsync();
+    }
+    navigate(`/legacy/${legacyId}/story/${storyId}`);
+  }, [activeSession?.id, discardEvolution, navigate, legacyId, storyId]);
+
   const wordCount = useMemo(
     () => content.split(/\s+/).filter(Boolean).length,
     [content],
@@ -123,7 +137,9 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
           title={story?.title ?? 'Untitled'}
           isSaving={updateStory.isPending}
           isDirty={isDirty}
+          isDiscarding={discardEvolution.isPending}
           onSave={handleSave}
+          onDiscard={handleDiscard}
         />
 
         {isMobile ? (

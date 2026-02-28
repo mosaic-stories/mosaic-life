@@ -1,6 +1,17 @@
-import { ArrowLeft, Save } from 'lucide-react';
+import { ArrowLeft, Save, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface WorkspaceHeaderProps {
   legacyId: string;
@@ -8,7 +19,9 @@ interface WorkspaceHeaderProps {
   title: string;
   isSaving: boolean;
   isDirty: boolean;
+  isDiscarding: boolean;
   onSave: () => void;
+  onDiscard: () => void;
 }
 
 export function WorkspaceHeader({
@@ -17,7 +30,9 @@ export function WorkspaceHeader({
   title,
   isSaving,
   isDirty,
+  isDiscarding,
   onSave,
+  onDiscard,
 }: WorkspaceHeaderProps) {
   const navigate = useNavigate();
 
@@ -39,6 +54,39 @@ export function WorkspaceHeader({
         <span className="text-xs text-neutral-400">
           {isSaving ? 'Saving...' : isDirty ? 'Unsaved changes' : 'Saved'}
         </span>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              disabled={isDiscarding || isSaving}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />
+              Discard session
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Discard this evolution session?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will discard the session and any unsaved changes. The original story will be
+                unchanged. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={onDiscard}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Discard session
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
         <Button size="sm" onClick={onSave} disabled={isSaving || !isDirty}>
           <Save className="h-4 w-4 mr-1" />
           Save
