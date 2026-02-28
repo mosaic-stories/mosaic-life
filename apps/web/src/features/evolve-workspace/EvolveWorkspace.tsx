@@ -134,6 +134,14 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     [],
   );
 
+  const handleRestore = useCallback(
+    (restoredContent: string) => {
+      setContent(restoredContent);
+      setIsDirty(true);
+    },
+    [],
+  );
+
   const handleDiscard = useCallback(async () => {
     setIsDiscarding(true);
 
@@ -209,6 +217,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
                 legacyId={legacyId}
                 onAcceptRewrite={handleAcceptRewrite}
                 onRegenerate={handleRewrite}
+                onRestore={handleRestore}
               />
             </div>
             <MobileBottomBar
@@ -221,6 +230,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
               legacyId={legacyId}
               storyId={storyId}
               conversationId={conversationId}
+              currentContent={content}
             />
           </>
         ) : (
@@ -235,6 +245,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
                     legacyId={legacyId}
                     onAcceptRewrite={handleAcceptRewrite}
                     onRegenerate={handleRewrite}
+                    onRestore={handleRestore}
                   />
                 </ResizablePanel>
                 <ToolStrip />
@@ -244,6 +255,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
                     legacyId={legacyId}
                     storyId={storyId}
                     conversationId={conversationId}
+                    currentContent={content}
                   />
                 </ResizablePanel>
               </ResizablePanelGroup>

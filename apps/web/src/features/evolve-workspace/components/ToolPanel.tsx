@@ -9,9 +9,10 @@ interface ToolPanelProps {
   legacyId: string;
   storyId: string;
   conversationId: string | null;
+  currentContent: string;
 }
 
-export function ToolPanel({ legacyId, storyId, conversationId }: ToolPanelProps) {
+export function ToolPanel({ legacyId, storyId, conversationId, currentContent }: ToolPanelProps) {
   const activeTool = useEvolveWorkspaceStore((s) => s.activeTool);
 
   return (
@@ -30,7 +31,7 @@ export function ToolPanel({ legacyId, storyId, conversationId }: ToolPanelProps)
           />
         )}
         {activeTool === 'context' && <ContextTool storyId={storyId} />}
-        {activeTool === 'versions' && <VersionsTool storyId={storyId} />}
+        {activeTool === 'versions' && <VersionsTool storyId={storyId} currentContent={currentContent} />}
         {activeTool === 'media' && <MediaTool legacyId={legacyId} />}
         {activeTool === 'style' && <StyleTool />}
       </div>

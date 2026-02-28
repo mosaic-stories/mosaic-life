@@ -12,6 +12,7 @@ interface MobileToolSheetProps {
   legacyId: string;
   storyId: string;
   conversationId: string | null;
+  currentContent: string;
 }
 
 export function MobileToolSheet({
@@ -20,6 +21,7 @@ export function MobileToolSheet({
   legacyId,
   storyId,
   conversationId,
+  currentContent,
 }: MobileToolSheetProps) {
   const activeTool = useEvolveWorkspaceStore((s) => s.activeTool);
 
@@ -36,7 +38,7 @@ export function MobileToolSheet({
             <AIChatTool legacyId={legacyId} storyId={storyId} conversationId={conversationId} />
           )}
           {activeTool === 'context' && <ContextTool storyId={storyId} />}
-          {activeTool === 'versions' && <VersionsTool storyId={storyId} />}
+          {activeTool === 'versions' && <VersionsTool storyId={storyId} currentContent={currentContent} />}
           {activeTool === 'media' && <MediaTool legacyId={legacyId} />}
           {activeTool === 'style' && <StyleTool />}
         </div>

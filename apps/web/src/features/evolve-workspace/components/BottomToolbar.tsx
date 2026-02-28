@@ -9,6 +9,7 @@ interface BottomToolbarProps {
 
 export function BottomToolbar({ onRewrite, wordCount }: BottomToolbarProps) {
   const rewriteState = useEvolveWorkspaceStore((s) => s.rewriteState);
+  const compareState = useEvolveWorkspaceStore((s) => s.compareState);
   const writingStyle = useEvolveWorkspaceStore((s) => s.writingStyle);
   const lengthPreference = useEvolveWorkspaceStore((s) => s.lengthPreference);
 
@@ -18,7 +19,7 @@ export function BottomToolbar({ onRewrite, wordCount }: BottomToolbarProps) {
         <Button
           size="sm"
           onClick={onRewrite}
-          disabled={rewriteState === 'streaming'}
+          disabled={rewriteState === 'streaming' || compareState !== 'idle'}
         >
           <Sparkles className="h-4 w-4 mr-1" />
           AI Rewrite
