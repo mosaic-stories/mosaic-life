@@ -127,4 +127,42 @@ describe('useEvolveWorkspaceStore', () => {
     expect(state.compareState).toBe('idle');
     expect(state.compareVersionNumber).toBeNull();
   });
+
+  // --- Persona selection ---
+
+  it('defaults to biographer persona', () => {
+    expect(useEvolveWorkspaceStore.getState().activePersonaId).toBe('biographer');
+  });
+
+  it('defaults to empty conversationIds', () => {
+    expect(useEvolveWorkspaceStore.getState().conversationIds).toEqual({});
+  });
+
+  it('setActivePersona changes the active persona', () => {
+    useEvolveWorkspaceStore.getState().setActivePersona('friend');
+    expect(useEvolveWorkspaceStore.getState().activePersonaId).toBe('friend');
+  });
+
+  it('setConversationForPersona stores conversation ID in map', () => {
+    useEvolveWorkspaceStore.getState().setConversationForPersona('biographer', 'conv-123');
+    expect(useEvolveWorkspaceStore.getState().conversationIds).toEqual({ biographer: 'conv-123' });
+  });
+
+  it('setConversationForPersona preserves other persona entries', () => {
+    useEvolveWorkspaceStore.getState().setConversationForPersona('biographer', 'conv-1');
+    useEvolveWorkspaceStore.getState().setConversationForPersona('friend', 'conv-2');
+    expect(useEvolveWorkspaceStore.getState().conversationIds).toEqual({
+      biographer: 'conv-1',
+      friend: 'conv-2',
+    });
+  });
+
+  it('reset clears persona state', () => {
+    useEvolveWorkspaceStore.getState().setActivePersona('friend');
+    useEvolveWorkspaceStore.getState().setConversationForPersona('friend', 'conv-99');
+    useEvolveWorkspaceStore.getState().reset();
+    const state = useEvolveWorkspaceStore.getState();
+    expect(state.activePersonaId).toBe('biographer');
+    expect(state.conversationIds).toEqual({});
+  });
 });

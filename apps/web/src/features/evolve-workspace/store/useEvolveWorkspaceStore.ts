@@ -40,6 +40,12 @@ interface EvolveWorkspaceState {
   pinnedContextIds: string[];
   togglePinnedContext: (id: string) => void;
 
+  // Persona selection
+  activePersonaId: string;
+  conversationIds: Record<string, string>;
+  setActivePersona: (personaId: string) => void;
+  setConversationForPersona: (personaId: string, conversationId: string) => void;
+
   // Reset
   reset: () => void;
 }
@@ -55,6 +61,8 @@ const initialState = {
   writingStyle: null as WritingStyle | null,
   lengthPreference: null as LengthPreference | null,
   pinnedContextIds: [] as string[],
+  activePersonaId: 'biographer' as string,
+  conversationIds: {} as Record<string, string>,
 };
 
 export const useEvolveWorkspaceStore = create<EvolveWorkspaceState>((set) => ({
@@ -123,6 +131,13 @@ export const useEvolveWorkspaceStore = create<EvolveWorkspaceState>((set) => ({
       pinnedContextIds: state.pinnedContextIds.includes(id)
         ? state.pinnedContextIds.filter((p) => p !== id)
         : [...state.pinnedContextIds, id],
+    })),
+
+  setActivePersona: (personaId) => set({ activePersonaId: personaId }),
+
+  setConversationForPersona: (personaId, conversationId) =>
+    set((state) => ({
+      conversationIds: { ...state.conversationIds, [personaId]: conversationId },
     })),
 
   reset: () => set(initialState),
