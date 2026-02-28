@@ -46,7 +46,6 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
-  const [conversationId, setConversationId] = useState<string | null>(null);
 
   const { data: story, isLoading } = useStory(storyId);
   const updateStory = useUpdateStory();
@@ -56,22 +55,26 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const lengthPreference = useEvolveWorkspaceStore((s) => s.lengthPreference);
   const pinnedContextIds = useEvolveWorkspaceStore((s) => s.pinnedContextIds);
   const setActiveTool = useEvolveWorkspaceStore((s) => s.setActiveTool);
+  const activePersonaId = useEvolveWorkspaceStore((s) => s.activePersonaId);
+  const conversationIds = useEvolveWorkspaceStore((s) => s.conversationIds);
+  const setConversationForPersona = useEvolveWorkspaceStore((s) => s.setConversationForPersona);
 
-  // Create a fresh AI conversation scoped to this story on mount.
-  // Without this, useAIChat falls back to get_or_create which returns the
-  // same legacy-level conversation for every story under the same legacy,
-  // causing chat history to leak across stories.
+  const conversationId = conversationIds[activePersonaId] ?? null;
+
+  // Create a conversation for the active persona when it doesn't exist yet.
   useEffect(() => {
+    if (conversationIds[activePersonaId]) return;
+
     let mounted = true;
 
     async function initConversation() {
       try {
         const conv = await createNewConversation({
-          persona_id: 'biographer',
+          persona_id: activePersonaId,
           legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
         });
         if (mounted) {
-          setConversationId(conv.id);
+          setConversationForPersona(activePersonaId, conv.id);
         }
       } catch (err) {
         console.error('Failed to create evolve conversation:', err);
@@ -80,13 +83,17 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
 
     initConversation();
 
-    // Reset both workspace and AI chat stores on unmount so that navigating
-    // away doesn't leak stale rewrite content, chat messages, or tool state.
     return () => {
       mounted = false;
+    };
+  }, [activePersonaId, legacyId, conversationIds, setConversationForPersona]);
+
+  // Reset stores on unmount so navigation away starts clean.
+  useEffect(() => {
+    return () => {
       resetAllStores();
     };
-  }, [legacyId]);
+  }, []);
 
   // Initialize content from story data
   useEffect(() => {
