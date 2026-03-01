@@ -11,6 +11,7 @@ from .media import Media
 from .notification import Notification
 from .person import Person
 from .story import Story
+from .story_context import ContextFact, StoryContext
 from .story_evolution import StoryEvolutionSession
 from .story_version import StoryVersion
 from .support_request import SupportRequest
@@ -20,6 +21,7 @@ from .user_session import UserSession
 __all__ = [
     "AIConversation",
     "AIMessage",
+    "ContextFact",
     "ConversationChunk",
     "ConversationLegacy",
     "Invitation",
@@ -35,6 +37,7 @@ __all__ = [
     "Person",
     "Story",
     "StoryChunk",
+    "StoryContext",
     "StoryEvolutionSession",
     "StoryLegacy",
     "StoryVersion",

@@ -7,6 +7,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import FileResponse, Response
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import require_auth
@@ -118,6 +119,33 @@ async def get_media(
         user_id=session.user_id,
         media_id=media_id,
     )
+
+
+@router.get(
+    "/{media_id}/content",
+    summary="Get media content",
+)
+async def get_media_content(
+    media_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> RedirectResponse:
+    """Resolve media content URL and redirect to fresh signed object URL.
+
+    This endpoint is stable and can be safely embedded in story markdown.
+    """
+    session = require_auth(request)
+    media = await media_service.get_media_detail(
+        db=db,
+        user_id=session.user_id,
+        media_id=media_id,
+    )
+    response = RedirectResponse(
+        url=media.download_url,
+        status_code=status.HTTP_307_TEMPORARY_REDIRECT,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @router.delete(

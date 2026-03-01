@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useMedia, useDeleteMedia, useSetProfileImage } from '@/features/media/hooks/useMedia';
-import type { MediaItem } from '@/features/media/api/media';
+import { getMediaContentUrl, type MediaItem } from '@/features/media/api/media';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 
 interface MediaGalleryInlineProps {
@@ -91,7 +91,7 @@ export default function MediaGalleryInline({
             onClick={() => setSelectedMedia(item)}
           >
             <img
-              src={rewriteBackendUrlForDev(item.download_url)}
+              src={rewriteBackendUrlForDev(getMediaContentUrl(item.id))}
               alt={item.filename}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform"
             />
@@ -138,7 +138,7 @@ export default function MediaGalleryInline({
           {selectedMedia && (
             <>
               <img
-                src={rewriteBackendUrlForDev(selectedMedia.download_url)}
+                src={rewriteBackendUrlForDev(getMediaContentUrl(selectedMedia.id))}
                 alt={selectedMedia.filename}
                 className="w-full max-h-[70vh] object-contain"
               />

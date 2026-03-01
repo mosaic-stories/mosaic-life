@@ -9,8 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.ai import AIConversation, AIMessage
 from app.models.associations import ConversationLegacy
 from app.models.legacy import Legacy
+from app.models.story import Story
+from app.models.story_evolution import StoryEvolutionSession
 from app.models.user import User
-from app.routes.ai import format_story_context
+from app.routes.ai import _resolve_story_id_for_extraction, format_story_context
 from app.schemas.retrieval import ChunkResult
 from tests.conftest import create_auth_headers_for_user
 
@@ -41,6 +43,66 @@ class TestFormatStoryContext:
         assert "Grandma loved her garden." in result
         assert "These excerpts are background knowledge ONLY" in result
         assert "Never make up information" in result
+
+
+class TestExtractionStoryMapping:
+    """Tests for deterministic conversation->story extraction mapping."""
+
+    @pytest.mark.asyncio
+    async def test_resolve_story_id_returns_none_without_linkage(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ) -> None:
+        conversation = AIConversation(
+            user_id=test_user.id,
+            persona_id="biographer",
+            title="No Linkage",
+        )
+        db_session.add(conversation)
+        await db_session.commit()
+
+        resolved = await _resolve_story_id_for_extraction(
+            db=db_session,
+            conversation_id=conversation.id,
+            user_id=test_user.id,
+        )
+
+        assert resolved is None
+
+    @pytest.mark.asyncio
+    async def test_resolve_story_id_returns_session_story(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+    ) -> None:
+        conversation = AIConversation(
+            user_id=test_user.id,
+            persona_id="biographer",
+            title="Linked",
+        )
+        db_session.add(conversation)
+        await db_session.flush()
+
+        db_session.add(
+            StoryEvolutionSession(
+                story_id=test_story.id,
+                base_version_number=1,
+                conversation_id=conversation.id,
+                created_by=test_user.id,
+                phase="elicitation",
+            )
+        )
+        await db_session.commit()
+
+        resolved = await _resolve_story_id_for_extraction(
+            db=db_session,
+            conversation_id=conversation.id,
+            user_id=test_user.id,
+        )
+
+        assert resolved == test_story.id
 
     def test_format_multiple_chunks(self) -> None:
         """Test formatting multiple chunks."""

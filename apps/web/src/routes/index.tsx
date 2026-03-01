@@ -19,7 +19,7 @@ const AIAgentChat = lazy(() => import('@/features/ai-chat/components/AIAgentChat
 const AIAgentPanel = lazy(() => import('@/features/ai-chat/components/AIAgentPanel'));
 const InviteAcceptPage = lazy(() => import('@/features/members/components/InviteAcceptPage'));
 const NotificationHistory = lazy(() => import('@/features/notifications/components/NotificationHistory'));
-const StoryEvolution = lazy(() => import('@/features/story-evolution/StoryEvolutionWorkspace'));
+const StoryEvolution = lazy(() => import('@/features/evolve-workspace/EvolveWorkspace'));
 
 // Settings components
 const SettingsLayout = lazy(() => import('@/features/settings/components/SettingsLayout'));

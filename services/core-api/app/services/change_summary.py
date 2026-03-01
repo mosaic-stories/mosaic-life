@@ -68,7 +68,7 @@ async def generate_change_summary(
         async for chunk in provider.stream_generate(
             messages=messages,
             system_prompt=SUMMARY_SYSTEM_PROMPT,
-            model_id=settings.openai_chat_model,
+            model_id=settings.change_summary_model_id,
             max_tokens=100,
         ):
             chunks.append(chunk)
