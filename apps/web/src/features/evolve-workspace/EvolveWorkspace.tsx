@@ -7,10 +7,10 @@ import {
   ResizablePanel,
   ResizableHandle,
 } from '@/components/ui/resizable';
-import { useStory, useUpdateStory, storyKeys } from '@/features/story/hooks/useStories';
+import { useStory, storyKeys } from '@/features/story/hooks/useStories';
 import { useIsMobile } from '@/components/ui/use-mobile';
-import { evolutionKeys } from '@/lib/hooks/useEvolution';
-import { discardActiveEvolution } from '@/lib/api/evolution';
+import { evolutionKeys, useActiveEvolution, useSaveManualDraft } from '@/lib/hooks/useEvolution';
+import { discardActiveEvolution, acceptEvolution } from '@/lib/api/evolution';
 import { WorkspaceHeader } from './components/WorkspaceHeader';
 import { EditorPanel } from './components/EditorPanel';
 import { ToolStrip } from './components/ToolStrip';
@@ -47,10 +47,15 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const [content, setContent] = useState('');
   const [isDirty, setIsDirty] = useState(false);
   const [isDiscarding, setIsDiscarding] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
 
   const { data: story, isLoading } = useStory(storyId);
-  const updateStory = useUpdateStory();
+  const { data: activeEvolution } = useActiveEvolution(storyId);
+  const saveDraft = useSaveManualDraft(storyId);
   const { triggerRewrite, abort: abortRewrite } = useAIRewrite(storyId);
+
+  const hasDraft = !!activeEvolution?.draft_version_id;
+  const sessionId = activeEvolution?.id;
 
   const writingStyle = useEvolveWorkspaceStore((s) => s.writingStyle);
   const lengthPreference = useEvolveWorkspaceStore((s) => s.lengthPreference);
@@ -108,22 +113,40 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     setIsDirty(true);
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const handleSaveDraft = useCallback(async () => {
     if (!story) return;
-    await updateStory.mutateAsync({
-      storyId,
-      data: {
-        title: story.title,
-        content,
-        visibility: story.visibility,
-        legacies: story.legacies.map((l) => ({
-          legacy_id: l.legacy_id,
-          role: l.role,
-        })),
-      },
+    await saveDraft.mutateAsync({
+      title: story.title,
+      content,
     });
     setIsDirty(false);
-  }, [story, storyId, content, updateStory]);
+  }, [story, content, saveDraft]);
+
+  const handleFinish = useCallback(async () => {
+    if (!sessionId || !story) return;
+    setIsFinishing(true);
+    try {
+      // Auto-save draft if there are unsaved changes
+      if (isDirty) {
+        await saveDraft.mutateAsync({
+          title: story.title,
+          content,
+        });
+        setIsDirty(false);
+      }
+      // Accept the session (promotes draft to active, completes session)
+      await acceptEvolution(storyId, sessionId);
+      // Clear caches
+      queryClient.removeQueries({ queryKey: evolutionKeys.all });
+      await queryClient.invalidateQueries({ queryKey: storyKeys.detail(storyId) });
+      resetAllStores();
+      navigate(`/legacy/${legacyId}/story/${storyId}`);
+    } catch (err) {
+      console.error('Failed to finish evolution session:', err);
+    } finally {
+      setIsFinishing(false);
+    }
+  }, [sessionId, story, isDirty, content, storyId, legacyId, saveDraft, queryClient, navigate]);
 
   const handleRewrite = useCallback(() => {
     // Gather pinned facts from context panel
@@ -214,10 +237,13 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
           legacyId={legacyId}
           storyId={storyId}
           title={story?.title ?? 'Untitled'}
-          isSaving={updateStory.isPending}
+          isSaving={saveDraft.isPending}
           isDirty={isDirty}
           isDiscarding={isDiscarding}
-          onSave={handleSave}
+          isFinishing={isFinishing}
+          hasDraft={hasDraft}
+          onSaveDraft={handleSaveDraft}
+          onFinish={handleFinish}
           onDiscard={handleDiscard}
         />
 
