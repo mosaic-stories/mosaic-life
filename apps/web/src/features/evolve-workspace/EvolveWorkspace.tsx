@@ -19,6 +19,8 @@ import { BottomToolbar } from './components/BottomToolbar';
 import { MobileToolSheet } from './components/MobileToolSheet';
 import { MobileBottomBar } from './components/MobileBottomBar';
 import { useAIRewrite } from './hooks/useAIRewrite';
+import { storyContextKeys } from './hooks/useStoryContext';
+import type { StoryContextResponse } from './api/storyContext';
 import { type ToolId, useEvolveWorkspaceStore } from './store/useEvolveWorkspaceStore';
 import { useAIChatStore } from '@/features/ai-chat/store/aiChatStore';
 import { createNewConversation } from '@/features/ai-chat/api/ai';
@@ -125,13 +127,23 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   }, [story, storyId, content, updateStory]);
 
   const handleRewrite = useCallback(() => {
+    // Gather pinned facts from context panel
+    const context = queryClient.getQueryData<StoryContextResponse | null>(
+      storyContextKeys.detail(storyId),
+    );
+    const pinnedFacts = context?.facts
+      ?.filter((f) => f.status === 'pinned')
+      .map(({ category, content: factContent, detail }) => ({ category, content: factContent, detail }));
+
     triggerRewrite(content, {
       conversation_id: conversationId,
       pinned_context_ids: pinnedContextIds,
       writing_style: writingStyle,
       length_preference: lengthPreference,
+      context_summary: context?.summary ?? undefined,
+      pinned_facts: pinnedFacts,
     });
-  }, [content, conversationId, pinnedContextIds, writingStyle, lengthPreference, triggerRewrite]);
+  }, [content, conversationId, pinnedContextIds, writingStyle, lengthPreference, triggerRewrite, queryClient, storyId]);
 
   const handleAcceptRewrite = useCallback(
     (rewrittenContent: string) => {

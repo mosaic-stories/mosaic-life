@@ -7,6 +7,12 @@ export interface RewriteRequest {
   writing_style?: WritingStyle | null;
   length_preference?: LengthPreference | null;
   persona_id?: string;
+  context_summary?: string | null;
+  pinned_facts?: Array<{
+    category: string;
+    content: string;
+    detail: string | null;
+  }>;
 }
 
 interface RewriteChunkEvent {

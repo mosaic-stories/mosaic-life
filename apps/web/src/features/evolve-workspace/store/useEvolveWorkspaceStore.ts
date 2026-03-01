@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { WritingStyle, LengthPreference } from '@/lib/api/evolution';
+import type { FactCategory } from '../api/storyContext';
 
 export type ToolId = 'ai-chat' | 'context' | 'versions' | 'media' | 'style';
 export type RewriteState = 'idle' | 'streaming' | 'reviewing';
@@ -40,6 +41,10 @@ interface EvolveWorkspaceState {
   pinnedContextIds: string[];
   togglePinnedContext: (id: string) => void;
 
+  // Context panel filter
+  contextFilter: FactCategory | 'all';
+  setContextFilter: (filter: FactCategory | 'all') => void;
+
   // Persona selection
   activePersonaId: string;
   conversationIds: Record<string, string>;
@@ -61,6 +66,7 @@ const initialState = {
   writingStyle: null as WritingStyle | null,
   lengthPreference: null as LengthPreference | null,
   pinnedContextIds: [] as string[],
+  contextFilter: 'all' as FactCategory | 'all',
   activePersonaId: 'biographer' as string,
   conversationIds: {} as Record<string, string>,
 };
@@ -132,6 +138,8 @@ export const useEvolveWorkspaceStore = create<EvolveWorkspaceState>((set) => ({
         ? state.pinnedContextIds.filter((p) => p !== id)
         : [...state.pinnedContextIds, id],
     })),
+
+  setContextFilter: (filter) => set({ contextFilter: filter }),
 
   setActivePersona: (personaId) => set({ activePersonaId: personaId }),
 
