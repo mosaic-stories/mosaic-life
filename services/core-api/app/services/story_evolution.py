@@ -723,16 +723,16 @@ async def accept_session(
     """Accept the draft and complete the session."""
     session = await _get_session(db, session_id, story_id, user_id)
 
-    if session.phase != "review":
+    if session.is_terminal:
         raise HTTPException(
             status_code=422,
-            detail="Can only accept from review phase",
+            detail="Cannot accept a session that is already terminal",
         )
 
     if not session.draft_version_id:
         raise HTTPException(
             status_code=422,
-            detail="No draft to accept",
+            detail="No draft to accept — save a draft first",
         )
 
     # Load draft version
