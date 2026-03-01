@@ -12,7 +12,7 @@
 
 ---
 
-### Task 1: Update Zustand Store — Replace `'style'` with `'rewrite'` in ToolId
+### Task 1: Update Zustand Store — Replace `'style'` with `'rewrite'` in ToolId ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/store/useEvolveWorkspaceStore.ts:5`
@@ -60,7 +60,7 @@ git commit -m "feat(evolve): replace 'style' with 'rewrite' in ToolId type"
 
 ---
 
-### Task 2: Create RewriteTool Component
+### Task 2: Create RewriteTool Component ✅
 
 **Files:**
 - Create: `apps/web/src/features/evolve-workspace/tools/RewriteTool.tsx`
@@ -503,7 +503,7 @@ git commit -m "feat(evolve): add RewriteTool component with style controls and b
 
 ---
 
-### Task 3: Update ToolStrip — Replace Style with Rewrite
+### Task 3: Update ToolStrip — Replace Style with Rewrite ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/components/ToolStrip.tsx`
@@ -615,7 +615,7 @@ git commit -m "feat(evolve): reorganize ToolStrip with grouped sections and Rewr
 
 ---
 
-### Task 4: Wire RewriteTool into ToolPanel and MobileToolSheet
+### Task 4: Wire RewriteTool into ToolPanel and MobileToolSheet ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/components/ToolPanel.tsx`
@@ -770,7 +770,7 @@ git commit -m "feat(evolve): wire RewriteTool into ToolPanel and MobileToolSheet
 
 ---
 
-### Task 5: Update EvolveWorkspace — Remove BottomToolbar, Pass Rewrite Props
+### Task 5: Update EvolveWorkspace — Remove BottomToolbar, Pass Rewrite Props ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/EvolveWorkspace.tsx`
@@ -850,7 +850,7 @@ git commit -m "feat(evolve): remove BottomToolbar, wire rewrite through ToolPane
 
 ---
 
-### Task 6: Update MobileBottomBar — Replace Style and Rewrite with Single Rewrite Tool
+### Task 6: Update MobileBottomBar — Replace Style and Rewrite with Single Rewrite Tool ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/components/MobileBottomBar.tsx`
@@ -911,7 +911,7 @@ git commit -m "feat(evolve): update MobileBottomBar to replace Style with Rewrit
 
 ---
 
-### Task 7: Delete Obsolete Files
+### Task 7: Delete Obsolete Files ✅
 
 **Files:**
 - Delete: `apps/web/src/features/evolve-workspace/tools/StyleTool.tsx`
@@ -945,7 +945,7 @@ git commit -m "chore(evolve): remove obsolete StyleTool and BottomToolbar compon
 
 ---
 
-### Task 8: Run Full Test Suite and Lint
+### Task 8: Run Full Test Suite and Lint ✅
 
 **Files:** None (validation only)
 
