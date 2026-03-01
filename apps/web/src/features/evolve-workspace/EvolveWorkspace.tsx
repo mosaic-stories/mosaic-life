@@ -15,7 +15,6 @@ import { WorkspaceHeader } from './components/WorkspaceHeader';
 import { EditorPanel } from './components/EditorPanel';
 import { ToolStrip } from './components/ToolStrip';
 import { ToolPanel } from './components/ToolPanel';
-import { BottomToolbar } from './components/BottomToolbar';
 import { MobileToolSheet } from './components/MobileToolSheet';
 import { MobileBottomBar } from './components/MobileBottomBar';
 import { useAIRewrite } from './hooks/useAIRewrite';
@@ -194,14 +193,10 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
 
   const handleMobileToolSelect = useCallback(
     (toolId: string) => {
-      if (toolId === 'rewrite') {
-        handleRewrite();
-      } else {
-        setActiveTool(toolId as ToolId);
-        setMobileSheetOpen(true);
-      }
+      setActiveTool(toolId as ToolId);
+      setMobileSheetOpen(true);
     },
-    [handleRewrite, setActiveTool],
+    [setActiveTool],
   );
 
   if (isLoading) {
@@ -250,6 +245,8 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
               storyId={storyId}
               conversationId={conversationId}
               currentContent={content}
+              onRewrite={handleRewrite}
+              onCancelRewrite={abortRewrite}
             />
           </>
         ) : (
@@ -275,11 +272,12 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
                     storyId={storyId}
                     conversationId={conversationId}
                     currentContent={content}
+                    onRewrite={handleRewrite}
+                    onCancelRewrite={abortRewrite}
                   />
                 </ResizablePanel>
               </ResizablePanelGroup>
             </div>
-            <BottomToolbar onRewrite={handleRewrite} wordCount={wordCount} />
           </>
         )}
       </div>
