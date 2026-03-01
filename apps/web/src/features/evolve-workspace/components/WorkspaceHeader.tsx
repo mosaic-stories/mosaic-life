@@ -1,4 +1,4 @@
-import { ArrowLeft, Save, Trash2 } from 'lucide-react';
+import { ArrowLeft, Save, Trash2, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +20,10 @@ interface WorkspaceHeaderProps {
   isSaving: boolean;
   isDirty: boolean;
   isDiscarding: boolean;
-  onSave: () => void;
+  isFinishing: boolean;
+  hasDraft: boolean;
+  onSaveDraft: () => void;
+  onFinish: () => void;
   onDiscard: () => void;
 }
 
@@ -31,10 +34,15 @@ export function WorkspaceHeader({
   isSaving,
   isDirty,
   isDiscarding,
-  onSave,
+  isFinishing,
+  hasDraft,
+  onSaveDraft,
+  onFinish,
   onDiscard,
 }: WorkspaceHeaderProps) {
   const navigate = useNavigate();
+
+  const canFinish = hasDraft || isDirty;
 
   return (
     <div className="flex items-center justify-between px-4 py-2 border-b bg-white shrink-0">
@@ -52,16 +60,23 @@ export function WorkspaceHeader({
 
       <div className="flex items-center gap-2">
         <span className="text-xs text-neutral-400">
-          {isSaving ? 'Saving...' : isDirty ? 'Unsaved changes' : 'Saved'}
+          {isSaving
+            ? 'Saving...'
+            : isFinishing
+              ? 'Publishing...'
+              : isDirty
+                ? 'Unsaved changes'
+                : 'Saved'}
         </span>
 
+        {/* Discard session */}
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
               variant="ghost"
               size="sm"
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              disabled={isDiscarding || isSaving}
+              disabled={isDiscarding || isSaving || isFinishing}
             >
               <Trash2 className="h-4 w-4 mr-1" />
               Discard session
@@ -87,10 +102,44 @@ export function WorkspaceHeader({
           </AlertDialogContent>
         </AlertDialog>
 
-        <Button size="sm" onClick={onSave} disabled={isSaving || !isDirty}>
+        {/* Save draft */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onSaveDraft}
+          disabled={isSaving || !isDirty || isFinishing}
+        >
           <Save className="h-4 w-4 mr-1" />
-          Save
+          Save draft
         </Button>
+
+        {/* Finish */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              size="sm"
+              disabled={!canFinish || isSaving || isDiscarding || isFinishing}
+            >
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Finish
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Publish this version?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will replace the current story with your edited version and close the evolution
+                session.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={onFinish}>
+                Publish
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
