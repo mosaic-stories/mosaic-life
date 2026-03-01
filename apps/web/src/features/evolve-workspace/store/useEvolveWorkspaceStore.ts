@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { WritingStyle, LengthPreference } from '@/lib/api/evolution';
 import type { FactCategory } from '../api/storyContext';
 
-export type ToolId = 'ai-chat' | 'context' | 'versions' | 'media' | 'style';
+export type ToolId = 'ai-chat' | 'context' | 'versions' | 'media' | 'rewrite';
 export type RewriteState = 'idle' | 'streaming' | 'reviewing';
 export type ViewMode = 'editor' | 'diff';
 export type CompareState = 'idle' | 'loading' | 'comparing';
