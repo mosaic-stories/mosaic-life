@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Globe, Users, Lock, AlertCircle } from 'lucide-react';
+import { Loader2, Globe, Users, Lock, AlertCircle, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import VersionHistoryDrawer from './VersionHistoryDrawer';
 import StoryToolbar from './StoryToolbar';
 import StoryViewer from './StoryViewer';
-import StoryEditForm from './StoryEditForm';
 import DeleteStoryDialog from './DeleteStoryDialog';
 import EvolutionResumeBanner from './EvolutionResumeBanner';
 import { useLegacy } from '@/features/legacy/hooks/useLegacies';
@@ -46,7 +46,6 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   const [content, setContent] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'private' | 'personal'>('private');
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [isViewMode, setIsViewMode] = useState(true);
   const [selectedLegacies, setSelectedLegacies] = useState<LegacyAssociationInput[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [previewVersionNumber, setPreviewVersionNumber] = useState<number | null>(null);
@@ -94,12 +93,12 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   const hasActiveEvolution = hasEvolutionData && !!activeEvolution
     && !['completed', 'discarded'].includes(activeEvolution.phase);
 
-  // For new stories, start in edit mode
+  // Guard: if no storyId, redirect to legacy page (creation now goes through evolve)
   useEffect(() => {
     if (!storyId) {
-      setIsViewMode(false);
+      navigate(`/legacy/${legacyId}`, { replace: true });
     }
-  }, [storyId]);
+  }, [storyId, legacyId, navigate]);
 
   // Populate form with existing story data when editing
   useEffect(() => {
@@ -195,20 +194,6 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
     navigate(`/legacy/${legacyId}`);
   };
 
-  const handleEditClick = () => {
-    setIsViewMode(false);
-  };
-
-  const handleCancelEdit = () => {
-    // Reset to original values and switch back to view mode
-    if (existingStory) {
-      setTitle(existingStory.title);
-      setContent(existingStory.content);
-      setVisibility(existingStory.visibility);
-    }
-    setIsViewMode(true);
-  };
-
   const handleSelectVersion = (versionNumber: number) => {
     setPreviewVersionNumber(versionNumber);
   };
@@ -270,13 +255,18 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   const legacyName = legacy?.name || 'Legacy';
   const isMutating = createStory.isPending || updateStory.isPending;
 
-  // Show loading state while fetching existing story in edit mode
+  // Show loading state while fetching existing story
   if (isEditMode && storyLoading) {
     return (
       <div className="min-h-screen bg-theme-background flex items-center justify-center">
         <Loader2 className="size-8 animate-spin text-theme-primary" />
       </div>
     );
+  }
+
+  // If no storyId, render nothing (redirect effect will fire)
+  if (!storyId) {
+    return null;
   }
 
   const visibilityInfo = VISIBILITY_MAP[visibility];
@@ -292,13 +282,13 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   return (
     <div className="min-h-screen bg-theme-background transition-colors duration-300">
       <SEOHead
-        title={isEditMode ? "Edit Story" : "Create Story"}
-        description="Create or edit a story for this legacy"
+        title={existingStory?.title ?? 'Story'}
+        description="View this story"
         noIndex={true}
       />
       <StoryToolbar
         legacyName={legacyName}
-        isViewMode={isViewMode}
+        isViewMode={true}
         isEditMode={isEditMode}
         canEdit={canEdit}
         showHistory={showHistory}
@@ -309,8 +299,7 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
         hasActiveEvolution={hasActiveEvolution}
         canDelete={canEdit}
         onBack={handleBack}
-        onEditClick={handleEditClick}
-        onCancelEdit={handleCancelEdit}
+        onCancelEdit={() => {}}
         onPublish={handlePublish}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onEvolve={handleNavigateToEvolve}
@@ -329,6 +318,17 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
             />
           )}
 
+          {/* Draft story CTA */}
+          {existingStory?.status === 'draft' && (
+            <Card className="border-amber-200 bg-amber-50 p-4 text-center">
+              <p className="text-sm text-amber-800 mb-2">This story is still a draft.</p>
+              <Button size="sm" onClick={handleNavigateToEvolve}>
+                <Sparkles className="size-4 mr-2" />
+                Continue in Workspace
+              </Button>
+            </Card>
+          )}
+
           {/* Error Message */}
           {submitError && (
             <Card className="p-4 border-red-200 bg-red-50">
@@ -339,37 +339,20 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
             </Card>
           )}
 
-          {isViewMode && isEditMode ? (
-            <StoryViewer
-              displayTitle={displayTitle}
-              displayContent={displayContent}
-              visibilityIcon={visibilityInfo.icon}
-              visibilityLabel={visibilityInfo.label}
-              authorName={existingStory?.author_name}
-              createdAt={existingStory?.created_at}
-              associatedLegaciesLabel={associatedLegaciesLabel}
-              canEdit={canEdit}
-              onEditClick={handleEditClick}
-              isPreviewing={isPreviewing}
-              previewData={previewData}
-              isPreviewActive={isPreviewActive}
-              onRestore={handleRestore}
-              isRestoring={restoreVersionMutation.isPending}
-            />
-          ) : (
-            <StoryEditForm
-              title={title}
-              onTitleChange={setTitle}
-              content={content}
-              onContentChange={setContent}
-              visibility={visibility}
-              onVisibilityChange={setVisibility}
-              selectedLegacies={selectedLegacies}
-              onLegaciesChange={setSelectedLegacies}
-              isMutating={isMutating}
-              legacyId={legacyId}
-            />
-          )}
+          <StoryViewer
+            displayTitle={displayTitle}
+            displayContent={displayContent}
+            visibilityIcon={visibilityInfo.icon}
+            visibilityLabel={visibilityInfo.label}
+            authorName={existingStory?.author_name}
+            createdAt={existingStory?.created_at}
+            associatedLegaciesLabel={associatedLegaciesLabel}
+            isPreviewing={isPreviewing}
+            previewData={previewData}
+            isPreviewActive={isPreviewActive}
+            onRestore={handleRestore}
+            isRestoring={restoreVersionMutation.isPending}
+          />
         </div>
       </main>
 

@@ -1,5 +1,6 @@
-import { ArrowLeft, Loader2, Save, Pencil, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { HeaderSlot } from '@/components/header';
 import VersionHistoryButton from './VersionHistoryButton';
 
@@ -16,7 +17,6 @@ interface StoryToolbarProps {
   hasActiveEvolution: boolean;
   canDelete: boolean;
   onBack: () => void;
-  onEditClick: () => void;
   onCancelEdit: () => void;
   onPublish: () => void;
   onOpenHistory: () => void;
@@ -37,7 +37,6 @@ export default function StoryToolbar({
   hasActiveEvolution,
   canDelete,
   onBack,
-  onEditClick,
   onCancelEdit,
   onPublish,
   onOpenHistory,
@@ -56,16 +55,6 @@ export default function StoryToolbar({
 
       {isViewMode && isEditMode ? (
         <>
-          {canEdit && (
-            <Button
-              size="sm"
-              className="gap-2"
-              onClick={onEditClick}
-            >
-              <Pencil className="size-4" />
-              Edit Story
-            </Button>
-          )}
           {showHistory && (
             <VersionHistoryButton
               versionCount={versionCount}
@@ -73,15 +62,21 @@ export default function StoryToolbar({
             />
           )}
           {canEdit && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-2"
-              onClick={onEvolve}
-            >
-              <Sparkles className="size-4" />
-              {hasActiveEvolution ? 'Continue Evolving' : 'Evolve Story'}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  size="sm"
+                  className="gap-2"
+                  onClick={onEvolve}
+                >
+                  <Sparkles className="size-4" />
+                  {hasActiveEvolution ? 'Continue Evolving' : 'Evolve'}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                Edit and enhance your story with AI assistance
+              </TooltipContent>
+            </Tooltip>
           )}
           {canDelete && (
             <Button

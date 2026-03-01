@@ -1,5 +1,4 @@
 import type { ComponentType } from 'react';
-import { Eye } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { StoryEditor } from '@/features/editor';
 import type { VersionDetail } from '@/features/story/api/versions';
@@ -14,8 +13,6 @@ interface StoryViewerProps {
   authorName?: string;
   createdAt?: string;
   associatedLegaciesLabel: string | null;
-  canEdit: boolean;
-  onEditClick: () => void;
   /** Version preview state */
   isPreviewing: boolean;
   previewData?: VersionDetail;
@@ -32,8 +29,6 @@ export default function StoryViewer({
   authorName,
   createdAt,
   associatedLegaciesLabel,
-  canEdit,
-  onEditClick,
   isPreviewing,
   previewData,
   isPreviewActive,
@@ -68,21 +63,6 @@ export default function StoryViewer({
       <Card className="p-8 bg-white">
         <StoryEditor content={displayContent} readOnly />
       </Card>
-
-      {/* View mode info */}
-      {canEdit && (
-        <div className="flex items-center justify-center gap-2 text-sm text-neutral-500">
-          <Eye className="size-4" />
-          <span>Viewing mode</span>
-          <span className="mx-1">-</span>
-          <button
-            onClick={onEditClick}
-            className="text-theme-primary hover:underline"
-          >
-            Click to edit
-          </button>
-        </div>
-      )}
     </div>
   );
 }
