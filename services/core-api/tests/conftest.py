@@ -21,11 +21,13 @@ from app.auth.models import SessionData  # noqa: E402
 from app.config import get_settings  # noqa: E402
 from app.database import Base, get_db  # noqa: E402
 from app.main import app  # noqa: E402
+from app.models.ai import AIConversation  # noqa: E402
 from app.models.associations import MediaLegacy, StoryLegacy  # noqa: E402
 from app.models.legacy import Legacy, LegacyMember  # noqa: E402
 from app.models.person import Person  # noqa: E402
 from app.models.media import Media  # noqa: E402
 from app.models.story import Story  # noqa: E402
+from app.models.story_evolution import StoryEvolutionSession  # noqa: E402
 from app.models.story_version import StoryVersion  # noqa: E402
 from app.models.user import User  # noqa: E402
 
@@ -471,6 +473,69 @@ async def test_story_personal(
     db_session.add(version)
     await db_session.flush()
     story.active_version_id = version.id
+
+    await db_session.commit()
+    await db_session.refresh(story)
+    return story
+
+
+@pytest_asyncio.fixture
+async def test_story_with_evolution(
+    db_session: AsyncSession,
+    test_user: User,
+    test_legacy: Legacy,
+) -> Story:
+    """Create a test story with an active evolution session."""
+    story = Story(
+        author_id=test_user.id,
+        title="Story With Evolution",
+        content="This is a story with an active evolution session.",
+        visibility="private",
+    )
+    db_session.add(story)
+    await db_session.flush()
+
+    # Create association with legacy
+    story_legacy = StoryLegacy(
+        story_id=story.id,
+        legacy_id=test_legacy.id,
+        role="primary",
+        position=0,
+    )
+    db_session.add(story_legacy)
+
+    # Create v1 version
+    version = StoryVersion(
+        story_id=story.id,
+        version_number=1,
+        title=story.title,
+        content=story.content,
+        status="active",
+        source="manual_edit",
+        change_summary="Initial version",
+        created_by=story.author_id,
+    )
+    db_session.add(version)
+    await db_session.flush()
+    story.active_version_id = version.id
+
+    # Create an AI conversation for the session
+    conversation = AIConversation(
+        user_id=test_user.id,
+        persona_id="biographer",
+    )
+    db_session.add(conversation)
+    await db_session.flush()
+
+    # Create an active evolution session
+    evo_session = StoryEvolutionSession(
+        story_id=story.id,
+        base_version_number=1,
+        conversation_id=conversation.id,
+        phase="elicitation",
+        created_by=test_user.id,
+    )
+    db_session.add(evo_session)
 
     await db_session.commit()
     await db_session.refresh(story)
