@@ -130,7 +130,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     setIsDirty(false);
   }, [story, title, content, saveDraft]);
 
-  const handleFinish = useCallback(async () => {
+  const handleFinish = useCallback(async (visibility?: 'public' | 'private' | 'personal') => {
     if (!sessionId || !story) return;
     setIsFinishing(true);
     try {
@@ -143,7 +143,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
         setIsDirty(false);
       }
       // Accept the session (promotes draft to active, completes session)
-      await acceptEvolution(storyId, sessionId);
+      await acceptEvolution(storyId, sessionId, { visibility });
       // Clear caches
       queryClient.removeQueries({ queryKey: evolutionKeys.all });
       await queryClient.invalidateQueries({ queryKey: storyKeys.detail(storyId) });
@@ -265,6 +265,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
           legacyId={legacyId}
           storyId={storyId}
           title={title}
+          currentVisibility={story?.visibility}
           isSaving={saveDraft.isPending}
           isDirty={isDirty}
           isDiscarding={isDiscarding}

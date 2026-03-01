@@ -14,10 +14,13 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
+type StoryVisibility = 'public' | 'private' | 'personal';
+
 interface WorkspaceHeaderProps {
   legacyId: string;
   storyId: string;
   title: string;
+  currentVisibility?: StoryVisibility;
   isSaving: boolean;
   isDirty: boolean;
   isDiscarding: boolean;
@@ -25,7 +28,7 @@ interface WorkspaceHeaderProps {
   isUpdatingTitle: boolean;
   hasDraft: boolean;
   onSaveDraft: () => void;
-  onFinish: () => void;
+  onFinish: (visibility?: StoryVisibility) => void;
   onDiscard: () => void;
   onUpdateTitle: (title: string) => Promise<void>;
 }
@@ -34,6 +37,7 @@ export function WorkspaceHeader({
   legacyId,
   storyId,
   title,
+  currentVisibility,
   isSaving,
   isDirty,
   isDiscarding,
@@ -48,6 +52,13 @@ export function WorkspaceHeader({
   const navigate = useNavigate();
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title);
+  const [finishVisibility, setFinishVisibility] = useState<StoryVisibility>(
+    currentVisibility ?? 'private'
+  );
+
+  useEffect(() => {
+    setFinishVisibility(currentVisibility ?? 'private');
+  }, [currentVisibility]);
 
   const canFinish = hasDraft || isDirty;
 
@@ -199,13 +210,31 @@ export function WorkspaceHeader({
             <AlertDialogHeader>
               <AlertDialogTitle>Publish this version?</AlertDialogTitle>
               <AlertDialogDescription>
-                This will replace the current story with your edited version and close the evolution
-                session.
+                This will replace the current story with your edited version and close the
+                evolution session.
               </AlertDialogDescription>
             </AlertDialogHeader>
+
+            {/* Visibility picker */}
+            <div className="space-y-2 py-2">
+              <label className="text-sm font-medium">Visibility</label>
+              <div className="flex gap-2">
+                {(['public', 'private', 'personal'] as const).map((v) => (
+                  <Button
+                    key={v}
+                    variant={finishVisibility === v ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setFinishVisibility(v)}
+                  >
+                    {v === 'public' ? 'Public' : v === 'private' ? 'Members Only' : 'Personal'}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={onFinish}>
+              <AlertDialogAction onClick={() => onFinish(finishVisibility)}>
                 Publish
               </AlertDialogAction>
             </AlertDialogFooter>
