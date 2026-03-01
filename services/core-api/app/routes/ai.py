@@ -20,7 +20,7 @@ from ..adapters.storytelling import format_story_context as format_story_context
 from ..auth.middleware import require_auth
 from ..config.personas import get_persona, get_personas
 from ..config.settings import get_settings
-from ..database import get_db
+from ..database import get_db, get_db_for_background
 from ..models.ai import AIMessage as AIMessageModel
 from ..models.legacy import Legacy
 from ..models.story import Story
@@ -434,6 +434,69 @@ async def update_fact_visibility(
     return FactResponse.model_validate(fact)
 
 
+async def _extract_context_from_conversation(
+    conversation_id: UUID,
+    user_id: UUID,
+    user_content: str,
+    assistant_content: str,
+    message_id: UUID,
+) -> None:
+    """Background task to extract context from conversation."""
+    try:
+        async for bg_db in get_db_for_background():
+            # Find story_id via conversation's legacy associations
+            from app.models.associations import ConversationLegacy, StoryLegacy
+
+            conv_legacy_result = await bg_db.execute(
+                select(ConversationLegacy.legacy_id).where(
+                    ConversationLegacy.conversation_id == conversation_id,
+                    ConversationLegacy.role == "primary",
+                )
+            )
+            legacy_id = conv_legacy_result.scalar_one_or_none()
+            if not legacy_id:
+                return
+
+            story_legacy_result = await bg_db.execute(
+                select(StoryLegacy.story_id)
+                .where(
+                    StoryLegacy.legacy_id == legacy_id,
+                    StoryLegacy.role == "primary",
+                )
+                .limit(1)
+            )
+            story_id = story_legacy_result.scalar_one_or_none()
+            if not story_id:
+                return
+
+            from app.services.context_extractor import ContextExtractor
+            from app.providers.registry import get_provider_registry
+            from app.config import get_settings
+
+            registry = get_provider_registry()
+            llm = registry.get_llm_provider()
+            settings = get_settings()
+            model_id = (
+                getattr(settings, "context_extraction_model_id", None)
+                or "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+            )
+            extractor = ContextExtractor(llm_provider=llm, model_id=model_id)
+
+            await extractor.extract_from_conversation(
+                db=bg_db,
+                story_id=story_id,
+                user_id=user_id,
+                user_message=user_content,
+                assistant_message=assistant_content,
+                message_id=message_id,
+            )
+    except Exception:
+        logger.exception(
+            "context_extraction.background.failed",
+            extra={"conversation_id": str(conversation_id)},
+        )
+
+
 # ============================================================================
 # Message/Chat Endpoints
 # ============================================================================
@@ -530,6 +593,17 @@ async def send_message(
                     conversation_id=conversation_id,
                     content=full_response,
                     token_count=token_count,
+                )
+
+                # Fire-and-forget background context extraction
+                asyncio.create_task(
+                    _extract_context_from_conversation(
+                        conversation_id=conversation_id,
+                        user_id=session.user_id,
+                        user_content=data.content,
+                        assistant_content=full_response,
+                        message_id=message.id,
+                    )
                 )
 
                 # Trigger background summarization check
