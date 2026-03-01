@@ -23,6 +23,11 @@ describe('useEvolveWorkspaceStore', () => {
     expect(useEvolveWorkspaceStore.getState().activeTool).toBe('versions');
   });
 
+  it('setActiveTool accepts rewrite tool', () => {
+    useEvolveWorkspaceStore.getState().setActiveTool('rewrite');
+    expect(useEvolveWorkspaceStore.getState().activeTool).toBe('rewrite');
+  });
+
   it('startRewrite snapshots original and sets streaming', () => {
     useEvolveWorkspaceStore.getState().startRewrite('original content');
     const state = useEvolveWorkspaceStore.getState();

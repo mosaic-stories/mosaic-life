@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Globe, Users, Lock, AlertCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import VersionHistoryDrawer from './VersionHistoryDrawer';
@@ -9,7 +10,7 @@ import StoryEditForm from './StoryEditForm';
 import DeleteStoryDialog from './DeleteStoryDialog';
 import EvolutionResumeBanner from './EvolutionResumeBanner';
 import { useLegacy } from '@/features/legacy/hooks/useLegacies';
-import { useStory, useCreateStory, useUpdateStory, useDeleteStory } from '@/features/story/hooks/useStories';
+import { useStory, useCreateStory, useUpdateStory, useDeleteStory, storyKeys } from '@/features/story/hooks/useStories';
 import {
   useVersions,
   useVersionDetail,
@@ -18,7 +19,8 @@ import {
   useDiscardDraft,
 } from '@/features/story/hooks/useVersions';
 import type { LegacyAssociationInput } from '@/features/story/api/stories';
-import { useActiveEvolution } from '@/lib/hooks/useEvolution';
+import { useActiveEvolution, evolutionKeys } from '@/lib/hooks/useEvolution';
+import { discardActiveEvolution } from '@/lib/api/evolution';
 import { useAuth } from '@/contexts/AuthContext';
 import { SEOHead } from '@/components/seo';
 
@@ -49,6 +51,9 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [previewVersionNumber, setPreviewVersionNumber] = useState<number | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+
+  const queryClient = useQueryClient();
+  const [isDiscardingEvolution, setIsDiscardingEvolution] = useState(false);
 
   const { data: legacy, isLoading: _legacyLoading } = useLegacy(legacyId);
   const { data: existingStory, isLoading: storyLoading } = useStory(storyId);
@@ -237,6 +242,21 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
     navigate(`/legacy/${legacyId}/story/${storyId}/evolve`);
   };
 
+  const handleDiscardEvolution = async () => {
+    if (!storyId) return;
+    setIsDiscardingEvolution(true);
+    try {
+      await discardActiveEvolution(storyId);
+    } catch (err) {
+      console.error('Failed to discard evolution session:', err);
+    } finally {
+      queryClient.setQueryData(evolutionKeys.active(storyId), null);
+      queryClient.removeQueries({ queryKey: evolutionKeys.active(storyId) });
+      await queryClient.invalidateQueries({ queryKey: storyKeys.detail(storyId) });
+      setIsDiscardingEvolution(false);
+    }
+  };
+
   const handleDeleteStory = async () => {
     if (!storyId) return;
     try {
@@ -302,7 +322,11 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
         <div className="space-y-8">
           {/* Evolution resume banner */}
           {hasActiveEvolution && (
-            <EvolutionResumeBanner onContinue={handleNavigateToEvolve} />
+            <EvolutionResumeBanner
+              onContinue={handleNavigateToEvolve}
+              onDiscard={handleDiscardEvolution}
+              isDiscarding={isDiscardingEvolution}
+            />
           )}
 
           {/* Error Message */}

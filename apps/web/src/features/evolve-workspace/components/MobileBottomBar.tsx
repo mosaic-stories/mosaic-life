@@ -1,11 +1,10 @@
-import { MessageSquare, GitBranch, History, Image, Pen, Sparkles } from 'lucide-react';
+import { MessageSquare, GitBranch, History, Image, Sparkles } from 'lucide-react';
 
 const MOBILE_TOOLS = [
   { id: 'ai-chat', icon: MessageSquare, label: 'Chat' },
   { id: 'context', icon: GitBranch, label: 'Context' },
   { id: 'versions', icon: History, label: 'Versions' },
   { id: 'media', icon: Image, label: 'Media' },
-  { id: 'style', icon: Pen, label: 'Style' },
   { id: 'rewrite', icon: Sparkles, label: 'Rewrite' },
 ];
 

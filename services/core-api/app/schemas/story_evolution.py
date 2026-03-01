@@ -67,6 +67,21 @@ class RevisionRequest(BaseModel):
         return v
 
 
+class SaveDraftRequest(BaseModel):
+    """Request to save a manual edit as a draft version."""
+
+    title: str
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def content_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            msg = "Draft content cannot be empty"
+            raise ValueError(msg)
+        return v
+
+
 class EvolutionSessionResponse(BaseModel):
     """Response containing full session state."""
 

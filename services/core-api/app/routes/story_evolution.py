@@ -21,7 +21,9 @@ from app.schemas.story_evolution import (
     EvolutionSSEDoneEvent,
     PhaseAdvanceRequest,
     RevisionRequest,
+    SaveDraftRequest,
 )
+from app.schemas.story_version import StoryVersionDetail
 from app.services import story_evolution as evolution_service
 from app.services.story_writer import StoryWriterAgent
 
@@ -149,6 +151,39 @@ async def discard_active_session(
     if evo_session is None:
         return None
     return EvolutionSessionResponse.model_validate(evo_session)
+
+
+@router.post(
+    "/save-draft",
+    response_model=StoryVersionDetail,
+)
+async def save_manual_draft(
+    story_id: UUID,
+    data: SaveDraftRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> StoryVersionDetail:
+    """Save the current editor content as a draft version."""
+    session_data = require_auth(request)
+
+    evo_session = await evolution_service.get_active_session(
+        db=db,
+        story_id=story_id,
+        user_id=session_data.user_id,
+    )
+    if not evo_session:
+        raise HTTPException(status_code=404, detail="No active evolution session")
+
+    draft = await evolution_service.save_draft(
+        db=db,
+        session=evo_session,
+        title=data.title,
+        content=data.content,
+        user_id=session_data.user_id,
+        source="manual_edit",
+    )
+
+    return StoryVersionDetail.model_validate(draft)
 
 
 @router.post(

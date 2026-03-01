@@ -336,3 +336,52 @@ class TestReviseDraft:
             headers=auth_headers,
         )
         assert response.status_code == 422
+
+
+class TestSaveManualDraft:
+    @pytest.mark.asyncio
+    async def test_save_manual_draft_success(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_story_with_evolution: Story,
+    ) -> None:
+        story = test_story_with_evolution
+        response = await client.post(
+            f"/api/stories/{story.id}/evolution/save-draft",
+            json={"title": "Edited Title", "content": "Manually edited content"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "draft"
+        assert data["source"] == "manual_edit"
+
+    @pytest.mark.asyncio
+    async def test_save_manual_draft_no_active_session(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_story: Story,
+    ) -> None:
+        response = await client.post(
+            f"/api/stories/{test_story.id}/evolution/save-draft",
+            json={"title": "Title", "content": "Content"},
+            headers=auth_headers,
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_save_manual_draft_empty_content(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_story_with_evolution: Story,
+    ) -> None:
+        story = test_story_with_evolution
+        response = await client.post(
+            f"/api/stories/{story.id}/evolution/save-draft",
+            json={"title": "Title", "content": "   "},
+            headers=auth_headers,
+        )
+        assert response.status_code == 422

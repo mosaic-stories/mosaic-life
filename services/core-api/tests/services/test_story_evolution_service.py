@@ -821,3 +821,62 @@ class TestBackwardPhaseTransitions:
             sa_select(StoryVersion).where(StoryVersion.id == draft_id)
         )
         assert result.scalar_one_or_none() is None
+
+
+class TestSaveDraft:
+    @pytest.mark.asyncio
+    async def test_save_draft_manual_edit_source(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        draft = await evolution_service.save_draft(
+            db=db_session,
+            session=session,
+            title="Updated Title",
+            content="Updated content from manual edit",
+            user_id=test_user.id,
+            source="manual_edit",
+        )
+
+        assert draft.source == "manual_edit"
+        assert draft.status == "draft"
+        assert session.phase == "review"
+        assert session.draft_version_id == draft.id
+
+
+class TestAcceptSession:
+    @pytest.mark.asyncio
+    async def test_accept_session_requires_draft(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Accept should fail if no draft exists, regardless of phase."""
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+        # Session is in elicitation, no draft
+        with pytest.raises(HTTPException) as exc:
+            await evolution_service.accept_session(
+                db=db_session,
+                session_id=session.id,
+                story_id=test_story.id,
+                user_id=test_user.id,
+            )
+        assert exc.value.status_code == 422
+        assert "No draft" in exc.value.detail
