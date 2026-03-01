@@ -929,7 +929,7 @@ git commit -m "feat: add background context extraction after assistant messages"
 
 ---
 
-## Task 7: Backend — Extend Rewrite with Pinned Facts
+## Task 7: Backend — Extend Rewrite with Pinned Facts ✅
 
 **Files:**
 - Modify: `services/core-api/app/routes/rewrite.py`
@@ -969,7 +969,7 @@ git commit -m "feat: include pinned facts and context summary in rewrite prompt"
 
 ---
 
-## Task 8: Backend — Validate all backend changes
+## Task 8: Backend — Validate all backend changes ✅
 
 **Step 1: Run linting and type checking**
 
@@ -989,7 +989,7 @@ git commit -m "fix: address linting and type checking issues for context panel"
 
 ---
 
-## Task 9: Frontend — API Client
+## Task 9: Frontend — API Client ✅
 
 **Files:**
 - Create: `apps/web/src/features/evolve-workspace/api/storyContext.ts`
