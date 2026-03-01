@@ -112,6 +112,22 @@ async def rewrite_story(
                     db, data.conversation_id
                 )
 
+            # Build pinned facts context from context panel
+            pinned_facts_context = ""
+            if data.context_summary:
+                pinned_facts_context += (
+                    f"\n\n## Story Context Summary\n{data.context_summary}"
+                )
+            if data.pinned_facts:
+                facts_text = "\n".join(
+                    f"- [{f.category}] {f.content}"
+                    + (f" — {f.detail}" if f.detail else "")
+                    for f in data.pinned_facts
+                )
+                pinned_facts_context += (
+                    f"\n\n## Key Details (user-curated)\n{facts_text}"
+                )
+
             system_prompt = writer.build_system_prompt(
                 writing_style=data.writing_style or "vivid",
                 length_preference=data.length_preference or "similar",
@@ -122,7 +138,9 @@ async def rewrite_story(
 
             user_message = writer.build_user_message(
                 original_story=data.content,
-                summary_text=conversation_summary + additional_context,
+                summary_text=conversation_summary
+                + additional_context
+                + pinned_facts_context,
             )
 
             full_text = ""
