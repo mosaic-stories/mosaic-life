@@ -3,16 +3,25 @@ import { AIChatTool } from '../tools/AIChatTool';
 import { ContextTool } from '../tools/ContextTool';
 import { VersionsTool } from '../tools/VersionsTool';
 import { MediaTool } from '../tools/MediaTool';
-import { StyleTool } from '../tools/StyleTool';
+import { RewriteTool } from '../tools/RewriteTool';
 
 interface ToolPanelProps {
   legacyId: string;
   storyId: string;
   conversationId: string | null;
   currentContent: string;
+  onRewrite: () => void;
+  onCancelRewrite?: () => void;
 }
 
-export function ToolPanel({ legacyId, storyId, conversationId, currentContent }: ToolPanelProps) {
+export function ToolPanel({
+  legacyId,
+  storyId,
+  conversationId,
+  currentContent,
+  onRewrite,
+  onCancelRewrite,
+}: ToolPanelProps) {
   const activeTool = useEvolveWorkspaceStore((s) => s.activeTool);
 
   return (
@@ -34,7 +43,15 @@ export function ToolPanel({ legacyId, storyId, conversationId, currentContent }:
         {activeTool === 'context' && <ContextTool storyId={storyId} />}
         {activeTool === 'versions' && <VersionsTool storyId={storyId} currentContent={currentContent} />}
         {activeTool === 'media' && <MediaTool legacyId={legacyId} />}
-        {activeTool === 'style' && <StyleTool />}
+        {activeTool === 'rewrite' && (
+          <RewriteTool
+            storyId={storyId}
+            conversationId={conversationId}
+            onRewrite={onRewrite}
+            onCancel={onCancelRewrite}
+            hasContent={currentContent.trim().length > 0}
+          />
+        )}
       </div>
     </div>
   );
