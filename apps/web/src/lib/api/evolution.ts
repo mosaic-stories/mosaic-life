@@ -125,6 +125,27 @@ export function acceptEvolution(
   );
 }
 
+export interface SaveDraftRequest {
+  title: string;
+  content: string;
+}
+
+export interface SaveDraftResponse {
+  id: string;
+  version_number: number;
+  title: string;
+  content: string;
+  status: string;
+  source: string;
+}
+
+export function saveManualDraft(
+  storyId: string,
+  data: SaveDraftRequest
+): Promise<SaveDraftResponse> {
+  return apiPost(`/api/stories/${storyId}/evolution/save-draft`, data);
+}
+
 export function summarizeEvolution(
   storyId: string,
   sessionId: string
