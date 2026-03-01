@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RelatedStory(BaseModel):
@@ -17,14 +17,14 @@ class RelatedStory(BaseModel):
 class EntityGroup(BaseModel):
     """Entities grouped by type."""
 
-    people: list[dict[str, str]] = []
-    places: list[dict[str, str]] = []
-    events: list[dict[str, str]] = []
-    objects: list[dict[str, str]] = []
+    people: list[dict[str, str]] = Field(default_factory=list)
+    places: list[dict[str, str]] = Field(default_factory=list)
+    events: list[dict[str, str]] = Field(default_factory=list)
+    objects: list[dict[str, str]] = Field(default_factory=list)
 
 
 class GraphContextResponse(BaseModel):
     """Response for GET /api/stories/{story_id}/graph-context."""
 
-    related_stories: list[RelatedStory] = []
-    entities: EntityGroup = EntityGroup()
+    related_stories: list[RelatedStory] = Field(default_factory=list)
+    entities: EntityGroup = Field(default_factory=EntityGroup)

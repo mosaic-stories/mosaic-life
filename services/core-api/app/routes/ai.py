@@ -23,7 +23,6 @@ from ..config.settings import get_settings
 from ..database import get_db, get_db_for_background
 from ..models.ai import AIMessage as AIMessageModel
 from ..models.legacy import Legacy
-from ..models.story import Story
 from ..providers.registry import get_provider_registry
 from ..schemas.ai import (
     ConversationCreate,
@@ -41,6 +40,7 @@ from ..schemas.memory import FactResponse, FactVisibilityUpdate
 from ..schemas.retrieval import ChunkResult
 from ..services import ai as ai_service
 from ..services import memory as memory_service
+from ..services.story_access import require_story_read_access
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
 logger = logging.getLogger(__name__)
@@ -58,6 +58,26 @@ def format_story_context(chunks: list[ChunkResult]) -> str:
         Formatted context string for system prompt, or empty string if no chunks.
     """
     return format_story_context_impl(chunks)
+
+
+async def _resolve_story_id_for_extraction(
+    db: AsyncSession,
+    conversation_id: UUID,
+    user_id: UUID,
+) -> UUID | None:
+    """Resolve deterministic story linkage for extraction via evolution session."""
+    from ..models.story_evolution import StoryEvolutionSession
+
+    result = await db.execute(
+        select(StoryEvolutionSession.story_id)
+        .where(
+            StoryEvolutionSession.conversation_id == conversation_id,
+            StoryEvolutionSession.created_by == user_id,
+        )
+        .order_by(StoryEvolutionSession.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
 
 
 # ============================================================================
@@ -175,11 +195,11 @@ async def seed_conversation(
                 media_type="text/plain",
             )
 
-        # Load story
-        story_result = await db.execute(select(Story).where(Story.id == story_id))
-        story = story_result.scalar_one_or_none()
-        if not story:
-            raise HTTPException(status_code=404, detail="Story not found")
+        story = await require_story_read_access(
+            db=db,
+            story_id=story_id,
+            user_id=session.user_id,
+        )
 
         # Load legacy name from conversation's linked legacy
         primary_legacy_id = ai_service.get_primary_legacy_id(conversation)
@@ -444,29 +464,39 @@ async def _extract_context_from_conversation(
     """Background task to extract context from conversation."""
     try:
         async for bg_db in get_db_for_background():
-            # Find story_id via conversation's legacy associations
-            from app.models.associations import ConversationLegacy, StoryLegacy
-
-            conv_legacy_result = await bg_db.execute(
-                select(ConversationLegacy.legacy_id).where(
-                    ConversationLegacy.conversation_id == conversation_id,
-                    ConversationLegacy.role == "primary",
-                )
+            story_id = await _resolve_story_id_for_extraction(
+                db=bg_db,
+                conversation_id=conversation_id,
+                user_id=user_id,
             )
-            legacy_id = conv_legacy_result.scalar_one_or_none()
-            if not legacy_id:
+            if not story_id:
+                logger.warning(
+                    "context_extraction.story_link_missing",
+                    extra={
+                        "conversation_id": str(conversation_id),
+                        "user_id": str(user_id),
+                        "message_id": str(message_id),
+                    },
+                )
                 return
 
-            story_legacy_result = await bg_db.execute(
-                select(StoryLegacy.story_id)
-                .where(
-                    StoryLegacy.legacy_id == legacy_id,
-                    StoryLegacy.role == "primary",
+            try:
+                await require_story_read_access(
+                    db=bg_db,
+                    story_id=story_id,
+                    user_id=user_id,
                 )
-                .limit(1)
-            )
-            story_id = story_legacy_result.scalar_one_or_none()
-            if not story_id:
+            except HTTPException as exc:
+                logger.warning(
+                    "context_extraction.story_not_accessible",
+                    extra={
+                        "conversation_id": str(conversation_id),
+                        "story_id": str(story_id),
+                        "user_id": str(user_id),
+                        "message_id": str(message_id),
+                        "status_code": exc.status_code,
+                    },
+                )
                 return
 
             from app.services.context_extractor import ContextExtractor

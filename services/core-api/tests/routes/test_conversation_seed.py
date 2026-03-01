@@ -11,6 +11,7 @@ from app.models.associations import ConversationLegacy
 from app.models.legacy import Legacy
 from app.models.story import Story
 from app.models.user import User
+from tests.conftest import create_auth_headers_for_user
 
 
 class TestConversationSeed:
@@ -125,3 +126,42 @@ class TestConversationSeed:
             headers=auth_headers,
         )
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_seed_rejects_unauthorized_story_access(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        other_headers = create_auth_headers_for_user(test_user_2)
+
+        conv = AIConversation(
+            user_id=test_user_2.id,
+            persona_id="biographer",
+            title="Test",
+        )
+        db_session.add(conv)
+        await db_session.flush()
+
+        db_session.add(
+            ConversationLegacy(
+                conversation_id=conv.id,
+                legacy_id=test_legacy.id,
+                role="primary",
+                position=0,
+            )
+        )
+        await db_session.commit()
+
+        response = await client.post(
+            f"/api/ai/conversations/{conv.id}/seed",
+            params={"story_id": str(test_story.id)},
+            headers=other_headers,
+        )
+
+        assert response.status_code == 403
+        assert response.json()["detail"] == "Not authorized to view this story"

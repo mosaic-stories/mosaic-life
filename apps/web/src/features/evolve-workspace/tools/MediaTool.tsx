@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Upload, Image as ImageIcon } from 'lucide-react';
 import { useMediaUpload, useMedia } from '@/features/media/hooks/useMedia';
 import { getMediaContentUrl } from '@/features/media/api/media';
+import { rewriteBackendUrlForDev } from '@/lib/url';
 
 interface MediaToolProps {
   legacyId: string;
@@ -68,12 +69,11 @@ export function MediaTool({ legacyId }: MediaToolProps) {
             {mediaItems.map((item) => (
               <div
                 key={item.id}
-                className="aspect-square rounded-md overflow-hidden border cursor-pointer hover:ring-2 hover:ring-theme-primary/50 transition-shadow"
-                title="Click to insert into story"
+                className="aspect-square rounded-md overflow-hidden border"
               >
                 {item.download_url ? (
                   <img
-                    src={getMediaContentUrl(item.id)}
+                    src={rewriteBackendUrlForDev(getMediaContentUrl(item.id))}
                     alt={item.filename || 'Media'}
                     className="w-full h-full object-cover"
                   />
@@ -85,7 +85,6 @@ export function MediaTool({ legacyId }: MediaToolProps) {
               </div>
             ))}
           </div>
-          <p className="text-xs text-neutral-400 mt-2">Click to insert into story</p>
         </section>
       )}
     </div>

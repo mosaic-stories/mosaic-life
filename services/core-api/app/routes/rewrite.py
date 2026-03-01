@@ -6,7 +6,7 @@ import logging
 from collections.abc import AsyncGenerator
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,6 +21,7 @@ from app.providers.registry import get_provider_registry
 from app.schemas.ai import SSEErrorEvent
 from app.schemas.rewrite import RewriteRequest
 from app.schemas.story_evolution import EvolutionSSEChunkEvent, EvolutionSSEDoneEvent
+from app.services.story_access import require_story_read_access
 from app.services.story_writer import StoryWriterAgent
 
 logger = logging.getLogger(__name__)
@@ -43,15 +44,20 @@ async def rewrite_story(
     session_data = require_auth(request)
     user_id = session_data.user_id
 
-    # Load story
-    story_result = await db.execute(select(Story).where(Story.id == story_id))
-    story = story_result.scalar_one_or_none()
-    if not story:
-        return StreamingResponse(
-            _error_stream("Story not found", retryable=False),
-            media_type="text/event-stream",
-            status_code=404,
+    # Pre-stream checks must raise JSON HTTP errors (not SSE error streams)
+    story = await require_story_read_access(db=db, story_id=story_id, user_id=user_id)
+
+    # Validate conversation ownership before loading summary (do not leak details)
+    conversation_summary = ""
+    if data.conversation_id:
+        summary = await _get_conversation_summary(
+            db=db,
+            conversation_id=data.conversation_id,
+            user_id=user_id,
         )
+        if summary is None:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+        conversation_summary = summary
 
     # Load legacy name
     legacy_name = "the person"
@@ -103,13 +109,6 @@ async def rewrite_story(
                 logger.warning(
                     "rewrite.graph_context_failed",
                     extra={"error": str(exc)},
-                )
-
-            # Load conversation summary if conversation_id provided
-            conversation_summary = ""
-            if data.conversation_id:
-                conversation_summary = await _get_conversation_summary(
-                    db, data.conversation_id
                 )
 
             # Build pinned facts context from context panel
@@ -189,16 +188,28 @@ async def rewrite_story(
     )
 
 
-async def _get_conversation_summary(db: AsyncSession, conversation_id: str) -> str:
+async def _get_conversation_summary(
+    db: AsyncSession,
+    conversation_id: str,
+    user_id: UUID,
+) -> str | None:
     """Load recent messages from a conversation as summary context."""
     from app.models.ai import AIConversation, AIMessage
 
+    try:
+        conversation_uuid = UUID(conversation_id)
+    except ValueError:
+        return None
+
     conv_result = await db.execute(
-        select(AIConversation).where(AIConversation.id == conversation_id)
+        select(AIConversation).where(
+            AIConversation.id == conversation_uuid,
+            AIConversation.user_id == user_id,
+        )
     )
     conv = conv_result.scalar_one_or_none()
     if not conv:
-        return ""
+        return None
 
     msg_result = await db.execute(
         select(AIMessage)
@@ -253,10 +264,3 @@ async def _save_rewrite_version(
     await db.refresh(draft)
 
     return draft
-
-
-async def _error_stream(
-    message: str, retryable: bool = True
-) -> AsyncGenerator[str, None]:
-    error_event = SSEErrorEvent(message=message, retryable=retryable)
-    yield f"data: {error_event.model_dump_json()}\n\n"

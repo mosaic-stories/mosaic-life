@@ -12,7 +12,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.middleware import require_auth
 from app.database import get_db
 from app.models.legacy import Legacy
-from app.models.story import Story
 from app.models.associations import StoryLegacy
 from app.providers.registry import get_provider_registry
 from app.schemas.graph_context import (
@@ -20,6 +19,7 @@ from app.schemas.graph_context import (
     GraphContextResponse,
     RelatedStory,
 )
+from app.services.story_access import require_story_read_access
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +40,7 @@ async def get_graph_context(
     session_data = require_auth(request)
     user_id = session_data.user_id
 
-    # Load story
-    story_result = await db.execute(select(Story).where(Story.id == story_id))
-    story = story_result.scalar_one_or_none()
-    if not story:
-        return GraphContextResponse()
+    story = await require_story_read_access(db=db, story_id=story_id, user_id=user_id)
 
     # Load primary legacy
     legacy_result = await db.execute(

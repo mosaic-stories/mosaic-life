@@ -12,7 +12,6 @@ from sqlalchemy.orm import selectinload
 
 from app.auth.middleware import require_auth
 from app.database import get_db, get_db_for_background
-from app.models.story import Story
 from app.models.story_context import ContextFact, StoryContext
 from app.providers.registry import get_provider_registry
 from app.schemas.story_context import (
@@ -23,6 +22,7 @@ from app.schemas.story_context import (
     StoryContextResponse,
 )
 from app.services.context_extractor import ContextExtractor
+from app.services.story_access import require_story_read_access
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +63,7 @@ async def get_story_context(
     ctx = result.scalar_one_or_none()
 
     if not ctx:
-        # Return empty context (not yet extracted)
+        # No extracted context exists yet for this user+story
         raise HTTPException(status_code=404, detail="No context found for this story")
 
     # Filter out dismissed facts from the response
@@ -92,11 +92,7 @@ async def extract_context(
     user_id = session_data.user_id
     force = data.force if data else False
 
-    # Load story
-    story_result = await db.execute(select(Story).where(Story.id == story_id))
-    story = story_result.scalar_one_or_none()
-    if not story:
-        raise HTTPException(status_code=404, detail="Story not found")
+    story = await require_story_read_access(db=db, story_id=story_id, user_id=user_id)
 
     # Check if already extracted and not forcing
     if not force:
