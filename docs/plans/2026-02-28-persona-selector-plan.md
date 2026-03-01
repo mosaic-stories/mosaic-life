@@ -24,7 +24,7 @@
 
 ---
 
-### Task 1: Add persona state to workspace store
+### Task 1: Add persona state to workspace store ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/store/useEvolveWorkspaceStore.ts`
@@ -127,7 +127,7 @@ git commit -m "feat: add persona selection state to evolve workspace store"
 
 ---
 
-### Task 2: Refactor conversation init in EvolveWorkspace
+### Task 2: Refactor conversation init in EvolveWorkspace ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/EvolveWorkspace.tsx`
@@ -209,7 +209,7 @@ git commit -m "feat: make conversation init persona-aware in evolve workspace"
 
 ---
 
-### Task 3: Create PersonaSelector component
+### Task 3: Create PersonaSelector component ✅
 
 **Files:**
 - Create: `apps/web/src/features/evolve-workspace/components/PersonaSelector.tsx`
@@ -294,7 +294,7 @@ git commit -m "feat: add PersonaSelector dropdown component"
 
 ---
 
-### Task 4: Wire PersonaSelector into AIChatTool and update mount points
+### Task 4: Wire PersonaSelector into AIChatTool and update mount points ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/tools/AIChatTool.tsx`
