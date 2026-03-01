@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from opentelemetry import trace
@@ -26,6 +27,18 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.story_evolution")
+
+
+@dataclass
+class DiscardSessionResult:
+    """Result returned by discard operations.
+
+    Wraps the discarded session and indicates whether the story was deleted
+    (draft stories are deleted entirely on discard).
+    """
+
+    session: StoryEvolutionSession
+    story_deleted: bool
 
 
 async def _require_story_author(
@@ -643,8 +656,13 @@ async def discard_session(
     session_id: uuid.UUID,
     story_id: uuid.UUID,
     user_id: uuid.UUID,
-) -> StoryEvolutionSession:
-    """Discard an evolution session."""
+) -> DiscardSessionResult:
+    """Discard an evolution session.
+
+    If the story was a draft (never published), it is deleted entirely.
+    Published stories are preserved with their content restored to the
+    version recorded when the session started.
+    """
     session = await _get_session(db, session_id, story_id, user_id)
 
     if session.is_terminal:
@@ -656,8 +674,18 @@ async def discard_session(
     # Delete draft version if one exists
     await _delete_draft_version(db, session)
 
-    # Restore story content to the version from before the session started
-    await _restore_base_version(db, session, user_id)
+    # Load story to check status
+    story_result = await db.execute(select(Story).where(Story.id == story_id))
+    story = story_result.scalar_one_or_none()
+
+    story_deleted = False
+    if story is not None and story.status == "draft":
+        # Draft stories are deleted entirely — they were never published
+        await db.delete(story)
+        story_deleted = True
+    else:
+        # Restore story content to the version from before the session started
+        await _restore_base_version(db, session, user_id)
 
     session.phase = "discarded"
     await db.commit()
@@ -665,23 +693,29 @@ async def discard_session(
 
     logger.info(
         "evolution.session.discarded",
-        extra={"session_id": str(session_id)},
+        extra={
+            "session_id": str(session_id),
+            "story_deleted": story_deleted,
+        },
     )
 
-    return session
+    return DiscardSessionResult(session=session, story_deleted=story_deleted)
 
 
 async def discard_active_session(
     db: AsyncSession,
     story_id: uuid.UUID,
     user_id: uuid.UUID,
-) -> StoryEvolutionSession | None:
+) -> DiscardSessionResult | None:
     """Discard the active (non-terminal) session for a story, if one exists.
 
     Unlike ``discard_session``, this does not require a session_id and is
     idempotent: if no active session exists it returns ``None`` rather than
     raising 404.  This is the preferred endpoint for the evolution workspace
     "Discard session" button where the caller may not hold the session ID.
+
+    If the story was a draft (never published), it is deleted entirely.
+    Published stories are preserved with their content restored.
     """
     await _require_story_author(db, story_id, user_id)
 
@@ -699,8 +733,18 @@ async def discard_active_session(
     # Delete draft version if one exists
     await _delete_draft_version(db, session)
 
-    # Restore story content to the version from before the session started
-    await _restore_base_version(db, session, user_id)
+    # Load story to check status
+    story_result = await db.execute(select(Story).where(Story.id == story_id))
+    story = story_result.scalar_one_or_none()
+
+    story_deleted = False
+    if story is not None and story.status == "draft":
+        # Draft stories are deleted entirely — they were never published
+        await db.delete(story)
+        story_deleted = True
+    else:
+        # Restore story content to the version from before the session started
+        await _restore_base_version(db, session, user_id)
 
     session.phase = "discarded"
     await db.commit()
@@ -708,10 +752,14 @@ async def discard_active_session(
 
     logger.info(
         "evolution.session.discarded_active",
-        extra={"session_id": str(session.id), "story_id": str(story_id)},
+        extra={
+            "session_id": str(session.id),
+            "story_id": str(story_id),
+            "story_deleted": story_deleted,
+        },
     )
 
-    return session
+    return DiscardSessionResult(session=session, story_deleted=story_deleted)
 
 
 async def accept_session(

@@ -108,6 +108,12 @@ class EvolutionSessionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DiscardSessionResponse(EvolutionSessionResponse):
+    """Response for discard operations, including whether the story was deleted."""
+
+    story_deleted: bool = False
+
+
 class EvolutionSSEChunkEvent(BaseModel):
     """SSE chunk event for draft streaming."""
 
