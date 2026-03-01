@@ -7,8 +7,10 @@ import {
   discardEvolution,
   acceptEvolution,
   summarizeEvolution,
+  saveManualDraft,
   type EvolutionSession,
   type PhaseAdvanceRequest,
+  type SaveDraftRequest,
 } from '@/lib/api/evolution';
 import { storyKeys } from '@/features/story/hooks/useStories';
 
@@ -87,6 +89,35 @@ export function useAcceptEvolution(storyId: string, sessionId: string) {
     mutationFn: () => acceptEvolution(storyId, sessionId),
     onSuccess: () => {
       // Remove evolution cache immediately to avoid stale UI on the story page
+      queryClient.removeQueries({ queryKey: evolutionKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: storyKeys.detail(storyId),
+      });
+    },
+  });
+}
+
+export function useSaveManualDraft(storyId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: SaveDraftRequest) => saveManualDraft(storyId, data),
+    onSuccess: () => {
+      // Refetch active evolution to get updated phase + draft_version_id
+      queryClient.invalidateQueries({
+        queryKey: evolutionKeys.active(storyId),
+      });
+    },
+  });
+}
+
+export function useFinishEvolution(storyId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ sessionId }: { sessionId: string }) =>
+      acceptEvolution(storyId, sessionId),
+    onSuccess: () => {
       queryClient.removeQueries({ queryKey: evolutionKeys.all });
       queryClient.invalidateQueries({
         queryKey: storyKeys.detail(storyId),
