@@ -12,7 +12,7 @@
 
 ---
 
-## Task 1: Backend — SQLAlchemy Models
+## Task 1: Backend — SQLAlchemy Models ✅
 
 **Files:**
 - Create: `services/core-api/app/models/story_context.py`
@@ -158,7 +158,7 @@ git commit -m "feat: add StoryContext and ContextFact SQLAlchemy models"
 
 ---
 
-## Task 2: Backend — Alembic Migration
+## Task 2: Backend — Alembic Migration ✅
 
 **Files:**
 - Create: `services/core-api/alembic/versions/<auto>_add_story_context_tables.py`
@@ -193,7 +193,7 @@ git commit -m "feat: add migration for story_contexts and context_facts tables"
 
 ---
 
-## Task 3: Backend — Pydantic Schemas
+## Task 3: Backend — Pydantic Schemas ✅
 
 **Files:**
 - Create: `services/core-api/app/schemas/story_context.py`
@@ -309,7 +309,7 @@ git commit -m "feat: add Pydantic schemas for story context and extend RewriteRe
 
 ---
 
-## Task 4: Backend — Context Extraction Service
+## Task 4: Backend — Context Extraction Service ✅
 
 **Files:**
 - Create: `services/core-api/app/services/context_extractor.py`
@@ -630,7 +630,7 @@ git commit -m "feat: add ContextExtractor service for LLM-based fact extraction"
 
 ---
 
-## Task 5: Backend — Context API Endpoints
+## Task 5: Backend — Context API Endpoints ✅
 
 **Files:**
 - Create: `services/core-api/app/routes/story_context.py`
@@ -835,7 +835,7 @@ git commit -m "feat: add story context API endpoints (GET, POST extract, PATCH f
 
 ---
 
-## Task 6: Backend — Post-Message Extraction Hook
+## Task 6: Backend — Post-Message Extraction Hook ✅
 
 **Files:**
 - Modify: `services/core-api/app/routes/ai.py`
