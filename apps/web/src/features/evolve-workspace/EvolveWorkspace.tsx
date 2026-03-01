@@ -218,8 +218,10 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     // so the EditorPanel stops showing the rewrite preview.
     abortRewrite();
 
+    let result: Awaited<ReturnType<typeof discardActiveEvolution>> = null;
+
     try {
-      await discardActiveEvolution(storyId);
+      result = await discardActiveEvolution(storyId);
     } catch (err) {
       console.error('Failed to discard active evolution session:', err);
     } finally {
@@ -233,7 +235,14 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
       resetAllStores();
 
       setIsDiscarding(false);
-      navigate(`/legacy/${legacyId}/story/${storyId}`);
+
+      // If the story was deleted (draft stories are deleted on discard),
+      // navigate back to the legacy page; otherwise to the story page.
+      if (result?.story_deleted) {
+        navigate(`/legacy/${legacyId}`);
+      } else {
+        navigate(`/legacy/${legacyId}/story/${storyId}`);
+      }
     }
   }, [queryClient, storyId, legacyId, navigate, abortRewrite]);
 
@@ -272,6 +281,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
           isFinishing={isFinishing}
           isUpdatingTitle={updateStory.isPending}
           hasDraft={hasDraft}
+          isDraftStory={story?.status === 'draft'}
           onSaveDraft={handleSaveDraft}
           onFinish={handleFinish}
           onDiscard={handleDiscard}

@@ -27,6 +27,7 @@ interface WorkspaceHeaderProps {
   isFinishing: boolean;
   isUpdatingTitle: boolean;
   hasDraft: boolean;
+  isDraftStory?: boolean;
   onSaveDraft: () => void;
   onFinish: (visibility?: StoryVisibility) => void;
   onDiscard: () => void;
@@ -44,6 +45,7 @@ export function WorkspaceHeader({
   isFinishing,
   isUpdatingTitle,
   hasDraft,
+  isDraftStory,
   onSaveDraft,
   onFinish,
   onDiscard,
@@ -161,15 +163,18 @@ export function WorkspaceHeader({
               disabled={isDiscarding || isSaving || isFinishing}
             >
               <Trash2 className="h-4 w-4 mr-1" />
-              Discard session
+              {isDraftStory ? 'Delete story' : 'Discard session'}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Discard this evolution session?</AlertDialogTitle>
+              <AlertDialogTitle>
+                {isDraftStory ? 'Delete this story?' : 'Discard this evolution session?'}
+              </AlertDialogTitle>
               <AlertDialogDescription>
-                This will discard the session and any unsaved changes. The original story will be
-                unchanged. This action cannot be undone.
+                {isDraftStory
+                  ? 'This story has never been published. Discarding will delete it permanently. This action cannot be undone.'
+                  : 'This will discard the session and any unsaved changes. The original story will be unchanged. This action cannot be undone.'}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -178,7 +183,7 @@ export function WorkspaceHeader({
                 onClick={onDiscard}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Discard session
+                {isDraftStory ? 'Delete story' : 'Discard session'}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
