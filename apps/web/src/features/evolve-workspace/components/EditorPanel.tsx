@@ -110,7 +110,7 @@ export function EditorPanel({
             content={content}
             onChange={onChange}
             legacyId={legacyId}
-            placeholder="Start writing your story..."
+            placeholder="Start writing your story, or open the AI chat to collaborate with a persona..."
           />
         </div>
       </div>

@@ -331,7 +331,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
                     onRestore={handleRestore}
                   />
                 </ResizablePanel>
-                <ToolStrip />
+                <ToolStrip hasContent={content.trim().length > 0} />
                 <ResizableHandle />
                 <ResizablePanel defaultSize={35} minSize={20}>
                   <ToolPanel

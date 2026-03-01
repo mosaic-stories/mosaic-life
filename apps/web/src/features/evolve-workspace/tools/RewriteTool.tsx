@@ -87,7 +87,8 @@ export function RewriteTool({ storyId, conversationId, onRewrite, onCancel, hasC
 
   const isStreaming = rewriteState === 'streaming';
   const isReviewing = rewriteState === 'reviewing';
-  const isDisabled = !hasContent || isStreaming || compareState !== 'idle';
+  const isDisabled = isStreaming || compareState !== 'idle';
+  const actionLabel = isReviewing ? 'Regenerate' : hasContent ? 'Rewrite Story' : 'Write Story';
 
   return (
     <div className="flex flex-col h-full">
@@ -149,7 +150,7 @@ export function RewriteTool({ storyId, conversationId, onRewrite, onCancel, hasC
         {/* Briefing section */}
         <section className="space-y-3">
           <h3 className="text-xs font-medium text-neutral-500 uppercase tracking-wide">
-            Rewrite will use
+            {hasContent ? 'Rewrite will use' : 'Write will use'}
           </h3>
 
           {/* Context briefing */}
@@ -241,17 +242,17 @@ export function RewriteTool({ storyId, conversationId, onRewrite, onCancel, hasC
           className="w-full"
           onClick={onRewrite}
           disabled={isDisabled}
-          aria-label={isReviewing ? 'Regenerate' : 'Rewrite Story'}
+          aria-label={actionLabel}
         >
           {isStreaming ? (
             <>
               <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-              Rewriting…
+              {hasContent ? 'Rewriting…' : 'Writing…'}
             </>
           ) : (
             <>
               <Sparkles className="h-4 w-4 mr-1.5" />
-              {isReviewing ? 'Regenerate' : 'Rewrite Story'}
+              {actionLabel}
             </>
           )}
         </Button>
