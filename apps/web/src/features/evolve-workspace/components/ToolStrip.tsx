@@ -1,4 +1,4 @@
-import { MessageSquare, GitBranch, History, Image, Sparkles } from 'lucide-react';
+import { MessageSquare, GitBranch, History, Image, Sparkles, Settings } from 'lucide-react';
 import { cn } from '@/components/ui/utils';
 import { type ToolId, useEvolveWorkspaceStore } from '../store/useEvolveWorkspaceStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -11,6 +11,7 @@ const ASSEMBLY_TOOLS: { id: ToolId; icon: typeof MessageSquare; label: string }[
 const REFERENCE_TOOLS: { id: ToolId; icon: typeof MessageSquare; label: string }[] = [
   { id: 'versions', icon: History, label: 'Versions' },
   { id: 'media', icon: Image, label: 'Media' },
+  { id: 'settings', icon: Settings, label: 'Settings' },
 ];
 
 const REWRITE_TOOL: { id: ToolId; icon: typeof Sparkles; label: string } = {

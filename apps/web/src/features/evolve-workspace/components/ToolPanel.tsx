@@ -4,6 +4,7 @@ import { ContextTool } from '../tools/ContextTool';
 import { VersionsTool } from '../tools/VersionsTool';
 import { MediaTool } from '../tools/MediaTool';
 import { RewriteTool } from '../tools/RewriteTool';
+import { SettingsTool } from '../tools/SettingsTool';
 
 interface ToolPanelProps {
   legacyId: string;
@@ -51,6 +52,9 @@ export function ToolPanel({
             onCancel={onCancelRewrite}
             hasContent={currentContent.trim().length > 0}
           />
+        )}
+        {activeTool === 'settings' && (
+          <SettingsTool storyId={storyId} legacyId={legacyId} />
         )}
       </div>
     </div>
