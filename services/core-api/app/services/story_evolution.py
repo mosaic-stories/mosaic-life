@@ -719,6 +719,7 @@ async def accept_session(
     session_id: uuid.UUID,
     story_id: uuid.UUID,
     user_id: uuid.UUID,
+    visibility: str | None = None,
 ) -> StoryEvolutionSession:
     """Accept the draft and complete the session."""
     session = await _get_session(db, session_id, story_id, user_id)
@@ -765,6 +766,14 @@ async def accept_session(
     story_obj.title = draft_version.title
     story_obj.content = draft_version.content
     story_obj.active_version_id = draft_version.id
+
+    # Transition draft → published
+    if story_obj.status == "draft":
+        story_obj.status = "published"
+
+    # Update visibility if provided
+    if visibility is not None:
+        story_obj.visibility = visibility
 
     # Complete session
     session.phase = "completed"

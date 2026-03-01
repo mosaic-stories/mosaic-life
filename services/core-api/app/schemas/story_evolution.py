@@ -82,6 +82,12 @@ class SaveDraftRequest(BaseModel):
         return v
 
 
+class AcceptEvolutionRequest(BaseModel):
+    """Request to accept the draft and complete the evolution session."""
+
+    visibility: Literal["public", "private", "personal"] | None = None
+
+
 class EvolutionSessionResponse(BaseModel):
     """Response containing full session state."""
 

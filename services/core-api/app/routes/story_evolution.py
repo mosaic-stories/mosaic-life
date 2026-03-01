@@ -15,6 +15,7 @@ from app.database import get_db
 from app.providers.registry import get_provider_registry
 from app.schemas.ai import SSEErrorEvent
 from app.schemas.story_evolution import (
+    AcceptEvolutionRequest,
     EvolutionSessionCreate,
     EvolutionSessionResponse,
     EvolutionSSEChunkEvent,
@@ -194,15 +195,21 @@ async def accept_session(
     story_id: UUID,
     session_id: UUID,
     request: Request,
+    data: AcceptEvolutionRequest | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> EvolutionSessionResponse:
-    """Accept the draft and complete the session."""
+    """Accept the draft and complete the session.
+
+    Optionally accepts a visibility value to update the story visibility on accept.
+    Draft stories are automatically transitioned to published.
+    """
     session_data = require_auth(request)
     evo_session = await evolution_service.accept_session(
         db=db,
         session_id=session_id,
         story_id=story_id,
         user_id=session_data.user_id,
+        visibility=data.visibility if data is not None else None,
     )
     return EvolutionSessionResponse.model_validate(evo_session)
 

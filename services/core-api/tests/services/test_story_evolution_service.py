@@ -880,3 +880,167 @@ class TestAcceptSession:
             )
         assert exc.value.status_code == 422
         assert "No draft" in exc.value.detail
+
+
+class TestAcceptSessionDraftTransition:
+    async def _setup_session_with_draft(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+    ) -> "tuple[object, object]":
+        """Helper to create a session and save a draft, returning (session, draft)."""
+        evo_session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        draft = await evolution_service.save_draft(
+            db=db_session,
+            session=evo_session,
+            title="Draft Title",
+            content="Draft content for acceptance",
+            user_id=test_user.id,
+            source="manual_edit",
+        )
+        return evo_session, draft
+
+    @pytest.mark.asyncio
+    async def test_accept_transitions_draft_to_published(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Accepting a session on a draft story transitions status to published."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        # Set story status to draft
+        test_story.status = "draft"
+        await db_session.commit()
+
+        evo_session, _draft = await self._setup_session_with_draft(
+            db_session, test_user, test_story
+        )
+
+        completed_session = await evolution_service.accept_session(
+            db=db_session,
+            session_id=evo_session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+        )
+
+        assert completed_session.phase == "completed"
+
+        # Verify story status was transitioned to published
+        result = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == test_story.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.status == "published"
+
+    @pytest.mark.asyncio
+    async def test_accept_with_visibility_updates_story(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Accepting with visibility param updates the story visibility."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        evo_session, _draft = await self._setup_session_with_draft(
+            db_session, test_user, test_story
+        )
+
+        completed_session = await evolution_service.accept_session(
+            db=db_session,
+            session_id=evo_session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            visibility="personal",
+        )
+
+        assert completed_session.phase == "completed"
+
+        result = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == test_story.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.visibility == "personal"
+
+    @pytest.mark.asyncio
+    async def test_accept_without_visibility_leaves_story_visibility_unchanged(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Accepting without visibility param does not change story visibility."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        original_visibility = test_story.visibility
+
+        evo_session, _draft = await self._setup_session_with_draft(
+            db_session, test_user, test_story
+        )
+
+        await evolution_service.accept_session(
+            db=db_session,
+            session_id=evo_session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+        )
+
+        result = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == test_story.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.visibility == original_visibility
+
+    @pytest.mark.asyncio
+    async def test_accept_published_story_remains_published(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Accepting a session on an already-published story keeps it published."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        # Ensure story is published (default)
+        test_story.status = "published"
+        await db_session.commit()
+
+        evo_session, _draft = await self._setup_session_with_draft(
+            db_session, test_user, test_story
+        )
+
+        completed_session = await evolution_service.accept_session(
+            db=db_session,
+            session_id=evo_session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+        )
+
+        assert completed_session.phase == "completed"
+
+        result = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == test_story.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.status == "published"
