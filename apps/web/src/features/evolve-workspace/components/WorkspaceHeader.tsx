@@ -1,4 +1,5 @@
-import { ArrowLeft, Save, Trash2, CheckCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ArrowLeft, Save, Trash2, CheckCircle, Pencil } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,10 +22,12 @@ interface WorkspaceHeaderProps {
   isDirty: boolean;
   isDiscarding: boolean;
   isFinishing: boolean;
+  isUpdatingTitle: boolean;
   hasDraft: boolean;
   onSaveDraft: () => void;
   onFinish: () => void;
   onDiscard: () => void;
+  onUpdateTitle: (title: string) => Promise<void>;
 }
 
 export function WorkspaceHeader({
@@ -35,14 +38,47 @@ export function WorkspaceHeader({
   isDirty,
   isDiscarding,
   isFinishing,
+  isUpdatingTitle,
   hasDraft,
   onSaveDraft,
   onFinish,
   onDiscard,
+  onUpdateTitle,
 }: WorkspaceHeaderProps) {
   const navigate = useNavigate();
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(title);
 
   const canFinish = hasDraft || isDirty;
+
+  useEffect(() => {
+    if (!isEditingTitle) {
+      setDraftTitle(title);
+    }
+  }, [title, isEditingTitle]);
+
+  const commitTitle = async () => {
+    const nextTitle = draftTitle.trim();
+    if (!nextTitle || nextTitle === title) {
+      setDraftTitle(title);
+      setIsEditingTitle(false);
+      return;
+    }
+
+    try {
+      await onUpdateTitle(nextTitle);
+      setIsEditingTitle(false);
+    } catch (err) {
+      console.error('Failed to update story title:', err);
+      setDraftTitle(title);
+      setIsEditingTitle(false);
+    }
+  };
+
+  const cancelEditTitle = () => {
+    setDraftTitle(title);
+    setIsEditingTitle(false);
+  };
 
   return (
     <div className="flex items-center justify-between px-4 py-2 border-b bg-white shrink-0">
@@ -55,7 +91,42 @@ export function WorkspaceHeader({
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to story
         </Button>
-        <h1 className="text-sm font-medium text-neutral-700 truncate">{title}</h1>
+        <div className="group flex items-center gap-1.5 min-w-0">
+          {isEditingTitle ? (
+            <input
+              autoFocus
+              value={draftTitle}
+              onChange={(event) => setDraftTitle(event.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  void commitTitle();
+                }
+                if (event.key === 'Escape') {
+                  cancelEditTitle();
+                }
+              }}
+              disabled={isUpdatingTitle}
+              className="h-8 w-[18rem] max-w-[45vw] rounded-md border border-input bg-background px-2 text-sm font-medium text-foreground outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-60"
+              aria-label="Story title"
+            />
+          ) : (
+            <>
+              <h1 className="text-sm font-medium text-neutral-700 truncate max-w-[22rem]">{title}</h1>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsEditingTitle(true)}
+                disabled={isUpdatingTitle || isSaving || isFinishing || isDiscarding}
+                className="h-6 w-6 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                aria-label="Edit story title"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
