@@ -1075,7 +1075,7 @@ git commit -m "feat: add story context API client"
 
 ---
 
-## Task 10: Frontend — TanStack Query Hooks
+## Task 10: Frontend — TanStack Query Hooks ✅
 
 **Files:**
 - Create: `apps/web/src/features/evolve-workspace/hooks/useStoryContext.ts`
@@ -1213,7 +1213,7 @@ git commit -m "feat: add TanStack Query hooks for story context"
 
 ---
 
-## Task 11: Frontend — Zustand Store Update
+## Task 11: Frontend — Zustand Store Update ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/store/useEvolveWorkspaceStore.ts`
@@ -1255,7 +1255,7 @@ git commit -m "feat: add contextFilter state to evolve workspace store"
 
 ---
 
-## Task 12: Frontend — Refactor ContextTool Component
+## Task 12: Frontend — Refactor ContextTool Component ✅
 
 **Files:**
 - Rewrite: `apps/web/src/features/evolve-workspace/tools/ContextTool.tsx`
@@ -1612,7 +1612,7 @@ git commit -m "feat: refactor ContextTool with summary + categorized fact cards"
 
 ---
 
-## Task 13: Frontend — Wire Pinned Facts into Rewrite
+## Task 13: Frontend — Wire Pinned Facts into Rewrite ✅
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/api/rewrite.ts`
@@ -1680,7 +1680,7 @@ git commit -m "feat: wire pinned facts and context summary into rewrite trigger"
 
 ---
 
-## Task 14: Frontend — Lint and Type Check
+## Task 14: Frontend — Lint and Type Check ✅
 
 **Step 1: Run TypeScript type checking**
 
