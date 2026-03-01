@@ -905,6 +905,7 @@ async def save_draft(
     title: str,
     content: str,
     user_id: uuid.UUID,
+    source: str = "story_evolution",
 ) -> StoryVersion:
     """Create or replace the draft StoryVersion for this session."""
     # Get next version number
@@ -932,7 +933,7 @@ async def save_draft(
         title=title,
         content=content,
         status="draft",
-        source="story_evolution",
+        source=source,
         created_by=user_id,
     )
     db.add(draft)
