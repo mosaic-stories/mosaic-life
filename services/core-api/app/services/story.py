@@ -452,6 +452,14 @@ async def list_legacy_stories(
         else:
             # Non-member sees only public stories
             query = query.where(Story.visibility == "public")
+
+        # Filter drafts: only the author sees their own drafts
+        query = query.where(
+            or_(
+                Story.status == "published",
+                Story.author_id == user_id,
+            )
+        )
     else:
         # No filter specified - this shouldn't happen in normal flow
         # Return empty list or raise error
@@ -593,6 +601,7 @@ async def list_public_stories(
         .join(StoryLegacy, Story.id == StoryLegacy.story_id)
         .where(StoryLegacy.legacy_id == legacy_id)
         .where(Story.visibility == "public")
+        .where(Story.status == "published")
         .order_by(Story.created_at.desc())
     )
 

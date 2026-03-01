@@ -702,6 +702,80 @@ class TestCreateDraftStory:
         assert story.status == "published"
 
 
+class TestDraftStoryVisibility:
+    """Tests that draft stories are filtered correctly in list endpoints."""
+
+    @pytest.mark.asyncio
+    async def test_draft_stories_visible_to_author(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+    ):
+        """Authors can see their own draft stories in the list."""
+        data = StoryCreate(
+            title="Draft story",
+            content="",
+            visibility="private",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
+            status="draft",
+        )
+        draft = await story_service.create_story(
+            db=db_session, user_id=test_user.id, data=data
+        )
+        stories = await story_service.list_legacy_stories(
+            db=db_session, legacy_id=test_legacy.id, user_id=test_user.id
+        )
+        story_ids = [s.id for s in stories]
+        assert draft.id in story_ids
+
+    @pytest.mark.asyncio
+    async def test_draft_stories_hidden_from_others(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+        test_user_2: User,
+    ):
+        """Other users cannot see draft stories."""
+        data = StoryCreate(
+            title="Draft story",
+            content="",
+            visibility="private",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
+            status="draft",
+        )
+        draft = await story_service.create_story(
+            db=db_session, user_id=test_user.id, data=data
+        )
+        # Add test_user_2 as a legacy member so they can see private stories,
+        # but they still must not see another user's drafts
+        from app.models.legacy import LegacyMember as _LegacyMember
+
+        db_session.add(
+            _LegacyMember(
+                legacy_id=test_legacy.id,
+                user_id=test_user_2.id,
+                role="admirer",
+            )
+        )
+        await db_session.flush()
+
+        stories = await story_service.list_legacy_stories(
+            db=db_session, legacy_id=test_legacy.id, user_id=test_user_2.id
+        )
+        story_ids = [s.id for s in stories]
+        assert draft.id not in story_ids
+
+
 class TestGetStoryDetailVersioning:
     """Tests for version info in get_story_detail."""
 
