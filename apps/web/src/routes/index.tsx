@@ -124,14 +124,6 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'legacy/:legacyId/story/new',
-        element: (
-          <ProtectedRoute>
-            <LazyPage><WithStoryProps Component={StoryCreation} /></LazyPage>
-          </ProtectedRoute>
-        ),
-      },
-      {
         path: 'legacy/:legacyId/story/:storyId',
         element: (
           <ProtectedRoute>

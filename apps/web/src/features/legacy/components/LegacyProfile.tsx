@@ -1,11 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Lock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { HeaderSlot } from '@/components/header';
 import { useLegacyWithFallback, useDeleteLegacy } from '@/features/legacy/hooks/useLegacies';
-import { useStoriesWithFallback } from '@/features/story/hooks/useStories';
+import { useStoriesWithFallback, useCreateStory } from '@/features/story/hooks/useStories';
 import { formatLegacyDates } from '@/features/legacy/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import MemberDrawer from '@/features/members/components/MemberDrawer';
@@ -42,6 +42,8 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const storiesQuery = useStoriesWithFallback(legacyId, !!user);
   const deleteLegacy = useDeleteLegacy();
 
+  const createStory = useCreateStory();
+
   const legacy = legacyQuery.data;
   const legacyLoading = legacyQuery.isLoading;
   const legacyError = legacyQuery.error;
@@ -61,9 +63,25 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   // Check if current user is the creator of the legacy
   const _isCreator = currentUserRole === 'creator';
 
-  const handleAddStory = () => {
-    navigate(`/legacy/${legacyId}/story/new`);
-  };
+  const handleAddStory = useCallback(async () => {
+    try {
+      const title = `Untitled Story - ${new Date().toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })}`;
+      const newStory = await createStory.mutateAsync({
+        title,
+        content: '',
+        visibility: 'private',
+        status: 'draft',
+        legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
+      });
+      navigate(`/legacy/${legacyId}/story/${newStory.id}/evolve`);
+    } catch (err) {
+      console.error('Failed to create story:', err);
+    }
+  }, [legacyId, createStory, navigate]);
 
   const handleDeleteLegacy = async () => {
     try {
@@ -155,6 +173,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
           legacyId={legacyId}
           user={user}
           onAddStory={handleAddStory}
+          isCreatingStory={createStory.isPending}
           onDelete={() => setShowDeleteDialog(true)}
           onShare={() => setShowMemberDrawer(true)}
         />
@@ -181,6 +200,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
             storiesError={storiesError}
             onStoryClick={(storyId) => navigate(`/legacy/${legacyId}/story/${storyId}`)}
             onAddStory={handleAddStory}
+            isCreatingStory={createStory.isPending}
           />
         )}
 
