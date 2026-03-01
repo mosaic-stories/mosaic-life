@@ -653,6 +653,55 @@ class TestUpdateStoryVersioning:
         assert len(versions) == 1  # Still only v1
 
 
+class TestCreateDraftStory:
+    @pytest.mark.asyncio
+    async def test_create_story_with_draft_status(
+        self, db_session: AsyncSession, test_user: User, test_legacy: Legacy
+    ):
+        """Stories can be created with status='draft'."""
+        data = StoryCreate(
+            title="Untitled Story - Mar 1, 2026",
+            content="",
+            visibility="private",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
+            status="draft",
+        )
+
+        story = await story_service.create_story(
+            db=db_session,
+            user_id=test_user.id,
+            data=data,
+        )
+        assert story.status == "draft"
+
+    @pytest.mark.asyncio
+    async def test_create_story_defaults_to_published(
+        self, db_session: AsyncSession, test_user: User, test_legacy: Legacy
+    ):
+        """Stories default to status='published' when not specified."""
+        data = StoryCreate(
+            title="A real story",
+            content="Some content",
+            visibility="private",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
+        )
+
+        story = await story_service.create_story(
+            db=db_session,
+            user_id=test_user.id,
+            data=data,
+        )
+        assert story.status == "published"
+
+
 class TestGetStoryDetailVersioning:
     """Tests for version info in get_story_detail."""
 

@@ -235,6 +235,7 @@ async def create_story(
         title=data.title,
         content=data.content,
         visibility=data.visibility,
+        status=data.status,
     )
     db.add(story)
     await db.flush()  # Get story.id without committing
@@ -291,6 +292,7 @@ async def create_story(
         id=story.id,
         title=story.title,
         visibility=story.visibility,
+        status=story.status,
         legacies=legacies,
         created_at=story.created_at,
         updated_at=story.updated_at,
@@ -479,6 +481,7 @@ async def list_legacy_stories(
             author_id=story.author_id,
             author_name=story.author.name,
             visibility=story.visibility,
+            status=story.status,
             legacies=[
                 LegacyAssociationResponse(
                     legacy_id=assoc.legacy_id,
@@ -535,6 +538,7 @@ async def list_legacy_stories(
                         author_id=story.author_id,
                         author_name=story.author.name,
                         visibility=story.visibility,
+                        status=story.status,
                         legacies=[
                             LegacyAssociationResponse(
                                 legacy_id=assoc.legacy_id,
@@ -618,6 +622,7 @@ async def list_public_stories(
             author_id=story.author_id,
             author_name=story.author.name,
             visibility=story.visibility,
+            status=story.status,
             legacies=[
                 LegacyAssociationResponse(
                     legacy_id=assoc.legacy_id,
@@ -732,6 +737,7 @@ async def get_story_detail(
         title=story.title,
         content=normalize_media_urls_for_story_content(story.content),
         visibility=story.visibility,
+        status=story.status,
         legacies=[
             LegacyAssociationResponse(
                 legacy_id=assoc.legacy_id,
@@ -898,6 +904,7 @@ async def update_story(
         title=story.title,
         version_number=version_number,
         visibility=story.visibility,
+        status=story.status,
         legacies=[
             LegacyAssociationResponse(
                 legacy_id=assoc.legacy_id,
