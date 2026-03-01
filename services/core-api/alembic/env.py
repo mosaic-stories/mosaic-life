@@ -12,6 +12,7 @@ from app.database import Base
 from app.models import (  # noqa: F401
     AIConversation,
     AIMessage,
+    ContextFact,
     Invitation,
     Legacy,
     LegacyLink,
@@ -21,6 +22,7 @@ from app.models import (  # noqa: F401
     Notification,
     Person,
     Story,
+    StoryContext,
     StoryEvolutionSession,
     StoryVersion,
     SupportRequest,
