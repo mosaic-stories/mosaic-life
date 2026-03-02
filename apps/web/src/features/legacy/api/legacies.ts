@@ -28,6 +28,7 @@ export interface Legacy {
   profile_image_id?: string | null;
   profile_image_url?: string | null;
   person_id?: string | null;
+  favorite_count?: number;
 }
 
 export interface CreateLegacyInput {

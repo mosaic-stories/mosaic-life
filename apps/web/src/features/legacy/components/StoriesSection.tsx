@@ -2,6 +2,8 @@ import { AlertCircle, Loader2, MessageSquare, Plus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import StoryCard from './StoryCard';
 import type { StorySummary } from '@/features/story/api/stories';
+import { useFavoriteCheck } from '@/features/favorites/hooks/useFavorites';
+import { useAuth } from '@/contexts/AuthContext';
 
 export interface StoriesSectionProps {
   stories: StorySummary[] | undefined;
@@ -20,6 +22,10 @@ export default function StoriesSection({
   onAddStory,
   isCreatingStory = false,
 }: StoriesSectionProps) {
+  const { user } = useAuth();
+  const storyIds = stories?.map(s => s.id) ?? [];
+  const { data: favoriteData } = useFavoriteCheck(user ? storyIds : []);
+
   return (
     <div className="max-w-3xl space-y-6">
       {storiesLoading && (
@@ -42,6 +48,7 @@ export default function StoriesSection({
           key={story.id}
           story={story}
           onClick={() => onStoryClick(story.id)}
+          isFavorited={favoriteData?.favorites[story.id] ?? false}
         />
       ))}
 

@@ -4,7 +4,15 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Date,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -58,6 +66,13 @@ class Legacy(Base):
         DateTime(timezone=True),
         server_default=func.current_timestamp(),
         nullable=False,
+    )
+
+    favorite_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="0",
+        index=False,
     )
 
     profile_image_id: Mapped[UUID | None] = mapped_column(

@@ -26,6 +26,7 @@ export interface StorySummary {
   shared_from: string | null;
   created_at: string;
   updated_at: string;
+  favorite_count: number;
 }
 
 export interface StoryDetail {
@@ -42,6 +43,7 @@ export interface StoryDetail {
   has_draft: boolean | null;     // null if not author
   created_at: string;
   updated_at: string;
+  favorite_count: number;
 }
 
 export interface CreateStoryInput {

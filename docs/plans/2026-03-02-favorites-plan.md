@@ -10,6 +10,29 @@
 
 **Design Doc:** `docs/plans/2026-03-02-favorites-design.md`
 
+### Implementation Status
+
+| Task | Status | Notes |
+|------|--------|-------|
+| Task 1: Database Model | **DONE** | `UserFavorite` model created and registered |
+| Task 2: Migration | **DONE** | `user_favorites` table + `favorite_count` columns on stories/legacies/media |
+| Task 3: Schemas | **DONE** | Pydantic schemas + `favorite_count` added to response models |
+| Task 4: Service | **DONE** | Toggle, batch check, list with 9 unit tests passing |
+| Task 5: Routes | **DONE** | POST toggle, GET check, GET list + 6 integration tests passing |
+| Task 6: Frontend API & Hooks | **DONE** | API module, query keys, TanStack Query hooks |
+| Task 7: FavoriteButton | **DONE** | Component with optimistic UI |
+| Task 8: StoryCard Integration | **DONE** | FavoriteButton replaces placeholder heart |
+| Task 9: Legacy & Media Integration | **DONE** | Hearts on legacy cards + media gallery |
+| Task 10: Homepage Favorites | **DONE** | FavoritesSection with filter tabs |
+| Task 11: Validation | **DONE** | 826 backend tests, 160 frontend tests, ruff+mypy clean |
+| Task 12: Manual Smoke Test | PENDING | Requires manual testing |
+
+**Validation Results (2026-03-02):**
+- Backend tests: 826 passed, 2 skipped
+- Backend validation: ruff lint + format + mypy all passing
+- Frontend build: clean, no TS errors
+- Frontend tests: 160 passed (22 test files)
+
 ---
 
 ## Task 1: Database Model — `UserFavorite`

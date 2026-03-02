@@ -1,16 +1,17 @@
-import { Calendar, Heart, Link2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Calendar, Link2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import type { StorySummary } from '@/features/story/api/stories';
+import FavoriteButton from '@/features/favorites/components/FavoriteButton';
 
 export interface StoryCardProps {
   story: StorySummary;
   onClick?: () => void;
+  isFavorited?: boolean;
 }
 
-export default function StoryCard({ story, onClick }: StoryCardProps) {
+export default function StoryCard({ story, onClick, isFavorited = false }: StoryCardProps) {
   const authorInitials = story.author_name
     ? story.author_name.split(' ').map(n => n[0]).join('')
     : '?';
@@ -75,9 +76,12 @@ export default function StoryCard({ story, onClick }: StoryCardProps) {
           </div>
         </div>
         {!story.shared_from && (
-          <Button variant="ghost" size="sm">
-            <Heart className="size-4" />
-          </Button>
+          <FavoriteButton
+            entityType="story"
+            entityId={story.id}
+            isFavorited={isFavorited}
+            favoriteCount={story.favorite_count}
+          />
         )}
       </div>
     </Card>

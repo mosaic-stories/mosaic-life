@@ -30,6 +30,7 @@ export interface MediaItem {
   uploader_name: string;
   legacies: LegacyAssociation[];
   created_at: string;
+  favorite_count?: number;
 }
 
 export interface MediaDetail extends MediaItem {
