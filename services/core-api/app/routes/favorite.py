@@ -14,6 +14,7 @@ from ..schemas.favorite import (
     FavoriteToggleRequest,
     FavoriteToggleResponse,
 )
+from ..services import activity as activity_service
 from ..services import favorite as favorite_service
 
 router = APIRouter(prefix="/api/favorites", tags=["favorites"])
@@ -35,6 +36,14 @@ async def toggle_favorite(
     result = await favorite_service.toggle_favorite(
         db=db,
         user_id=session.user_id,
+        entity_type=data.entity_type,
+        entity_id=data.entity_id,
+    )
+    action = "favorited" if result["favorited"] else "unfavorited"
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action=action,
         entity_type=data.entity_type,
         entity_id=data.entity_id,
     )
