@@ -5,12 +5,12 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.activity import UserActivity
 from ..models.associations import StoryLegacy
-from ..models.legacy import Legacy
+from ..models.legacy import Legacy, LegacyMember
 from ..models.story import Story
 from ..models.user import User
 
@@ -374,3 +374,115 @@ async def enrich_entities(
                 }
 
     return result
+
+
+async def get_social_feed(
+    db: AsyncSession,
+    user_id: UUID,
+    cursor: datetime | None = None,
+    limit: int = 5,
+) -> dict[str, Any]:
+    """Get social activity feed — own actions + co-member actions on shared legacies.
+
+    Excludes 'viewed' (ephemeral) actions. Enriches items with actor and entity data.
+    """
+    # Check if tracking is enabled
+    user_result = await db.execute(select(User.preferences).where(User.id == user_id))
+    prefs = user_result.scalar_one_or_none()
+    if prefs and not prefs.get("activity_tracking_enabled", True):
+        return {"items": [], "has_more": False, "next_cursor": None}
+
+    # 1. Find all legacy IDs the user is a member of
+    membership_result = await db.execute(
+        select(LegacyMember.legacy_id).where(LegacyMember.user_id == user_id)
+    )
+    my_legacy_ids = [row[0] for row in membership_result.all()]
+
+    if not my_legacy_ids:
+        return {"items": [], "has_more": False, "next_cursor": None}
+
+    # 2. Find story IDs linked to those legacies
+    story_result = await db.execute(
+        select(StoryLegacy.story_id).where(StoryLegacy.legacy_id.in_(my_legacy_ids))
+    )
+    related_story_ids = [row[0] for row in story_result.all()]
+
+    # 3. Build activity query: legacy actions on my legacies + story actions on related stories
+    scope_filters = [
+        (UserActivity.entity_type == "legacy")
+        & (UserActivity.entity_id.in_(my_legacy_ids)),
+    ]
+    if related_story_ids:
+        scope_filters.append(
+            (UserActivity.entity_type == "story")
+            & (UserActivity.entity_id.in_(related_story_ids))
+        )
+    # Also include the user's own media/conversation activity
+    scope_filters.append(
+        (UserActivity.user_id == user_id)
+        & (UserActivity.entity_type.in_(["media", "conversation"]))
+    )
+
+    filters = [
+        or_(*scope_filters),
+        UserActivity.action != "viewed",  # Exclude ephemeral
+    ]
+    if cursor:
+        filters.append(UserActivity.created_at < cursor)
+
+    query = (
+        select(UserActivity)
+        .where(*filters)
+        .order_by(UserActivity.created_at.desc())
+        .limit(limit + 1)
+    )
+
+    result = await db.execute(query)
+    activities = list(result.scalars().all())
+
+    has_more = len(activities) > limit
+    if has_more:
+        activities = activities[:limit]
+
+    next_cursor = (
+        activities[-1].created_at.isoformat() if activities and has_more else None
+    )
+
+    # 4. Batch-load actor info
+    actor_ids = list({a.user_id for a in activities})
+    actor_map: dict[UUID, dict[str, Any]] = {}
+    if actor_ids:
+        actor_rows = await db.execute(
+            select(User.id, User.name, User.avatar_url).where(User.id.in_(actor_ids))
+        )
+        for uid, name, avatar_url in actor_rows.all():
+            actor_map[uid] = {
+                "id": uid,
+                "name": name or "",
+                "avatar_url": avatar_url,
+            }
+
+    # 5. Batch-load entity details
+    entity_keys = [(a.entity_type, a.entity_id) for a in activities]
+    entity_map = await enrich_entities(db=db, items=entity_keys)
+
+    # 6. Build response items
+    items = []
+    for a in activities:
+        entity_data = entity_map.get((a.entity_type, a.entity_id))
+        items.append(
+            {
+                "id": a.id,
+                "action": a.action,
+                "entity_type": a.entity_type,
+                "entity_id": a.entity_id,
+                "created_at": a.created_at,
+                "metadata": a.metadata_,
+                "actor": actor_map.get(
+                    a.user_id, {"id": a.user_id, "name": "", "avatar_url": None}
+                ),
+                "entity": entity_data,
+            }
+        )
+
+    return {"items": items, "has_more": has_more, "next_cursor": next_cursor}
