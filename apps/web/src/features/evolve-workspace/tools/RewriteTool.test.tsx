@@ -101,11 +101,12 @@ describe('RewriteTool', () => {
     expect(onRewrite).toHaveBeenCalledOnce();
   });
 
-  it('disables button when hasContent is false', () => {
+  it('shows Write Story label when hasContent is false', () => {
     renderWithProviders(
       <RewriteTool storyId="story-1" conversationId="conv-1" onRewrite={vi.fn()} hasContent={false} />,
     );
-    expect(screen.getByRole('button', { name: /rewrite story/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /write story/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /write story/i })).not.toBeDisabled();
   });
 
   it('shows Rewriting label during streaming state', () => {

@@ -82,6 +82,12 @@ class SaveDraftRequest(BaseModel):
         return v
 
 
+class AcceptEvolutionRequest(BaseModel):
+    """Request to accept the draft and complete the evolution session."""
+
+    visibility: Literal["public", "private", "personal"] | None = None
+
+
 class EvolutionSessionResponse(BaseModel):
     """Response containing full session state."""
 
@@ -100,6 +106,12 @@ class EvolutionSessionResponse(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class DiscardSessionResponse(EvolutionSessionResponse):
+    """Response for discard operations, including whether the story was deleted."""
+
+    story_deleted: bool = False
 
 
 class EvolutionSSEChunkEvent(BaseModel):

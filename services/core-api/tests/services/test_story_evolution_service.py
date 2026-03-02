@@ -258,14 +258,14 @@ class TestDiscardSession:
             persona_id="biographer",
         )
 
-        discarded = await evolution_service.discard_session(
+        result = await evolution_service.discard_session(
             db=db_session,
             session_id=session.id,
             story_id=test_story.id,
             user_id=test_user.id,
         )
 
-        assert discarded.phase == "discarded"
+        assert result.session.phase == "discarded"
 
     @pytest.mark.asyncio
     async def test_discard_terminal_session_rejected(
@@ -854,6 +854,233 @@ class TestSaveDraft:
         assert session.draft_version_id == draft.id
 
 
+class TestDiscardDraftStory:
+    @pytest.mark.asyncio
+    async def test_discard_deletes_draft_story(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+    ) -> None:
+        """Discarding an evolution session on a draft story deletes the story entirely."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        # Create a draft story (status="draft")
+        from app.models.associations import StoryLegacy
+        from app.models.story_version import StoryVersion
+
+        draft_story = StoryModel(
+            author_id=test_user.id,
+            title="Draft Story",
+            content="Draft content.",
+            visibility="private",
+            status="draft",
+        )
+        db_session.add(draft_story)
+        await db_session.flush()
+
+        story_legacy = StoryLegacy(
+            story_id=draft_story.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(story_legacy)
+
+        version = StoryVersion(
+            story_id=draft_story.id,
+            version_number=1,
+            title=draft_story.title,
+            content=draft_story.content,
+            status="active",
+            source="manual_edit",
+            change_summary="Initial version",
+            created_by=draft_story.author_id,
+        )
+        db_session.add(version)
+        await db_session.flush()
+        draft_story.active_version_id = version.id
+        await db_session.commit()
+        await db_session.refresh(draft_story)
+
+        story_id = draft_story.id
+
+        # Start an evolution session
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=story_id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        # Discard the session
+        result = await evolution_service.discard_session(
+            db=db_session,
+            session_id=session.id,
+            story_id=story_id,
+            user_id=test_user.id,
+        )
+
+        # Result should indicate story was deleted
+        assert result.story_deleted is True
+
+        # Verify story is actually deleted from DB
+        story_check = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == story_id)
+        )
+        assert story_check.scalar_one_or_none() is None
+
+    @pytest.mark.asyncio
+    async def test_discard_active_session_deletes_draft_story(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+    ) -> None:
+        """Discarding via discard_active_session on a draft story deletes the story."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        from app.models.associations import StoryLegacy
+        from app.models.story_version import StoryVersion
+
+        draft_story = StoryModel(
+            author_id=test_user.id,
+            title="Draft Story for Active Discard",
+            content="Draft content.",
+            visibility="private",
+            status="draft",
+        )
+        db_session.add(draft_story)
+        await db_session.flush()
+
+        story_legacy = StoryLegacy(
+            story_id=draft_story.id,
+            legacy_id=test_legacy.id,
+            role="primary",
+            position=0,
+        )
+        db_session.add(story_legacy)
+
+        version = StoryVersion(
+            story_id=draft_story.id,
+            version_number=1,
+            title=draft_story.title,
+            content=draft_story.content,
+            status="active",
+            source="manual_edit",
+            change_summary="Initial version",
+            created_by=draft_story.author_id,
+        )
+        db_session.add(version)
+        await db_session.flush()
+        draft_story.active_version_id = version.id
+        await db_session.commit()
+        await db_session.refresh(draft_story)
+
+        story_id = draft_story.id
+
+        # Start an evolution session
+        await evolution_service.start_session(
+            db=db_session,
+            story_id=story_id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        # Discard via active session endpoint
+        result = await evolution_service.discard_active_session(
+            db=db_session,
+            story_id=story_id,
+            user_id=test_user.id,
+        )
+
+        assert result is not None
+        assert result.story_deleted is True
+
+        # Verify story is deleted
+        story_check = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == story_id)
+        )
+        assert story_check.scalar_one_or_none() is None
+
+    @pytest.mark.asyncio
+    async def test_discard_preserves_published_story(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Discarding a session on a published story does not delete it."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        # test_story defaults to status="published"
+        assert test_story.status == "published"
+
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        result = await evolution_service.discard_session(
+            db=db_session,
+            session_id=session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+        )
+
+        # Result should indicate story was NOT deleted
+        assert result.story_deleted is False
+
+        # Verify story still exists
+        story_check = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == test_story.id)
+        )
+        assert story_check.scalar_one_or_none() is not None
+
+    @pytest.mark.asyncio
+    async def test_discard_active_session_preserves_published_story(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """discard_active_session on a published story does not delete it."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        result = await evolution_service.discard_active_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+        )
+
+        assert result is not None
+        assert result.story_deleted is False
+
+        story_check = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == test_story.id)
+        )
+        assert story_check.scalar_one_or_none() is not None
+
+
 class TestAcceptSession:
     @pytest.mark.asyncio
     async def test_accept_session_requires_draft(
@@ -880,3 +1107,167 @@ class TestAcceptSession:
             )
         assert exc.value.status_code == 422
         assert "No draft" in exc.value.detail
+
+
+class TestAcceptSessionDraftTransition:
+    async def _setup_session_with_draft(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+    ) -> "tuple[object, object]":
+        """Helper to create a session and save a draft, returning (session, draft)."""
+        evo_session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+
+        draft = await evolution_service.save_draft(
+            db=db_session,
+            session=evo_session,
+            title="Draft Title",
+            content="Draft content for acceptance",
+            user_id=test_user.id,
+            source="manual_edit",
+        )
+        return evo_session, draft
+
+    @pytest.mark.asyncio
+    async def test_accept_transitions_draft_to_published(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Accepting a session on a draft story transitions status to published."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        # Set story status to draft
+        test_story.status = "draft"
+        await db_session.commit()
+
+        evo_session, _draft = await self._setup_session_with_draft(
+            db_session, test_user, test_story
+        )
+
+        completed_session = await evolution_service.accept_session(
+            db=db_session,
+            session_id=evo_session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+        )
+
+        assert completed_session.phase == "completed"
+
+        # Verify story status was transitioned to published
+        result = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == test_story.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.status == "published"
+
+    @pytest.mark.asyncio
+    async def test_accept_with_visibility_updates_story(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Accepting with visibility param updates the story visibility."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        evo_session, _draft = await self._setup_session_with_draft(
+            db_session, test_user, test_story
+        )
+
+        completed_session = await evolution_service.accept_session(
+            db=db_session,
+            session_id=evo_session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            visibility="personal",
+        )
+
+        assert completed_session.phase == "completed"
+
+        result = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == test_story.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.visibility == "personal"
+
+    @pytest.mark.asyncio
+    async def test_accept_without_visibility_leaves_story_visibility_unchanged(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Accepting without visibility param does not change story visibility."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        original_visibility = test_story.visibility
+
+        evo_session, _draft = await self._setup_session_with_draft(
+            db_session, test_user, test_story
+        )
+
+        await evolution_service.accept_session(
+            db=db_session,
+            session_id=evo_session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+        )
+
+        result = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == test_story.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.visibility == original_visibility
+
+    @pytest.mark.asyncio
+    async def test_accept_published_story_remains_published(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Accepting a session on an already-published story keeps it published."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story import Story as StoryModel
+
+        # Ensure story is published (default)
+        test_story.status = "published"
+        await db_session.commit()
+
+        evo_session, _draft = await self._setup_session_with_draft(
+            db_session, test_user, test_story
+        )
+
+        completed_session = await evolution_service.accept_session(
+            db=db_session,
+            session_id=evo_session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+        )
+
+        assert completed_session.phase == "completed"
+
+        result = await db_session.execute(
+            sa_select(StoryModel).where(StoryModel.id == test_story.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.status == "published"

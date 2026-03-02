@@ -18,6 +18,17 @@ def _load_elicitation_directive() -> str:
     return _elicitation_directive
 
 
+CREATION_MODE_PROMPT_PATH = Path(__file__).parent / "story_creation_mode.txt"
+_creation_mode_directive: str | None = None
+
+
+def _load_creation_mode_directive() -> str:
+    global _creation_mode_directive
+    if _creation_mode_directive is None:
+        _creation_mode_directive = CREATION_MODE_PROMPT_PATH.read_text().strip()
+    return _creation_mode_directive
+
+
 GRAPH_SUGGESTIONS_PROMPT_PATH = Path(__file__).parent / "graph_suggestions.txt"
 _graph_suggestions_directive: str | None = None
 
@@ -65,10 +76,16 @@ _base_rules: str = ""
 
 def _reset_cache() -> None:
     """Reset the cached personas (for testing)."""
-    global _personas, _base_rules, _elicitation_directive, _graph_suggestions_directive
+    global \
+        _personas, \
+        _base_rules, \
+        _elicitation_directive, \
+        _creation_mode_directive, \
+        _graph_suggestions_directive
     _personas = {}
     _base_rules = ""
     _elicitation_directive = None
+    _creation_mode_directive = None
     _graph_suggestions_directive = None
 
 
@@ -195,10 +212,13 @@ def build_system_prompt(
         prompt = f"{prompt}{facts_section}"
 
     if elicitation_mode:
-        prompt = f"{prompt}\n\n{_load_elicitation_directive()}"
-        if include_graph_suggestions:
-            prompt = f"{prompt}\n\n{_load_graph_suggestions_directive()}"
-        if original_story_text:
+        has_story_content = bool(original_story_text and original_story_text.strip())
+        if has_story_content:
+            prompt = f"{prompt}\n\n{_load_elicitation_directive()}"
+            if include_graph_suggestions:
+                prompt = f"{prompt}\n\n{_load_graph_suggestions_directive()}"
             prompt = f"{prompt}\n\n## Story Being Evolved\n\n{original_story_text}"
+        else:
+            prompt = f"{prompt}\n\n{_load_creation_mode_directive()}"
 
     return prompt

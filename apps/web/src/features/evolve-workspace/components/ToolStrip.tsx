@@ -1,4 +1,4 @@
-import { MessageSquare, GitBranch, History, Image, Sparkles } from 'lucide-react';
+import { MessageSquare, GitBranch, History, Image, Sparkles, Settings } from 'lucide-react';
 import { cn } from '@/components/ui/utils';
 import { type ToolId, useEvolveWorkspaceStore } from '../store/useEvolveWorkspaceStore';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -11,10 +11,11 @@ const ASSEMBLY_TOOLS: { id: ToolId; icon: typeof MessageSquare; label: string }[
 const REFERENCE_TOOLS: { id: ToolId; icon: typeof MessageSquare; label: string }[] = [
   { id: 'versions', icon: History, label: 'Versions' },
   { id: 'media', icon: Image, label: 'Media' },
+  { id: 'settings', icon: Settings, label: 'Settings' },
 ];
 
-const REWRITE_TOOL: { id: ToolId; icon: typeof Sparkles; label: string } = {
-  id: 'rewrite', icon: Sparkles, label: 'Rewrite',
+const REWRITE_TOOL_BASE: { id: ToolId; icon: typeof Sparkles } = {
+  id: 'rewrite', icon: Sparkles,
 };
 
 function ToolButton({
@@ -54,9 +55,14 @@ function ToolButton({
   );
 }
 
-export function ToolStrip() {
+interface ToolStripProps {
+  hasContent?: boolean;
+}
+
+export function ToolStrip({ hasContent = false }: ToolStripProps) {
   const activeTool = useEvolveWorkspaceStore((s) => s.activeTool);
   const setActiveTool = useEvolveWorkspaceStore((s) => s.setActiveTool);
+  const rewriteLabel = hasContent ? 'Rewrite' : 'AI Writer';
 
   return (
     <div className="flex flex-col items-center py-2 px-1 border-x bg-neutral-50 shrink-0 w-12">
@@ -80,7 +86,7 @@ export function ToolStrip() {
       <hr className="w-6 border-neutral-200 my-1" />
 
       {/* Rewrite tool at bottom */}
-      <ToolButton {...REWRITE_TOOL} activeTool={activeTool} onClick={setActiveTool} />
+      <ToolButton {...REWRITE_TOOL_BASE} label={rewriteLabel} activeTool={activeTool} onClick={setActiveTool} />
     </div>
   );
 }

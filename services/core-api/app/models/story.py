@@ -46,6 +46,14 @@ class Story(Base):
         index=True,
     )
 
+    # Status: 'draft', 'published'
+    status: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default="published",
+        index=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.current_timestamp(),

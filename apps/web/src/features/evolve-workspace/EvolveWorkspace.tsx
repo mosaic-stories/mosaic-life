@@ -130,7 +130,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     setIsDirty(false);
   }, [story, title, content, saveDraft]);
 
-  const handleFinish = useCallback(async () => {
+  const handleFinish = useCallback(async (visibility?: 'public' | 'private' | 'personal') => {
     if (!sessionId || !story) return;
     setIsFinishing(true);
     try {
@@ -143,7 +143,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
         setIsDirty(false);
       }
       // Accept the session (promotes draft to active, completes session)
-      await acceptEvolution(storyId, sessionId);
+      await acceptEvolution(storyId, sessionId, { visibility });
       // Clear caches
       queryClient.removeQueries({ queryKey: evolutionKeys.all });
       await queryClient.invalidateQueries({ queryKey: storyKeys.detail(storyId) });
@@ -218,8 +218,10 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     // so the EditorPanel stops showing the rewrite preview.
     abortRewrite();
 
+    let result: Awaited<ReturnType<typeof discardActiveEvolution>> = null;
+
     try {
-      await discardActiveEvolution(storyId);
+      result = await discardActiveEvolution(storyId);
     } catch (err) {
       console.error('Failed to discard active evolution session:', err);
     } finally {
@@ -233,7 +235,14 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
       resetAllStores();
 
       setIsDiscarding(false);
-      navigate(`/legacy/${legacyId}/story/${storyId}`);
+
+      // If the story was deleted (draft stories are deleted on discard),
+      // navigate back to the legacy page; otherwise to the story page.
+      if (result?.story_deleted) {
+        navigate(`/legacy/${legacyId}`);
+      } else {
+        navigate(`/legacy/${legacyId}/story/${storyId}`);
+      }
     }
   }, [queryClient, storyId, legacyId, navigate, abortRewrite]);
 
@@ -265,12 +274,14 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
           legacyId={legacyId}
           storyId={storyId}
           title={title}
+          currentVisibility={story?.visibility}
           isSaving={saveDraft.isPending}
           isDirty={isDirty}
           isDiscarding={isDiscarding}
           isFinishing={isFinishing}
           isUpdatingTitle={updateStory.isPending}
           hasDraft={hasDraft}
+          isDraftStory={story?.status === 'draft'}
           onSaveDraft={handleSaveDraft}
           onFinish={handleFinish}
           onDiscard={handleDiscard}
@@ -320,7 +331,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
                     onRestore={handleRestore}
                   />
                 </ResizablePanel>
-                <ToolStrip />
+                <ToolStrip hasContent={content.trim().length > 0} />
                 <ResizableHandle />
                 <ResizablePanel defaultSize={35} minSize={20}>
                   <ToolPanel

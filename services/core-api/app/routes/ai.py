@@ -254,17 +254,37 @@ async def seed_conversation(
             raise HTTPException(status_code=500, detail="Failed to build system prompt")
 
         # Seed instruction (not saved to conversation)
-        seed_instruction = (
-            "[System] The user has just started a story evolution session. "
-            "This is the very first message in the conversation. Please:\n"
-            "1. Briefly greet the user and introduce what you'll be doing together\n"
-            "2. Share what stood out to you about the story — key moments, themes, "
-            "or details that caught your attention\n"
-            "3. Suggest 2-3 specific directions they could explore to deepen the story "
-            "(use the story context provided, including any connected stories or people)\n"
-            "4. Let them know they're free to take the conversation in any direction\n\n"
-            "Keep it warm, concise, and inviting. Use 2-3 short paragraphs."
-        )
+        has_story_content = bool(story.content and story.content.strip())
+
+        if has_story_content:
+            seed_instruction = (
+                "[System] The user has just started a story evolution session. "
+                "This is the very first message in the conversation. Please:\n"
+                "1. Briefly greet the user and introduce what you'll be doing together\n"
+                "2. Share what stood out to you about the story — key moments, themes, "
+                "or details that caught your attention\n"
+                "3. Suggest 2-3 specific directions they could explore to deepen the story "
+                "(use the story context provided, including any connected stories or people)\n"
+                "4. Let them know they're free to take the conversation in any direction\n\n"
+                "Keep it warm, concise, and inviting. Use 2-3 short paragraphs."
+            )
+        else:
+            seed_instruction = (
+                "[System] The user has just created a brand new story and entered the workspace. "
+                "The editor is completely blank — they haven't written anything yet. "
+                "This is the very first message in the conversation. Please:\n"
+                "1. Warmly welcome them and set an encouraging tone for creating a new story\n"
+                "2. Let them know they have two paths: they can start writing directly in the "
+                "editor on the left, or they can chat with you here to explore ideas and "
+                "memories first\n"
+                "3. Ask one warm, open-ended question to help them get started — something "
+                "like 'What memory or moment brought you here today?' or 'Is there a "
+                "particular person or experience you'd like to capture?'\n"
+                "4. Keep it brief and encouraging — don't overwhelm them\n\n"
+                "IMPORTANT: Do NOT reference any existing story content — the page is blank. "
+                "Do NOT say things like 'the story you've shared' or comment on story details. "
+                "Keep it warm, concise, and inviting. Use 2-3 short paragraphs."
+            )
 
         llm = registry.get_llm_provider()
 

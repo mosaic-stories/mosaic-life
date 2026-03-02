@@ -9,6 +9,7 @@ export interface StoriesSectionProps {
   storiesError: Error | null;
   onStoryClick: (storyId: string) => void;
   onAddStory: () => void;
+  isCreatingStory?: boolean;
 }
 
 export default function StoriesSection({
@@ -17,6 +18,7 @@ export default function StoriesSection({
   storiesError,
   onStoryClick,
   onAddStory,
+  isCreatingStory = false,
 }: StoriesSectionProps) {
   return (
     <div className="max-w-3xl space-y-6">
@@ -53,11 +55,15 @@ export default function StoriesSection({
 
       <Card
         className="p-8 border-dashed hover:border-theme-accent hover:bg-theme-accent-light/30 transition-colors cursor-pointer"
-        onClick={onAddStory}
+        onClick={isCreatingStory ? undefined : onAddStory}
       >
         <div className="text-center space-y-3">
           <div className="size-12 rounded-full bg-theme-accent-light flex items-center justify-center mx-auto">
-            <Plus className="size-6 text-theme-primary" />
+            {isCreatingStory ? (
+              <Loader2 className="size-6 text-theme-primary animate-spin" />
+            ) : (
+              <Plus className="size-6 text-theme-primary" />
+            )}
           </div>
           <div>
             <p className="text-neutral-900">Add a new story</p>

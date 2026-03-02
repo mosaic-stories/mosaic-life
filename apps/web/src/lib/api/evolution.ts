@@ -95,6 +95,10 @@ export function advancePhase(
   );
 }
 
+export interface DiscardSessionResponse extends EvolutionSession {
+  story_deleted: boolean;
+}
+
 export function discardEvolution(
   storyId: string,
   sessionId: string
@@ -110,18 +114,20 @@ export function discardEvolution(
  */
 export function discardActiveEvolution(
   storyId: string
-): Promise<EvolutionSession | null> {
-  return apiPost<EvolutionSession | null>(
+): Promise<DiscardSessionResponse | null> {
+  return apiPost<DiscardSessionResponse | null>(
     `/api/stories/${storyId}/evolution/discard-active`
   );
 }
 
 export function acceptEvolution(
   storyId: string,
-  sessionId: string
+  sessionId: string,
+  options?: { visibility?: 'public' | 'private' | 'personal' }
 ): Promise<EvolutionSession> {
   return apiPost(
-    `/api/stories/${storyId}/evolution/${sessionId}/accept`
+    `/api/stories/${storyId}/evolution/${sessionId}/accept`,
+    options ?? {}
   );
 }
 

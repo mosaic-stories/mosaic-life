@@ -65,17 +65,43 @@ class TestGraphSuggestionsDirective:
             "biographer",
             "Jane",
             elicitation_mode=True,
+            original_story_text="Some story content.",
         )
         assert prompt is not None
         assert "GRAPH CONTEXT SUGGESTIONS" not in prompt
 
-    def test_graph_suggestions_included_when_enabled(self) -> None:
-        """When include_graph_suggestions is True and elicitation_mode is True."""
+    def test_creation_mode_for_empty_story(self) -> None:
+        """When elicitation_mode is True but no story text, uses creation mode."""
+        prompt = build_system_prompt(
+            "biographer",
+            "Jane",
+            elicitation_mode=True,
+        )
+        assert prompt is not None
+        assert "STORY CREATION MODE" in prompt
+        assert "ELICITATION MODE" not in prompt
+        assert "Story Being Evolved" not in prompt
+
+    def test_creation_mode_ignores_graph_suggestions(self) -> None:
+        """Graph suggestions are not included in creation mode (no story to connect)."""
         prompt = build_system_prompt(
             "biographer",
             "Jane",
             elicitation_mode=True,
             include_graph_suggestions=True,
+        )
+        assert prompt is not None
+        assert "STORY CREATION MODE" in prompt
+        assert "GRAPH CONTEXT SUGGESTIONS" not in prompt
+
+    def test_graph_suggestions_included_when_enabled(self) -> None:
+        """When include_graph_suggestions is True and elicitation_mode is True with story content."""
+        prompt = build_system_prompt(
+            "biographer",
+            "Jane",
+            elicitation_mode=True,
+            include_graph_suggestions=True,
+            original_story_text="A summer afternoon in 1985.",
         )
         assert prompt is not None
         assert "GRAPH CONTEXT SUGGESTIONS" in prompt

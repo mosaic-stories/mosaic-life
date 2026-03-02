@@ -15,6 +15,8 @@ from app.database import get_db
 from app.providers.registry import get_provider_registry
 from app.schemas.ai import SSEErrorEvent
 from app.schemas.story_evolution import (
+    AcceptEvolutionRequest,
+    DiscardSessionResponse,
     EvolutionSessionCreate,
     EvolutionSessionResponse,
     EvolutionSSEChunkEvent,
@@ -107,50 +109,61 @@ async def advance_phase(
 
 @router.post(
     "/{session_id}/discard",
-    response_model=EvolutionSessionResponse,
+    response_model=DiscardSessionResponse,
 )
 async def discard_session(
     story_id: UUID,
     session_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> EvolutionSessionResponse:
-    """Discard an evolution session."""
+) -> DiscardSessionResponse:
+    """Discard an evolution session.
+
+    If the story was a draft (never published), it is deleted entirely and
+    ``story_deleted`` will be ``true`` in the response.
+    """
     session_data = require_auth(request)
-    evo_session = await evolution_service.discard_session(
+    result = await evolution_service.discard_session(
         db=db,
         session_id=session_id,
         story_id=story_id,
         user_id=session_data.user_id,
     )
-    return EvolutionSessionResponse.model_validate(evo_session)
+    response = DiscardSessionResponse.model_validate(result.session)
+    response.story_deleted = result.story_deleted
+    return response
 
 
 @router.post(
     "/discard-active",
-    response_model=EvolutionSessionResponse | None,
+    response_model=DiscardSessionResponse | None,
     status_code=200,
 )
 async def discard_active_session(
     story_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> EvolutionSessionResponse | None:
+) -> DiscardSessionResponse | None:
     """Discard the active evolution session for a story, if one exists.
 
     Idempotent: returns 200 with null body when there is no active session,
     rather than 404.  Use this endpoint when the caller does not hold the
     session ID (e.g. the evolution workspace "Discard session" button).
+
+    If the story was a draft (never published), it is deleted entirely and
+    ``story_deleted`` will be ``true`` in the response.
     """
     session_data = require_auth(request)
-    evo_session = await evolution_service.discard_active_session(
+    result = await evolution_service.discard_active_session(
         db=db,
         story_id=story_id,
         user_id=session_data.user_id,
     )
-    if evo_session is None:
+    if result is None:
         return None
-    return EvolutionSessionResponse.model_validate(evo_session)
+    response = DiscardSessionResponse.model_validate(result.session)
+    response.story_deleted = result.story_deleted
+    return response
 
 
 @router.post(
@@ -194,15 +207,21 @@ async def accept_session(
     story_id: UUID,
     session_id: UUID,
     request: Request,
+    data: AcceptEvolutionRequest | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> EvolutionSessionResponse:
-    """Accept the draft and complete the session."""
+    """Accept the draft and complete the session.
+
+    Optionally accepts a visibility value to update the story visibility on accept.
+    Draft stories are automatically transitioned to published.
+    """
     session_data = require_auth(request)
     evo_session = await evolution_service.accept_session(
         db=db,
         session_id=session_id,
         story_id=story_id,
         user_id=session_data.user_id,
+        visibility=data.visibility if data is not None else None,
     )
     return EvolutionSessionResponse.model_validate(evo_session)
 

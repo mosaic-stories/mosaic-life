@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { MoreVertical, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
+import { Loader2, MoreVertical, Pencil, Plus, Share2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -13,6 +13,7 @@ export interface LegacyHeaderControlsProps {
   legacyId: string;
   user: { name: string; email: string; avatarUrl?: string } | null;
   onAddStory: () => void;
+  isCreatingStory?: boolean;
   onDelete: () => void;
   onShare: () => void;
 }
@@ -21,6 +22,7 @@ export default function LegacyHeaderControls({
   legacyId,
   user,
   onAddStory,
+  isCreatingStory = false,
   onDelete,
   onShare,
 }: LegacyHeaderControlsProps) {
@@ -54,8 +56,12 @@ export default function LegacyHeaderControls({
           </DropdownMenuContent>
         </DropdownMenu>
       )}
-      <Button size="sm" onClick={onAddStory} className="bg-theme-primary hover:bg-theme-primary-dark">
-        <Plus className="size-4 mr-2" />
+      <Button size="sm" onClick={onAddStory} disabled={isCreatingStory} className="bg-theme-primary hover:bg-theme-primary-dark">
+        {isCreatingStory ? (
+          <Loader2 className="size-4 mr-2 animate-spin" />
+        ) : (
+          <Plus className="size-4 mr-2" />
+        )}
         <span className="hidden sm:inline">Add Story</span>
       </Button>
     </div>

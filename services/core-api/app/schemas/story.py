@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .associations import LegacyAssociationCreate, LegacyAssociationResponse
 
@@ -15,11 +15,15 @@ class StoryCreate(BaseModel):
 
     title: str = Field(..., min_length=1, max_length=500, description="Story title")
     content: str = Field(
-        ..., min_length=1, max_length=50000, description="Story content in Markdown"
+        default="", max_length=50000, description="Story content in Markdown"
     )
     visibility: Literal["public", "private", "personal"] = Field(
         default="private",
         description="Visibility level: public, private (legacy members), or personal (author only)",
+    )
+    status: Literal["draft", "published"] = Field(
+        default="published",
+        description="Story status: draft (work in progress) or published",
     )
     legacies: list[LegacyAssociationCreate] = Field(
         ...,
@@ -38,6 +42,13 @@ class StoryCreate(BaseModel):
             if v:
                 v[0].role = "primary"
         return v
+
+    @model_validator(mode="after")
+    def validate_content_for_published(self) -> "StoryCreate":
+        """Published stories must have non-empty content."""
+        if self.status == "published" and not self.content.strip():
+            raise ValueError("Published stories must have content")
+        return self
 
 
 class StoryUpdate(BaseModel):
@@ -80,6 +91,7 @@ class StorySummary(BaseModel):
     author_id: UUID
     author_name: str
     visibility: str
+    status: str
     legacies: list[LegacyAssociationResponse]
     shared_from: str | None = Field(
         default=None,
@@ -101,6 +113,7 @@ class StoryDetail(BaseModel):
     title: str
     content: str
     visibility: str
+    status: str
     legacies: list[LegacyAssociationResponse]
     version_count: int | None = None
     has_draft: bool | None = None
@@ -117,6 +130,7 @@ class StoryResponse(BaseModel):
     title: str
     version_number: int | None = None
     visibility: str
+    status: str
     legacies: list[LegacyAssociationResponse]
     created_at: datetime
     updated_at: datetime

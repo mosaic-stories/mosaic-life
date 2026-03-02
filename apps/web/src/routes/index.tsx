@@ -15,8 +15,6 @@ const StoryCreation = lazy(() => import('@/features/story/components/StoryCreati
 const LegacyCreation = lazy(() => import('@/features/legacy/components/LegacyCreation'));
 const LegacyEdit = lazy(() => import('@/features/legacy/components/LegacyEdit'));
 const MediaGallery = lazy(() => import('@/features/media/components/MediaGallery'));
-const AIAgentChat = lazy(() => import('@/features/ai-chat/components/AIAgentChat'));
-const AIAgentPanel = lazy(() => import('@/features/ai-chat/components/AIAgentPanel'));
 const InviteAcceptPage = lazy(() => import('@/features/members/components/InviteAcceptPage'));
 const NotificationHistory = lazy(() => import('@/features/notifications/components/NotificationHistory'));
 const StoryEvolution = lazy(() => import('@/features/evolve-workspace/EvolveWorkspace'));
@@ -124,14 +122,6 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'legacy/:legacyId/story/new',
-        element: (
-          <ProtectedRoute>
-            <LazyPage><WithStoryProps Component={StoryCreation} /></LazyPage>
-          </ProtectedRoute>
-        ),
-      },
-      {
         path: 'legacy/:legacyId/story/:storyId',
         element: (
           <ProtectedRoute>
@@ -152,22 +142,6 @@ export const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <LazyPage><WithLegacyId Component={MediaGallery} /></LazyPage>
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'legacy/:legacyId/ai-chat',
-        element: (
-          <ProtectedRoute>
-            <LazyPage><WithLegacyId Component={AIAgentChat} /></LazyPage>
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: 'legacy/:legacyId/ai-panel',
-        element: (
-          <ProtectedRoute>
-            <LazyPage><WithLegacyId Component={AIAgentPanel} /></LazyPage>
           </ProtectedRoute>
         ),
       },

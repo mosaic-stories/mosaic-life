@@ -235,6 +235,7 @@ async def create_story(
         title=data.title,
         content=data.content,
         visibility=data.visibility,
+        status=data.status,
     )
     db.add(story)
     await db.flush()  # Get story.id without committing
@@ -291,6 +292,7 @@ async def create_story(
         id=story.id,
         title=story.title,
         visibility=story.visibility,
+        status=story.status,
         legacies=legacies,
         created_at=story.created_at,
         updated_at=story.updated_at,
@@ -450,6 +452,14 @@ async def list_legacy_stories(
         else:
             # Non-member sees only public stories
             query = query.where(Story.visibility == "public")
+
+        # Filter drafts: only the author sees their own drafts
+        query = query.where(
+            or_(
+                Story.status == "published",
+                Story.author_id == user_id,
+            )
+        )
     else:
         # No filter specified - this shouldn't happen in normal flow
         # Return empty list or raise error
@@ -479,6 +489,7 @@ async def list_legacy_stories(
             author_id=story.author_id,
             author_name=story.author.name,
             visibility=story.visibility,
+            status=story.status,
             legacies=[
                 LegacyAssociationResponse(
                     legacy_id=assoc.legacy_id,
@@ -535,6 +546,7 @@ async def list_legacy_stories(
                         author_id=story.author_id,
                         author_name=story.author.name,
                         visibility=story.visibility,
+                        status=story.status,
                         legacies=[
                             LegacyAssociationResponse(
                                 legacy_id=assoc.legacy_id,
@@ -589,6 +601,7 @@ async def list_public_stories(
         .join(StoryLegacy, Story.id == StoryLegacy.story_id)
         .where(StoryLegacy.legacy_id == legacy_id)
         .where(Story.visibility == "public")
+        .where(Story.status == "published")
         .order_by(Story.created_at.desc())
     )
 
@@ -618,6 +631,7 @@ async def list_public_stories(
             author_id=story.author_id,
             author_name=story.author.name,
             visibility=story.visibility,
+            status=story.status,
             legacies=[
                 LegacyAssociationResponse(
                     legacy_id=assoc.legacy_id,
@@ -732,6 +746,7 @@ async def get_story_detail(
         title=story.title,
         content=normalize_media_urls_for_story_content(story.content),
         visibility=story.visibility,
+        status=story.status,
         legacies=[
             LegacyAssociationResponse(
                 legacy_id=assoc.legacy_id,
@@ -898,6 +913,7 @@ async def update_story(
         title=story.title,
         version_number=version_number,
         visibility=story.visibility,
+        status=story.status,
         legacies=[
             LegacyAssociationResponse(
                 legacy_id=assoc.legacy_id,

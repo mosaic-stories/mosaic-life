@@ -34,6 +34,11 @@ export default function StoryCard({ story, onClick }: StoryCardProps) {
         <div className="space-y-1 flex-1">
           <div className="flex items-center gap-2">
             <h3 className="text-neutral-900">{story.title}</h3>
+            {story.status === 'draft' && (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                Draft
+              </span>
+            )}
             {story.shared_from && (
               <span className="inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">
                 <Link2 className="size-3" />

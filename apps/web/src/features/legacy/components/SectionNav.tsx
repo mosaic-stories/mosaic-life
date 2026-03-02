@@ -1,19 +1,10 @@
 import { Link2, Sparkles } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 
 export type SectionId = 'stories' | 'media' | 'links' | 'ai';
 
 export interface SectionNavProps {
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
-}
-
-function DemoBadge() {
-  return (
-    <Badge className="bg-amber-100 text-amber-800 border-amber-300 text-xs">
-      Demo
-    </Badge>
-  );
 }
 
 export default function SectionNav({ activeSection, onSectionChange }: SectionNavProps) {
@@ -49,8 +40,7 @@ export default function SectionNav({ activeSection, onSectionChange }: SectionNa
             className={`${baseClass} ${activeSection === 'ai' ? activeClass : inactiveClass} flex items-center gap-2`}
           >
             <Sparkles className="size-4" />
-            AI Interactions
-            <DemoBadge />
+            AI Chat
           </button>
         </div>
       </div>
