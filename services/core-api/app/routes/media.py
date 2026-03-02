@@ -184,7 +184,9 @@ async def delete_media(
     """
     session = require_auth(request)
     media_detail = await media_service.get_media_detail(
-        db=db, user_id=session.user_id, media_id=media_id,
+        db=db,
+        user_id=session.user_id,
+        media_id=media_id,
     )
     await media_service.delete_media(
         db=db,

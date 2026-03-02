@@ -260,7 +260,9 @@ async def delete_legacy(
     session = require_auth(request)
 
     legacy_detail = await legacy_service.get_legacy_detail(
-        db=db, user_id=session.user_id, legacy_id=legacy_id,
+        db=db,
+        user_id=session.user_id,
+        legacy_id=legacy_id,
     )
     await legacy_service.delete_legacy(
         db=db,

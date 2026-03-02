@@ -261,7 +261,9 @@ async def delete_story(
 
     # Capture title before deletion for activity metadata
     story_detail = await story_service.get_story_detail(
-        db=db, user_id=session.user_id, story_id=story_id,
+        db=db,
+        user_id=session.user_id,
+        story_id=story_id,
     )
     await story_service.delete_story(
         db=db,
