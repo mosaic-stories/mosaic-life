@@ -1,5 +1,7 @@
 # Homepage Activity Sections Implementation Plan
 
+> **Status: COMPLETED** — All 15 tasks implemented and verified on 2026-03-02.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add three new homepage sections for authenticated users — a social activity feed (non-ephemeral actions from the user and legacy co-members), and two "recently viewed" card sections for legacies and stories.
