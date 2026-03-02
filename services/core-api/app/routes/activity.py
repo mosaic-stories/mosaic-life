@@ -14,7 +14,9 @@ from ..schemas.activity import (
     ActivityFeedResponse,
     ActivityItem,
     CleanupResponse,
+    EnrichedRecentItemsResponse,
     RecentItemsResponse,
+    SocialFeedResponse,
 )
 from ..services import activity as activity_service
 
@@ -88,6 +90,52 @@ async def get_recent_items(
         limit=limit,
     )
     return RecentItemsResponse(**result)
+
+
+@router.get("/feed", response_model=SocialFeedResponse)
+async def get_social_feed(
+    request: Request,
+    cursor: str | None = Query(None, description="ISO timestamp cursor for pagination"),
+    limit: int = Query(5, ge=1, le=20, description="Max items to return"),
+    db: AsyncSession = Depends(get_db),
+) -> SocialFeedResponse:
+    """Get the social activity feed — own + co-member actions on shared legacies."""
+    session = require_auth(request)
+
+    cursor_dt = None
+    if cursor:
+        cursor_dt = datetime.fromisoformat(cursor)
+
+    result = await activity_service.get_social_feed(
+        db=db,
+        user_id=session.user_id,
+        cursor=cursor_dt,
+        limit=limit,
+    )
+    return SocialFeedResponse(**result)
+
+
+@router.get("/recent/enriched", response_model=EnrichedRecentItemsResponse)
+async def get_enriched_recent_items(
+    request: Request,
+    entity_type: EntityTypeParam | None = Query(
+        None, description="Filter by entity type"
+    ),
+    action: str | None = Query(None, description="Filter by action type"),
+    limit: int = Query(10, ge=1, le=50, description="Max items to return"),
+    db: AsyncSession = Depends(get_db),
+) -> EnrichedRecentItemsResponse:
+    """Get recent items with entity enrichment and optional action filter."""
+    session = require_auth(request)
+
+    result = await activity_service.get_enriched_recent_items(
+        db=db,
+        user_id=session.user_id,
+        action=action,
+        entity_type=entity_type,
+        limit=limit,
+    )
+    return EnrichedRecentItemsResponse(**result)
 
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
