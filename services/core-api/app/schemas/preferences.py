@@ -13,6 +13,9 @@ class UserPreferences(BaseModel):
     hidden_personas: list[str] = Field(
         default_factory=list, description="List of hidden agent persona IDs"
     )
+    activity_tracking_enabled: bool = Field(
+        default=True, description="Whether activity tracking is enabled"
+    )
 
 
 class PreferencesUpdateRequest(BaseModel):
@@ -21,6 +24,9 @@ class PreferencesUpdateRequest(BaseModel):
     theme: str | None = Field(None, description="UI theme identifier")
     default_model: str | None = Field(None, description="Default AI model")
     hidden_personas: list[str] | None = Field(None, description="Hidden persona IDs")
+    activity_tracking_enabled: bool | None = Field(
+        None, description="Enable or disable activity tracking"
+    )
 
 
 class PreferencesResponse(BaseModel):
@@ -29,6 +35,7 @@ class PreferencesResponse(BaseModel):
     theme: str
     default_model: str
     hidden_personas: list[str]
+    activity_tracking_enabled: bool
 
     model_config = {"from_attributes": True}
 

@@ -30,6 +30,7 @@ from ..schemas.preferences import (
 )
 from ..schemas.session import SessionListResponse, SessionResponse
 from ..schemas.stats import UserStatsResponse
+from .activity import clear_user_activity
 from .email import send_data_export_email
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,9 @@ async def get_user_preferences(db: AsyncSession, user_id: UUID) -> PreferencesRe
         theme=prefs.get("theme", defaults["theme"]),
         default_model=prefs.get("default_model", defaults["default_model"]),
         hidden_personas=prefs.get("hidden_personas", defaults["hidden_personas"]),
+        activity_tracking_enabled=prefs.get(
+            "activity_tracking_enabled", defaults["activity_tracking_enabled"]
+        ),
     )
 
 
@@ -84,6 +88,18 @@ async def update_user_preferences(
 
     # Assign the new dict to trigger SQLAlchemy change detection
     user.preferences = current_prefs
+
+    # If activity tracking was just disabled, purge existing activity data
+    if (
+        "activity_tracking_enabled" in updates
+        and not updates["activity_tracking_enabled"]
+    ):
+        await clear_user_activity(db, user_id)
+        logger.info(
+            "user.activity_tracking.disabled_and_purged",
+            extra={"user_id": str(user_id)},
+        )
+
     await db.commit()
     await db.refresh(user)
 
@@ -98,6 +114,9 @@ async def update_user_preferences(
         default_model=current_prefs.get("default_model", defaults["default_model"]),
         hidden_personas=current_prefs.get(
             "hidden_personas", defaults["hidden_personas"]
+        ),
+        activity_tracking_enabled=current_prefs.get(
+            "activity_tracking_enabled", defaults["activity_tracking_enabled"]
         ),
     )
 
