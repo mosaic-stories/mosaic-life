@@ -1,4 +1,4 @@
-import { Loader2, Users } from 'lucide-react';
+import { AlertCircle, Loader2, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -127,9 +127,9 @@ export default function RecentlyViewedSection({
   limit = 4,
 }: RecentlyViewedSectionProps) {
   const navigate = useNavigate();
-  const { data, isLoading } = useRecentlyViewed(entityType, limit);
+  const { data, isLoading, isError } = useRecentlyViewed(entityType, limit);
 
-  if (!isLoading && (!data || data.items.length === 0)) {
+  if (!isLoading && !isError && (!data || data.items.length === 0)) {
     return null;
   }
 
@@ -162,7 +162,14 @@ export default function RecentlyViewedSection({
           </div>
         )}
 
-        {!isLoading && data && data.items.length > 0 && (
+        {isError && (
+          <div className="flex items-center gap-2 text-sm text-neutral-500 py-8">
+            <AlertCircle className="size-4" />
+            <span>Unable to load recently viewed {entityType === 'legacy' ? 'legacies' : 'stories'}</span>
+          </div>
+        )}
+
+        {!isLoading && !isError && data && data.items.length > 0 && (
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {data.items.map((item) =>
               entityType === 'legacy' ? (

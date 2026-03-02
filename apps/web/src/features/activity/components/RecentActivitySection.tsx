@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useSocialFeed } from '../hooks/useActivity';
@@ -27,9 +27,9 @@ function getActivityRoute(item: SocialFeedItem): string | null {
 export default function RecentActivitySection() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data, isLoading } = useSocialFeed(5);
+  const { data, isLoading, isError } = useSocialFeed(5);
 
-  if (!isLoading && (!data || data.items.length === 0)) {
+  if (!isLoading && !isError && (!data || data.items.length === 0)) {
     return null;
   }
 
@@ -54,7 +54,14 @@ export default function RecentActivitySection() {
           </div>
         )}
 
-        {!isLoading && data && data.items.length > 0 && (
+        {isError && (
+          <div className="flex items-center gap-2 text-sm text-neutral-500 py-8">
+            <AlertCircle className="size-4" />
+            <span>Unable to load recent activity</span>
+          </div>
+        )}
+
+        {!isLoading && !isError && data && data.items.length > 0 && (
           <div className="divide-y divide-neutral-100">
             {data.items.map((item) => (
               <ActivityFeedItem

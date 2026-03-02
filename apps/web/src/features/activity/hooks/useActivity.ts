@@ -12,6 +12,7 @@ export function useSocialFeed(limit = 5) {
   return useQuery({
     queryKey: activityKeys.socialFeed(),
     queryFn: () => getSocialFeed(limit),
+    staleTime: 60_000,
   });
 }
 
@@ -19,5 +20,6 @@ export function useRecentlyViewed(entityType: 'legacy' | 'story', limit = 4) {
   return useQuery({
     queryKey: activityKeys.recentViewed(entityType),
     queryFn: () => getRecentlyViewed(entityType, limit),
+    staleTime: 60_000,
   });
 }

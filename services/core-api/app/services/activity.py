@@ -8,6 +8,7 @@ from uuid import UUID
 from sqlalchemy import delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..adapters.storage import get_storage_adapter
 from ..models.activity import UserActivity
 from ..models.associations import StoryLegacy
 from ..models.legacy import Legacy, LegacyMember
@@ -317,15 +318,25 @@ async def enrich_entities(
     legacy_ids = [eid for etype, eid in items if etype == "legacy"]
     story_ids = [eid for etype, eid in items if etype == "story"]
 
-    # Enrich legacies
+    # Enrich legacies (eagerly load profile_image for URL generation)
     if legacy_ids:
-        rows = await db.execute(select(Legacy).where(Legacy.id.in_(legacy_ids)))
+        from sqlalchemy.orm import selectinload
+
+        rows = await db.execute(
+            select(Legacy)
+            .options(selectinload(Legacy.profile_image))
+            .where(Legacy.id.in_(legacy_ids))
+        )
+        storage = get_storage_adapter()
         for legacy in rows.scalars().all():
+            profile_image_url = None
+            if legacy.profile_image and legacy.profile_image.storage_path:
+                profile_image_url = storage.generate_download_url(
+                    legacy.profile_image.storage_path
+                )
             result[("legacy", legacy.id)] = {
                 "name": legacy.name,
-                "profile_image_id": str(legacy.profile_image_id)
-                if legacy.profile_image_id
-                else None,
+                "profile_image_url": profile_image_url,
                 "biography": legacy.biography,
                 "visibility": legacy.visibility,
                 "birth_date": str(legacy.birth_date) if legacy.birth_date else None,
