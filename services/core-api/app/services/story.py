@@ -499,6 +499,7 @@ async def list_legacy_stories(
                 )
                 for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
             ],
+            favorite_count=story.favorite_count or 0,
             created_at=story.created_at,
             updated_at=story.updated_at,
         )
@@ -521,6 +522,7 @@ async def list_legacy_stories(
                 .where(
                     Story.id.in_(new_shared_ids),
                     Story.visibility == "public",
+                    Story.status == "published",
                 )
                 .order_by(Story.created_at.desc())
             )
@@ -560,6 +562,7 @@ async def list_legacy_stories(
                                 story.legacy_associations, key=lambda a: a.position
                             )
                         ],
+                        favorite_count=story.favorite_count or 0,
                         shared_from=source_map.get(story.id),
                         created_at=story.created_at,
                         updated_at=story.updated_at,
@@ -641,6 +644,7 @@ async def list_public_stories(
                 )
                 for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
             ],
+            favorite_count=story.favorite_count or 0,
             created_at=story.created_at,
             updated_at=story.updated_at,
         )
@@ -710,6 +714,14 @@ async def get_story_detail(
             detail="Not authorized to view this story",
         )
 
+    # Draft stories are only visible to the author; return 404 to non-authors
+    # (do not leak that the draft exists to other legacy members)
+    if story.status == "draft" and story.author_id != user_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Story not found",
+        )
+
     # Get legacy names for response
     legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
     legacy_names = await _get_legacy_names(db, legacy_ids)
@@ -756,6 +768,7 @@ async def get_story_detail(
             )
             for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
         ],
+        favorite_count=story.favorite_count or 0,
         version_count=version_count,
         has_draft=has_draft,
         created_at=story.created_at,

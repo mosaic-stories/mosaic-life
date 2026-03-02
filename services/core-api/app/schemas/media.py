@@ -51,6 +51,9 @@ class MediaSummary(BaseModel):
     uploaded_by: UUID
     uploader_name: str
     legacies: list[LegacyAssociationResponse]
+    favorite_count: int = Field(
+        default=0, description="Number of times this media has been favorited"
+    )
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -68,6 +71,9 @@ class MediaDetail(BaseModel):
     uploaded_by: UUID
     uploader_name: str
     legacies: list[LegacyAssociationResponse]
+    favorite_count: int = Field(
+        default=0, description="Number of times this media has been favorited"
+    )
     created_at: datetime
 
     model_config = {"from_attributes": True}

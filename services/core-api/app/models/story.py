@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, String, Text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -52,6 +52,13 @@ class Story(Base):
         nullable=False,
         default="published",
         index=True,
+    )
+
+    favorite_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="0",
+        index=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(

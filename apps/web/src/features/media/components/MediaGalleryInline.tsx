@@ -12,6 +12,8 @@ import {
 import { useMedia, useDeleteMedia, useSetProfileImage } from '@/features/media/hooks/useMedia';
 import { getMediaContentUrl, type MediaItem } from '@/features/media/api/media';
 import { rewriteBackendUrlForDev } from '@/lib/url';
+import FavoriteButton from '@/features/favorites/components/FavoriteButton';
+import { useFavoriteCheck } from '@/features/favorites/hooks/useFavorites';
 
 interface MediaGalleryInlineProps {
   legacyId: string;
@@ -30,6 +32,9 @@ export default function MediaGalleryInline({
   const { data: media, isLoading, error } = useMedia(legacyId, { enabled: isAuthenticated });
   const deleteMedia = useDeleteMedia(legacyId);
   const setProfileImage = useSetProfileImage(legacyId);
+
+  const mediaIds = media?.map(m => m.id) ?? [];
+  const { data: mediaFavoriteData } = useFavoriteCheck('media', isAuthenticated ? mediaIds : []);
 
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);
@@ -99,6 +104,17 @@ export default function MediaGalleryInline({
               <div className="absolute top-2 left-2 bg-green-500 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
                 <Check className="size-3" />
                 Profile
+              </div>
+            )}
+            {isAuthenticated && (
+              <div className="absolute top-1 right-1 z-10">
+                <FavoriteButton
+                  entityType="media"
+                  entityId={item.id}
+                  isFavorited={mediaFavoriteData?.favorites[item.id] ?? false}
+                  favoriteCount={item.favorite_count ?? 0}
+                  size="sm"
+                />
               </div>
             )}
             {canEdit && (

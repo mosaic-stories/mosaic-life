@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -38,6 +38,13 @@ class Media(Base):
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
     size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False)
     storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
+
+    favorite_count: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default="0",
+        index=False,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

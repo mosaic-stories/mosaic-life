@@ -2,6 +2,7 @@
 
 from .ai import AIConversation, AIMessage
 from .associations import ConversationLegacy, MediaLegacy, StoryLegacy
+from .favorite import UserFavorite
 from .invitation import Invitation
 from .knowledge import KnowledgeAuditLog, StoryChunk
 from .legacy import Legacy, LegacyMember
@@ -43,5 +44,6 @@ __all__ = [
     "StoryVersion",
     "SupportRequest",
     "User",
+    "UserFavorite",
     "UserSession",
 ]

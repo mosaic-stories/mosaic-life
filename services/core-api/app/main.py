@@ -34,6 +34,7 @@ from .routes.legacy_link import router as legacy_link_router
 from .routes.rewrite import router as rewrite_router
 from .routes.graph_context import router as graph_context_router
 from .routes.story_context import router as story_context_router
+from .routes.favorite import router as favorite_router
 
 logger = logging.getLogger(__name__)
 
@@ -128,3 +129,4 @@ app.include_router(legacy_link_router)
 app.include_router(rewrite_router)
 app.include_router(graph_context_router)
 app.include_router(story_context_router)
+app.include_router(favorite_router)

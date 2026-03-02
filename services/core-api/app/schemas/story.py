@@ -97,6 +97,9 @@ class StorySummary(BaseModel):
         default=None,
         description="Name of the linked legacy this story was shared from, if applicable",
     )
+    favorite_count: int = Field(
+        default=0, description="Number of times this story has been favorited"
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -117,6 +120,9 @@ class StoryDetail(BaseModel):
     legacies: list[LegacyAssociationResponse]
     version_count: int | None = None
     has_draft: bool | None = None
+    favorite_count: int = Field(
+        default=0, description="Number of times this story has been favorited"
+    )
     created_at: datetime
     updated_at: datetime
 

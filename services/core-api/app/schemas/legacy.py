@@ -85,6 +85,10 @@ class LegacyResponse(BaseModel):
     profile_image_id: UUID | None = None
     profile_image_url: str | None = None
 
+    favorite_count: int = Field(
+        default=0, description="Number of times this legacy has been favorited"
+    )
+
     model_config = {"from_attributes": True}
 
 

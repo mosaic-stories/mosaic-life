@@ -15,6 +15,9 @@ import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { useAuthModal } from '@/lib/hooks/useAuthModal';
+import FavoriteButton from '@/features/favorites/components/FavoriteButton';
+import FavoritesSection from '@/features/favorites/components/FavoritesSection';
+import { useFavoriteCheck } from '@/features/favorites/hooks/useFavorites';
 
 export default function Homepage() {
   const navigate = useNavigate();
@@ -27,6 +30,9 @@ export default function Homepage() {
   const { data: myLegacies, isLoading: myLegaciesLoading } = useLegacies({ enabled: !!user });
   // useExploreLegacies for public explore section (visibility filter for authenticated users)
   const { data: exploreLegacies, isLoading: exploreLoading } = useExploreLegacies(20, user ? visibilityFilter : undefined);
+
+  const exploreLegacyIds = exploreLegacies?.map(l => l.id) ?? [];
+  const { data: legacyFavoriteData } = useFavoriteCheck('legacy', user ? exploreLegacyIds : []);
 
   const contextLabels: Record<string, string> = {
     'memorial': 'In Memoriam',
@@ -195,6 +201,8 @@ export default function Homepage() {
         </section>
       )}
 
+      {user && <FavoritesSection />}
+
       {/* Explore Legacies */}
       <section id="explore-legacies" className="bg-white py-20">
         <div className="max-w-7xl mx-auto px-6">
@@ -279,9 +287,19 @@ export default function Homepage() {
                           <h3 className="text-neutral-900">{legacy.name}</h3>
                           {dates && <p className="text-sm text-neutral-500">{dates}</p>}
                         </div>
-                        <Badge variant="outline" className={contextColors[context] || 'bg-neutral-100 text-neutral-800'}>
-                          {contextLabels[context] || context}
-                        </Badge>
+                        <div className="flex items-center gap-1">
+                          {user && (
+                            <FavoriteButton
+                              entityType="legacy"
+                              entityId={legacy.id}
+                              isFavorited={legacyFavoriteData?.favorites[legacy.id] ?? false}
+                              favoriteCount={legacy.favorite_count ?? 0}
+                            />
+                          )}
+                          <Badge variant="outline" className={contextColors[context] || 'bg-neutral-100 text-neutral-800'}>
+                            {contextLabels[context] || context}
+                          </Badge>
+                        </div>
                       </div>
 
                       {legacy.biography && (

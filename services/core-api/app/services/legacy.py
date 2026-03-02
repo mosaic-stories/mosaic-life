@@ -242,6 +242,7 @@ async def create_legacy(
         creator_email=creator.email,
         creator_name=creator.name,
         person_id=legacy.person_id,
+        favorite_count=legacy.favorite_count or 0,
     )
 
 
@@ -297,6 +298,7 @@ async def list_user_legacies(
             person_id=legacy.person_id,
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
+            favorite_count=legacy.favorite_count or 0,
         )
         for legacy in legacies
     ]
@@ -471,6 +473,7 @@ async def explore_legacies(
             person_id=legacy.person_id,
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
+            favorite_count=legacy.favorite_count or 0,
         )
         for legacy in legacies
     ]
@@ -554,6 +557,7 @@ async def get_legacy_public(
         person_id=legacy.person_id,
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
+        favorite_count=legacy.favorite_count or 0,
     )
 
 
@@ -641,6 +645,7 @@ async def get_legacy_detail(
         person_id=legacy.person_id,
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
+        favorite_count=legacy.favorite_count or 0,
     )
 
 
@@ -854,6 +859,7 @@ async def update_legacy(
         creator_email=legacy.creator.email,
         creator_name=legacy.creator.name,
         person_id=legacy.person_id,
+        favorite_count=legacy.favorite_count or 0,
     )
 
 
