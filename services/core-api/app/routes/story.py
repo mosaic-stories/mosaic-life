@@ -15,6 +15,7 @@ from ..schemas.story import (
     StorySummary,
     StoryUpdate,
 )
+from ..services import activity as activity_service
 from ..services import story as story_service
 from ..services.ingestion import index_story_chunks
 
@@ -45,6 +46,18 @@ async def create_story(
         db=db,
         user_id=session.user_id,
         data=data,
+    )
+
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="created",
+        entity_type="story",
+        entity_id=story.id,
+        metadata={
+            "title": story.title,
+            "legacy_id": str(story.legacies[0].legacy_id) if story.legacies else None,
+        },
     )
 
     # Queue background indexing
@@ -144,11 +157,21 @@ async def get_story(
     """
     session = require_auth(request)
 
-    return await story_service.get_story_detail(
+    result = await story_service.get_story_detail(
         db=db,
         user_id=session.user_id,
         story_id=story_id,
     )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="viewed",
+        entity_type="story",
+        entity_id=story_id,
+        metadata={"title": result.title},
+        deduplicate_minutes=5,
+    )
+    return result
 
 
 @router.put(
@@ -175,6 +198,15 @@ async def update_story(
         user_id=session.user_id,
         story_id=story_id,
         data=data,
+    )
+
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="updated",
+        entity_type="story",
+        entity_id=story_id,
+        metadata={"title": story.title},
     )
 
     # Reindex if content changed
@@ -227,8 +259,20 @@ async def delete_story(
     """
     session = require_auth(request)
 
+    # Capture title before deletion for activity metadata
+    story_detail = await story_service.get_story_detail(
+        db=db, user_id=session.user_id, story_id=story_id,
+    )
     await story_service.delete_story(
         db=db,
         user_id=session.user_id,
         story_id=story_id,
+    )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="deleted",
+        entity_type="story",
+        entity_id=story_id,
+        metadata={"title": story_detail.title},
     )
