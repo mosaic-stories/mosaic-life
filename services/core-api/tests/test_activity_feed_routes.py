@@ -1,7 +1,5 @@
 """Tests for social feed and enriched recent items API routes."""
 
-from uuid import uuid4
-
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
@@ -30,9 +28,7 @@ async def feed_user(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
-async def feed_legacy(
-    db_session: AsyncSession, feed_user: User
-) -> Legacy:
+async def feed_legacy(db_session: AsyncSession, feed_user: User) -> Legacy:
     """Create a legacy for feed tests."""
     person = Person(canonical_name="Feed Legacy")
     db_session.add(person)
@@ -49,9 +45,7 @@ async def feed_legacy(
     await db_session.flush()
 
     db_session.add(
-        LegacyMember(
-            legacy_id=legacy.id, user_id=feed_user.id, role="creator"
-        )
+        LegacyMember(legacy_id=legacy.id, user_id=feed_user.id, role="creator")
     )
     await db_session.commit()
     await db_session.refresh(legacy)

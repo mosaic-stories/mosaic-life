@@ -1,7 +1,5 @@
 """Tests for enriched recent items with action filter."""
 
-from uuid import uuid4
-
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,9 +25,7 @@ async def recent_user(db_session: AsyncSession) -> User:
 
 
 @pytest_asyncio.fixture
-async def recent_legacy(
-    db_session: AsyncSession, recent_user: User
-) -> Legacy:
+async def recent_legacy(db_session: AsyncSession, recent_user: User) -> Legacy:
     """Create a legacy for recent items tests."""
     person = Person(canonical_name="Recent Legacy")
     db_session.add(person)
@@ -46,9 +42,7 @@ async def recent_legacy(
     await db_session.flush()
 
     db_session.add(
-        LegacyMember(
-            legacy_id=legacy.id, user_id=recent_user.id, role="creator"
-        )
+        LegacyMember(legacy_id=legacy.id, user_id=recent_user.id, role="creator")
     )
     await db_session.commit()
     await db_session.refresh(legacy)
@@ -105,9 +99,7 @@ class TestGetEnrichedRecentItems:
         assert result["items"][0]["entity"]["name"] == "Recent Legacy"
 
     @pytest.mark.asyncio
-    async def test_returns_empty_when_tracking_disabled(
-        self, db_session: AsyncSession
-    ):
+    async def test_returns_empty_when_tracking_disabled(self, db_session: AsyncSession):
         user = User(
             email="norecenttrack@example.com",
             google_id="google_norecent",
