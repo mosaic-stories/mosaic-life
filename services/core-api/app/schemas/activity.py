@@ -57,6 +57,8 @@ class RecentItem(BaseModel):
     last_activity_at: datetime
     metadata: dict[str, Any] | None = None
 
+    model_config = {"from_attributes": True}
+
 
 class RecentItemsResponse(BaseModel):
     """Response from the recent items endpoint."""

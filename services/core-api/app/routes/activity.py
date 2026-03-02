@@ -1,12 +1,14 @@
 """Activity tracking API routes."""
 
+import secrets
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import require_auth
+from ..config.settings import get_settings
 from ..database import get_db
 from ..schemas.activity import (
     ActivityFeedResponse,
@@ -103,11 +105,35 @@ async def clear_activity(
 internal_router = APIRouter(prefix="/api/internal/activity", tags=["activity-internal"])
 
 
-@internal_router.get("/cleanup", response_model=CleanupResponse)
+async def _verify_internal_token(
+    authorization: str | None = Header(None),
+) -> None:
+    """Verify the internal API token for CronJob endpoints.
+
+    Protected by a bearer token configured via INTERNAL_API_TOKEN env var.
+    In dev (when no token is configured), the endpoint is open.
+    """
+    settings = get_settings()
+    expected = settings.internal_api_token
+    if not expected:
+        # No token configured (local dev) — allow open access
+        return
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing internal API token")
+    provided = authorization.removeprefix("Bearer ").strip()
+    if not secrets.compare_digest(provided, expected):
+        raise HTTPException(status_code=403, detail="Invalid internal API token")
+
+
+@internal_router.get(
+    "/cleanup",
+    response_model=CleanupResponse,
+    dependencies=[Depends(_verify_internal_token)],
+)
 async def run_cleanup(
     db: AsyncSession = Depends(get_db),
 ) -> CleanupResponse:
-    """Run tiered retention cleanup. Called by CronJob — no auth required."""
+    """Run tiered retention cleanup. Called by CronJob."""
     deleted = await activity_service.run_retention_cleanup(db=db)
     await db.commit()
     return CleanupResponse(deleted_count=deleted)

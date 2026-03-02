@@ -896,6 +896,8 @@ async def delete_legacy(
             detail="Legacy not found",
         )
 
+    legacy_name = legacy.name
+
     # Delete (cascade will handle members)
     await db.delete(legacy)
     await db.commit()
@@ -908,7 +910,7 @@ async def delete_legacy(
         },
     )
 
-    return {"message": "Legacy deleted"}
+    return {"message": "Legacy deleted", "name": legacy_name}
 
 
 async def remove_legacy_member(

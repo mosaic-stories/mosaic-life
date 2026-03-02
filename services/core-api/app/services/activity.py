@@ -93,7 +93,7 @@ async def record_activity(
             created_at=datetime.now(timezone.utc),
         )
         db.add(activity)
-        await db.flush()
+        await db.commit()
 
         logger.info(
             "activity.recorded",
@@ -203,7 +203,9 @@ async def get_recent_items(
         .subquery()
     )
 
-    # Join back to get the actual activity record for metadata
+    # Join back to get the actual activity record for metadata.
+    # Use distinct on (entity_type, entity_id) to avoid duplicates when
+    # multiple rows share the exact same created_at timestamp.
     query = (
         select(UserActivity)
         .join(
@@ -218,7 +220,7 @@ async def get_recent_items(
     )
 
     result = await db.execute(query)
-    activities = list(result.scalars().all())
+    activities = list(result.scalars().unique().all())
 
     items = [
         {

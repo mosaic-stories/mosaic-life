@@ -410,7 +410,7 @@ async def delete_media(
     db: AsyncSession,
     user_id: UUID,
     media_id: UUID,
-) -> None:
+) -> dict[str, str]:
     """Delete media file and record.
 
     Only the owner can delete their media.
@@ -419,6 +419,9 @@ async def delete_media(
         db: Database session
         user_id: User requesting deletion
         media_id: Media ID to delete
+
+    Returns:
+        Dict with filename of the deleted media
 
     Raises:
         HTTPException: 404 if not found, 403 if not owner
@@ -440,6 +443,8 @@ async def delete_media(
     storage = get_storage_adapter()
     storage.delete_file(media.storage_path)
 
+    media_filename = media.filename
+
     # Delete record (cascade will handle associations)
     await db.delete(media)
     await db.commit()
@@ -451,6 +456,8 @@ async def delete_media(
             "user_id": str(user_id),
         },
     )
+
+    return {"filename": media_filename}
 
 
 async def set_profile_image(

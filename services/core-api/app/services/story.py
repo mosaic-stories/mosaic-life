@@ -1007,6 +1007,8 @@ async def delete_story(
             detail="Only the author or creator of a linked legacy can delete this story",
         )
 
+    story_title = story.title
+
     # Delete story (associations will cascade)
     await db.delete(story)
     await db.commit()
@@ -1020,7 +1022,7 @@ async def delete_story(
         },
     )
 
-    return {"message": "Story deleted"}
+    return {"message": "Story deleted", "title": story_title}
 
 
 async def _check_story_visibility(

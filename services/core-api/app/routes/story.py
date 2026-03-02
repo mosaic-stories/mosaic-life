@@ -259,13 +259,7 @@ async def delete_story(
     """
     session = require_auth(request)
 
-    # Capture title before deletion for activity metadata
-    story_detail = await story_service.get_story_detail(
-        db=db,
-        user_id=session.user_id,
-        story_id=story_id,
-    )
-    await story_service.delete_story(
+    result = await story_service.delete_story(
         db=db,
         user_id=session.user_id,
         story_id=story_id,
@@ -276,5 +270,5 @@ async def delete_story(
         action="deleted",
         entity_type="story",
         entity_id=story_id,
-        metadata={"title": story_detail.title},
+        metadata={"title": result["title"]},
     )

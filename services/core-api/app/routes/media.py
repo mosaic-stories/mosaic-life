@@ -183,12 +183,7 @@ async def delete_media(
     Only the owner can delete their media.
     """
     session = require_auth(request)
-    media_detail = await media_service.get_media_detail(
-        db=db,
-        user_id=session.user_id,
-        media_id=media_id,
-    )
-    await media_service.delete_media(
+    result = await media_service.delete_media(
         db=db,
         user_id=session.user_id,
         media_id=media_id,
@@ -199,7 +194,7 @@ async def delete_media(
         action="deleted",
         entity_type="media",
         entity_id=media_id,
-        metadata={"filename": media_detail.filename},
+        metadata={"filename": result["filename"] if result else None},
     )
 
 
