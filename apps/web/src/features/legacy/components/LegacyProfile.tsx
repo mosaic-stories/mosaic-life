@@ -221,11 +221,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         )}
 
         {activeSection === 'ai' && (
-          <AISection
-            legacyName={legacy.name}
-            onChatClick={() => navigate(`/legacy/${legacyId}/ai-chat`)}
-            onPanelClick={() => navigate(`/legacy/${legacyId}/ai-panel`)}
-          />
+          <AISection legacyId={legacyId} />
         )}
       </main>
 
