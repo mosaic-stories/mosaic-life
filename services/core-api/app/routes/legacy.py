@@ -16,6 +16,7 @@ from ..schemas.legacy import (
     LegacyUpdate,
 )
 from ..schemas.media import SetProfileImageRequest
+from ..services import activity as activity_service
 from ..services import legacy as legacy_service
 from ..services import member as member_service
 from ..services import media as media_service
@@ -50,11 +51,20 @@ async def create_legacy(
     """
     session = require_auth(request)
 
-    return await legacy_service.create_legacy(
+    result = await legacy_service.create_legacy(
         db=db,
         user_id=session.user_id,
         data=data,
     )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="created",
+        entity_type="legacy",
+        entity_id=result.id,
+        metadata={"name": result.name},
+    )
+    return result
 
 
 @router.get(
@@ -179,11 +189,21 @@ async def get_legacy(
     """
     session = require_auth(request)
 
-    return await legacy_service.get_legacy_detail(
+    result = await legacy_service.get_legacy_detail(
         db=db,
         user_id=session.user_id,
         legacy_id=legacy_id,
     )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="viewed",
+        entity_type="legacy",
+        entity_id=legacy_id,
+        metadata={"name": result.name},
+        deduplicate_minutes=5,
+    )
+    return result
 
 
 @router.put(
@@ -204,12 +224,21 @@ async def update_legacy(
     """
     session = require_auth(request)
 
-    return await legacy_service.update_legacy(
+    result = await legacy_service.update_legacy(
         db=db,
         user_id=session.user_id,
         legacy_id=legacy_id,
         data=data,
     )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="updated",
+        entity_type="legacy",
+        entity_id=legacy_id,
+        metadata={"name": result.name},
+    )
+    return result
 
 
 @router.delete(
@@ -230,10 +259,21 @@ async def delete_legacy(
     """
     session = require_auth(request)
 
+    legacy_detail = await legacy_service.get_legacy_detail(
+        db=db, user_id=session.user_id, legacy_id=legacy_id,
+    )
     await legacy_service.delete_legacy(
         db=db,
         user_id=session.user_id,
         legacy_id=legacy_id,
+    )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="deleted",
+        entity_type="legacy",
+        entity_id=legacy_id,
+        metadata={"name": legacy_detail.name},
     )
 
 
