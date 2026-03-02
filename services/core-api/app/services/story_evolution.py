@@ -688,8 +688,14 @@ async def discard_session(
         await _restore_base_version(db, session, user_id)
 
     session.phase = "discarded"
+    if story_deleted:
+        # Detach the session object before commit so SQLAlchemy doesn't expire
+        # its attributes and attempt a reload after the ON DELETE CASCADE
+        # removes the row from the DB.
+        db.expunge(session)
     await db.commit()
-    await db.refresh(session)
+    if not story_deleted:
+        await db.refresh(session)
 
     logger.info(
         "evolution.session.discarded",
@@ -747,8 +753,14 @@ async def discard_active_session(
         await _restore_base_version(db, session, user_id)
 
     session.phase = "discarded"
+    if story_deleted:
+        # Detach the session object before commit so SQLAlchemy doesn't expire
+        # its attributes and attempt a reload after the ON DELETE CASCADE
+        # removes the row from the DB.
+        db.expunge(session)
     await db.commit()
-    await db.refresh(session)
+    if not story_deleted:
+        await db.refresh(session)
 
     logger.info(
         "evolution.session.discarded_active",

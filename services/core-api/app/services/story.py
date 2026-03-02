@@ -521,6 +521,7 @@ async def list_legacy_stories(
                 .where(
                     Story.id.in_(new_shared_ids),
                     Story.visibility == "public",
+                    Story.status == "published",
                 )
                 .order_by(Story.created_at.desc())
             )
@@ -708,6 +709,14 @@ async def get_story_detail(
         raise HTTPException(
             status_code=403,
             detail="Not authorized to view this story",
+        )
+
+    # Draft stories are only visible to the author; return 404 to non-authors
+    # (do not leak that the draft exists to other legacy members)
+    if story.status == "draft" and story.author_id != user_id:
+        raise HTTPException(
+            status_code=404,
+            detail="Story not found",
         )
 
     # Get legacy names for response
