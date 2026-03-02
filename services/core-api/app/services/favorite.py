@@ -5,8 +5,10 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..models.favorite import UserFavorite
 from ..models.legacy import Legacy
@@ -70,13 +72,20 @@ async def toggle_favorite(
         entity.favorite_count = max(0, current_count - 1)
         favorited = False
     else:
-        # Add favorite
+        # Add favorite — UniqueConstraint handles concurrent duplicates
         favorite = UserFavorite(
             user_id=user_id,
             entity_type=entity_type,
             entity_id=entity_id,
         )
         db.add(favorite)
+        try:
+            await db.flush()
+        except IntegrityError:
+            # Concurrent insert already created the row — rollback and return
+            await db.rollback()
+            entity = await _get_entity(db, entity_type, entity_id)
+            return {"favorited": True, "favorite_count": entity.favorite_count or 0}
         current_count = (
             entity.favorite_count if entity.favorite_count is not None else 0
         )
@@ -103,6 +112,7 @@ async def toggle_favorite(
 async def batch_check_favorites(
     db: AsyncSession,
     user_id: UUID,
+    entity_type: str,
     entity_ids: list[UUID],
 ) -> dict[str, bool]:
     """Check which entities the user has favorited. Returns {entity_id: bool}."""
@@ -112,6 +122,7 @@ async def batch_check_favorites(
     result = await db.execute(
         select(UserFavorite.entity_id).where(
             UserFavorite.user_id == user_id,
+            UserFavorite.entity_type == entity_type,
             UserFavorite.entity_id.in_(entity_ids),
         )
     )
@@ -125,15 +136,27 @@ async def list_favorites(
     user_id: UUID,
     entity_type: str | None = None,
     limit: int = 20,
+    offset: int = 0,
 ) -> dict[str, Any]:
     """List user's favorites with entity metadata."""
-    query = select(UserFavorite).where(UserFavorite.user_id == user_id)
-
+    base_filter = [UserFavorite.user_id == user_id]
     if entity_type:
-        query = query.where(UserFavorite.entity_type == entity_type)
+        base_filter.append(UserFavorite.entity_type == entity_type)
 
-    query = query.order_by(UserFavorite.created_at.desc()).limit(limit)
+    # Get true total count
+    count_result = await db.execute(
+        select(func.count()).select_from(UserFavorite).where(*base_filter)
+    )
+    total: int = count_result.scalar_one()
 
+    # Fetch paginated favorites
+    query = (
+        select(UserFavorite)
+        .where(*base_filter)
+        .order_by(UserFavorite.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+    )
     result = await db.execute(query)
     favorites = result.scalars().all()
 
@@ -160,7 +183,7 @@ async def list_favorites(
     if orphan_found:
         await db.commit()
 
-    return {"items": items, "total": len(items)}
+    return {"items": items, "total": total}
 
 
 async def _get_entity_summary(
@@ -173,33 +196,48 @@ async def _get_entity_summary(
     if not model:
         return None
 
-    result: Any = await db.execute(select(model).where(model.id == entity_id))  # type: ignore[attr-defined]
+    query: Any = select(model).where(model.id == entity_id)  # type: ignore[attr-defined]
+    # Eagerly load legacy_associations for story/media to get legacy_id
+    if entity_type in ("story", "media") and hasattr(model, "legacy_associations"):
+        query = query.options(selectinload(model.legacy_associations))
+    result: Any = await db.execute(query)
     entity = result.scalar_one_or_none()
     if not entity:
         return None
 
     if entity_type == "story":
+        # Include first legacy_id for frontend routing
+        legacy_id = None
+        if hasattr(entity, "legacy_associations") and entity.legacy_associations:
+            legacy_id = str(entity.legacy_associations[0].legacy_id)
         return {
             "title": entity.title,
             "content_preview": entity.content[:200] if entity.content else "",
             "author_id": str(entity.author_id),
             "visibility": entity.visibility,
             "status": entity.status,
-            "favorite_count": entity.favorite_count,
+            "favorite_count": entity.favorite_count or 0,
+            "legacy_id": legacy_id,
         }
     elif entity_type == "legacy":
         return {
+            "id": str(entity.id),
             "name": entity.name,
             "biography": entity.biography,
             "visibility": entity.visibility,
             "birth_date": str(entity.birth_date) if entity.birth_date else None,
             "death_date": str(entity.death_date) if entity.death_date else None,
-            "favorite_count": entity.favorite_count,
+            "favorite_count": entity.favorite_count or 0,
         }
     elif entity_type == "media":
+        # Include first legacy_id for frontend routing
+        legacy_id = None
+        if hasattr(entity, "legacy_associations") and entity.legacy_associations:
+            legacy_id = str(entity.legacy_associations[0].legacy_id)
         return {
             "filename": entity.filename,
             "content_type": entity.content_type,
-            "favorite_count": entity.favorite_count,
+            "favorite_count": entity.favorite_count or 0,
+            "legacy_id": legacy_id,
         }
     return None

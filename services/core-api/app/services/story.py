@@ -499,6 +499,7 @@ async def list_legacy_stories(
                 )
                 for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
             ],
+            favorite_count=story.favorite_count or 0,
             created_at=story.created_at,
             updated_at=story.updated_at,
         )
@@ -561,6 +562,7 @@ async def list_legacy_stories(
                                 story.legacy_associations, key=lambda a: a.position
                             )
                         ],
+                        favorite_count=story.favorite_count or 0,
                         shared_from=source_map.get(story.id),
                         created_at=story.created_at,
                         updated_at=story.updated_at,
@@ -642,6 +644,7 @@ async def list_public_stories(
                 )
                 for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
             ],
+            favorite_count=story.favorite_count or 0,
             created_at=story.created_at,
             updated_at=story.updated_at,
         )
@@ -765,6 +768,7 @@ async def get_story_detail(
             )
             for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
         ],
+        favorite_count=story.favorite_count or 0,
         version_count=version_count,
         has_draft=has_draft,
         created_at=story.created_at,

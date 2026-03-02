@@ -63,15 +63,21 @@ export default function FavoritesSection() {
   ];
 
   const handleItemClick = (item: FavoriteItem) => {
+    const entity = item.entity as Record<string, string> | null;
+    const legacyId = entity?.legacy_id;
     switch (item.entity_type) {
       case 'story':
-        navigate(`/story/${item.entity_id}`);
+        if (legacyId) {
+          navigate(`/legacy/${legacyId}/story/${item.entity_id}`);
+        }
         break;
       case 'legacy':
         navigate(`/legacy/${item.entity_id}`);
         break;
       case 'media':
-        navigate(`/media/${item.entity_id}`);
+        if (legacyId) {
+          navigate(`/legacy/${legacyId}/gallery`);
+        }
         break;
     }
   };

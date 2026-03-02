@@ -85,7 +85,7 @@ class TestCheckFavorites:
         )
 
         response = await client.get(
-            f"/api/favorites/check?entity_ids={test_story.id},{test_story_public.id}",
+            f"/api/favorites/check?entity_type=story&entity_ids={test_story.id},{test_story_public.id}",
             headers=auth_headers,
         )
 

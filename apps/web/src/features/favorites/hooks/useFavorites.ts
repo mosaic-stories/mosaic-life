@@ -12,14 +12,15 @@ import { mediaKeys } from '@/features/media/hooks/useMedia';
 
 export const favoriteKeys = {
   all: ['favorites'] as const,
-  check: (entityIds: string[]) => [...favoriteKeys.all, 'check', entityIds] as const,
+  check: (entityType: EntityType, entityIds: string[]) =>
+    [...favoriteKeys.all, 'check', entityType, entityIds] as const,
   list: (entityType?: EntityType) => [...favoriteKeys.all, 'list', entityType] as const,
 };
 
-export function useFavoriteCheck(entityIds: string[]) {
+export function useFavoriteCheck(entityType: EntityType, entityIds: string[]) {
   return useQuery({
-    queryKey: favoriteKeys.check(entityIds),
-    queryFn: () => checkFavorites(entityIds),
+    queryKey: favoriteKeys.check(entityType, entityIds),
+    queryFn: () => checkFavorites(entityType, entityIds),
     enabled: entityIds.length > 0,
   });
 }

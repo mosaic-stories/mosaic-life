@@ -34,7 +34,7 @@ export default function MediaGalleryInline({
   const setProfileImage = useSetProfileImage(legacyId);
 
   const mediaIds = media?.map(m => m.id) ?? [];
-  const { data: mediaFavoriteData } = useFavoriteCheck(isAuthenticated ? mediaIds : []);
+  const { data: mediaFavoriteData } = useFavoriteCheck('media', isAuthenticated ? mediaIds : []);
 
   const [selectedMedia, setSelectedMedia] = useState<MediaItem | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<MediaItem | null>(null);

@@ -24,7 +24,7 @@ export default function StoriesSection({
 }: StoriesSectionProps) {
   const { user } = useAuth();
   const storyIds = stories?.map(s => s.id) ?? [];
-  const { data: favoriteData } = useFavoriteCheck(user ? storyIds : []);
+  const { data: favoriteData } = useFavoriteCheck('story', user ? storyIds : []);
 
   return (
     <div className="max-w-3xl space-y-6">

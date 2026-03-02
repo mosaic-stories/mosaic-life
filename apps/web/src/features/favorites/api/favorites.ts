@@ -39,11 +39,12 @@ export async function toggleFavorite(
 }
 
 export async function checkFavorites(
+  entityType: EntityType,
   entityIds: string[],
 ): Promise<FavoriteCheckResponse> {
   if (entityIds.length === 0) return { favorites: {} };
   return apiGet<FavoriteCheckResponse>(
-    `/api/favorites/check?entity_ids=${entityIds.join(',')}`,
+    `/api/favorites/check?entity_type=${entityType}&entity_ids=${entityIds.join(',')}`,
   );
 }
 

@@ -137,6 +137,7 @@ class TestBatchCheckFavorites:
         result = await favorite_service.batch_check_favorites(
             db=db_session,
             user_id=test_user.id,
+            entity_type="story",
             entity_ids=[test_story.id, test_story_public.id],
         )
 
@@ -153,6 +154,7 @@ class TestBatchCheckFavorites:
         result = await favorite_service.batch_check_favorites(
             db=db_session,
             user_id=test_user.id,
+            entity_type="story",
             entity_ids=[],
         )
 

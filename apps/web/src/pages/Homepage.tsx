@@ -32,7 +32,7 @@ export default function Homepage() {
   const { data: exploreLegacies, isLoading: exploreLoading } = useExploreLegacies(20, user ? visibilityFilter : undefined);
 
   const exploreLegacyIds = exploreLegacies?.map(l => l.id) ?? [];
-  const { data: legacyFavoriteData } = useFavoriteCheck(user ? exploreLegacyIds : []);
+  const { data: legacyFavoriteData } = useFavoriteCheck('legacy', user ? exploreLegacyIds : []);
 
   const contextLabels: Record<string, string> = {
     'memorial': 'In Memoriam',

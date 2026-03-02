@@ -317,6 +317,7 @@ async def list_legacy_media(
                 for assoc in sorted(m.legacy_associations, key=lambda a: a.position)
             ],
             created_at=m.created_at,
+            favorite_count=m.favorite_count or 0,
         )
         for m in media_list
     ]
@@ -401,6 +402,7 @@ async def get_media_detail(
             for assoc in sorted(media.legacy_associations, key=lambda a: a.position)
         ],
         created_at=media.created_at,
+        favorite_count=media.favorite_count or 0,
     )
 
 
