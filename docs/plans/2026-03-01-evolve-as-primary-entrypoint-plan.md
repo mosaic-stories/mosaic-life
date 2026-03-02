@@ -955,7 +955,7 @@ git commit -m "feat(web): show Draft badge on story cards for unpublished storie
 
 ---
 
-## Task 13: Clean up dead code
+## Task 13: Clean up dead code ✅ DONE
 
 **Files:**
 - Delete: `apps/web/src/features/story/components/StoryEditForm.tsx`
@@ -1001,7 +1001,7 @@ git commit -m "refactor(web): remove dead code from old story creation and edit 
 
 ---
 
-## Task 14: Final integration test
+## Task 14: Final integration test ✅ DONE
 
 **Step 1: Start local environment**
 
