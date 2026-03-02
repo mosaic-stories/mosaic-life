@@ -486,3 +486,74 @@ async def get_social_feed(
         )
 
     return {"items": items, "has_more": has_more, "next_cursor": next_cursor}
+
+
+async def get_enriched_recent_items(
+    db: AsyncSession,
+    user_id: UUID,
+    action: str | None = None,
+    entity_type: str | None = None,
+    limit: int = 10,
+) -> dict[str, Any]:
+    """Get deduplicated recent items with entity enrichment.
+
+    Like get_recent_items but with optional action filter and entity data.
+    """
+    # Check if tracking is enabled
+    user_result = await db.execute(select(User.preferences).where(User.id == user_id))
+    prefs = user_result.scalar_one_or_none()
+    if prefs and not prefs.get("activity_tracking_enabled", True):
+        return {"items": [], "tracking_enabled": False}
+
+    filters = [UserActivity.user_id == user_id]
+    if entity_type:
+        filters.append(UserActivity.entity_type == entity_type)
+    if action:
+        filters.append(UserActivity.action == action)
+
+    subq = (
+        select(
+            UserActivity.entity_type,
+            UserActivity.entity_id,
+            func.max(UserActivity.created_at).label("last_activity_at"),
+        )
+        .where(*filters)
+        .group_by(UserActivity.entity_type, UserActivity.entity_id)
+        .order_by(func.max(UserActivity.created_at).desc())
+        .limit(limit)
+        .subquery()
+    )
+
+    query = (
+        select(UserActivity)
+        .join(
+            subq,
+            (UserActivity.entity_type == subq.c.entity_type)
+            & (UserActivity.entity_id == subq.c.entity_id)
+            & (UserActivity.created_at == subq.c.last_activity_at),
+        )
+        .where(UserActivity.user_id == user_id)
+        .order_by(UserActivity.created_at.desc())
+        .limit(limit)
+    )
+
+    result = await db.execute(query)
+    activities = list(result.scalars().unique().all())
+
+    # Enrich entities
+    entity_keys = [(a.entity_type, a.entity_id) for a in activities]
+    entity_map = await enrich_entities(db=db, items=entity_keys)
+
+    items = [
+        {
+            "entity_type": a.entity_type,
+            "entity_id": a.entity_id,
+            "last_action": a.action,
+            "last_activity_at": a.created_at,
+            "metadata": a.metadata_,
+            "entity": entity_map.get((a.entity_type, a.entity_id)),
+        }
+        for a in activities
+    ]
+
+    return {"items": items, "tracking_enabled": True}
