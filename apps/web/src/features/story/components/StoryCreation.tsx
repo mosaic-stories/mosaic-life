@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Globe, Users, Lock, AlertCircle, Sparkles } from 'lucide-react';
+import { Loader2, Globe, Users, Lock, Sparkles } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import VersionHistoryDrawer from './VersionHistoryDrawer';
@@ -10,7 +10,7 @@ import StoryViewer from './StoryViewer';
 import DeleteStoryDialog from './DeleteStoryDialog';
 import EvolutionResumeBanner from './EvolutionResumeBanner';
 import { useLegacy } from '@/features/legacy/hooks/useLegacies';
-import { useStory, useCreateStory, useUpdateStory, useDeleteStory, storyKeys } from '@/features/story/hooks/useStories';
+import { useStory, useDeleteStory, storyKeys } from '@/features/story/hooks/useStories';
 import {
   useVersions,
   useVersionDetail,
@@ -18,7 +18,6 @@ import {
   useApproveDraft,
   useDiscardDraft,
 } from '@/features/story/hooks/useVersions';
-import type { LegacyAssociationInput } from '@/features/story/api/stories';
 import { useActiveEvolution, evolutionKeys } from '@/lib/hooks/useEvolution';
 import { discardActiveEvolution } from '@/lib/api/evolution';
 import { useAuth } from '@/contexts/AuthContext';
@@ -45,8 +44,6 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [visibility, setVisibility] = useState<'public' | 'private' | 'personal'>('private');
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [selectedLegacies, setSelectedLegacies] = useState<LegacyAssociationInput[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [previewVersionNumber, setPreviewVersionNumber] = useState<number | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -57,8 +54,6 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   const { data: legacy, isLoading: _legacyLoading } = useLegacy(legacyId);
   const { data: existingStory, isLoading: storyLoading } = useStory(storyId);
   const { data: activeEvolution, isSuccess: hasEvolutionData } = useActiveEvolution(storyId, !!storyId);
-  const createStory = useCreateStory();
-  const updateStory = useUpdateStory();
   const deleteStory = useDeleteStory();
   const isEditMode = !!storyId;
 
@@ -106,89 +101,8 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
       setTitle(existingStory.title);
       setContent(existingStory.content);
       setVisibility(existingStory.visibility);
-      setSelectedLegacies(
-        existingStory.legacies.map((legacy, index) => ({
-          legacy_id: legacy.legacy_id,
-          role: legacy.role,
-          position: legacy.position ?? index,
-        }))
-      );
     }
   }, [existingStory]);
-
-  useEffect(() => {
-    if (isEditMode) return;
-
-    setSelectedLegacies((current) => {
-      if (current.some((legacy) => legacy.legacy_id === legacyId)) {
-        return current;
-      }
-
-      const next = [...current];
-      if (next.length === 0) {
-        next.push({ legacy_id: legacyId, role: 'primary', position: 0 });
-      } else {
-        next.push({ legacy_id: legacyId, role: 'secondary', position: next.length });
-      }
-
-      return next.map((legacy, index) => ({
-        ...legacy,
-        position: index,
-      }));
-    });
-  }, [isEditMode, legacyId]);
-
-  const handlePublish = async () => {
-    if (!title.trim() || !content.trim()) {
-      setSubmitError('Please add a title and content for your story.');
-      return;
-    }
-
-    if (selectedLegacies.length === 0) {
-      setSubmitError('Please select at least one legacy for this story.');
-      return;
-    }
-
-    setSubmitError(null);
-
-    try {
-      if (isEditMode && storyId) {
-        await updateStory.mutateAsync({
-          storyId,
-          data: {
-            title: title.trim(),
-            content: content.trim(),
-            visibility,
-            legacies: selectedLegacies.map((legacy, index) => ({
-              legacy_id: legacy.legacy_id,
-              role: legacy.role,
-              position: index,
-            })),
-          },
-        });
-      } else {
-        await createStory.mutateAsync({
-          legacies: selectedLegacies.map((legacy, index) => ({
-            legacy_id: legacy.legacy_id,
-            role: legacy.role,
-            position: index,
-          })),
-          title: title.trim(),
-          content: content.trim(),
-          visibility,
-        });
-      }
-
-      // Navigate back to the legacy profile on success
-      const primaryLegacyId = selectedLegacies.find((legacy) => legacy.role === 'primary')?.legacy_id
-        ?? selectedLegacies[0]?.legacy_id
-        ?? legacyId;
-
-      navigate(`/legacy/${primaryLegacyId}`);
-    } catch (error) {
-      setSubmitError(isEditMode ? 'Failed to update story. Please try again.' : 'Failed to publish story. Please try again.');
-    }
-  };
 
   const handleBack = () => {
     navigate(`/legacy/${legacyId}`);
@@ -253,7 +167,6 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   };
 
   const legacyName = legacy?.name || 'Legacy';
-  const isMutating = createStory.isPending || updateStory.isPending;
 
   // Show loading state while fetching existing story
   if (isEditMode && storyLoading) {
@@ -288,19 +201,13 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
       />
       <StoryToolbar
         legacyName={legacyName}
-        isViewMode={true}
         isEditMode={isEditMode}
         canEdit={canEdit}
         showHistory={showHistory}
         versionCount={existingStory?.version_count ?? null}
-        isMutating={isMutating}
-        titleEmpty={!title.trim()}
-        contentEmpty={!content.trim()}
         hasActiveEvolution={hasActiveEvolution}
         canDelete={canEdit}
         onBack={handleBack}
-        onCancelEdit={() => {}}
-        onPublish={handlePublish}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onEvolve={handleNavigateToEvolve}
         onDelete={() => setShowDeleteDialog(true)}
@@ -326,16 +233,6 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
                 <Sparkles className="size-4 mr-2" />
                 Continue in Workspace
               </Button>
-            </Card>
-          )}
-
-          {/* Error Message */}
-          {submitError && (
-            <Card className="p-4 border-red-200 bg-red-50">
-              <div className="flex items-center gap-3 text-red-800">
-                <AlertCircle className="size-5" />
-                <p>{submitError}</p>
-              </div>
             </Card>
           )}
 

@@ -1,4 +1,4 @@
-import { ArrowLeft, Loader2, Save, Sparkles, Trash2 } from 'lucide-react';
+import { ArrowLeft, Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { HeaderSlot } from '@/components/header';
@@ -6,19 +6,13 @@ import VersionHistoryButton from './VersionHistoryButton';
 
 interface StoryToolbarProps {
   legacyName: string;
-  isViewMode: boolean;
   isEditMode: boolean;
   canEdit: boolean;
   showHistory: boolean;
   versionCount: number | null;
-  isMutating: boolean;
-  titleEmpty: boolean;
-  contentEmpty: boolean;
   hasActiveEvolution: boolean;
   canDelete: boolean;
   onBack: () => void;
-  onCancelEdit: () => void;
-  onPublish: () => void;
   onOpenHistory: () => void;
   onEvolve: () => void;
   onDelete: () => void;
@@ -26,19 +20,13 @@ interface StoryToolbarProps {
 
 export default function StoryToolbar({
   legacyName,
-  isViewMode,
   isEditMode,
   canEdit,
   showHistory,
   versionCount,
-  isMutating,
-  titleEmpty,
-  contentEmpty,
   hasActiveEvolution,
   canDelete,
   onBack,
-  onCancelEdit,
-  onPublish,
   onOpenHistory,
   onEvolve,
   onDelete,
@@ -53,7 +41,7 @@ export default function StoryToolbar({
         <span>Back to {legacyName}</span>
       </button>
 
-      {isViewMode && isEditMode ? (
+      {isEditMode && (
         <>
           {showHistory && (
             <VersionHistoryButton
@@ -89,30 +77,6 @@ export default function StoryToolbar({
               Delete
             </Button>
           )}
-        </>
-      ) : (
-        <>
-          {isEditMode && (
-            <Button variant="ghost" size="sm" onClick={onCancelEdit}>
-              Cancel
-            </Button>
-          )}
-          <Button variant="ghost" size="sm" disabled>
-            Save Draft
-          </Button>
-          <Button
-            size="sm"
-            className="gap-2"
-            onClick={onPublish}
-            disabled={isMutating || titleEmpty || contentEmpty}
-          >
-            {isMutating ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Save className="size-4" />
-            )}
-            {isEditMode ? 'Update Story' : 'Publish Story'}
-          </Button>
         </>
       )}
     </HeaderSlot>

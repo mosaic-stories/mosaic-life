@@ -10,7 +10,7 @@
 
 ---
 
-## Task 1: Add `status` column to Story model + migration
+## Task 1: Add `status` column to Story model + migration ✅ DONE
 
 **Files:**
 - Modify: `services/core-api/app/models/story.py:1-87`
@@ -139,7 +139,7 @@ git commit -m "feat(api): add status field to Story model (draft/published)"
 
 ---
 
-## Task 2: Filter draft stories from list endpoints
+## Task 2: Filter draft stories from list endpoints ✅ DONE
 
 **Files:**
 - Modify: `services/core-api/app/services/story.py` (list_legacy_stories method)
@@ -237,7 +237,7 @@ git commit -m "feat(api): filter draft stories from non-author list views"
 
 ---
 
-## Task 3: Update evolution accept to transition draft → published + accept visibility
+## Task 3: Update evolution accept to transition draft → published + accept visibility ✅ DONE
 
 **Files:**
 - Modify: `services/core-api/app/services/story_evolution.py:717-782` (accept_session)
@@ -349,7 +349,7 @@ git commit -m "feat(api): accept evolution transitions draft to published with o
 
 ---
 
-## Task 4: Update evolution discard to delete draft stories
+## Task 4: Update evolution discard to delete draft stories ✅ DONE
 
 **Files:**
 - Modify: `services/core-api/app/services/story_evolution.py` (discard_session, discard_active_session)
@@ -441,7 +441,7 @@ git commit -m "feat(api): discard evolution deletes draft stories entirely"
 
 ---
 
-## Task 5: Frontend — Update types and API for story status
+## Task 5: Frontend — Update types and API for story status ✅ DONE
 
 **Files:**
 - Modify: `apps/web/src/features/story/api/stories.ts:45-50` (CreateStoryInput)
@@ -501,7 +501,7 @@ git commit -m "feat(web): update story API types for draft status and accept vis
 
 ---
 
-## Task 6: Frontend — Wire "Add Story" to auto-create draft + navigate to evolve
+## Task 6: Frontend — Wire "Add Story" to auto-create draft + navigate to evolve ✅ DONE
 
 **Files:**
 - Modify: `apps/web/src/features/legacy/components/LegacyHeaderControls.tsx:57-60`
@@ -577,7 +577,7 @@ git commit -m "feat(web): wire Add Story to auto-create draft and open evolve wo
 
 ---
 
-## Task 7: Frontend — Replace "Edit Story" with "Evolve" on story view page
+## Task 7: Frontend — Replace "Edit Story" with "Evolve" on story view page ✅ DONE
 
 **Files:**
 - Modify: `apps/web/src/features/story/components/StoryToolbar.tsx:59-85`
@@ -651,7 +651,7 @@ git commit -m "feat(web): replace Edit Story with Evolve button on story view pa
 
 ---
 
-## Task 8: Frontend — Add Settings tool to evolve workspace
+## Task 8: Frontend — Add Settings tool to evolve workspace ✅ DONE
 
 **Files:**
 - Create: `apps/web/src/features/evolve-workspace/tools/SettingsTool.tsx`
@@ -729,7 +729,7 @@ git commit -m "feat(web): add Settings tool to evolve workspace with visibility 
 
 ---
 
-## Task 9: Frontend — Update Finish dialog with visibility picker
+## Task 9: Frontend — Update Finish dialog with visibility picker ✅ DONE
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/components/WorkspaceHeader.tsx:188-213`
@@ -802,7 +802,7 @@ git commit -m "feat(web): add visibility picker to Finish confirmation dialog"
 
 ---
 
-## Task 10: Frontend — Update Discard behavior for draft stories
+## Task 10: Frontend — Update Discard behavior for draft stories ✅ DONE
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/components/WorkspaceHeader.tsx:143-174`
@@ -868,7 +868,7 @@ git commit -m "feat(web): update discard to delete draft stories and navigate to
 
 ---
 
-## Task 11: Frontend — Contextual "AI Writer" / "Rewrite" labeling
+## Task 11: Frontend — Contextual "AI Writer" / "Rewrite" labeling ✅ DONE
 
 **Files:**
 - Modify: `apps/web/src/features/evolve-workspace/tools/RewriteTool.tsx:88-90, 240-257`
@@ -924,7 +924,7 @@ git commit -m "feat(web): contextual AI Writer vs Rewrite labeling based on stor
 
 ---
 
-## Task 12: Frontend — Draft badge in story list
+## Task 12: Frontend — Draft badge in story list ✅ DONE
 
 **Files:**
 - Modify: `apps/web/src/features/legacy/components/StoriesSection.tsx` or the story card component
