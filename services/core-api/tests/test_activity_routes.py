@@ -135,3 +135,16 @@ class TestClearActivity:
     async def test_requires_auth(self, client: AsyncClient):
         response = await client.delete("/api/activity")
         assert response.status_code == 401
+
+
+class TestCleanupEndpoint:
+    @pytest.mark.asyncio
+    async def test_cleanup_returns_deleted_count(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+    ):
+        response = await client.get("/api/internal/activity/cleanup")
+        assert response.status_code == 200
+        data = response.json()
+        assert "deleted_count" in data

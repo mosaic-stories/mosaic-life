@@ -11,6 +11,7 @@ from ..database import get_db
 from ..schemas.activity import (
     ActivityFeedResponse,
     ActivityItem,
+    CleanupResponse,
     RecentItemsResponse,
 )
 from ..services import activity as activity_service
@@ -96,3 +97,17 @@ async def clear_activity(
     session = require_auth(request)
     await activity_service.clear_user_activity(db=db, user_id=session.user_id)
     await db.commit()
+
+
+# Internal cleanup endpoint — called by Kubernetes CronJob
+internal_router = APIRouter(prefix="/api/internal/activity", tags=["activity-internal"])
+
+
+@internal_router.get("/cleanup", response_model=CleanupResponse)
+async def run_cleanup(
+    db: AsyncSession = Depends(get_db),
+) -> CleanupResponse:
+    """Run tiered retention cleanup. Called by CronJob — no auth required."""
+    deleted = await activity_service.run_retention_cleanup(db=db)
+    await db.commit()
+    return CleanupResponse(deleted_count=deleted)
