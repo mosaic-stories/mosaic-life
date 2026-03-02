@@ -12,8 +12,16 @@ function FavoriteCard({ item, onClick }: { item: FavoriteItem; onClick: () => vo
 
   return (
     <Card
+      role="button"
+      tabIndex={0}
       className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer p-4 space-y-2"
       onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick();
+        }
+      }}
     >
       <div className="flex items-center gap-2">
         <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-xs font-medium text-neutral-600 capitalize">

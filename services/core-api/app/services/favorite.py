@@ -5,7 +5,7 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -63,13 +63,22 @@ async def toggle_favorite(
     )
     existing = result.scalar_one_or_none()
 
+    model = ENTITY_MODEL_MAP[entity_type]
+
     if existing:
         # Remove favorite
         await db.delete(existing)
-        current_count = (
-            entity.favorite_count if entity.favorite_count is not None else 0
+        # Atomic DB-side decrement: CASE WHEN > 0 THEN count-1 ELSE 0 END
+        await db.execute(
+            update(model)
+            .where(model.id == entity_id)  # type: ignore[attr-defined]
+            .values(
+                favorite_count=case(
+                    (model.favorite_count > 0, model.favorite_count - 1),  # type: ignore[attr-defined]
+                    else_=0,
+                )
+            )
         )
-        entity.favorite_count = max(0, current_count - 1)
         favorited = False
     else:
         # Add favorite — UniqueConstraint handles concurrent duplicates
@@ -86,13 +95,16 @@ async def toggle_favorite(
             await db.rollback()
             entity = await _get_entity(db, entity_type, entity_id)
             return {"favorited": True, "favorite_count": entity.favorite_count or 0}
-        current_count = (
-            entity.favorite_count if entity.favorite_count is not None else 0
+        # Atomic DB-side increment: SET favorite_count = favorite_count + 1
+        await db.execute(
+            update(model)
+            .where(model.id == entity_id)  # type: ignore[attr-defined]
+            .values(favorite_count=model.favorite_count + 1)  # type: ignore[attr-defined]
         )
-        entity.favorite_count = current_count + 1
         favorited = True
 
     await db.commit()
+    # Expire the cached entity so refresh fetches the DB-side computed value
     await db.refresh(entity)
 
     logger.info(
@@ -182,6 +194,11 @@ async def list_favorites(
 
     if orphan_found:
         await db.commit()
+        # Recount after orphan cleanup so total stays consistent
+        count_result2 = await db.execute(
+            select(func.count()).select_from(UserFavorite).where(*base_filter)
+        )
+        total = count_result2.scalar_one()
 
     return {"items": items, "total": total}
 
