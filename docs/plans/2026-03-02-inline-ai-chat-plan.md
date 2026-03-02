@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Update SectionNav — rename tab and remove Demo badge
+### Task 1: Update SectionNav — rename tab and remove Demo badge ✅ DONE
 
 **Files:**
 - Modify: `apps/web/src/features/legacy/components/SectionNav.tsx:46-54`
@@ -85,7 +85,7 @@ git commit -m "refactor: rename AI Interactions tab to AI Chat and remove Demo b
 
 ---
 
-### Task 2: Rebuild AISection as inline chat host
+### Task 2: Rebuild AISection as inline chat host ✅ DONE
 
 **Files:**
 - Modify: `apps/web/src/features/legacy/components/AISection.tsx` (full rewrite)
@@ -388,7 +388,7 @@ git commit -m "feat: embed AI chat directly in Legacy detail page AI tab"
 
 ---
 
-### Task 3: Remove standalone routes
+### Task 3: Remove standalone routes ✅ DONE
 
 **Files:**
 - Modify: `apps/web/src/routes/index.tsx:18-19,150-165`
@@ -441,7 +441,7 @@ git commit -m "refactor: remove standalone AI chat and AI panel routes"
 
 ---
 
-### Task 4: Delete dead components
+### Task 4: Delete dead components ✅ DONE
 
 **Files:**
 - Delete: `apps/web/src/features/ai-chat/components/AIAgentChat.tsx`
@@ -485,7 +485,7 @@ git commit -m "refactor: delete standalone AI chat page components and update ex
 
 ---
 
-### Task 5: Manual smoke test
+### Task 5: Manual smoke test ✅ DONE (compilation verified; manual browser testing deferred to user)
 
 **Step 1: Start the dev server**
 
@@ -510,7 +510,7 @@ Run: `cd apps/web && npm run dev`
 
 ---
 
-### Task 6: Run linting and type checks
+### Task 6: Run linting and type checks ✅ DONE
 
 **Step 1: Run TypeScript check**
 
