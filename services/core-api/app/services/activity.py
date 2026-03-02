@@ -9,6 +9,9 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.activity import UserActivity
+from ..models.associations import StoryLegacy
+from ..models.legacy import Legacy
+from ..models.story import Story
 from ..models.user import User
 
 logger = logging.getLogger(__name__)
@@ -294,3 +297,80 @@ async def run_retention_cleanup(db: AsyncSession, batch_size: int = 1000) -> int
             )
 
     return total_deleted
+
+
+async def enrich_entities(
+    db: AsyncSession,
+    items: list[tuple[str, UUID]],
+) -> dict[tuple[str, UUID], dict[str, Any]]:
+    """Batch-load entity details for activity items.
+
+    Returns a dict keyed by (entity_type, entity_id) with entity summary dicts.
+    Missing entities (deleted) are omitted from the result.
+    """
+    if not items:
+        return {}
+
+    result: dict[tuple[str, UUID], dict[str, Any]] = {}
+
+    # Group by entity type for batch queries
+    legacy_ids = [eid for etype, eid in items if etype == "legacy"]
+    story_ids = [eid for etype, eid in items if etype == "story"]
+
+    # Enrich legacies
+    if legacy_ids:
+        rows = await db.execute(select(Legacy).where(Legacy.id.in_(legacy_ids)))
+        for legacy in rows.scalars().all():
+            result[("legacy", legacy.id)] = {
+                "name": legacy.name,
+                "profile_image_id": str(legacy.profile_image_id)
+                if legacy.profile_image_id
+                else None,
+                "biography": legacy.biography,
+                "visibility": legacy.visibility,
+                "birth_date": str(legacy.birth_date) if legacy.birth_date else None,
+                "death_date": str(legacy.death_date) if legacy.death_date else None,
+            }
+
+    # Enrich stories (with primary legacy info and author name)
+    if story_ids:
+        story_rows = await db.execute(select(Story).where(Story.id.in_(story_ids)))
+        stories = list(story_rows.scalars().all())
+
+        # Get primary legacy associations for these stories
+        if stories:
+            sl_rows = await db.execute(
+                select(StoryLegacy, Legacy.id, Legacy.name)
+                .join(Legacy, StoryLegacy.legacy_id == Legacy.id)
+                .where(
+                    StoryLegacy.story_id.in_([s.id for s in stories]),
+                    StoryLegacy.role == "primary",
+                )
+            )
+            # Build story_id -> (legacy_id, legacy_name) map
+            story_legacy_map: dict[UUID, tuple[str, str]] = {}
+            for sl, leg_id, leg_name in sl_rows.all():
+                story_legacy_map[sl.story_id] = (str(leg_id), leg_name)
+
+            # Get author names
+            author_ids = list({s.author_id for s in stories})
+            author_rows = await db.execute(
+                select(User.id, User.name).where(User.id.in_(author_ids))
+            )
+            author_map: dict[UUID, str] = {
+                uid: name or "" for uid, name in author_rows.all()
+            }
+
+            for story in stories:
+                legacy_info = story_legacy_map.get(story.id)
+                content_preview = (story.content or "")[:200]
+                result[("story", story.id)] = {
+                    "title": story.title,
+                    "content_preview": content_preview,
+                    "visibility": story.visibility,
+                    "author_name": author_map.get(story.author_id, ""),
+                    "legacy_id": legacy_info[0] if legacy_info else None,
+                    "legacy_name": legacy_info[1] if legacy_info else None,
+                }
+
+    return result
