@@ -18,6 +18,8 @@ import { useAuthModal } from '@/lib/hooks/useAuthModal';
 import FavoriteButton from '@/features/favorites/components/FavoriteButton';
 import FavoritesSection from '@/features/favorites/components/FavoritesSection';
 import { useFavoriteCheck } from '@/features/favorites/hooks/useFavorites';
+import RecentActivitySection from '@/features/activity/components/RecentActivitySection';
+import RecentlyViewedSection from '@/features/activity/components/RecentlyViewedSection';
 
 export default function Homepage() {
   const navigate = useNavigate();
@@ -101,6 +103,14 @@ export default function Homepage() {
           </div>
         </div>
       </section>
+
+      {user && (
+        <RecentlyViewedSection
+          entityType="legacy"
+          title="Recently Viewed Legacies"
+          description="Legacies you've visited recently"
+        />
+      )}
 
       {/* My Legacies - Only shown when logged in */}
       {user && (
@@ -200,6 +210,16 @@ export default function Homepage() {
           </div>
         </section>
       )}
+
+      {user && (
+        <RecentlyViewedSection
+          entityType="story"
+          title="Recently Viewed Stories"
+          description="Stories you've read recently"
+        />
+      )}
+
+      {user && <RecentActivitySection />}
 
       {user && <FavoritesSection />}
 
