@@ -249,6 +249,36 @@ class TestGetSocialFeed:
         assert len(result["items"]) == 0
 
     @pytest.mark.asyncio
+    async def test_excludes_non_member_actor_on_scoped_entity(
+        self,
+        db_session: AsyncSession,
+        user_alice: User,
+        user_eve: User,
+        shared_legacy: Legacy,
+    ):
+        """Non-members who act on a public in-scope entity must not appear in the feed.
+
+        Eve is not a member of shared_legacy. If she favorites it (possible for public
+        legacies), her activity row has entity_id == shared_legacy.id — which is in
+        Alice's membership scope — but she is not a co-member. Before the actor
+        co-membership check was added, Eve's activity would have leaked into Alice's feed.
+        """
+        await activity_service.record_activity(
+            db=db_session,
+            user_id=user_eve.id,
+            action="favorited",
+            entity_type="legacy",
+            entity_id=shared_legacy.id,
+        )
+        result = await activity_service.get_social_feed(
+            db=db_session, user_id=user_alice.id
+        )
+        actor_ids = [item["actor"]["id"] for item in result["items"]]
+        assert user_eve.id not in actor_ids, (
+            "Non-member Eve's activity on a scoped entity must not appear in Alice's feed"
+        )
+
+    @pytest.mark.asyncio
     async def test_includes_enriched_entity_data(
         self, db_session: AsyncSession, user_alice: User, shared_legacy: Legacy
     ):

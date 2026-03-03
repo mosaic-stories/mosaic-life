@@ -469,7 +469,19 @@ async def get_social_feed(
     )
     my_legacy_ids = [row[0] for row in membership_result.all()]
 
-    # 2. Find story IDs linked to those legacies (only when user has memberships)
+    # 2. Find co-member user IDs for those legacies (actors we trust in the feed).
+    # This prevents non-members who interact with public entities from leaking into
+    # the social feed just because the entity happens to be in scope.
+    co_member_ids: set[UUID] = {user_id}  # always include self
+    if my_legacy_ids:
+        co_member_result = await db.execute(
+            select(LegacyMember.user_id).where(
+                LegacyMember.legacy_id.in_(my_legacy_ids)
+            )
+        )
+        co_member_ids.update(row[0] for row in co_member_result.all())
+
+    # 3. Find story IDs linked to those legacies (only when user has memberships)
     related_story_ids: list[UUID] = []
     if my_legacy_ids:
         story_result = await db.execute(
@@ -477,7 +489,9 @@ async def get_social_feed(
         )
         related_story_ids = [row[0] for row in story_result.all()]
 
-    # 3. Build activity query: legacy/story scope (when member) + own media/conversation always
+    # 4. Build activity query:
+    #    - Legacy/story scope: entity is in scope AND actor is a co-member of those legacies
+    #    - Own media/conversation: always included (already actor-scoped to user_id)
     scope_filters = [
         # Always include the user's own media/conversation activity
         (UserActivity.user_id == user_id)
@@ -487,11 +501,13 @@ async def get_social_feed(
         scope_filters.append(
             (UserActivity.entity_type == "legacy")
             & (UserActivity.entity_id.in_(my_legacy_ids))
+            & (UserActivity.user_id.in_(co_member_ids))
         )
     if related_story_ids:
         scope_filters.append(
             (UserActivity.entity_type == "story")
             & (UserActivity.entity_id.in_(related_story_ids))
+            & (UserActivity.user_id.in_(co_member_ids))
         )
 
     filters = [
