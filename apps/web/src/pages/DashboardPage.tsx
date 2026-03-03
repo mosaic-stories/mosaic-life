@@ -1,5 +1,5 @@
-import { Plus, Loader2, Users } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plus, Loader2, Users, ArrowRight } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -124,6 +124,18 @@ export default function DashboardPage() {
               </div>
             </Card>
           </div>
+
+          {!myLegaciesLoading && myLegacies && myLegacies.length > 2 && (
+            <div className="mt-6 text-center">
+              <Link
+                to="/legacies"
+                className="text-sm text-theme-primary hover:text-theme-primary-dark font-medium inline-flex items-center gap-1"
+              >
+                View all {myLegacies.length} legacies
+                <ArrowRight className="size-4" />
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 

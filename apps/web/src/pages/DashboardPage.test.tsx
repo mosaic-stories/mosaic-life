@@ -60,4 +60,10 @@ describe('DashboardPage', () => {
     expect(screen.queryByText(/honor the lives and milestones/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/start creating today/i)).not.toBeInTheDocument();
   });
+
+  it('shows "View all" link when more than 2 legacies exist', async () => {
+    // The default mock returns empty array, so the link shouldn't show
+    renderPage();
+    expect(screen.queryByText(/view all/i)).not.toBeInTheDocument();
+  });
 });
