@@ -81,9 +81,10 @@ export default function LegaciesPage() {
             </p>
           </div>
 
-          <div className="flex justify-center gap-2 mb-8">
+          <div className="flex justify-center gap-2 mb-8" role="group" aria-label="Filter by visibility">
             <button
               onClick={() => setVisibilityFilter('all')}
+              aria-pressed={visibilityFilter === 'all'}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                 visibilityFilter === 'all'
                   ? 'bg-theme-primary text-white'
@@ -94,6 +95,7 @@ export default function LegaciesPage() {
             </button>
             <button
               onClick={() => setVisibilityFilter('public')}
+              aria-pressed={visibilityFilter === 'public'}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                 visibilityFilter === 'public'
                   ? 'bg-theme-primary text-white'
@@ -105,6 +107,7 @@ export default function LegaciesPage() {
             </button>
             <button
               onClick={() => setVisibilityFilter('private')}
+              aria-pressed={visibilityFilter === 'private'}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                 visibilityFilter === 'private'
                   ? 'bg-theme-primary text-white'

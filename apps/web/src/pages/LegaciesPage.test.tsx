@@ -54,4 +54,12 @@ describe('LegaciesPage', () => {
     expect(screen.getByRole('button', { name: /public/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /private/i })).toBeInTheDocument();
   });
+
+  it('sets aria-pressed on the active visibility filter', () => {
+    renderPage();
+    const allBtn = screen.getByRole('button', { name: /^all$/i });
+    expect(allBtn).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /public/i })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: /private/i })).toHaveAttribute('aria-pressed', 'false');
+  });
 });
