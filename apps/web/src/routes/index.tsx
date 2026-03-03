@@ -5,7 +5,11 @@ import ProtectedRoute from './ProtectedRoute';
 import ErrorPage from '@/components/ErrorPage';
 
 // Lazy load page components for code splitting
-const Homepage = lazy(() => import('@/pages/Homepage'));
+const PublicHomePage = lazy(() => import('@/pages/PublicHomePage'));
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
+const LegaciesPage = lazy(() => import('@/pages/LegaciesPage'));
+const StoriesPage = lazy(() => import('@/pages/StoriesPage'));
+const ConversationsPage = lazy(() => import('@/pages/ConversationsPage'));
 const About = lazy(() => import('@/pages/About'));
 const HowItWorks = lazy(() => import('@/pages/HowItWorks'));
 const Community = lazy(() => import('@/features/community/components/Community'));
@@ -41,6 +45,15 @@ function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
 }
 
+// Auth-aware homepage wrapper
+import { useAuth } from '@/contexts/AuthContext';
+
+function AuthAwareHome() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <PageLoader />;
+  return user ? <DashboardPage /> : <PublicHomePage />;
+}
+
 // Route param extractors — pass URL params as props to page components
 import { useParams } from 'react-router-dom';
 
@@ -63,7 +76,7 @@ export const router = createBrowserRouter([
       // Public routes
       {
         index: true,
-        element: <LazyPage><Homepage /></LazyPage>,
+        element: <LazyPage><AuthAwareHome /></LazyPage>,
       },
       {
         path: 'about',
@@ -76,6 +89,31 @@ export const router = createBrowserRouter([
       {
         path: 'community',
         element: <LazyPage><Community /></LazyPage>,
+      },
+      // Authenticated navigation pages
+      {
+        path: 'legacies',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><LegaciesPage /></LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'stories',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><StoriesPage /></LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'conversations',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><ConversationsPage /></LazyPage>
+          </ProtectedRoute>
+        ),
       },
       // Public legacy view
       {
