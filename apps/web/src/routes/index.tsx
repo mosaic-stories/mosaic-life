@@ -129,11 +129,7 @@ export const router = createBrowserRouter([
       // Protected routes
       {
         path: 'my-legacies',
-        element: (
-          <ProtectedRoute>
-            <LazyPage><MyLegacies /></LazyPage>
-          </ProtectedRoute>
-        ),
+        element: <Navigate to="/legacies" replace />,
       },
       {
         path: 'legacy/new',

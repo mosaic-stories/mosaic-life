@@ -94,8 +94,8 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
             <Button variant="outline" onClick={() => navigate(-1)}>
               Go Back
             </Button>
-            <Button onClick={() => navigate('/my-legacies')}>
-              My Legacies
+            <Button onClick={() => navigate('/legacies')}>
+              All Legacies
             </Button>
           </div>
         </Card>
