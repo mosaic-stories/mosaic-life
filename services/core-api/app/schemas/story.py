@@ -124,6 +124,21 @@ class TopLegacyResponse(BaseModel):
     story_count: int
 
 
+class StoryScopeCounts(BaseModel):
+    """Filter counts for stories hub."""
+
+    all: int
+    mine: int
+    shared: int
+
+
+class StoryScopedResponse(BaseModel):
+    """Stories list with scope filter counts."""
+
+    items: list[StorySummary]
+    counts: StoryScopeCounts
+
+
 class StoryDetail(BaseModel):
     """Schema for full story details."""
 

@@ -13,6 +13,8 @@ from ..schemas.story import (
     StoryCreate,
     StoryDetail,
     StoryResponse,
+    StoryScopeCounts,
+    StoryScopedResponse,
     StoryStatsResponse,
     StorySummary,
     StoryUpdate,
@@ -116,7 +118,7 @@ async def list_public_stories(
 
 @router.get(
     "/",
-    response_model=list[StorySummary],
+    response_model=StoryScopedResponse | list[StorySummary],
     summary="List stories",
     description="List stories filtered by visibility rules. Filter by legacy_id, orphaned flag, or scope.",
 )
@@ -124,19 +126,23 @@ async def list_stories(
     request: Request,
     legacy_id: UUID | None = Query(None, description="Filter by legacy"),
     orphaned: bool = Query(False, description="Return only orphaned stories"),
-    scope: Literal["mine", "shared", "favorites"] | None = Query(
+    scope: Literal["all", "mine", "shared", "favorites", "drafts"] | None = Query(
         None, description="Filter scope (alternative to legacy_id/orphaned)"
     ),
     db: AsyncSession = Depends(get_db),
-) -> list[StorySummary]:
+) -> StoryScopedResponse | list[StorySummary]:
     """List stories with optional filtering."""
     session = require_auth(request)
 
     if scope:
-        return await story_service.list_stories_scoped(
+        result = await story_service.list_stories_scoped(
             db=db,
             user_id=session.user_id,
             scope=scope,
+        )
+        return StoryScopedResponse(
+            items=result["items"],
+            counts=StoryScopeCounts(**result["counts"]),
         )
 
     return await story_service.list_legacy_stories(
