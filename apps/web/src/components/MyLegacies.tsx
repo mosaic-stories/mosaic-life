@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from './ui/dialog';
-import { HeaderSlot } from '@/components/header';
 import SearchBar from './SearchBar';
 import { useLegacies } from '@/features/legacy/hooks/useLegacies';
 import { useStories, useUpdateStory } from '@/features/story/hooks/useStories';
@@ -152,25 +151,26 @@ export default function MyLegacies() {
         description="Manage your legacies and preserved memories"
         noIndex={true}
       />
-      <HeaderSlot>
-        <SearchBar onSelectResult={handleSearchSelect} compact />
-        <Button
-          onClick={handleCreateLegacy}
-          size="sm"
-          className="gap-2 bg-theme-primary hover:bg-theme-primary-dark"
-        >
-          <Plus className="size-4" />
-          <span className="hidden sm:inline">Create Legacy</span>
-        </Button>
-      </HeaderSlot>
-
       <main className="max-w-7xl mx-auto px-6 py-12">
         <div className="space-y-8">
-          <div>
-            <h1 className="text-neutral-900">My Legacies</h1>
-            <p className="text-neutral-600 mt-2">
-              Legacies you've created and curated
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-neutral-900">My Legacies</h1>
+              <p className="text-neutral-600 mt-2">
+                Legacies you've created and curated
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <SearchBar onSelectResult={handleSearchSelect} compact />
+              <Button
+                onClick={handleCreateLegacy}
+                size="sm"
+                className="gap-2 bg-theme-primary hover:bg-theme-primary-dark"
+              >
+                <Plus className="size-4" />
+                <span className="hidden sm:inline">Create Legacy</span>
+              </Button>
+            </div>
           </div>
 
           <section className="space-y-3">
