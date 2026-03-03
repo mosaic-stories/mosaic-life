@@ -47,9 +47,12 @@ function LazyPage({ children }: { children: React.ReactNode }) {
 }
 
 // Auth-aware homepage wrapper
+// DashboardPage and PublicHomePage are React.lazy components.
+// The parent <LazyPage> provides the required <Suspense> boundary.
 function AuthAwareHome() {
   const { user, isLoading } = useAuth();
   if (isLoading) return <PageLoader />;
+  // If auth check fails, user is null — falls through to PublicHomePage as safe fallback
   return user ? <DashboardPage /> : <PublicHomePage />;
 }
 
