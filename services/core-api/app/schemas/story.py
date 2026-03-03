@@ -115,6 +115,15 @@ class StoryStatsResponse(BaseModel):
     legacies_written_for_count: int
 
 
+class TopLegacyResponse(BaseModel):
+    """A legacy ranked by story count for the user."""
+
+    legacy_id: UUID
+    legacy_name: str
+    profile_image_url: str | None
+    story_count: int
+
+
 class StoryDetail(BaseModel):
     """Schema for full story details."""
 

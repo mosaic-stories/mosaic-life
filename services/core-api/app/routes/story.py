@@ -16,6 +16,7 @@ from ..schemas.story import (
     StoryStatsResponse,
     StorySummary,
     StoryUpdate,
+    TopLegacyResponse,
 )
 from ..services import activity as activity_service
 from ..services import story as story_service
@@ -164,6 +165,28 @@ async def get_story_stats(
         user_id=session.user_id,
     )
     return StoryStatsResponse(**result)
+
+
+@router.get(
+    "/top-legacies",
+    response_model=list[TopLegacyResponse],
+    summary="Get top legacies by story count",
+    description="Get legacies the user has written the most stories about.",
+)
+async def get_top_legacies(
+    request: Request,
+    limit: int = Query(default=6, ge=1, le=20, description="Max results"),
+    db: AsyncSession = Depends(get_db),
+) -> list[TopLegacyResponse]:
+    """Get top legacies by story count for the current user."""
+    session = require_auth(request)
+
+    items = await story_service.get_top_legacies(
+        db=db,
+        user_id=session.user_id,
+        limit=limit,
+    )
+    return [TopLegacyResponse(**item) for item in items]
 
 
 @router.get(

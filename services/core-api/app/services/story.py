@@ -3,6 +3,7 @@
 import logging
 import re
 from datetime import datetime, timezone
+from typing import TypedDict
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -637,6 +638,74 @@ async def get_story_stats(
         "stories_evolved_count": stories_evolved_count,
         "legacies_written_for_count": legacies_written_for_count,
     }
+
+
+class TopLegacyItem(TypedDict):
+    """Internal typed dict for top legacy query results."""
+
+    legacy_id: UUID
+    legacy_name: str
+    profile_image_url: str | None
+    story_count: int
+
+
+async def get_top_legacies(
+    db: AsyncSession,
+    user_id: UUID,
+    limit: int = 6,
+) -> list[TopLegacyItem]:
+    """Get legacies the user has written the most stories about.
+
+    Returns legacy_id, legacy_name, profile_image_url, and story_count,
+    ordered by story_count descending.
+    """
+    from ..services.legacy import get_profile_image_url
+
+    # Count stories per legacy for this author
+    result = await db.execute(
+        select(
+            StoryLegacy.legacy_id,
+            func.count(StoryLegacy.story_id).label("story_count"),
+        )
+        .join(Story, StoryLegacy.story_id == Story.id)
+        .where(Story.author_id == user_id)
+        .group_by(StoryLegacy.legacy_id)
+        .order_by(func.count(StoryLegacy.story_id).desc())
+        .limit(limit)
+    )
+    rows = result.all()
+
+    if not rows:
+        return []
+
+    # Fetch legacy details
+    legacy_ids = [row[0] for row in rows]
+    legacy_result = await db.execute(
+        select(Legacy)
+        .options(selectinload(Legacy.profile_image))
+        .where(Legacy.id.in_(legacy_ids))
+    )
+    legacies_by_id = {leg.id: leg for leg in legacy_result.scalars().all()}
+
+    items: list[TopLegacyItem] = []
+    for legacy_id, story_count in rows:
+        legacy = legacies_by_id.get(legacy_id)
+        if legacy:
+            items.append(
+                TopLegacyItem(
+                    legacy_id=legacy.id,
+                    legacy_name=legacy.name,
+                    profile_image_url=get_profile_image_url(legacy),
+                    story_count=story_count,
+                )
+            )
+
+    logger.info(
+        "story.top_legacies",
+        extra={"user_id": str(user_id), "count": len(items)},
+    )
+
+    return items
 
 
 async def list_stories_scoped(
