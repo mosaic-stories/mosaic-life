@@ -31,7 +31,7 @@ const mockScopedData = {
 const mockUseLegacies = vi.fn(() => ({ data: mockScopedData, isLoading: false }));
 
 vi.mock('@/features/legacy/hooks/useLegacies', () => ({
-  useLegacies: (...args: unknown[]) => mockUseLegacies(...args),
+  useLegacies: () => mockUseLegacies(),
 }));
 
 vi.mock('@/features/favorites/hooks/useFavorites', () => ({

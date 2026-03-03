@@ -20,10 +20,10 @@ const mockStory = {
   updated_at: '2025-01-01T00:00:00Z',
 };
 
-const mockUseScopedStories = vi.fn(() => ({ data: [mockStory], isLoading: false }));
+const mockUseScopedStories = vi.fn((_scope?: string) => ({ data: [mockStory], isLoading: false }));
 
 vi.mock('@/features/story/hooks/useStories', () => ({
-  useScopedStories: (...args: unknown[]) => mockUseScopedStories(...args),
+  useScopedStories: (scope: string) => mockUseScopedStories(scope),
 }));
 
 vi.mock('@/features/favorites/hooks/useFavorites', () => ({
@@ -103,7 +103,8 @@ describe('StoriesTabContent', () => {
   });
 
   it('shows loading spinner while fetching', () => {
-    mockUseScopedStories.mockReturnValueOnce({ data: undefined, isLoading: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseScopedStories.mockReturnValueOnce({ data: undefined, isLoading: true } as any);
     renderContent();
     // Spinner is rendered but story content is absent
     expect(screen.queryByText('A Life Well Lived')).not.toBeInTheDocument();

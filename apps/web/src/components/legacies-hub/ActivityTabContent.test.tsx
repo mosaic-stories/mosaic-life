@@ -36,7 +36,7 @@ const mockUseSocialFeed = vi.fn(() => ({
 }));
 
 vi.mock('@/features/activity/hooks/useActivity', () => ({
-  useSocialFeed: (...args: unknown[]) => mockUseSocialFeed(...args),
+  useSocialFeed: () => mockUseSocialFeed(),
 }));
 
 vi.mock('@/contexts/AuthContext', () => ({
@@ -117,7 +117,8 @@ describe('ActivityTabContent', () => {
   });
 
   it('shows loading spinner while fetching', () => {
-    mockUseSocialFeed.mockReturnValueOnce({ data: undefined, isLoading: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    mockUseSocialFeed.mockReturnValueOnce({ data: undefined, isLoading: true } as any);
     renderContent();
     expect(screen.queryByTestId('feed-item-feed-1')).not.toBeInTheDocument();
   });
