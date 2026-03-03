@@ -1,33 +1,19 @@
-import { ArrowRight, BookHeart, Sparkles, Loader2, Users, Globe } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowRight, BookHeart, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import Footer from '@/components/Footer';
 import { useExploreLegacies } from '@/features/legacy/hooks/useLegacies';
-import { formatLegacyDates, getLegacyContext } from '@/features/legacy/api/legacies';
-import { rewriteBackendUrlForDev } from '@/lib/url';
 import { SEOHead, getOrganizationSchema } from '@/components/seo';
 import { HeaderSlot } from '@/components/header';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { useAuthModal } from '@/lib/hooks/useAuthModal';
+import LegacyCard from '@/components/legacy/LegacyCard';
 
 export default function PublicHomePage() {
-  const navigate = useNavigate();
   const { currentTheme, setTheme } = useTheme();
   const openAuthModal = useAuthModal((s) => s.open);
   const { data: exploreLegacies, isLoading: exploreLoading } = useExploreLegacies(20);
-
-  const contextLabels: Record<string, string> = {
-    'memorial': 'In Memoriam',
-    'living-tribute': 'Living Tribute',
-  };
-
-  const contextColors: Record<string, string> = {
-    'memorial': 'bg-amber-100 text-amber-800 border-amber-200',
-    'living-tribute': 'bg-purple-100 text-purple-800 border-purple-200',
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -92,51 +78,9 @@ export default function PublicHomePage() {
 
           {!exploreLoading && exploreLegacies && exploreLegacies.length > 0 && (
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {exploreLegacies.map((legacy) => {
-                const dates = formatLegacyDates(legacy);
-                const context = getLegacyContext(legacy);
-                const memberCount = legacy.members?.length || 0;
-
-                return (
-                  <Card
-                    key={legacy.id}
-                    className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-                    onClick={() => navigate(`/legacy/${legacy.id}`)}
-                  >
-                    <div className="aspect-[4/3] overflow-hidden bg-neutral-100 flex items-center justify-center">
-                      {legacy.profile_image_url ? (
-                        <img
-                          src={rewriteBackendUrlForDev(legacy.profile_image_url)}
-                          alt={legacy.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Users className="size-12 text-neutral-300" />
-                      )}
-                    </div>
-                    <div className="p-5 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="space-y-1 flex-1">
-                          <h3 className="text-neutral-900">{legacy.name}</h3>
-                          {dates && <p className="text-sm text-neutral-500">{dates}</p>}
-                        </div>
-                        <Badge variant="outline" className={contextColors[context] || 'bg-neutral-100 text-neutral-800'}>
-                          {contextLabels[context] || context}
-                        </Badge>
-                      </div>
-                      {legacy.biography && (
-                        <p className="text-sm text-neutral-600 line-clamp-2">{legacy.biography}</p>
-                      )}
-                      <div className="flex items-center gap-4 pt-2 text-sm text-neutral-500">
-                        <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
-                        <span className="flex items-center gap-1">
-                          <Globe className="size-3" /> Public
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
+              {exploreLegacies.map((legacy) => (
+                <LegacyCard key={legacy.id} legacy={legacy} showVisibility />
+              ))}
             </div>
           )}
 

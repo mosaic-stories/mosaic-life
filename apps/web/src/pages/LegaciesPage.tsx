@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Loader2, Users, BookHeart, Globe, Lock } from 'lucide-react';
+import { Plus, Loader2, BookHeart, Globe, Lock } from 'lucide-react';
 import type { VisibilityFilter } from '@/features/legacy/api/legacies';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import Footer from '@/components/Footer';
 import { useLegacies, useExploreLegacies } from '@/features/legacy/hooks/useLegacies';
-import { formatLegacyDates, getLegacyContext } from '@/features/legacy/api/legacies';
-import { rewriteBackendUrlForDev } from '@/lib/url';
 import FavoriteButton from '@/features/favorites/components/FavoriteButton';
 import { useFavoriteCheck } from '@/features/favorites/hooks/useFavorites';
+import LegacyCard from '@/components/legacy/LegacyCard';
 
 export default function LegaciesPage() {
   const navigate = useNavigate();
@@ -20,16 +18,6 @@ export default function LegaciesPage() {
 
   const exploreLegacyIds = exploreLegacies?.map((l) => l.id) ?? [];
   const { data: legacyFavoriteData } = useFavoriteCheck('legacy', exploreLegacyIds);
-
-  const contextLabels: Record<string, string> = {
-    'memorial': 'In Memoriam',
-    'living-tribute': 'Living Tribute',
-  };
-
-  const contextColors: Record<string, string> = {
-    'memorial': 'bg-amber-100 text-amber-800 border-amber-200',
-    'living-tribute': 'bg-purple-100 text-purple-800 border-purple-200',
-  };
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -57,48 +45,9 @@ export default function LegaciesPage() {
               </div>
             )}
 
-            {!myLegaciesLoading && myLegacies?.map((legacy) => {
-              const dates = formatLegacyDates(legacy);
-              const context = getLegacyContext(legacy);
-              const memberCount = legacy.members?.length || 0;
-
-              return (
-                <Card
-                  key={legacy.id}
-                  className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-                  onClick={() => navigate(`/legacy/${legacy.id}`)}
-                >
-                  <div className="aspect-[4/3] overflow-hidden bg-neutral-100 flex items-center justify-center">
-                    {legacy.profile_image_url ? (
-                      <img
-                        src={rewriteBackendUrlForDev(legacy.profile_image_url)}
-                        alt={legacy.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <Users className="size-12 text-neutral-300" />
-                    )}
-                  </div>
-                  <div className="p-5 space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="space-y-1 flex-1">
-                        <h3 className="text-neutral-900">{legacy.name}</h3>
-                        {dates && <p className="text-sm text-neutral-500">{dates}</p>}
-                      </div>
-                      <Badge variant="outline" className={contextColors[context] || 'bg-neutral-100 text-neutral-800'}>
-                        {contextLabels[context] || context}
-                      </Badge>
-                    </div>
-                    {legacy.biography && (
-                      <p className="text-sm text-neutral-600 line-clamp-2">{legacy.biography}</p>
-                    )}
-                    <div className="flex items-center gap-4 pt-2 text-sm text-neutral-500">
-                      <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
+            {!myLegaciesLoading && myLegacies?.map((legacy) => (
+              <LegacyCard key={legacy.id} legacy={legacy} />
+            ))}
 
             {/* Create New Card */}
             <Card
@@ -175,63 +124,21 @@ export default function LegaciesPage() {
 
           {!exploreLoading && exploreLegacies && exploreLegacies.length > 0 && (
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {exploreLegacies.map((legacy) => {
-                const dates = formatLegacyDates(legacy);
-                const context = getLegacyContext(legacy);
-                const memberCount = legacy.members?.length || 0;
-
-                return (
-                  <Card
-                    key={legacy.id}
-                    className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-                    onClick={() => navigate(`/legacy/${legacy.id}`)}
-                  >
-                    <div className="aspect-[4/3] overflow-hidden bg-neutral-100 flex items-center justify-center">
-                      {legacy.profile_image_url ? (
-                        <img
-                          src={rewriteBackendUrlForDev(legacy.profile_image_url)}
-                          alt={legacy.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Users className="size-12 text-neutral-300" />
-                      )}
-                    </div>
-                    <div className="p-5 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="space-y-1 flex-1">
-                          <h3 className="text-neutral-900">{legacy.name}</h3>
-                          {dates && <p className="text-sm text-neutral-500">{dates}</p>}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <FavoriteButton
-                            entityType="legacy"
-                            entityId={legacy.id}
-                            isFavorited={legacyFavoriteData?.favorites[legacy.id] ?? false}
-                            favoriteCount={legacy.favorite_count ?? 0}
-                          />
-                          <Badge variant="outline" className={contextColors[context] || 'bg-neutral-100 text-neutral-800'}>
-                            {contextLabels[context] || context}
-                          </Badge>
-                        </div>
-                      </div>
-                      {legacy.biography && (
-                        <p className="text-sm text-neutral-600 line-clamp-2">{legacy.biography}</p>
-                      )}
-                      <div className="flex items-center gap-4 pt-2 text-sm text-neutral-500">
-                        <span>{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>
-                        <span className="flex items-center gap-1">
-                          {legacy.visibility === 'public' ? (
-                            <><Globe className="size-3" /> Public</>
-                          ) : (
-                            <><Lock className="size-3" /> Private</>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  </Card>
-                );
-              })}
+              {exploreLegacies.map((legacy) => (
+                <LegacyCard
+                  key={legacy.id}
+                  legacy={legacy}
+                  showVisibility
+                  trailingAction={
+                    <FavoriteButton
+                      entityType="legacy"
+                      entityId={legacy.id}
+                      isFavorited={legacyFavoriteData?.favorites[legacy.id] ?? false}
+                      favoriteCount={legacy.favorite_count ?? 0}
+                    />
+                  }
+                />
+              ))}
             </div>
           )}
 
