@@ -104,10 +104,6 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
     }
   }, [existingStory]);
 
-  const handleBack = () => {
-    navigate(`/legacy/${legacyId}`);
-  };
-
   const handleSelectVersion = (versionNumber: number) => {
     setPreviewVersionNumber(versionNumber);
   };
@@ -200,6 +196,7 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
         noIndex={true}
       />
       <StoryToolbar
+        legacyId={legacyId}
         legacyName={legacyName}
         isEditMode={isEditMode}
         canEdit={canEdit}
@@ -207,7 +204,6 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
         versionCount={existingStory?.version_count ?? null}
         hasActiveEvolution={hasActiveEvolution}
         canDelete={canEdit}
-        onBack={handleBack}
         onOpenHistory={() => setIsHistoryOpen(true)}
         onEvolve={handleNavigateToEvolve}
         onDelete={() => setShowDeleteDialog(true)}
