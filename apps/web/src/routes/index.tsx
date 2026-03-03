@@ -15,7 +15,6 @@ const About = lazy(() => import('@/pages/About'));
 const HowItWorks = lazy(() => import('@/pages/HowItWorks'));
 const Community = lazy(() => import('@/features/community/components/Community'));
 const LegacyProfile = lazy(() => import('@/features/legacy/components/LegacyProfile'));
-const MyLegacies = lazy(() => import('@/components/MyLegacies'));
 const StoryCreation = lazy(() => import('@/features/story/components/StoryCreation'));
 const LegacyCreation = lazy(() => import('@/features/legacy/components/LegacyCreation'));
 const LegacyEdit = lazy(() => import('@/features/legacy/components/LegacyEdit'));
@@ -67,7 +66,8 @@ function WithStoryProps({ Component }: { Component: React.ComponentType<{ legacy
   return <Component legacyId={legacyId || ''} storyId={storyId} />;
 }
 
-export const router = createBrowserRouter([
+export const router = createBrowserRouter(
+  [
   {
     path: '/',
     element: <RootLayout />,
@@ -223,4 +223,6 @@ export const router = createBrowserRouter([
       },
     ],
   },
-]);
+  ],
+  { future: { v7_startTransition: true } }
+);
