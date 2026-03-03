@@ -10,6 +10,20 @@
 
 **Design doc:** `docs/plans/2026-03-03-legacies-hub-redesign-design.md`
 
+**Status:**
+- [x] Task 1: Extend Stats Backend — Schema & Service
+- [x] Task 2: Add Scope Parameter to Legacies Endpoint
+- [x] Task 3: Add Scope Parameter to Stories Endpoint
+- [x] Task 4: Update Frontend Legacy API & Hooks
+- [x] Task 5: Update Frontend Story API & Hooks
+- [x] Task 6: Build QuickFilters Component
+- [x] Task 7: Build StatsBar Component
+- [x] Task 8: Build RecentlyViewedChips Component
+- [x] Task 9: Build Tab Content Components
+- [x] Task 10: Rewrite LegaciesPage
+- [ ] Task 11: Fix Callers & Run Full Test Suite
+- [ ] Task 12: Manual Smoke Test
+
 ---
 
 ## Task 1: Extend Stats Backend — Schema & Service
