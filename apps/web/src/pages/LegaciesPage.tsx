@@ -13,7 +13,8 @@ import LegacyCard from '@/components/legacy/LegacyCard';
 export default function LegaciesPage() {
   const navigate = useNavigate();
   const [visibilityFilter, setVisibilityFilter] = useState<VisibilityFilter>('all');
-  const { data: myLegacies, isLoading: myLegaciesLoading } = useLegacies({ enabled: true });
+  const { data: myLegaciesData, isLoading: myLegaciesLoading } = useLegacies('all', { enabled: true });
+  const myLegacies = myLegaciesData?.items;
   const { data: exploreLegacies, isLoading: exploreLoading } = useExploreLegacies(20, visibilityFilter);
 
   const exploreLegacyIds = exploreLegacies?.map((l) => l.id) ?? [];

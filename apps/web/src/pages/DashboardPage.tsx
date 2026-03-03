@@ -12,7 +12,8 @@ import LegacyCard from '@/components/legacy/LegacyCard';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { data: myLegacies, isLoading: myLegaciesLoading } = useLegacies({ enabled: true });
+  const { data: myLegaciesData, isLoading: myLegaciesLoading } = useLegacies('all', { enabled: true });
+  const myLegacies = myLegaciesData?.items;
 
   return (
     <div className="min-h-screen flex flex-col">

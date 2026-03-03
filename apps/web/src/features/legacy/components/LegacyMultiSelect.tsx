@@ -36,7 +36,8 @@ export default function LegacyMultiSelect({
   requirePrimary = true,
   disabled = false,
 }: LegacyMultiSelectProps) {
-  const { data: legacies, isLoading } = useLegacies();
+  const { data: legaciesData, isLoading } = useLegacies();
+  const legacies = legaciesData?.items;
 
   const selectedMap = useMemo(() => {
     const map = new Map<string, LegacyAssociationInput>();
