@@ -46,7 +46,7 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 ---
 
-## Task 1: Navigation Config — Shared Route Definitions
+## Task 1: Navigation Config — Shared Route Definitions ✅ COMPLETED
 
 **Files:**
 - Create: `src/lib/navigation.ts`
@@ -129,7 +129,7 @@ git commit -m "feat(nav): add shared navigation config"
 
 ---
 
-## Task 2: ContextualGreeting Component
+## Task 2: ContextualGreeting Component ✅ COMPLETED
 
 **Files:**
 - Create: `src/components/dashboard/ContextualGreeting.tsx`
@@ -306,7 +306,7 @@ git commit -m "feat(dashboard): add contextual greeting component"
 
 ---
 
-## Task 3: PublicHomePage — Extract Public Sections
+## Task 3: PublicHomePage — Extract Public Sections ✅ COMPLETED
 
 **Files:**
 - Create: `src/pages/PublicHomePage.tsx`
@@ -585,7 +585,7 @@ git commit -m "feat(homepage): extract PublicHomePage from Homepage"
 
 ---
 
-## Task 4: DashboardPage — Authenticated Home
+## Task 4: DashboardPage — Authenticated Home ✅ COMPLETED
 
 **Files:**
 - Create: `src/pages/DashboardPage.tsx`
@@ -830,7 +830,7 @@ git commit -m "feat(dashboard): add DashboardPage with greeting and personal sec
 
 ---
 
-## Task 5: Placeholder Pages — Stories and Conversations
+## Task 5: Placeholder Pages — Stories and Conversations ✅ COMPLETED
 
 **Files:**
 - Create: `src/pages/StoriesPage.tsx`
@@ -955,7 +955,7 @@ git commit -m "feat(pages): add Stories and Conversations placeholder pages"
 
 ---
 
-## Task 6: LegaciesPage — My Legacies + Explore
+## Task 6: LegaciesPage — My Legacies + Explore ✅ COMPLETED
 
 **Files:**
 - Create: `src/pages/LegaciesPage.tsx`
@@ -1300,7 +1300,7 @@ git commit -m "feat(legacies): add LegaciesPage with My Legacies and Explore sec
 
 ---
 
-## Task 7: NavLinks Component — Desktop Header Navigation
+## Task 7: NavLinks Component — Desktop Header Navigation ✅ COMPLETED
 
 **Files:**
 - Create: `src/components/header/NavLinks.tsx`
@@ -1396,7 +1396,7 @@ git commit -m "feat(nav): add NavLinks component for authenticated header"
 
 ---
 
-## Task 8: BottomTabBar Component — Mobile Navigation
+## Task 8: BottomTabBar Component — Mobile Navigation ✅ COMPLETED
 
 **Files:**
 - Create: `src/components/navigation/BottomTabBar.tsx`
@@ -1494,7 +1494,7 @@ git commit -m "feat(nav): add BottomTabBar component for mobile navigation"
 
 ---
 
-## Task 9: Update AppHeader — Auth-Aware Navigation
+## Task 9: Update AppHeader — Auth-Aware Navigation ✅ COMPLETED
 
 **Files:**
 - Modify: `src/components/header/AppHeader.tsx`
@@ -1607,7 +1607,7 @@ git commit -m "feat(header): add inline navigation for authenticated users"
 
 ---
 
-## Task 10: Update Routes and RootLayout — Wire Everything Together
+## Task 10: Update Routes and RootLayout — Wire Everything Together ✅ COMPLETED
 
 **Files:**
 - Modify: `src/routes/index.tsx`
@@ -1725,7 +1725,7 @@ git commit -m "feat(routing): wire auth-aware homepage, new pages, and navigatio
 
 ---
 
-## Task 11: Cleanup — Remove My Legacies from HeaderUserMenu
+## Task 11: Cleanup — Remove My Legacies from HeaderUserMenu ✅ COMPLETED
 
 **Files:**
 - Modify: `src/components/header/HeaderUserMenu.tsx`
@@ -1755,7 +1755,7 @@ git commit -m "refactor(header): remove redundant My Legacies from user menu"
 
 ---
 
-## Task 12: Final Verification
+## Task 12: Final Verification ✅ COMPLETED
 
 **Step 1: Run full test suite**
 
