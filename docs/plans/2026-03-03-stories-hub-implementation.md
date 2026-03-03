@@ -11,18 +11,18 @@
 **Design doc:** `docs/plans/2026-03-03-stories-hub-redesign-design.md`
 
 **Status:**
-- [ ] Task 1: Add Story Stats Backend Endpoint
-- [ ] Task 2: Add Top Legacies Backend Endpoint
-- [ ] Task 3: Add `all` and `drafts` Scopes + Wrapped Response to Stories Endpoint
-- [ ] Task 4: Update Frontend Story API & Hooks
-- [ ] Task 5: Build StoryStatsBar Component
-- [ ] Task 6: Build TopLegaciesChips Component
-- [ ] Task 7: Build AllStoriesTabContent Component
-- [ ] Task 8: Build DraftsTabContent Component
-- [ ] Task 9: Build StoryActivityTabContent Component
-- [ ] Task 10: Build LegacyPickerDialog Component
-- [ ] Task 11: Rewrite StoriesPage
-- [ ] Task 12: Fix Callers & Run Full Test Suite
+- [x] Task 1: Add Story Stats Backend Endpoint
+- [x] Task 2: Add Top Legacies Backend Endpoint
+- [x] Task 3: Add `all` and `drafts` Scopes + Wrapped Response to Stories Endpoint
+- [x] Task 4: Update Frontend Story API & Hooks
+- [x] Task 5: Build StoryStatsBar Component
+- [x] Task 6: Build TopLegaciesChips Component
+- [x] Task 7: Build AllStoriesTabContent Component
+- [x] Task 8: Build DraftsTabContent Component
+- [x] Task 9: Build StoryActivityTabContent Component
+- [x] Task 10: Build LegacyPickerDialog Component
+- [x] Task 11: Rewrite StoriesPage
+- [x] Task 12: Fix Callers & Run Full Test Suite
 
 ---
 
