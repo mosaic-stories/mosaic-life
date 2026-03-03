@@ -55,7 +55,8 @@ export default function LegaciesTabContent({ activeFilter, onFilterChange }: Leg
             />
           ))}
 
-          {/* Create New Legacy Card */}
+          {/* Create New Legacy Card — only shown on writable scopes */}
+          {(activeFilter === 'all' || activeFilter === 'created') && (
           <Card
             className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group border-2 border-dashed border-neutral-300 hover:border-theme-primary bg-neutral-50 hover:bg-white"
             onClick={() => navigate('/legacy/new')}
@@ -73,6 +74,7 @@ export default function LegaciesTabContent({ activeFilter, onFilterChange }: Leg
               <p className="text-sm text-neutral-600 text-center">Honor someone special with a digital legacy</p>
             </div>
           </Card>
+          )}
         </div>
       )}
 

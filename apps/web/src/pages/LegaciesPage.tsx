@@ -15,13 +15,21 @@ const DEFAULT_FILTERS: Record<string, string> = {
   stories: 'mine',
   activity: 'all',
 };
+const VALID_FILTERS: Record<string, string[]> = {
+  legacies: ['all', 'created', 'connected', 'favorites'],
+  stories: ['mine', 'shared', 'favorites'],
+  activity: ['all', 'mine'],
+};
 
 export default function LegaciesPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const activeTab = searchParams.get('tab') || DEFAULT_TAB;
-  const activeFilter = searchParams.get('filter') || DEFAULT_FILTERS[activeTab] || 'all';
+  const rawFilter = searchParams.get('filter');
+  const defaultFilter = DEFAULT_FILTERS[activeTab] || 'all';
+  const validFilters = VALID_FILTERS[activeTab] ?? [];
+  const activeFilter = rawFilter && validFilters.includes(rawFilter) ? rawFilter : defaultFilter;
 
   const handleTabChange = (tab: string) => {
     setSearchParams({ tab, filter: DEFAULT_FILTERS[tab] || 'all' });
