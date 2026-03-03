@@ -65,7 +65,7 @@ describe('HeaderUserMenu', () => {
       // Notifications text includes unread count: "Notifications (3)"
       expect(screen.getByText(/Notifications/)).toBeInTheDocument();
     });
-    expect(screen.getByText('My Legacies')).toBeInTheDocument();
+    expect(screen.queryByText('My Legacies')).not.toBeInTheDocument();
     expect(screen.getByText('Sign Out')).toBeInTheDocument();
   });
 
