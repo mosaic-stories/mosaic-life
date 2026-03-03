@@ -100,19 +100,12 @@ export interface TopLegacy {
 export async function getStories(
   legacyId?: string,
   orphaned?: boolean,
-  scope?: StoryScope,
-): Promise<StoryScopedResponse | StorySummary[]> {
+): Promise<StorySummary[]> {
   const params = new URLSearchParams();
-  if (scope) {
-    params.append('scope', scope);
-  } else {
-    if (legacyId) params.append('legacy_id', legacyId);
-    if (orphaned !== undefined) params.append('orphaned', String(orphaned));
-  }
+  if (legacyId) params.append('legacy_id', legacyId);
+  if (orphaned !== undefined) params.append('orphaned', String(orphaned));
   const queryString = params.toString();
-  return apiGet<StoryScopedResponse | StorySummary[]>(
-    `/api/stories/${queryString ? `?${queryString}` : ''}`,
-  );
+  return apiGet<StorySummary[]>(`/api/stories/${queryString ? `?${queryString}` : ''}`);
 }
 
 export async function getScopedStories(scope: StoryScope): Promise<StoryScopedResponse> {
