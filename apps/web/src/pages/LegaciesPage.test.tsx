@@ -40,7 +40,7 @@ vi.mock('@/features/legacy/hooks/useLegacies', () => ({
 }));
 
 vi.mock('@/features/story/hooks/useStories', () => ({
-  useScopedStories: () => ({ data: [], isLoading: false }),
+  useScopedStories: () => ({ data: { items: [], counts: { all: 0, mine: 0, shared: 0 } }, isLoading: false }),
 }));
 
 vi.mock('@/features/favorites/hooks/useFavorites', () => ({

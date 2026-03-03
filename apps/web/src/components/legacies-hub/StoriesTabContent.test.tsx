@@ -20,7 +20,10 @@ const mockStory = {
   updated_at: '2025-01-01T00:00:00Z',
 };
 
-const mockUseScopedStories = vi.fn((_scope?: string) => ({ data: [mockStory], isLoading: false }));
+const mockUseScopedStories = vi.fn((_scope?: string) => ({
+  data: { items: [mockStory], counts: { all: 1, mine: 1, shared: 0 } },
+  isLoading: false,
+}));
 
 vi.mock('@/features/story/hooks/useStories', () => ({
   useScopedStories: (scope: string) => mockUseScopedStories(scope),
@@ -85,19 +88,19 @@ describe('StoriesTabContent', () => {
   });
 
   it('shows favorites empty-state message on favorites filter with no data', () => {
-    mockUseScopedStories.mockReturnValueOnce({ data: [], isLoading: false });
+    mockUseScopedStories.mockReturnValueOnce({ data: { items: [], counts: { all: 0, mine: 0, shared: 0 } }, isLoading: false });
     renderContent('favorites');
     expect(screen.getByText(/haven't favorited any stories/i)).toBeInTheDocument();
   });
 
   it('shows shared empty-state message on shared filter with no data', () => {
-    mockUseScopedStories.mockReturnValueOnce({ data: [], isLoading: false });
+    mockUseScopedStories.mockReturnValueOnce({ data: { items: [], counts: { all: 0, mine: 0, shared: 0 } }, isLoading: false });
     renderContent('shared');
     expect(screen.getByText(/no shared stories/i)).toBeInTheDocument();
   });
 
   it('shows mine empty-state message on mine filter with no data', () => {
-    mockUseScopedStories.mockReturnValueOnce({ data: [], isLoading: false });
+    mockUseScopedStories.mockReturnValueOnce({ data: { items: [], counts: { all: 0, mine: 0, shared: 0 } }, isLoading: false });
     renderContent('mine');
     expect(screen.getByText(/haven't written any stories/i)).toBeInTheDocument();
   });
