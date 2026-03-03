@@ -16,3 +16,5 @@ class UserStatsResponse(BaseModel):
     chat_sessions_count: int
     legacy_views_total: int
     collaborators_count: int
+    legacy_links_count: int
+    favorites_count: int
