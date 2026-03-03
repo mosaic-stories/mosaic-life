@@ -5,6 +5,7 @@ import { useHeaderContext } from './HeaderContext';
 import HeaderLogo from './HeaderLogo';
 import HeaderUserMenu from './HeaderUserMenu';
 import HeaderOverflowMenu from './HeaderOverflowMenu';
+import NavLinks from './NavLinks';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthModal } from '@/lib/hooks/useAuthModal';
 
@@ -23,8 +24,12 @@ export default function AppHeader() {
         {/* Left: Logo */}
         <HeaderLogo onNavigateHome={() => navigate('/')} />
 
-        {/* Center: Slot content (desktop) or Overflow menu (mobile) */}
-        {isMobile ? (
+        {/* Center: Nav links (authenticated desktop) or Slot content (public) */}
+        {user && !isMobile ? (
+          <div className="flex-1 flex items-center justify-center">
+            <NavLinks />
+          </div>
+        ) : isMobile ? (
           slotContent && <HeaderOverflowMenu>{slotContent}</HeaderOverflowMenu>
         ) : (
           <div className="flex-1 flex items-center justify-center gap-4 max-w-2xl">

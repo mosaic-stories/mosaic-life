@@ -1,9 +1,16 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lock, Loader2 } from 'lucide-react';
+import { Lock, Loader2, Share2, MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { HeaderSlot } from '@/components/header';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import PageActionBar from '@/components/PageActionBar';
 import { useLegacyWithFallback, useDeleteLegacy } from '@/features/legacy/hooks/useLegacies';
 import { useStoriesWithFallback, useCreateStory } from '@/features/story/hooks/useStories';
 import { formatLegacyDates } from '@/features/legacy/api/legacies';
@@ -12,8 +19,6 @@ import MemberDrawer from '@/features/members/components/MemberDrawer';
 import { SEOHead, getLegacySchema } from '@/components/seo';
 import type { LegacySchemaInput } from '@/components/seo';
 import { useAuth } from '@/contexts/AuthContext';
-
-import LegacyHeaderControls from './LegacyHeaderControls';
 import ProfileHeader from './ProfileHeader';
 import SectionNav from './SectionNav';
 import type { SectionId } from './SectionNav';
@@ -86,7 +91,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const handleDeleteLegacy = async () => {
     try {
       await deleteLegacy.mutateAsync(legacyId);
-      navigate('/my-legacies');
+      navigate('/legacies');
     } catch (error) {
       console.error('Failed to delete legacy:', error);
     }
@@ -142,8 +147,8 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
             <Button variant="outline" onClick={() => navigate('/')}>
               Go Home
             </Button>
-            <Button onClick={() => navigate('/my-legacies')}>
-              My Legacies
+            <Button onClick={() => navigate('/legacies')}>
+              All Legacies
             </Button>
           </div>
         </Card>
@@ -168,16 +173,44 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         />
       )}
 
-      <HeaderSlot>
-        <LegacyHeaderControls
-          legacyId={legacyId}
-          user={user}
-          onAddStory={handleAddStory}
-          isCreatingStory={createStory.isPending}
-          onDelete={() => setShowDeleteDialog(true)}
-          onShare={() => setShowMemberDrawer(true)}
-        />
-      </HeaderSlot>
+      <PageActionBar backLabel="Legacies" backTo="/legacies">
+        <Button variant="ghost" size="sm" onClick={() => setShowMemberDrawer(true)} aria-label="Share">
+          <Share2 className="size-4" />
+        </Button>
+        {authUser && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" aria-label="Legacy options">
+                <MoreVertical className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => navigate(`/legacy/${legacyId}/edit`)}>
+                <Pencil className="size-4" />
+                Edit Legacy
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+              >
+                <Trash2 className="size-4" />
+                Delete Legacy
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+        {authUser && (
+          <Button size="sm" onClick={handleAddStory} disabled={createStory.isPending} className="bg-theme-primary hover:bg-theme-primary-dark">
+            {createStory.isPending ? (
+              <Loader2 className="size-4 mr-2 animate-spin" />
+            ) : (
+              <Plus className="size-4 mr-2" />
+            )}
+            <span className="hidden sm:inline">Add Story</span>
+          </Button>
+        )}
+      </PageActionBar>
 
       <ProfileHeader
         legacy={legacy}

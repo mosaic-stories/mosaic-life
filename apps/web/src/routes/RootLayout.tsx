@@ -7,6 +7,7 @@ import { HeaderProvider, AppHeader } from '@/components/header';
 import { usePreferences } from '@/features/settings/hooks/useSettings';
 import { useTheme } from '@/lib/hooks/useTheme';
 import { useAuthModal } from '@/lib/hooks/useAuthModal';
+import BottomTabBar from '@/components/navigation/BottomTabBar';
 
 export default function RootLayout() {
   const location = useLocation();
@@ -52,7 +53,10 @@ export default function RootLayout() {
     <HeaderProvider>
       <div className="min-h-screen bg-theme-background transition-colors duration-300">
         <AppHeader />
-        <Outlet />
+        <div className={user ? 'pb-16 md:pb-0' : ''}>
+          <Outlet />
+        </div>
+        {user && <BottomTabBar />}
         <AuthModal
           isOpen={isAuthModalOpen}
           onClose={closeAuthModal}

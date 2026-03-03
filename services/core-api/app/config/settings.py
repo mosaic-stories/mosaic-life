@@ -108,6 +108,9 @@ class Settings(BaseModel):
         "us.anthropic.claude-haiku-4-5-20251001-v1:0",
     )
 
+    # Internal API token for CronJob endpoints (cleanup, etc.)
+    internal_api_token: str | None = os.getenv("INTERNAL_API_TOKEN")
+
     # Neptune / Graph Database
     neptune_host: str | None = os.getenv("NEPTUNE_HOST")
     neptune_port: int = int(os.getenv("NEPTUNE_PORT", "8182"))

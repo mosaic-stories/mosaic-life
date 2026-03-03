@@ -48,6 +48,9 @@ default:
     @echo "  Local dev:   just dev-backend && just dev"
     @echo "════════════════════════════════════════════════════════════════"
 
+count-lines:
+    cloc --exclude-dir='.claude,.git,.github,.local,.worktrees,.mypy_cache,node_modules,.pytest_cache,.ruff_cache,.venv'  .
+
 # ============================================================
 # DNS & Certificate (minimal CDK for DNS/ACM only)
 # ============================================================

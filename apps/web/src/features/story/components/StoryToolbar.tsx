@@ -1,10 +1,11 @@
-import { ArrowLeft, Sparkles, Trash2 } from 'lucide-react';
+import { Sparkles, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { HeaderSlot } from '@/components/header';
+import PageActionBar from '@/components/PageActionBar';
 import VersionHistoryButton from './VersionHistoryButton';
 
 interface StoryToolbarProps {
+  legacyId: string;
   legacyName: string;
   isEditMode: boolean;
   canEdit: boolean;
@@ -12,13 +13,13 @@ interface StoryToolbarProps {
   versionCount: number | null;
   hasActiveEvolution: boolean;
   canDelete: boolean;
-  onBack: () => void;
   onOpenHistory: () => void;
   onEvolve: () => void;
   onDelete: () => void;
 }
 
 export default function StoryToolbar({
+  legacyId,
   legacyName,
   isEditMode,
   canEdit,
@@ -26,21 +27,12 @@ export default function StoryToolbar({
   versionCount,
   hasActiveEvolution,
   canDelete,
-  onBack,
   onOpenHistory,
   onEvolve,
   onDelete,
 }: StoryToolbarProps) {
   return (
-    <HeaderSlot>
-      <button
-        onClick={onBack}
-        className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-      >
-        <ArrowLeft className="size-4" />
-        <span>Back to {legacyName}</span>
-      </button>
-
+    <PageActionBar backLabel={legacyName} backTo={`/legacy/${legacyId}`}>
       {isEditMode && (
         <>
           {showHistory && (
@@ -79,6 +71,6 @@ export default function StoryToolbar({
           )}
         </>
       )}
-    </HeaderSlot>
+    </PageActionBar>
   );
 }

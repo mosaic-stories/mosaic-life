@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, Sparkles, AlertCircle, X } from 'lucide-react';
+import { Loader2, Sparkles, AlertCircle, X } from 'lucide-react';
 import { Streamdown } from 'streamdown';
 import 'streamdown/styles.css';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ import { SummaryCheckpoint } from './SummaryCheckpoint';
 import { StyleSelector } from './StyleSelector';
 import { DraftStreamPanel } from './DraftStreamPanel';
 import { DraftReviewPanel } from './DraftReviewPanel';
-import { HeaderSlot } from '@/components/header';
+import PageActionBar from '@/components/PageActionBar';
 import { SEOHead } from '@/components/seo';
 
 interface StoryEvolutionWorkspaceProps {
@@ -198,17 +198,7 @@ export default function StoryEvolutionWorkspace({
           description="Evolve your story with AI"
           noIndex={true}
         />
-        <HeaderSlot>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleBack}
-              className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-            >
-              <ArrowLeft className="size-4" />
-              <span>Back to story</span>
-            </button>
-          </div>
-        </HeaderSlot>
+        <PageActionBar backLabel="Back to story" backTo={storyId ? `/legacy/${legacyId}/story/${storyId}` : `/legacy/${legacyId}`} />
         <main className="max-w-2xl mx-auto px-6 py-16">
           <Card className="p-8 text-center">
             <Sparkles className="size-10 mx-auto mb-4 text-purple-600" />
@@ -317,60 +307,51 @@ export default function StoryEvolutionWorkspace({
         description="Evolve your story with AI"
         noIndex={true}
       />
-      <HeaderSlot>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-          >
-            <ArrowLeft className="size-4" />
-            <span>Back to story</span>
-          </button>
-          <Badge
-            variant="outline"
-            className="bg-purple-50 text-purple-700 border-purple-200"
-          >
-            Evolution
-          </Badge>
-          {phase !== 'completed' && phase !== 'discarded' && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-1"
-                  disabled={discardEvolution.isPending}
+      <PageActionBar backLabel="Back to story" backTo={storyId ? `/legacy/${legacyId}/story/${storyId}` : `/legacy/${legacyId}`}>
+        <Badge
+          variant="outline"
+          className="bg-purple-50 text-purple-700 border-purple-200"
+        >
+          Evolution
+        </Badge>
+        {phase !== 'completed' && phase !== 'discarded' && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-600 hover:text-red-700 hover:bg-red-50 ml-1"
+                disabled={discardEvolution.isPending}
+              >
+                <X className="size-3.5 mr-1" />
+                Discard
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Discard evolution session?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will discard all progress in this evolution session
+                  including any conversation and draft. Your original story
+                  will remain unchanged.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Keep working</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDiscard}
+                  className="bg-red-600 hover:bg-red-700"
                 >
-                  <X className="size-3.5 mr-1" />
-                  Discard
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Discard evolution session?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will discard all progress in this evolution session
-                    including any conversation and draft. Your original story
-                    will remain unchanged.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Keep working</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDiscard}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    {discardEvolution.isPending ? (
-                      <Loader2 className="size-4 animate-spin mr-2" />
-                    ) : null}
-                    Discard session
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
-        </div>
-      </HeaderSlot>
+                  {discardEvolution.isPending ? (
+                    <Loader2 className="size-4 animate-spin mr-2" />
+                  ) : null}
+                  Discard session
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
+      </PageActionBar>
 
       {/* Phase indicator */}
       <div className="border-b bg-white px-4 py-3 shrink-0">

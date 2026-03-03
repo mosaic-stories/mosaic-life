@@ -1,5 +1,6 @@
 """SQLAlchemy models for the application."""
 
+from .activity import UserActivity
 from .ai import AIConversation, AIMessage
 from .associations import ConversationLegacy, MediaLegacy, StoryLegacy
 from .favorite import UserFavorite
@@ -44,6 +45,7 @@ __all__ = [
     "StoryVersion",
     "SupportRequest",
     "User",
+    "UserActivity",
     "UserFavorite",
     "UserSession",
 ]

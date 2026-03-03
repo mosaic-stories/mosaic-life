@@ -38,6 +38,7 @@ from ..schemas.ai import (
 )
 from ..schemas.memory import FactResponse, FactVisibilityUpdate
 from ..schemas.retrieval import ChunkResult
+from ..services import activity as activity_service
 from ..services import ai as ai_service
 from ..services import memory as memory_service
 from ..services.story_access import require_story_read_access
@@ -124,11 +125,20 @@ async def create_conversation(
 ) -> ConversationResponse:
     """Create or get existing conversation."""
     session = require_auth(request)
-    return await ai_service.get_or_create_conversation(
+    result = await ai_service.get_or_create_conversation(
         db=db,
         user_id=session.user_id,
         data=data,
     )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="ai_conversation_started",
+        entity_type="conversation",
+        entity_id=result.id,
+        metadata={"persona_id": result.persona_id, "title": result.title},
+    )
+    return result
 
 
 @router.post(
@@ -145,11 +155,20 @@ async def create_new_conversation(
 ) -> ConversationResponse:
     """Create a new conversation (always new, never returns existing)."""
     session = require_auth(request)
-    return await ai_service.create_conversation(
+    result = await ai_service.create_conversation(
         db=db,
         user_id=session.user_id,
         data=data,
     )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="ai_conversation_started",
+        entity_type="conversation",
+        entity_id=result.id,
+        metadata={"persona_id": result.persona_id, "title": result.title},
+    )
+    return result
 
 
 @router.post(

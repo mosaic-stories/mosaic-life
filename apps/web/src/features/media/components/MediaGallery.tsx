@@ -1,20 +1,18 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, Download, Grid3x3, Heart, List, Plus, Share2, X } from 'lucide-react';
+import { Calendar, Download, Grid3x3, Heart, List, Plus, Share2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { legacies, mediaItems } from '@/lib/mockData';
 import { SEOHead } from '@/components/seo';
-import { HeaderSlot } from '@/components/header';
+import PageActionBar from '@/components/PageActionBar';
 
 interface MediaGalleryProps {
   legacyId: string;
 }
 
 export default function MediaGallery({ legacyId }: MediaGalleryProps) {
-  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [selectedMedia, setSelectedMedia] = useState<typeof mediaItems[0] | null>(null);
   
@@ -27,43 +25,36 @@ export default function MediaGallery({ legacyId }: MediaGalleryProps) {
         description="View and manage media for this legacy"
         noIndex={true}
       />
-      <HeaderSlot>
-        <div className="flex items-center gap-3">
+      <PageActionBar backLabel={legacy.name} backTo={`/legacy/${legacyId}`}>
+        <div className="flex items-center gap-1 p-1 bg-neutral-100 rounded-lg">
           <button
-            onClick={() => navigate(`/legacy/${legacyId}`)}
-            className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
+            onClick={() => setViewMode('grid')}
+            className={`p-2 rounded transition-colors ${
+              viewMode === 'grid'
+                ? 'bg-white text-neutral-900 shadow-sm'
+                : 'text-neutral-500 hover:text-neutral-900'
+            }`}
+            aria-label="Grid view"
           >
-            <ArrowLeft className="size-4" />
-            <span>Back to {legacy.name}</span>
+            <Grid3x3 className="size-4" />
           </button>
-          <div className="flex items-center gap-1 p-1 bg-neutral-100 rounded-lg">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-white text-neutral-900 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-900'
-              }`}
-            >
-              <Grid3x3 className="size-4" />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded transition-colors ${
-                viewMode === 'list'
-                  ? 'bg-white text-neutral-900 shadow-sm'
-                  : 'text-neutral-500 hover:text-neutral-900'
-              }`}
-            >
-              <List className="size-4" />
-            </button>
-          </div>
-          <Button size="sm" className="gap-2">
-            <Plus className="size-4" />
-            Upload
-          </Button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`p-2 rounded transition-colors ${
+              viewMode === 'list'
+                ? 'bg-white text-neutral-900 shadow-sm'
+                : 'text-neutral-500 hover:text-neutral-900'
+            }`}
+            aria-label="List view"
+          >
+            <List className="size-4" />
+          </button>
         </div>
-      </HeaderSlot>
+        <Button size="sm" className="gap-2">
+          <Plus className="size-4" />
+          Upload
+        </Button>
+      </PageActionBar>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-12">

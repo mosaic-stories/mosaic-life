@@ -1,4 +1,4 @@
-import { BookOpen, Settings, HelpCircle, LogOut, Bell, Check } from 'lucide-react';
+import { Settings, HelpCircle, LogOut, Bell, Check } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HelpSupportDialog from '@/components/HelpSupportDialog';
@@ -139,11 +139,6 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
         <DropdownMenuSeparator />
 
         {/* Navigation Items */}
-        <DropdownMenuItem onClick={() => navigate('/my-legacies')} className="cursor-pointer py-2">
-          <BookOpen className="size-4 mr-3 text-neutral-500" />
-          <span>My Legacies</span>
-        </DropdownMenuItem>
-
         <DropdownMenuItem onClick={() => navigate('/settings')} className="cursor-pointer py-2">
           <Settings className="size-4 mr-3 text-neutral-500" />
           <span>Settings</span>

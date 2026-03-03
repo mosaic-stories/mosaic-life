@@ -20,6 +20,7 @@ from ..schemas.media import (
     UploadUrlRequest,
     UploadUrlResponse,
 )
+from ..services import activity as activity_service
 from ..services import media as media_service
 
 router = APIRouter(prefix="/api/media", tags=["media"])
@@ -62,11 +63,20 @@ async def confirm_upload(
 ) -> MediaConfirmResponse:
     """Confirm that file upload completed successfully."""
     session = require_auth(request)
-    return await media_service.confirm_upload(
+    result = await media_service.confirm_upload(
         db=db,
         user_id=session.user_id,
         media_id=media_id,
     )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="created",
+        entity_type="media",
+        entity_id=media_id,
+        metadata={"filename": result.filename, "content_type": result.content_type},
+    )
+    return result
 
 
 @router.get(
@@ -114,11 +124,21 @@ async def get_media(
     User must be a member of at least one legacy the media is associated with.
     """
     session = require_auth(request)
-    return await media_service.get_media_detail(
+    result = await media_service.get_media_detail(
         db=db,
         user_id=session.user_id,
         media_id=media_id,
     )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="viewed",
+        entity_type="media",
+        entity_id=media_id,
+        metadata={"filename": result.filename},
+        deduplicate_minutes=5,
+    )
+    return result
 
 
 @router.get(
@@ -163,10 +183,18 @@ async def delete_media(
     Only the owner can delete their media.
     """
     session = require_auth(request)
-    await media_service.delete_media(
+    result = await media_service.delete_media(
         db=db,
         user_id=session.user_id,
         media_id=media_id,
+    )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="deleted",
+        entity_type="media",
+        entity_id=media_id,
+        metadata={"filename": result["filename"] if result else None},
     )
 
 

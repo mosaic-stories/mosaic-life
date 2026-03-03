@@ -1,16 +1,20 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import RootLayout from './RootLayout';
 import ProtectedRoute from './ProtectedRoute';
 import ErrorPage from '@/components/ErrorPage';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Lazy load page components for code splitting
-const Homepage = lazy(() => import('@/pages/Homepage'));
+const PublicHomePage = lazy(() => import('@/pages/PublicHomePage'));
+const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
+const LegaciesPage = lazy(() => import('@/pages/LegaciesPage'));
+const StoriesPage = lazy(() => import('@/pages/StoriesPage'));
+const ConversationsPage = lazy(() => import('@/pages/ConversationsPage'));
 const About = lazy(() => import('@/pages/About'));
 const HowItWorks = lazy(() => import('@/pages/HowItWorks'));
 const Community = lazy(() => import('@/features/community/components/Community'));
 const LegacyProfile = lazy(() => import('@/features/legacy/components/LegacyProfile'));
-const MyLegacies = lazy(() => import('@/components/MyLegacies'));
 const StoryCreation = lazy(() => import('@/features/story/components/StoryCreation'));
 const LegacyCreation = lazy(() => import('@/features/legacy/components/LegacyCreation'));
 const LegacyEdit = lazy(() => import('@/features/legacy/components/LegacyEdit'));
@@ -41,9 +45,17 @@ function LazyPage({ children }: { children: React.ReactNode }) {
   return <Suspense fallback={<PageLoader />}>{children}</Suspense>;
 }
 
-// Route param extractors — pass URL params as props to page components
-import { useParams } from 'react-router-dom';
+// Auth-aware homepage wrapper
+// DashboardPage and PublicHomePage are React.lazy components.
+// The parent <LazyPage> provides the required <Suspense> boundary.
+function AuthAwareHome() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <PageLoader />;
+  // If auth check fails, user is null — falls through to PublicHomePage as safe fallback
+  return user ? <DashboardPage /> : <PublicHomePage />;
+}
 
+// Route param extractors — pass URL params as props to page components
 function WithLegacyId({ Component }: { Component: React.ComponentType<{ legacyId: string }> }) {
   const { legacyId } = useParams<{ legacyId: string }>();
   return <Component legacyId={legacyId || ''} />;
@@ -63,7 +75,7 @@ export const router = createBrowserRouter([
       // Public routes
       {
         index: true,
-        element: <LazyPage><Homepage /></LazyPage>,
+        element: <LazyPage><AuthAwareHome /></LazyPage>,
       },
       {
         path: 'about',
@@ -76,6 +88,31 @@ export const router = createBrowserRouter([
       {
         path: 'community',
         element: <LazyPage><Community /></LazyPage>,
+      },
+      // Authenticated navigation pages
+      {
+        path: 'legacies',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><LegaciesPage /></LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'stories',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><StoriesPage /></LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'conversations',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><ConversationsPage /></LazyPage>
+          </ProtectedRoute>
+        ),
       },
       // Public legacy view
       {
@@ -91,11 +128,7 @@ export const router = createBrowserRouter([
       // Protected routes
       {
         path: 'my-legacies',
-        element: (
-          <ProtectedRoute>
-            <LazyPage><MyLegacies /></LazyPage>
-          </ProtectedRoute>
-        ),
+        element: <Navigate to="/legacies" replace />,
       },
       {
         path: 'legacy/new',

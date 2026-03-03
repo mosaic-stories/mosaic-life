@@ -65,3 +65,21 @@ describe('AppHeader', () => {
     expect(screen.queryByRole('button', { name: /sign in/i })).not.toBeInTheDocument();
   });
 });
+
+describe('AppHeader navigation', () => {
+  it('shows navigation links when logged in (desktop)', () => {
+    mockUser = { id: '1', name: 'John Doe', email: 'john@example.com' };
+    renderWithProviders(<AppHeader />);
+    expect(screen.getByRole('link', { name: /home/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /legacies/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /stories/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /conversations/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /community/i })).toBeInTheDocument();
+  });
+
+  it('does NOT show navigation links when logged out', () => {
+    mockUser = null;
+    renderWithProviders(<AppHeader />);
+    expect(screen.queryByRole('link', { name: /legacies/i })).not.toBeInTheDocument();
+  });
+});

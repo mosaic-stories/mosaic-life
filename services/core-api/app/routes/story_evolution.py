@@ -26,6 +26,7 @@ from app.schemas.story_evolution import (
     SaveDraftRequest,
 )
 from app.schemas.story_version import StoryVersionDetail
+from app.services import activity as activity_service
 from app.services import story_evolution as evolution_service
 from app.services.story_writer import StoryWriterAgent
 
@@ -60,6 +61,14 @@ async def start_evolution(
         graph_context_service=registry.get_graph_context_service(),
     )
 
+    await activity_service.record_activity(
+        db=db,
+        user_id=session_data.user_id,
+        action="ai_story_evolved",
+        entity_type="story",
+        entity_id=story_id,
+        metadata={"persona_id": data.persona_id},
+    )
     return EvolutionSessionResponse.model_validate(evo_session)
 
 
