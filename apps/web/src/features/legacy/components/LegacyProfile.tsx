@@ -174,13 +174,13 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
       )}
 
       <PageActionBar backLabel="Legacies" backTo="/legacies">
-        <Button variant="ghost" size="sm" onClick={() => setShowMemberDrawer(true)}>
+        <Button variant="ghost" size="sm" onClick={() => setShowMemberDrawer(true)} aria-label="Share">
           <Share2 className="size-4" />
         </Button>
         {authUser && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm">
+              <Button variant="ghost" size="sm" aria-label="Legacy options">
                 <MoreVertical className="size-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -200,14 +200,16 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-        <Button size="sm" onClick={handleAddStory} disabled={createStory.isPending} className="bg-theme-primary hover:bg-theme-primary-dark">
-          {createStory.isPending ? (
-            <Loader2 className="size-4 mr-2 animate-spin" />
-          ) : (
-            <Plus className="size-4 mr-2" />
-          )}
-          <span className="hidden sm:inline">Add Story</span>
-        </Button>
+        {authUser && (
+          <Button size="sm" onClick={handleAddStory} disabled={createStory.isPending} className="bg-theme-primary hover:bg-theme-primary-dark">
+            {createStory.isPending ? (
+              <Loader2 className="size-4 mr-2 animate-spin" />
+            ) : (
+              <Plus className="size-4 mr-2" />
+            )}
+            <span className="hidden sm:inline">Add Story</span>
+          </Button>
+        )}
       </PageActionBar>
 
       <ProfileHeader

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookHeart, Globe, Lock, Loader2, Users, Check } from 'lucide-react';
+import { BookHeart, Globe, Lock, Loader2, Users, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { usePersonMatch } from '@/features/person/hooks/usePersonMatch';
 import type { PersonMatchCandidate } from '@/features/person/api/persons';
 import type { LegacyVisibility } from '@/features/legacy/api/legacies';
 import { SEOHead } from '@/components/seo';
-import { HeaderSlot } from '@/components/header';
+import PageActionBar from '@/components/PageActionBar';
 
 export default function LegacyCreation() {
   const navigate = useNavigate();
@@ -70,15 +70,7 @@ export default function LegacyCreation() {
         description="Create a new digital tribute to preserve stories and memories"
         noIndex={true}
       />
-      <HeaderSlot>
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-          <span>Back</span>
-        </button>
-      </HeaderSlot>
+      <PageActionBar backLabel="Legacies" onBack={() => navigate(-1)} />
 
       <main className="max-w-2xl mx-auto px-6 py-12">
         <div className="space-y-8">

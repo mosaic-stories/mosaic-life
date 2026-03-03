@@ -198,7 +198,7 @@ export default function StoryEvolutionWorkspace({
           description="Evolve your story with AI"
           noIndex={true}
         />
-        <PageActionBar backLabel="Back to story" backTo={`/legacy/${legacyId}/story/${storyId}`} />
+        <PageActionBar backLabel="Back to story" backTo={storyId ? `/legacy/${legacyId}/story/${storyId}` : `/legacy/${legacyId}`} />
         <main className="max-w-2xl mx-auto px-6 py-16">
           <Card className="p-8 text-center">
             <Sparkles className="size-10 mx-auto mb-4 text-purple-600" />
@@ -307,7 +307,7 @@ export default function StoryEvolutionWorkspace({
         description="Evolve your story with AI"
         noIndex={true}
       />
-      <PageActionBar backLabel="Back to story" backTo={`/legacy/${legacyId}/story/${storyId}`}>
+      <PageActionBar backLabel="Back to story" backTo={storyId ? `/legacy/${legacyId}/story/${storyId}` : `/legacy/${legacyId}`}>
         <Badge
           variant="outline"
           className="bg-purple-50 text-purple-700 border-purple-200"

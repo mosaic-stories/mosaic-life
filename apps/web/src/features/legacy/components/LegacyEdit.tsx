@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, BookHeart, Globe, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { BookHeart, Globe, Lock, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useLegacy, useUpdateLegacy } from '@/features/legacy/hooks/useLegacies';
 import type { LegacyVisibility } from '@/features/legacy/api/legacies';
 import { SEOHead } from '@/components/seo';
-import { HeaderSlot } from '@/components/header';
+import PageActionBar from '@/components/PageActionBar';
 
 interface LegacyEditProps {
   legacyId: string;
@@ -110,15 +110,7 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
         description="Edit your legacy information"
         noIndex={true}
       />
-      <HeaderSlot>
-        <button
-          onClick={() => navigate(`/legacy/${legacyId}`)}
-          className="flex items-center gap-2 text-neutral-600 hover:text-neutral-900 transition-colors"
-        >
-          <ArrowLeft className="size-4" />
-          <span>Back to legacy</span>
-        </button>
-      </HeaderSlot>
+      <PageActionBar backLabel={legacy.name} backTo={`/legacy/${legacyId}`} />
 
       <main className="max-w-2xl mx-auto px-6 py-12">
         <div className="space-y-8">
