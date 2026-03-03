@@ -20,7 +20,7 @@ const filterOptions: FilterOption[] = [
 export default function StoriesTabContent({ activeFilter, onFilterChange }: StoriesTabContentProps) {
   const { data: stories, isLoading } = useScopedStories(activeFilter as StoryScope);
 
-  const storyIds = stories?.map((s) => s.id) ?? [];
+  const storyIds = stories?.items?.map((s) => s.id) ?? [];
   const { data: favoriteData } = useFavoriteCheck('story', storyIds);
 
   return (
@@ -33,9 +33,9 @@ export default function StoriesTabContent({ activeFilter, onFilterChange }: Stor
         </div>
       )}
 
-      {!isLoading && stories && stories.length > 0 && (
+      {!isLoading && stories && stories.items.length > 0 && (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {stories.map((story) => (
+          {stories.items.map((story) => (
             <StoryCard
               key={story.id}
               story={story}
@@ -45,7 +45,7 @@ export default function StoriesTabContent({ activeFilter, onFilterChange }: Stor
         </div>
       )}
 
-      {!isLoading && (!stories || stories.length === 0) && (
+      {!isLoading && (!stories || stories.items.length === 0) && (
         <div className="text-center py-12">
           <BookOpen className="size-12 mx-auto text-neutral-300 mb-4" />
           <p className="text-neutral-600">
