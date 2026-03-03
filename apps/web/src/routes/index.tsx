@@ -1,8 +1,9 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import RootLayout from './RootLayout';
 import ProtectedRoute from './ProtectedRoute';
 import ErrorPage from '@/components/ErrorPage';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Lazy load page components for code splitting
 const PublicHomePage = lazy(() => import('@/pages/PublicHomePage'));
@@ -46,8 +47,6 @@ function LazyPage({ children }: { children: React.ReactNode }) {
 }
 
 // Auth-aware homepage wrapper
-import { useAuth } from '@/contexts/AuthContext';
-
 function AuthAwareHome() {
   const { user, isLoading } = useAuth();
   if (isLoading) return <PageLoader />;
@@ -55,8 +54,6 @@ function AuthAwareHome() {
 }
 
 // Route param extractors — pass URL params as props to page components
-import { useParams } from 'react-router-dom';
-
 function WithLegacyId({ Component }: { Component: React.ComponentType<{ legacyId: string }> }) {
   const { legacyId } = useParams<{ legacyId: string }>();
   return <Component legacyId={legacyId || ''} />;
