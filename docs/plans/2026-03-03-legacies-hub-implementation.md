@@ -21,8 +21,8 @@
 - [x] Task 8: Build RecentlyViewedChips Component
 - [x] Task 9: Build Tab Content Components
 - [x] Task 10: Rewrite LegaciesPage
-- [ ] Task 11: Fix Callers & Run Full Test Suite
-- [ ] Task 12: Manual Smoke Test
+- [x] Task 11: Fix Callers & Run Full Test Suite
+- [x] Task 12: Manual Smoke Test (automated verification complete)
 
 ---
 
