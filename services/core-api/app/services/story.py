@@ -582,6 +582,114 @@ async def list_legacy_stories(
     return summaries
 
 
+async def list_stories_scoped(
+    db: AsyncSession,
+    user_id: UUID,
+    scope: str = "mine",
+) -> list[StorySummary]:
+    """List stories by scope.
+
+    Scopes:
+        mine: stories authored by the user
+        shared: stories by others on legacies the user is a member of
+        favorites: stories the user has favorited
+    """
+    from app.models.favorite import UserFavorite
+
+    if scope == "mine":
+        # Stories authored by user
+        query = (
+            select(Story)
+            .options(
+                selectinload(Story.author),
+                selectinload(Story.legacy_associations),
+            )
+            .where(Story.author_id == user_id)
+            .order_by(Story.created_at.desc())
+        )
+    elif scope == "shared":
+        # Stories by others on legacies user is a member of
+        user_legacy_ids = select(LegacyMember.legacy_id).where(
+            LegacyMember.user_id == user_id,
+            LegacyMember.role != "pending",
+        )
+        query = (
+            select(Story)
+            .options(
+                selectinload(Story.author),
+                selectinload(Story.legacy_associations),
+            )
+            .join(StoryLegacy, Story.id == StoryLegacy.story_id)
+            .where(
+                StoryLegacy.legacy_id.in_(user_legacy_ids),
+                Story.author_id != user_id,
+                Story.status == "published",
+                or_(
+                    Story.visibility == "public",
+                    Story.visibility == "private",
+                ),
+            )
+            .order_by(Story.created_at.desc())
+        )
+    elif scope == "favorites":
+        fav_ids_subquery = select(UserFavorite.entity_id).where(
+            UserFavorite.user_id == user_id,
+            UserFavorite.entity_type == "story",
+        )
+        query = (
+            select(Story)
+            .options(
+                selectinload(Story.author),
+                selectinload(Story.legacy_associations),
+            )
+            .where(Story.id.in_(fav_ids_subquery))
+            .order_by(Story.created_at.desc())
+        )
+    else:
+        return []
+
+    story_result = await db.execute(query)
+    stories = story_result.scalars().unique().all()
+
+    # Resolve legacy names
+    all_legacy_ids: set[UUID] = set()
+    for story in stories:
+        all_legacy_ids.update(assoc.legacy_id for assoc in story.legacy_associations)
+    legacy_names = await _get_legacy_names(db, list(all_legacy_ids))
+
+    summaries = [
+        StorySummary(
+            id=story.id,
+            title=story.title,
+            content_preview=create_content_preview(story.content),
+            author_id=story.author_id,
+            author_name=story.author.name,
+            visibility=story.visibility,
+            status=story.status,
+            legacies=[
+                LegacyAssociationResponse(
+                    legacy_id=assoc.legacy_id,
+                    legacy_name=legacy_names.get(assoc.legacy_id, "Unknown"),
+                    role=assoc.role,
+                    position=assoc.position,
+                )
+                for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
+            ],
+            favorite_count=story.favorite_count or 0,
+            created_at=story.created_at,
+            updated_at=story.updated_at,
+        )
+        for story in stories
+    ]
+
+    logger.info(
+        "story.list_scoped",
+        extra={"user_id": str(user_id), "scope": scope, "count": len(summaries)},
+    )
+
+    return summaries
+
+
 async def list_public_stories(
     db: AsyncSession,
     legacy_id: UUID,

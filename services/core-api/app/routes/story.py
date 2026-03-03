@@ -1,6 +1,7 @@
 """API routes for story management."""
 
 import logging
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
@@ -115,22 +116,26 @@ async def list_public_stories(
     "/",
     response_model=list[StorySummary],
     summary="List stories",
-    description="List stories filtered by visibility rules. Filter by legacy_id or use orphaned flag.",
+    description="List stories filtered by visibility rules. Filter by legacy_id, orphaned flag, or scope.",
 )
 async def list_stories(
     request: Request,
     legacy_id: UUID | None = Query(None, description="Filter by legacy"),
     orphaned: bool = Query(False, description="Return only orphaned stories"),
+    scope: Literal["mine", "shared", "favorites"] | None = Query(
+        None, description="Filter scope (alternative to legacy_id/orphaned)"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> list[StorySummary]:
-    """List stories with optional filtering.
-
-    Visibility filtering:
-    - Members see: public + private + own personal stories
-    - Non-members see: only public stories
-    - Orphaned stories: user's stories with no legacy associations
-    """
+    """List stories with optional filtering."""
     session = require_auth(request)
+
+    if scope:
+        return await story_service.list_stories_scoped(
+            db=db,
+            user_id=session.user_id,
+            scope=scope,
+        )
 
     return await story_service.list_legacy_stories(
         db=db,
