@@ -10,8 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..adapters.storage import get_storage_adapter
 from ..models.activity import UserActivity
-from ..models.associations import StoryLegacy
+from ..models.ai import AIConversation
+from ..models.associations import ConversationLegacy, MediaLegacy, StoryLegacy
 from ..models.legacy import Legacy, LegacyMember
+from ..models.media import Media
 from ..models.story import Story
 from ..models.user import User
 
@@ -224,7 +226,17 @@ async def get_recent_items(
     )
 
     result = await db.execute(query)
-    activities = list(result.scalars().unique().all())
+    raw_activities = list(result.scalars().unique().all())
+
+    # Python-side dedup: the join can return multiple rows for the same entity
+    # when two activity rows share the exact same max(created_at) timestamp.
+    seen: set[tuple[str, UUID]] = set()
+    activities = []
+    for a in raw_activities:
+        key = (a.entity_type, a.entity_id)
+        if key not in seen:
+            seen.add(key)
+            activities.append(a)
 
     items = [
         {
@@ -384,6 +396,54 @@ async def enrich_entities(
                     "legacy_name": legacy_info[1] if legacy_info else None,
                 }
 
+    # Enrich media items (filename, content_type, legacy_id)
+    media_ids = [eid for etype, eid in items if etype == "media"]
+    if media_ids:
+        media_rows = await db.execute(select(Media).where(Media.id.in_(media_ids)))
+        medias = list(media_rows.scalars().all())
+
+        ml_rows = await db.execute(
+            select(MediaLegacy).where(
+                MediaLegacy.media_id.in_(media_ids),
+                MediaLegacy.role == "primary",
+            )
+        )
+        media_legacy_map: dict[UUID, str] = {
+            ml.media_id: str(ml.legacy_id) for ml in ml_rows.scalars().all()
+        }
+
+        for media in medias:
+            result[("media", media.id)] = {
+                "filename": media.filename,
+                "content_type": media.content_type,
+                "legacy_id": media_legacy_map.get(media.id),
+            }
+
+    # Enrich conversation items (title, persona_id, legacy_id)
+    conversation_ids = [eid for etype, eid in items if etype == "conversation"]
+    if conversation_ids:
+        conv_rows = await db.execute(
+            select(AIConversation).where(AIConversation.id.in_(conversation_ids))
+        )
+        convs = list(conv_rows.scalars().all())
+
+        cl_rows = await db.execute(
+            select(ConversationLegacy).where(
+                ConversationLegacy.conversation_id.in_(conversation_ids),
+                ConversationLegacy.role == "primary",
+            )
+        )
+        conv_legacy_map: dict[UUID, str] = {
+            cl.conversation_id: str(cl.legacy_id) for cl in cl_rows.scalars().all()
+        }
+
+        for conv in convs:
+            result[("conversation", conv.id)] = {
+                "title": conv.title,
+                "persona_id": conv.persona_id,
+                "legacy_id": conv_legacy_map.get(conv.id),
+            }
+
     return result
 
 
@@ -409,30 +469,30 @@ async def get_social_feed(
     )
     my_legacy_ids = [row[0] for row in membership_result.all()]
 
-    if not my_legacy_ids:
-        return {"items": [], "has_more": False, "next_cursor": None}
+    # 2. Find story IDs linked to those legacies (only when user has memberships)
+    related_story_ids: list[UUID] = []
+    if my_legacy_ids:
+        story_result = await db.execute(
+            select(StoryLegacy.story_id).where(StoryLegacy.legacy_id.in_(my_legacy_ids))
+        )
+        related_story_ids = [row[0] for row in story_result.all()]
 
-    # 2. Find story IDs linked to those legacies
-    story_result = await db.execute(
-        select(StoryLegacy.story_id).where(StoryLegacy.legacy_id.in_(my_legacy_ids))
-    )
-    related_story_ids = [row[0] for row in story_result.all()]
-
-    # 3. Build activity query: legacy actions on my legacies + story actions on related stories
+    # 3. Build activity query: legacy/story scope (when member) + own media/conversation always
     scope_filters = [
-        (UserActivity.entity_type == "legacy")
-        & (UserActivity.entity_id.in_(my_legacy_ids)),
+        # Always include the user's own media/conversation activity
+        (UserActivity.user_id == user_id)
+        & (UserActivity.entity_type.in_(["media", "conversation"])),
     ]
+    if my_legacy_ids:
+        scope_filters.append(
+            (UserActivity.entity_type == "legacy")
+            & (UserActivity.entity_id.in_(my_legacy_ids))
+        )
     if related_story_ids:
         scope_filters.append(
             (UserActivity.entity_type == "story")
             & (UserActivity.entity_id.in_(related_story_ids))
         )
-    # Also include the user's own media/conversation activity
-    scope_filters.append(
-        (UserActivity.user_id == user_id)
-        & (UserActivity.entity_type.in_(["media", "conversation"]))
-    )
 
     filters = [
         or_(*scope_filters),
@@ -549,7 +609,16 @@ async def get_enriched_recent_items(
     )
 
     result = await db.execute(query)
-    activities = list(result.scalars().unique().all())
+    raw_activities = list(result.scalars().unique().all())
+
+    # Python-side dedup: guard against duplicate rows sharing the same max(created_at)
+    seen_enriched: set[tuple[str, UUID]] = set()
+    activities = []
+    for a in raw_activities:
+        key = (a.entity_type, a.entity_id)
+        if key not in seen_enriched:
+            seen_enriched.add(key)
+            activities.append(a)
 
     # Enrich entities
     entity_keys = [(a.entity_type, a.entity_id) for a in activities]

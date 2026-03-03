@@ -10,13 +10,17 @@ function getActivityRoute(item: SocialFeedItem): string | null {
     case 'legacy':
       return `/legacy/${item.entity_id}`;
     case 'story': {
-      const legacyId = item.entity?.legacy_id;
+      const legacyId =
+        item.entity?.legacy_id ??
+        (item.metadata as { legacy_id?: string } | null)?.legacy_id;
       return legacyId
         ? `/legacy/${legacyId}/story/${item.entity_id}`
         : null;
     }
     case 'media': {
-      const legacyId = item.entity?.legacy_id;
+      const legacyId =
+        item.entity?.legacy_id ??
+        (item.metadata as { legacy_id?: string } | null)?.legacy_id;
       return legacyId ? `/legacy/${legacyId}/gallery` : null;
     }
     default:

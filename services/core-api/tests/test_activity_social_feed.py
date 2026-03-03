@@ -3,6 +3,7 @@
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import uuid4
 
 from app.models.associations import StoryLegacy
 from app.models.legacy import Legacy, LegacyMember
@@ -293,3 +294,73 @@ class TestGetSocialFeed:
             db=db_session, user_id=user_alice.id, limit=2, cursor=cursor
         )
         assert len(page2["items"]) == 2
+
+
+class TestSocialFeedNoMembership:
+    """Social feed behaviour for users who have no legacy memberships."""
+
+    @pytest.mark.asyncio
+    async def test_own_conversation_activity_appears_with_no_memberships(
+        self, db_session: AsyncSession, user_eve: User
+    ):
+        """A user with no LegacyMember rows should still see their own conversation activity."""
+        conv_id = uuid4()
+        await activity_service.record_activity(
+            db=db_session,
+            user_id=user_eve.id,
+            action="ai_conversation_started",
+            entity_type="conversation",
+            entity_id=conv_id,
+            metadata={"persona_id": "default"},
+        )
+        result = await activity_service.get_social_feed(
+            db=db_session, user_id=user_eve.id
+        )
+        assert result["items"], (
+            "Expected own conversation activity for user with no memberships"
+        )
+        assert result["items"][0]["entity_type"] == "conversation"
+        assert result["items"][0]["entity_id"] == conv_id
+
+    @pytest.mark.asyncio
+    async def test_own_media_activity_appears_with_no_memberships(
+        self, db_session: AsyncSession, user_eve: User
+    ):
+        """A user with no LegacyMember rows should still see their own media activity."""
+        media_id = uuid4()
+        await activity_service.record_activity(
+            db=db_session,
+            user_id=user_eve.id,
+            action="created",
+            entity_type="media",
+            entity_id=media_id,
+            metadata={"filename": "photo.jpg"},
+        )
+        result = await activity_service.get_social_feed(
+            db=db_session, user_id=user_eve.id
+        )
+        assert result["items"], (
+            "Expected own media activity for user with no memberships"
+        )
+        assert result["items"][0]["entity_type"] == "media"
+        assert result["items"][0]["entity_id"] == media_id
+
+    @pytest.mark.asyncio
+    async def test_viewed_actions_excluded_even_with_no_memberships(
+        self, db_session: AsyncSession, user_eve: User
+    ):
+        """Ephemeral 'viewed' actions should still be excluded from the feed."""
+        legacy_id = uuid4()
+        await activity_service.record_activity(
+            db=db_session,
+            user_id=user_eve.id,
+            action="viewed",
+            entity_type="legacy",
+            entity_id=legacy_id,
+        )
+        result = await activity_service.get_social_feed(
+            db=db_session, user_id=user_eve.id
+        )
+        assert result["items"] == [], (
+            "Expected 'viewed' actions to be excluded from feed"
+        )

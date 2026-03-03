@@ -44,8 +44,18 @@ export default function ActivityFeedItem({
   const actorName = item.actor.id === currentUserId ? 'You' : item.actor.name;
   const actionText = actionLabels[item.action] || item.action;
   const entityLabel = entityLabels[item.entity_type] || item.entity_type;
+  const metadata = item.metadata as
+    | { title?: string; name?: string; filename?: string }
+    | null
+    | undefined;
   const entityName =
-    item.entity?.title || item.entity?.name || item.entity?.filename || '';
+    item.entity?.title ||
+    item.entity?.name ||
+    item.entity?.filename ||
+    metadata?.title ||
+    metadata?.name ||
+    metadata?.filename ||
+    '';
 
   const timeAgo = formatDistanceToNow(new Date(item.created_at), {
     addSuffix: true,
