@@ -70,10 +70,20 @@ export interface StoryResponse {
   updated_at: string;
 }
 
-export async function getStories(legacyId?: string, orphaned?: boolean): Promise<StorySummary[]> {
+export type StoryScope = 'mine' | 'shared' | 'favorites';
+
+export async function getStories(
+  legacyId?: string,
+  orphaned?: boolean,
+  scope?: StoryScope,
+): Promise<StorySummary[]> {
   const params = new URLSearchParams();
-  if (legacyId) params.append('legacy_id', legacyId);
-  if (orphaned !== undefined) params.append('orphaned', String(orphaned));
+  if (scope) {
+    params.append('scope', scope);
+  } else {
+    if (legacyId) params.append('legacy_id', legacyId);
+    if (orphaned !== undefined) params.append('orphaned', String(orphaned));
+  }
   const queryString = params.toString();
   return apiGet<StorySummary[]>(`/api/stories/${queryString ? `?${queryString}` : ''}`);
 }

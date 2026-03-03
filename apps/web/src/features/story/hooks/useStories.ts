@@ -9,6 +9,7 @@ import {
   deleteStory,
   type CreateStoryInput,
   type UpdateStoryInput,
+  type StoryScope,
 } from '@/features/story/api/stories';
 import { ApiError } from '@/lib/api/client';
 
@@ -21,6 +22,7 @@ export const storyKeys = {
     if (filters.legacyId) return [...storyKeys.lists(), filters.legacyId];
     return [...storyKeys.lists()];
   },
+  scoped: (scope: string) => [...storyKeys.lists(), { scope }] as const,
   details: () => [...storyKeys.all, 'detail'] as const,
   detail: (storyId: string) => [...storyKeys.details(), storyId] as const,
 };
@@ -30,6 +32,13 @@ export function useStories(legacyId?: string, orphaned?: boolean) {
     queryKey: storyKeys.list({ legacyId, orphaned }),
     queryFn: () => getStories(legacyId, orphaned),
     enabled: true, // Always enabled, just filters differently
+  });
+}
+
+export function useScopedStories(scope: StoryScope) {
+  return useQuery({
+    queryKey: storyKeys.scoped(scope),
+    queryFn: () => getStories(undefined, undefined, scope),
   });
 }
 
