@@ -66,8 +66,7 @@ function WithStoryProps({ Component }: { Component: React.ComponentType<{ legacy
   return <Component legacyId={legacyId || ''} storyId={storyId} />;
 }
 
-export const router = createBrowserRouter(
-  [
+export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
@@ -223,6 +222,4 @@ export const router = createBrowserRouter(
       },
     ],
   },
-  ],
-  { future: { v7_startTransition: true } }
-);
+]);
