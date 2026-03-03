@@ -7,7 +7,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -580,6 +580,63 @@ async def list_legacy_stories(
     )
 
     return summaries
+
+
+async def get_story_stats(
+    db: AsyncSession,
+    user_id: UUID,
+) -> dict[str, int]:
+    """Get story-specific stats for a user.
+
+    Returns counts for: stories authored, favorites given to stories,
+    stories evolved via AI, distinct legacies written for.
+    """
+    from app.models.favorite import UserFavorite
+    from app.models.story_evolution import StoryEvolutionSession
+
+    # Count stories authored by user
+    my_stories_result = await db.execute(
+        select(func.count(Story.id)).where(Story.author_id == user_id)
+    )
+    my_stories_count = my_stories_result.scalar() or 0
+
+    # Count favorites given to stories
+    fav_result = await db.execute(
+        select(func.count(UserFavorite.id)).where(
+            UserFavorite.user_id == user_id,
+            UserFavorite.entity_type == "story",
+        )
+    )
+    favorites_given_count = fav_result.scalar() or 0
+
+    # Count stories evolved via AI (completed sessions)
+    evolved_result = await db.execute(
+        select(func.count(func.distinct(StoryEvolutionSession.story_id))).where(
+            StoryEvolutionSession.created_by == user_id,
+            StoryEvolutionSession.phase == "completed",
+        )
+    )
+    stories_evolved_count = evolved_result.scalar() or 0
+
+    # Count distinct legacies user has written stories for
+    legacies_result = await db.execute(
+        select(func.count(func.distinct(StoryLegacy.legacy_id)))
+        .join(Story, StoryLegacy.story_id == Story.id)
+        .where(Story.author_id == user_id)
+    )
+    legacies_written_for_count = legacies_result.scalar() or 0
+
+    logger.info(
+        "story.stats",
+        extra={"user_id": str(user_id)},
+    )
+
+    return {
+        "my_stories_count": my_stories_count,
+        "favorites_given_count": favorites_given_count,
+        "stories_evolved_count": stories_evolved_count,
+        "legacies_written_for_count": legacies_written_for_count,
+    }
 
 
 async def list_stories_scoped(

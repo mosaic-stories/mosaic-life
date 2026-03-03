@@ -13,6 +13,7 @@ from ..schemas.story import (
     StoryCreate,
     StoryDetail,
     StoryResponse,
+    StoryStatsResponse,
     StorySummary,
     StoryUpdate,
 )
@@ -143,6 +144,26 @@ async def list_stories(
         legacy_id=legacy_id,
         orphaned=orphaned,
     )
+
+
+@router.get(
+    "/stats",
+    response_model=StoryStatsResponse,
+    summary="Get story stats",
+    description="Get story-specific statistics for the authenticated user.",
+)
+async def get_story_stats(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> StoryStatsResponse:
+    """Get story stats for the current user."""
+    session = require_auth(request)
+
+    result = await story_service.get_story_stats(
+        db=db,
+        user_id=session.user_id,
+    )
+    return StoryStatsResponse(**result)
 
 
 @router.get(

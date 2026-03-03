@@ -106,6 +106,15 @@ class StorySummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class StoryStatsResponse(BaseModel):
+    """Story-specific stats for the authenticated user."""
+
+    my_stories_count: int
+    favorites_given_count: int
+    stories_evolved_count: int
+    legacies_written_for_count: int
+
+
 class StoryDetail(BaseModel):
     """Schema for full story details."""
 
