@@ -9,7 +9,7 @@ describe('BottomTabBar', () => {
     expect(screen.getByRole('link', { name: /home/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /legacies/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /stories/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /conversations/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /connections/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /community/i })).toBeInTheDocument();
   });
 

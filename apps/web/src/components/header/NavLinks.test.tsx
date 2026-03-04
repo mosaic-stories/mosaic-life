@@ -9,7 +9,7 @@ describe('NavLinks', () => {
     expect(screen.getByRole('link', { name: /home/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /legacies/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /stories/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /conversations/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /connections/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /community/i })).toBeInTheDocument();
   });
 
@@ -18,7 +18,7 @@ describe('NavLinks', () => {
     expect(screen.getByRole('link', { name: /home/i })).toHaveAttribute('href', '/');
     expect(screen.getByRole('link', { name: /legacies/i })).toHaveAttribute('href', '/legacies');
     expect(screen.getByRole('link', { name: /stories/i })).toHaveAttribute('href', '/stories');
-    expect(screen.getByRole('link', { name: /conversations/i })).toHaveAttribute('href', '/conversations');
+    expect(screen.getByRole('link', { name: /connections/i })).toHaveAttribute('href', '/connections');
     expect(screen.getByRole('link', { name: /community/i })).toHaveAttribute('href', '/community');
   });
 

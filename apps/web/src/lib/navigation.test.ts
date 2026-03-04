@@ -15,7 +15,7 @@ describe('NAV_ITEMS', () => {
 
   it('includes all expected routes', () => {
     const paths = NAV_ITEMS.map((item) => item.path);
-    expect(paths).toEqual(['/', '/legacies', '/stories', '/conversations', '/community']);
+    expect(paths).toEqual(['/', '/legacies', '/stories', '/connections', '/community']);
   });
 
   it('each item has label, path, and icon', () => {

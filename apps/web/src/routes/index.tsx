@@ -10,7 +10,7 @@ const PublicHomePage = lazy(() => import('@/pages/PublicHomePage'));
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'));
 const LegaciesPage = lazy(() => import('@/pages/LegaciesPage'));
 const StoriesPage = lazy(() => import('@/pages/StoriesPage'));
-const ConversationsPage = lazy(() => import('@/pages/ConversationsPage'));
+const ConnectionsPage = lazy(() => import('@/pages/ConnectionsPage'));
 const About = lazy(() => import('@/pages/About'));
 const HowItWorks = lazy(() => import('@/pages/HowItWorks'));
 const Community = lazy(() => import('@/features/community/components/Community'));
@@ -107,10 +107,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'conversations',
+        path: 'connections',
         element: (
           <ProtectedRoute>
-            <LazyPage><ConversationsPage /></LazyPage>
+            <LazyPage><ConnectionsPage /></LazyPage>
           </ProtectedRoute>
         ),
       },
