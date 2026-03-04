@@ -1,6 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ConversationCard from './ConversationCard';
 import type { ConversationSummary } from '@/features/ai-chat/api/ai';
 
