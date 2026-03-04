@@ -1,6 +1,8 @@
 """Service layer for Connections Hub queries."""
 
+import asyncio
 import logging
+from dataclasses import dataclass, field
 from typing import Any, Literal
 from uuid import UUID
 
@@ -15,20 +17,9 @@ from app.models.user import User
 logger = logging.getLogger(__name__)
 
 
-async def get_connections_stats(
-    db: AsyncSession,
-    user_id: UUID,
-) -> dict[str, int]:
-    """Get connection-specific stats for a user."""
-    # Count total conversations
-    conv_result = await db.execute(
-        select(func.count(AIConversation.id)).where(AIConversation.user_id == user_id)
-    )
-    conversations_count = conv_result.scalar() or 0
-
-    # Count distinct other users who share at least one legacy
-    # Subquery: legacy_ids where current user is a member
-    user_legacy_ids = (
+def _user_legacy_ids_subquery(user_id: UUID) -> Any:
+    """Return a subquery of legacy_ids where the given user is an active member."""
+    return (
         select(LegacyMember.legacy_id)
         .where(
             LegacyMember.user_id == user_id,
@@ -36,32 +27,62 @@ async def get_connections_stats(
         )
         .subquery()
     )
-    people_result = await db.execute(
-        select(func.count(func.distinct(LegacyMember.user_id))).where(
-            LegacyMember.legacy_id.in_(select(user_legacy_ids.c.legacy_id)),
-            LegacyMember.user_id != user_id,
-            LegacyMember.role != "pending",
-        )
-    )
-    people_count = people_result.scalar() or 0
 
-    # Count distinct legacies where user AND at least one other user are members
-    shared_legacies_result = await db.execute(
-        select(func.count(func.distinct(LegacyMember.legacy_id))).where(
-            LegacyMember.legacy_id.in_(select(user_legacy_ids.c.legacy_id)),
-            LegacyMember.user_id != user_id,
-            LegacyMember.role != "pending",
-        )
-    )
-    shared_legacies_count = shared_legacies_result.scalar() or 0
 
-    # Count distinct personas used
-    personas_result = await db.execute(
-        select(func.count(func.distinct(AIConversation.persona_id))).where(
-            AIConversation.user_id == user_id
+async def get_connections_stats(
+    db: AsyncSession,
+    user_id: UUID,
+) -> dict[str, int]:
+    """Get connection-specific stats for a user."""
+    user_legacy_ids = _user_legacy_ids_subquery(user_id)
+
+    async def _conversations_count() -> int:
+        result = await db.execute(
+            select(func.count(AIConversation.id)).where(
+                AIConversation.user_id == user_id
+            )
         )
+        return result.scalar() or 0
+
+    async def _people_count() -> int:
+        result = await db.execute(
+            select(func.count(func.distinct(LegacyMember.user_id))).where(
+                LegacyMember.legacy_id.in_(select(user_legacy_ids.c.legacy_id)),
+                LegacyMember.user_id != user_id,
+                LegacyMember.role != "pending",
+            )
+        )
+        return result.scalar() or 0
+
+    async def _shared_legacies_count() -> int:
+        result = await db.execute(
+            select(func.count(func.distinct(LegacyMember.legacy_id))).where(
+                LegacyMember.legacy_id.in_(select(user_legacy_ids.c.legacy_id)),
+                LegacyMember.user_id != user_id,
+                LegacyMember.role != "pending",
+            )
+        )
+        return result.scalar() or 0
+
+    async def _personas_used_count() -> int:
+        result = await db.execute(
+            select(func.count(func.distinct(AIConversation.persona_id))).where(
+                AIConversation.user_id == user_id
+            )
+        )
+        return result.scalar() or 0
+
+    (
+        conversations_count,
+        people_count,
+        shared_legacies_count,
+        personas_used_count,
+    ) = await asyncio.gather(
+        _conversations_count(),
+        _people_count(),
+        _shared_legacies_count(),
+        _personas_used_count(),
     )
-    personas_used_count = personas_result.scalar() or 0
 
     logger.info("connections.stats", extra={"user_id": str(user_id)})
 
@@ -73,37 +94,13 @@ async def get_connections_stats(
     }
 
 
-class TopConnectionItem:
-    """Internal result type for top connections query."""
-
-    def __init__(
-        self,
-        user_id: UUID,
-        display_name: str,
-        avatar_url: str | None,
-        shared_legacy_count: int,
-    ):
-        self.user_id = user_id
-        self.display_name = display_name
-        self.avatar_url = avatar_url
-        self.shared_legacy_count = shared_legacy_count
-
-
 async def get_top_connections(
     db: AsyncSession,
     user_id: UUID,
     limit: int = 6,
 ) -> list[dict[str, Any]]:
     """Get people the user shares the most legacies with."""
-    # Subquery: legacy_ids where current user is a member
-    user_legacy_ids = (
-        select(LegacyMember.legacy_id)
-        .where(
-            LegacyMember.user_id == user_id,
-            LegacyMember.role != "pending",
-        )
-        .subquery()
-    )
+    user_legacy_ids = _user_legacy_ids_subquery(user_id)
 
     # Count shared legacies per other user
     result = await db.execute(
@@ -180,21 +177,40 @@ async def get_favorite_personas(
     return items
 
 
+@dataclass
+class _ConnectionAccumulator:
+    """Internal accumulator for building per-user connection data."""
+
+    user_id: UUID
+    display_name: str
+    avatar_url: str | None
+    shared_legacies: list[dict[str, Any]] = field(default_factory=list)
+    highest_shared_role: str = "admirer"
+    highest_level: int = 0
+    is_co_creator: bool = False
+
+    @property
+    def shared_legacy_count(self) -> int:
+        return len(self.shared_legacies)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "user_id": self.user_id,
+            "display_name": self.display_name,
+            "avatar_url": self.avatar_url,
+            "shared_legacy_count": self.shared_legacy_count,
+            "shared_legacies": self.shared_legacies,
+            "highest_shared_role": self.highest_shared_role,
+        }
+
+
 async def get_people(
     db: AsyncSession,
     user_id: UUID,
     filter_key: Literal["all", "co_creators", "collaborators"] = "all",
 ) -> dict[str, Any]:
     """Get human connections with shared legacy details and filter counts."""
-    # Subquery: legacy_ids where current user is a member
-    user_legacy_ids = (
-        select(LegacyMember.legacy_id)
-        .where(
-            LegacyMember.user_id == user_id,
-            LegacyMember.role != "pending",
-        )
-        .subquery()
-    )
+    user_legacy_ids = _user_legacy_ids_subquery(user_id)
 
     # Get all other members on shared legacies with their roles
     result = await db.execute(
@@ -235,7 +251,7 @@ async def get_people(
 
     # Build per-user connection data
     role_levels = {"creator": 4, "admin": 3, "advocate": 2, "admirer": 1}
-    connections: dict[UUID, dict[str, Any]] = {}
+    connections: dict[UUID, _ConnectionAccumulator] = {}
 
     for other_user_id, legacy_id, role in other_member_rows:
         user = users_by_id.get(other_user_id)
@@ -244,23 +260,15 @@ async def get_people(
             continue
 
         if other_user_id not in connections:
-            connections[other_user_id] = {
-                "user_id": user.id,
-                "display_name": user.name,
-                "avatar_url": user.avatar_url,
-                "shared_legacy_count": 0,
-                "shared_legacies": [],
-                "highest_shared_role": "admirer",
-                "_highest_level": 0,
-                "_is_co_creator": False,
-            }
+            connections[other_user_id] = _ConnectionAccumulator(
+                user_id=user.id,
+                display_name=user.name,
+                avatar_url=user.avatar_url,
+            )
 
         conn = connections[other_user_id]
-        shared_legacies = conn["shared_legacies"]
-        assert isinstance(shared_legacies, list)
-
         user_role = user_roles_by_legacy.get(legacy_id, "admirer")
-        shared_legacies.append(
+        conn.shared_legacies.append(
             {
                 "legacy_id": legacy.id,
                 "legacy_name": legacy.name,
@@ -268,22 +276,19 @@ async def get_people(
                 "connection_role": role,
             }
         )
-        conn["shared_legacy_count"] = len(shared_legacies)
 
         level = role_levels.get(role, 0)
-        highest_level = conn["_highest_level"]
-        assert isinstance(highest_level, int)
-        if level > highest_level:
-            conn["_highest_level"] = level
-            conn["highest_shared_role"] = role
+        if level > conn.highest_level:
+            conn.highest_level = level
+            conn.highest_shared_role = role
 
         if role in ("creator", "admin"):
-            conn["_is_co_creator"] = True
+            conn.is_co_creator = True
 
     # Compute counts
     all_connections = list(connections.values())
-    co_creators = [c for c in all_connections if c["_is_co_creator"]]
-    collaborators = [c for c in all_connections if not c["_is_co_creator"]]
+    co_creators = [c for c in all_connections if c.is_co_creator]
+    collaborators = [c for c in all_connections if not c.is_co_creator]
 
     counts = {
         "all": len(all_connections),
@@ -300,25 +305,6 @@ async def get_people(
         filtered = all_connections
 
     # Sort by shared_legacy_count descending
-    filtered.sort(
-        key=lambda c: (
-            c["shared_legacy_count"] if isinstance(c["shared_legacy_count"], int) else 0
-        ),
-        reverse=True,
-    )
+    filtered.sort(key=lambda c: c.shared_legacy_count, reverse=True)
 
-    # Clean internal keys
-    items = []
-    for conn in filtered:
-        items.append(
-            {
-                "user_id": conn["user_id"],
-                "display_name": conn["display_name"],
-                "avatar_url": conn["avatar_url"],
-                "shared_legacy_count": conn["shared_legacy_count"],
-                "shared_legacies": conn["shared_legacies"],
-                "highest_shared_role": conn["highest_shared_role"],
-            }
-        )
-
-    return {"items": items, "counts": counts}
+    return {"items": [c.to_dict() for c in filtered], "counts": counts}

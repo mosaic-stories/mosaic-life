@@ -256,3 +256,11 @@ class TestPeople:
         assert response.status_code == 200
         data = response.json()
         assert data["counts"]["co_creators"] >= 1
+        # All returned items should have a co_creator-level role (admin/creator)
+        for item in data["items"]:
+            co_creator_roles = {"admin", "creator"}
+            item_roles = {sl["connection_role"] for sl in item["shared_legacies"]}
+            assert item_roles & co_creator_roles, (
+                f"Connection {item['display_name']} has no admin/creator role but"
+                " appeared in co_creators filter"
+            )
