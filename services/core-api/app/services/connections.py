@@ -1,7 +1,7 @@
 """Service layer for Connections Hub queries."""
 
 import logging
-from typing import Literal
+from typing import Any, Literal
 from uuid import UUID
 
 from sqlalchemy import func, select
@@ -22,9 +22,7 @@ async def get_connections_stats(
     """Get connection-specific stats for a user."""
     # Count total conversations
     conv_result = await db.execute(
-        select(func.count(AIConversation.id)).where(
-            AIConversation.user_id == user_id
-        )
+        select(func.count(AIConversation.id)).where(AIConversation.user_id == user_id)
     )
     conversations_count = conv_result.scalar() or 0
 
@@ -95,7 +93,7 @@ async def get_top_connections(
     db: AsyncSession,
     user_id: UUID,
     limit: int = 6,
-) -> list[dict[str, object]]:
+) -> list[dict[str, Any]]:
     """Get people the user shares the most legacies with."""
     # Subquery: legacy_ids where current user is a member
     user_legacy_ids = (
@@ -111,9 +109,7 @@ async def get_top_connections(
     result = await db.execute(
         select(
             LegacyMember.user_id,
-            func.count(func.distinct(LegacyMember.legacy_id)).label(
-                "shared_count"
-            ),
+            func.count(func.distinct(LegacyMember.legacy_id)).label("shared_count"),
         )
         .where(
             LegacyMember.legacy_id.in_(select(user_legacy_ids.c.legacy_id)),
@@ -131,12 +127,10 @@ async def get_top_connections(
 
     # Fetch user details
     other_user_ids = [row[0] for row in rows]
-    users_result = await db.execute(
-        select(User).where(User.id.in_(other_user_ids))
-    )
+    users_result = await db.execute(select(User).where(User.id.in_(other_user_ids)))
     users_by_id = {u.id: u for u in users_result.scalars().all()}
 
-    items: list[dict[str, object]] = []
+    items: list[dict[str, Any]] = []
     for other_user_id, shared_count in rows:
         user = users_by_id.get(other_user_id)
         if user:
@@ -156,7 +150,7 @@ async def get_favorite_personas(
     db: AsyncSession,
     user_id: UUID,
     limit: int = 4,
-) -> list[dict[str, object]]:
+) -> list[dict[str, Any]]:
     """Get personas ranked by conversation count for the user."""
     result = await db.execute(
         select(
@@ -170,15 +164,15 @@ async def get_favorite_personas(
     )
     rows = result.all()
 
-    items: list[dict[str, object]] = []
+    items: list[dict[str, Any]] = []
     for persona_id, conv_count in rows:
         persona = get_persona(persona_id)
         if persona:
             items.append(
                 {
                     "persona_id": persona_id,
-                    "persona_name": persona["name"],
-                    "persona_icon": persona["icon"],
+                    "persona_name": persona.name,
+                    "persona_icon": persona.icon,
                     "conversation_count": conv_count,
                 }
             )
@@ -190,7 +184,7 @@ async def get_people(
     db: AsyncSession,
     user_id: UUID,
     filter_key: Literal["all", "co_creators", "collaborators"] = "all",
-) -> dict[str, object]:
+) -> dict[str, Any]:
     """Get human connections with shared legacy details and filter counts."""
     # Subquery: legacy_ids where current user is a member
     user_legacy_ids = (
@@ -227,29 +221,21 @@ async def get_people(
             LegacyMember.role != "pending",
         )
     )
-    user_roles_by_legacy = {
-        row[0]: row[1] for row in user_roles_result.all()
-    }
+    user_roles_by_legacy = {row[0]: row[1] for row in user_roles_result.all()}
 
     # Fetch user and legacy details
     other_user_ids = list({row[0] for row in other_member_rows})
     legacy_ids = list({row[1] for row in other_member_rows})
 
-    users_result = await db.execute(
-        select(User).where(User.id.in_(other_user_ids))
-    )
+    users_result = await db.execute(select(User).where(User.id.in_(other_user_ids)))
     users_by_id = {u.id: u for u in users_result.scalars().all()}
 
-    legacies_result = await db.execute(
-        select(Legacy).where(Legacy.id.in_(legacy_ids))
-    )
-    legacies_by_id = {
-        leg.id: leg for leg in legacies_result.scalars().all()
-    }
+    legacies_result = await db.execute(select(Legacy).where(Legacy.id.in_(legacy_ids)))
+    legacies_by_id = {leg.id: leg for leg in legacies_result.scalars().all()}
 
     # Build per-user connection data
     role_levels = {"creator": 4, "admin": 3, "advocate": 2, "admirer": 1}
-    connections: dict[UUID, dict[str, object]] = {}
+    connections: dict[UUID, dict[str, Any]] = {}
 
     for other_user_id, legacy_id, role in other_member_rows:
         user = users_by_id.get(other_user_id)
@@ -316,9 +302,7 @@ async def get_people(
     # Sort by shared_legacy_count descending
     filtered.sort(
         key=lambda c: (
-            c["shared_legacy_count"]
-            if isinstance(c["shared_legacy_count"], int)
-            else 0
+            c["shared_legacy_count"] if isinstance(c["shared_legacy_count"], int) else 0
         ),
         reverse=True,
     )

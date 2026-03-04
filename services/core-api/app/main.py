@@ -37,6 +37,7 @@ from .routes.story_context import router as story_context_router
 from .routes.favorite import router as favorite_router
 from .routes.activity import router as activity_router
 from .routes.activity import internal_router as activity_internal_router
+from .routes.connections import router as connections_router
 
 logger = logging.getLogger(__name__)
 
@@ -134,3 +135,4 @@ app.include_router(story_context_router)
 app.include_router(favorite_router)
 app.include_router(activity_router)
 app.include_router(activity_internal_router)
+app.include_router(connections_router)
