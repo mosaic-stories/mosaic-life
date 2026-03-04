@@ -1,13 +1,5 @@
-import { BookOpen, Heart, Briefcase, Users } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { getPersonaIconComponent } from '@/features/ai-chat/utils/personaIcons';
 import { useFavoritePersonas } from '@/features/connections/hooks/useConnections';
-
-const PERSONA_ICONS: Record<string, LucideIcon> = {
-  BookOpen,
-  Heart,
-  Briefcase,
-  Users,
-};
 
 interface FavoritePersonasChipsProps {
   onPersonaClick?: (personaId: string) => void;
@@ -24,7 +16,7 @@ export default function FavoritePersonasChips({ onPersonaClick }: FavoritePerson
       <h3 className="text-sm font-medium text-neutral-500">Favorite Personas</h3>
       <div className="flex gap-4 overflow-x-auto pb-1">
         {data.map((item) => {
-          const Icon = PERSONA_ICONS[item.persona_icon] ?? BookOpen;
+          const Icon = getPersonaIconComponent(item.persona_icon);
           return (
             <button
               key={item.persona_id}

@@ -1,5 +1,6 @@
 import { Loader2, MessageCircle } from 'lucide-react';
 import { useConversationList } from '@/features/ai-chat/hooks/useAIChat';
+import { usePersonas } from '@/features/ai-chat/hooks/useAIChat';
 import ConversationCard from './ConversationCard';
 import QuickFilters from '@/components/legacies-hub/QuickFilters';
 import type { FilterOption } from '@/components/legacies-hub/QuickFilters';
@@ -13,15 +14,17 @@ export default function PersonasTabContent({ activeFilter, onFilterChange }: Per
   const personaId = activeFilter === 'all' ? '' : activeFilter;
   const { data: conversations, isLoading } = useConversationList('', personaId);
 
-  // Count conversations per persona for filter badges
+  // Build filter options dynamically from the personas API and actual conversation counts
   const { data: allConversations } = useConversationList('', '');
-  const biographerCount = allConversations?.filter((c) => c.persona_id === 'biographer').length ?? 0;
-  const friendCount = allConversations?.filter((c) => c.persona_id === 'friend').length ?? 0;
+  const { data: personas } = usePersonas();
 
   const filterOptions: FilterOption[] = [
     { key: 'all', label: 'All', count: allConversations?.length },
-    { key: 'biographer', label: 'Biographer', count: biographerCount || undefined },
-    { key: 'friend', label: 'Friend', count: friendCount || undefined },
+    ...(personas ?? []).map((persona) => ({
+      key: persona.id,
+      label: persona.name.replace(/^The\s+/i, ''),
+      count: allConversations?.filter((c) => c.persona_id === persona.id).length || undefined,
+    })),
   ];
 
   return (

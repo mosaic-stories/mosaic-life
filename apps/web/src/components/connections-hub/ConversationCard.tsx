@@ -1,29 +1,19 @@
-import { BookOpen, Heart, Briefcase, Users } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import type { ConversationSummary } from '@/features/ai-chat/api/ai';
+import { usePersonas } from '@/features/ai-chat/hooks/useAIChat';
+import { getPersonaIconComponent } from '@/features/ai-chat/utils/personaIcons';
 
-const PERSONA_ICONS: Record<string, LucideIcon> = {
-  biographer: BookOpen,
-  friend: Heart,
-  colleague: Briefcase,
-  family: Users,
-};
-
-const PERSONA_NAMES: Record<string, string> = {
-  biographer: 'The Biographer',
-  friend: 'The Friend',
-  colleague: 'The Colleague',
-  family: 'The Family Member',
-};
+const FALLBACK_PERSONA_NAME = 'AI Persona';
 
 interface ConversationCardProps {
   conversation: ConversationSummary;
 }
 
 export default function ConversationCard({ conversation }: ConversationCardProps) {
-  const Icon = PERSONA_ICONS[conversation.persona_id] ?? BookOpen;
-  const personaName = PERSONA_NAMES[conversation.persona_id] ?? conversation.persona_id;
+  const { data: personas } = usePersonas();
+  const persona = personas?.find((p) => p.id === conversation.persona_id);
+  const Icon = getPersonaIconComponent(persona?.icon ?? '');
+  const personaName = persona?.name ?? FALLBACK_PERSONA_NAME;
   const legacyName = conversation.legacies[0]?.legacy_name ?? 'Unknown Legacy';
   const timeAgo = conversation.last_message_at
     ? formatDistanceToNow(new Date(conversation.last_message_at), { addSuffix: true })
