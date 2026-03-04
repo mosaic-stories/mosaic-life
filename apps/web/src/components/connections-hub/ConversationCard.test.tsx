@@ -1,7 +1,17 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ConversationCard from './ConversationCard';
 import type { ConversationSummary } from '@/features/ai-chat/api/ai';
+
+vi.mock('@/features/ai-chat/hooks/useAIChat', () => ({
+  usePersonas: () => ({
+    data: [
+      { id: 'biographer', name: 'The Biographer', icon: 'BookOpen', description: '' },
+    ],
+    isLoading: false,
+  }),
+}));
 
 const mockConversation: ConversationSummary = {
   id: '1',

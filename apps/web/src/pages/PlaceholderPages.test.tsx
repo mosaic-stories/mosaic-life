@@ -14,6 +14,7 @@ vi.mock('@/features/connections/hooks/useConnections', () => ({
 
 vi.mock('@/features/ai-chat/hooks/useAIChat', () => ({
   useConversationList: () => ({ data: null, isLoading: false }),
+  usePersonas: () => ({ data: [], isLoading: false }),
 }));
 
 vi.mock('@/features/activity/hooks/useActivity', () => ({
