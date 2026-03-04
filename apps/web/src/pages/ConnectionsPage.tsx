@@ -10,7 +10,7 @@ import FavoritePersonasChips from '@/components/connections-hub/FavoritePersonas
 import PersonasTabContent from '@/components/connections-hub/PersonasTabContent';
 import PeopleTabContent from '@/components/connections-hub/PeopleTabContent';
 import ConnectionsActivityTabContent from '@/components/connections-hub/ConnectionsActivityTabContent';
-import LegacyPickerDialog from '@/components/stories-hub/LegacyPickerDialog';
+import NewConversationDialog from '@/components/connections-hub/NewConversationDialog';
 
 const DEFAULT_TAB = 'personas';
 const DEFAULT_FILTERS: Record<string, string> = {
@@ -18,8 +18,10 @@ const DEFAULT_FILTERS: Record<string, string> = {
   people: 'all',
   activity: 'all',
 };
-const VALID_FILTERS: Record<string, string[]> = {
-  personas: ['all', 'biographer', 'friend'],
+// Static whitelists for tabs with a fixed set of filter values.
+// Tabs absent from this map (e.g. "personas") accept any filter value since
+// their options are data-driven from the personas API.
+const STATIC_VALID_FILTERS: Record<string, string[]> = {
   people: ['all', 'co_creators', 'collaborators'],
   activity: ['all', 'mine'],
 };
@@ -31,8 +33,13 @@ export default function ConnectionsPage() {
   const activeTab = searchParams.get('tab') || DEFAULT_TAB;
   const rawFilter = searchParams.get('filter');
   const defaultFilter = DEFAULT_FILTERS[activeTab] || 'all';
-  const validFilters = VALID_FILTERS[activeTab] ?? [];
-  const activeFilter = rawFilter && validFilters.includes(rawFilter) ? rawFilter : defaultFilter;
+  const staticValidFilters = STATIC_VALID_FILTERS[activeTab];
+  // For tabs with a static whitelist, validate the filter value.
+  // For data-driven tabs (personas), accept any non-null filter from the URL.
+  const activeFilter =
+    rawFilter && (!staticValidFilters || staticValidFilters.includes(rawFilter))
+      ? rawFilter
+      : defaultFilter;
 
   const handleTabChange = (tab: string) => {
     setSearchParams({ tab, filter: DEFAULT_FILTERS[tab] || 'all' });
@@ -108,7 +115,7 @@ export default function ConnectionsPage() {
         </div>
       </div>
 
-      <LegacyPickerDialog open={pickerOpen} onOpenChange={setPickerOpen} />
+      <NewConversationDialog open={pickerOpen} onOpenChange={setPickerOpen} />
       <Footer />
     </div>
   );
