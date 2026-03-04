@@ -20,9 +20,7 @@ class TestConnectionsStats:
         test_user: User,
     ):
         """Stats response includes all four fields."""
-        response = await client.get(
-            "/api/connections/stats", headers=auth_headers
-        )
+        response = await client.get("/api/connections/stats", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert "conversations_count" in data
@@ -38,9 +36,7 @@ class TestConnectionsStats:
         test_user: User,
     ):
         """All stats values are non-negative integers."""
-        response = await client.get(
-            "/api/connections/stats", headers=auth_headers
-        )
+        response = await client.get("/api/connections/stats", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         for key, value in data.items():
@@ -71,9 +67,7 @@ class TestConnectionsStats:
         db_session.add(conv)
         await db_session.commit()
 
-        response = await client.get(
-            "/api/connections/stats", headers=auth_headers
-        )
+        response = await client.get("/api/connections/stats", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert data["conversations_count"] >= 1
@@ -194,9 +188,7 @@ class TestPeople:
         test_user: User,
     ):
         """Returns items and counts."""
-        response = await client.get(
-            "/api/connections/people", headers=auth_headers
-        )
+        response = await client.get("/api/connections/people", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert "items" in data
@@ -230,9 +222,7 @@ class TestPeople:
         db_session.add(member)
         await db_session.commit()
 
-        response = await client.get(
-            "/api/connections/people", headers=auth_headers
-        )
+        response = await client.get("/api/connections/people", headers=auth_headers)
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) >= 1
