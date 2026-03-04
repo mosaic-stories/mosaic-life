@@ -1,6 +1,5 @@
 """Service layer for Connections Hub queries."""
 
-import asyncio
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -36,53 +35,35 @@ async def get_connections_stats(
     """Get connection-specific stats for a user."""
     user_legacy_ids = _user_legacy_ids_subquery(user_id)
 
-    async def _conversations_count() -> int:
-        result = await db.execute(
-            select(func.count(AIConversation.id)).where(
-                AIConversation.user_id == user_id
-            )
-        )
-        return result.scalar() or 0
-
-    async def _people_count() -> int:
-        result = await db.execute(
-            select(func.count(func.distinct(LegacyMember.user_id))).where(
-                LegacyMember.legacy_id.in_(select(user_legacy_ids.c.legacy_id)),
-                LegacyMember.user_id != user_id,
-                LegacyMember.role != "pending",
-            )
-        )
-        return result.scalar() or 0
-
-    async def _shared_legacies_count() -> int:
-        result = await db.execute(
-            select(func.count(func.distinct(LegacyMember.legacy_id))).where(
-                LegacyMember.legacy_id.in_(select(user_legacy_ids.c.legacy_id)),
-                LegacyMember.user_id != user_id,
-                LegacyMember.role != "pending",
-            )
-        )
-        return result.scalar() or 0
-
-    async def _personas_used_count() -> int:
-        result = await db.execute(
-            select(func.count(func.distinct(AIConversation.persona_id))).where(
-                AIConversation.user_id == user_id
-            )
-        )
-        return result.scalar() or 0
-
-    (
-        conversations_count,
-        people_count,
-        shared_legacies_count,
-        personas_used_count,
-    ) = await asyncio.gather(
-        _conversations_count(),
-        _people_count(),
-        _shared_legacies_count(),
-        _personas_used_count(),
+    conversations_count_result = await db.execute(
+        select(func.count(AIConversation.id)).where(AIConversation.user_id == user_id)
     )
+    conversations_count = conversations_count_result.scalar() or 0
+
+    people_count_result = await db.execute(
+        select(func.count(func.distinct(LegacyMember.user_id))).where(
+            LegacyMember.legacy_id.in_(select(user_legacy_ids.c.legacy_id)),
+            LegacyMember.user_id != user_id,
+            LegacyMember.role != "pending",
+        )
+    )
+    people_count = people_count_result.scalar() or 0
+
+    shared_legacies_count_result = await db.execute(
+        select(func.count(func.distinct(LegacyMember.legacy_id))).where(
+            LegacyMember.legacy_id.in_(select(user_legacy_ids.c.legacy_id)),
+            LegacyMember.user_id != user_id,
+            LegacyMember.role != "pending",
+        )
+    )
+    shared_legacies_count = shared_legacies_count_result.scalar() or 0
+
+    personas_used_count_result = await db.execute(
+        select(func.count(func.distinct(AIConversation.persona_id))).where(
+            AIConversation.user_id == user_id
+        )
+    )
+    personas_used_count = personas_used_count_result.scalar() or 0
 
     logger.info("connections.stats", extra={"user_id": str(user_id)})
 
