@@ -40,6 +40,8 @@ export interface UserStats {
   chat_sessions_count: number;
   legacy_views_total: number;
   collaborators_count: number;
+  legacy_links_count: number;
+  favorites_count: number;
 }
 
 export interface UserSession {

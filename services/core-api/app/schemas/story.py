@@ -106,6 +106,39 @@ class StorySummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class StoryStatsResponse(BaseModel):
+    """Story-specific stats for the authenticated user."""
+
+    my_stories_count: int
+    favorites_given_count: int
+    stories_evolved_count: int
+    legacies_written_for_count: int
+
+
+class TopLegacyResponse(BaseModel):
+    """A legacy ranked by story count for the user."""
+
+    legacy_id: UUID
+    legacy_name: str
+    profile_image_url: str | None
+    story_count: int
+
+
+class StoryScopeCounts(BaseModel):
+    """Filter counts for stories hub."""
+
+    all: int
+    mine: int
+    shared: int
+
+
+class StoryScopedResponse(BaseModel):
+    """Stories list with scope filter counts."""
+
+    items: list[StorySummary]
+    counts: StoryScopeCounts
+
+
 class StoryDetail(BaseModel):
     """Schema for full story details."""
 

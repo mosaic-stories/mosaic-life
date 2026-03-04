@@ -15,6 +15,8 @@ import {
   type CreateLegacyInput,
   type UpdateLegacyInput,
   type VisibilityFilter,
+  type LegacyScope,
+  type LegacyScopedResponse,
 } from '@/features/legacy/api/legacies';
 import { ApiError } from '@/lib/api/client';
 
@@ -22,6 +24,7 @@ export const legacyKeys = {
   all: ['legacies'] as const,
   lists: () => [...legacyKeys.all, 'list'] as const,
   list: (filters?: Record<string, unknown>) => [...legacyKeys.lists(), filters] as const,
+  scoped: (scope: string) => [...legacyKeys.lists(), { scope }] as const,
   details: () => [...legacyKeys.all, 'detail'] as const,
   detail: (id: string) => [...legacyKeys.details(), id] as const,
   explore: () => [...legacyKeys.all, 'explore'] as const,
@@ -32,14 +35,15 @@ export const memberKeys = {
   list: (legacyId: string) => [...memberKeys.all, 'list', legacyId] as const,
 };
 
-export function useLegacies(options?: { enabled?: boolean }) {
+export function useLegacies(scope: LegacyScope = 'all', options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: legacyKeys.lists(),
-    queryFn: getLegacies,
-    // Only fetch when enabled (defaults to true for backwards compatibility)
+    queryKey: legacyKeys.scoped(scope),
+    queryFn: () => getLegacies(scope),
     enabled: options?.enabled ?? true,
   });
 }
+
+export type { LegacyScope, LegacyScopedResponse };
 
 export function useLegacy(id: string | undefined) {
   return useQuery({

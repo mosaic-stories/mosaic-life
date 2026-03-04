@@ -88,7 +88,7 @@ function LegacyCard({ legacy, onClick }: { legacy: Legacy; onClick: () => void }
 
 export default function MyLegacies() {
   const navigate = useNavigate();
-  const { data: legacies, isLoading, error } = useLegacies();
+  const { data, isLoading, error } = useLegacies();
   const { data: orphanedStories, isLoading: orphanedLoading } = useStories(undefined, true);
   const updateStory = useUpdateStory();
 
@@ -253,7 +253,7 @@ export default function MyLegacies() {
               </Card>
 
               {/* Existing legacies */}
-              {legacies?.map((legacy) => (
+              {data?.items?.map((legacy) => (
                 <LegacyCard
                   key={legacy.id}
                   legacy={legacy}
@@ -263,7 +263,7 @@ export default function MyLegacies() {
             </div>
           )}
 
-          {!isLoading && !error && legacies?.length === 0 && (
+          {!isLoading && !error && data?.items?.length === 0 && (
             <div className="text-center py-12">
               <BookHeart className="size-12 mx-auto text-neutral-300 mb-4" />
               <p className="text-neutral-600">You haven't created any legacies yet.</p>

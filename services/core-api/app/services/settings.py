@@ -6,13 +6,14 @@ from typing import Any
 from uuid import UUID
 
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
 from ..models.ai import AIConversation
-
 from ..models.associations import MediaLegacy, StoryLegacy
+from ..models.favorite import UserFavorite
+from ..models.legacy_link import LegacyLink
 from ..models.legacy import Legacy, LegacyMember
 from ..models.media import Media
 from ..models.notification import Notification
@@ -221,6 +222,30 @@ async def get_user_stats(db: AsyncSession, user_id: UUID) -> UserStatsResponse:
     )
     collaborators_count = collaborators_result.scalar() or 0
 
+    # Count active legacy links accessible to user
+    links_result = await db.execute(
+        select(func.count(LegacyLink.id)).where(
+            LegacyLink.status == "active",
+            or_(
+                LegacyLink.requester_legacy_id.in_(
+                    select(Legacy.id).where(Legacy.created_by == user_id)
+                ),
+                LegacyLink.target_legacy_id.in_(
+                    select(Legacy.id).where(Legacy.created_by == user_id)
+                ),
+            ),
+        )
+    )
+    legacy_links_count = links_result.scalar() or 0
+
+    # Count user's favorites
+    favorites_result = await db.execute(
+        select(func.count(UserFavorite.id)).where(
+            UserFavorite.user_id == user_id,
+        )
+    )
+    favorites_count = favorites_result.scalar() or 0
+
     # TODO: Add chat_sessions_count when AI chat tracking is implemented
     # TODO: Add legacy_views_total when view tracking is implemented
 
@@ -233,6 +258,8 @@ async def get_user_stats(db: AsyncSession, user_id: UUID) -> UserStatsResponse:
         chat_sessions_count=0,  # Placeholder
         legacy_views_total=0,  # Placeholder
         collaborators_count=collaborators_count,
+        legacy_links_count=legacy_links_count,
+        favorites_count=favorites_count,
     )
 
 

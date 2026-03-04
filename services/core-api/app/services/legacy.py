@@ -2,6 +2,7 @@
 
 import logging
 from datetime import datetime, timezone
+from typing import TypedDict
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -20,6 +21,18 @@ from ..schemas.legacy import (
     LegacySearchResponse,
     LegacyUpdate,
 )
+
+
+class _ScopedCounts(TypedDict):
+    all: int
+    created: int
+    connected: int
+
+
+class _ScopedResult(TypedDict):
+    items: list[LegacyResponse]
+    counts: _ScopedCounts
+
 
 logger = logging.getLogger(__name__)
 
@@ -302,6 +315,104 @@ async def list_user_legacies(
         )
         for legacy in legacies
     ]
+
+
+async def list_user_legacies_scoped(
+    db: AsyncSession,
+    user_id: UUID,
+    scope: str = "all",
+) -> _ScopedResult:
+    """List legacies with scope filtering and counts.
+
+    Scopes:
+        all: all legacies where user has membership
+        created: legacies user created
+        connected: legacies where user is member but not creator
+        favorites: user's favorited legacies
+
+    Returns dict with 'items' (list of LegacyResponse) and 'counts'.
+    """
+    from app.models.favorite import UserFavorite
+
+    # Query all member legacies (base set)
+    result = await db.execute(
+        select(Legacy, LegacyMember.role)
+        .join(LegacyMember)
+        .options(
+            selectinload(Legacy.creator),
+            selectinload(Legacy.profile_image),
+        )
+        .where(
+            LegacyMember.user_id == user_id,
+            LegacyMember.role != "pending",
+        )
+        .order_by(Legacy.created_at.desc())
+    )
+    rows = result.all()
+
+    # Compute counts
+    all_legacies = []
+    created_legacies = []
+    connected_legacies = []
+
+    for legacy, role in rows:
+        resp = LegacyResponse(
+            id=legacy.id,
+            name=legacy.name,
+            birth_date=legacy.birth_date,
+            death_date=legacy.death_date,
+            biography=legacy.biography,
+            visibility=legacy.visibility,
+            created_by=legacy.created_by,
+            created_at=legacy.created_at,
+            updated_at=legacy.updated_at,
+            creator_email=legacy.creator.email,
+            creator_name=legacy.creator.name,
+            person_id=legacy.person_id,
+            profile_image_id=legacy.profile_image_id,
+            profile_image_url=get_profile_image_url(legacy),
+            favorite_count=legacy.favorite_count or 0,
+        )
+        all_legacies.append(resp)
+        if role == "creator":
+            created_legacies.append(resp)
+        else:
+            connected_legacies.append(resp)
+
+    counts: _ScopedCounts = {
+        "all": len(all_legacies),
+        "created": len(created_legacies),
+        "connected": len(connected_legacies),
+    }
+
+    # Select items based on scope
+    if scope == "created":
+        items = created_legacies
+    elif scope == "connected":
+        items = connected_legacies
+    elif scope == "favorites":
+        # Query user's favorited legacy IDs
+        fav_result = await db.execute(
+            select(UserFavorite.entity_id).where(
+                UserFavorite.user_id == user_id,
+                UserFavorite.entity_type == "legacy",
+            )
+        )
+        fav_ids = {row[0] for row in fav_result.all()}
+        items = [leg for leg in all_legacies if leg.id in fav_ids]
+    else:
+        items = all_legacies
+
+    logger.info(
+        "legacy.list_scoped",
+        extra={
+            "user_id": str(user_id),
+            "scope": scope,
+            "count": len(items),
+        },
+    )
+
+    return {"items": items, "counts": counts}
 
 
 async def search_legacies_by_name(

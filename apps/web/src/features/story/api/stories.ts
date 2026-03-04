@@ -70,12 +70,54 @@ export interface StoryResponse {
   updated_at: string;
 }
 
-export async function getStories(legacyId?: string, orphaned?: boolean): Promise<StorySummary[]> {
+export type StoryScope = 'all' | 'mine' | 'shared' | 'favorites' | 'drafts';
+
+export interface StoryScopeCounts {
+  all: number;
+  mine: number;
+  shared: number;
+}
+
+export interface StoryScopedResponse {
+  items: StorySummary[];
+  counts: StoryScopeCounts;
+}
+
+export interface StoryStatsResponse {
+  my_stories_count: number;
+  favorites_given_count: number;
+  stories_evolved_count: number;
+  legacies_written_for_count: number;
+}
+
+export interface TopLegacy {
+  legacy_id: string;
+  legacy_name: string;
+  profile_image_url: string | null;
+  story_count: number;
+}
+
+export async function getStories(
+  legacyId?: string,
+  orphaned?: boolean,
+): Promise<StorySummary[]> {
   const params = new URLSearchParams();
   if (legacyId) params.append('legacy_id', legacyId);
   if (orphaned !== undefined) params.append('orphaned', String(orphaned));
   const queryString = params.toString();
   return apiGet<StorySummary[]>(`/api/stories/${queryString ? `?${queryString}` : ''}`);
+}
+
+export async function getScopedStories(scope: StoryScope): Promise<StoryScopedResponse> {
+  return apiGet<StoryScopedResponse>(`/api/stories/?scope=${scope}`);
+}
+
+export async function getStoryStats(): Promise<StoryStatsResponse> {
+  return apiGet<StoryStatsResponse>('/api/stories/stats');
+}
+
+export async function getTopLegacies(limit: number = 6): Promise<TopLegacy[]> {
+  return apiGet<TopLegacy[]>(`/api/stories/top-legacies?limit=${limit}`);
 }
 
 export async function getStory(storyId: string): Promise<StoryDetail> {

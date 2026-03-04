@@ -2,13 +2,18 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getStories,
+  getScopedStories,
   getStory,
+  getStoryStats,
+  getTopLegacies,
   getPublicStories,
   createStory,
   updateStory,
   deleteStory,
   type CreateStoryInput,
   type UpdateStoryInput,
+  type StoryScope,
+  type StoryScopedResponse,
 } from '@/features/story/api/stories';
 import { ApiError } from '@/lib/api/client';
 
@@ -21,6 +26,9 @@ export const storyKeys = {
     if (filters.legacyId) return [...storyKeys.lists(), filters.legacyId];
     return [...storyKeys.lists()];
   },
+  scoped: (scope: string) => [...storyKeys.lists(), { scope }] as const,
+  stats: () => [...storyKeys.all, 'stats'] as const,
+  topLegacies: (limit: number) => [...storyKeys.all, 'top-legacies', limit] as const,
   details: () => [...storyKeys.all, 'detail'] as const,
   detail: (storyId: string) => [...storyKeys.details(), storyId] as const,
 };
@@ -30,6 +38,27 @@ export function useStories(legacyId?: string, orphaned?: boolean) {
     queryKey: storyKeys.list({ legacyId, orphaned }),
     queryFn: () => getStories(legacyId, orphaned),
     enabled: true, // Always enabled, just filters differently
+  });
+}
+
+export function useScopedStories(scope: StoryScope) {
+  return useQuery<StoryScopedResponse>({
+    queryKey: storyKeys.scoped(scope),
+    queryFn: () => getScopedStories(scope),
+  });
+}
+
+export function useStoryStats() {
+  return useQuery({
+    queryKey: storyKeys.stats(),
+    queryFn: getStoryStats,
+  });
+}
+
+export function useTopLegacies(limit: number = 6) {
+  return useQuery({
+    queryKey: storyKeys.topLegacies(limit),
+    queryFn: () => getTopLegacies(limit),
   });
 }
 

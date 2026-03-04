@@ -1,6 +1,7 @@
 """API routes for story management."""
 
 import logging
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, Request, status
@@ -12,8 +13,12 @@ from ..schemas.story import (
     StoryCreate,
     StoryDetail,
     StoryResponse,
+    StoryScopeCounts,
+    StoryScopedResponse,
+    StoryStatsResponse,
     StorySummary,
     StoryUpdate,
+    TopLegacyResponse,
 )
 from ..services import activity as activity_service
 from ..services import story as story_service
@@ -113,24 +118,32 @@ async def list_public_stories(
 
 @router.get(
     "/",
-    response_model=list[StorySummary],
+    response_model=StoryScopedResponse | list[StorySummary],
     summary="List stories",
-    description="List stories filtered by visibility rules. Filter by legacy_id or use orphaned flag.",
+    description="List stories filtered by visibility rules. Filter by legacy_id, orphaned flag, or scope.",
 )
 async def list_stories(
     request: Request,
     legacy_id: UUID | None = Query(None, description="Filter by legacy"),
     orphaned: bool = Query(False, description="Return only orphaned stories"),
+    scope: Literal["all", "mine", "shared", "favorites", "drafts"] | None = Query(
+        None, description="Filter scope (alternative to legacy_id/orphaned)"
+    ),
     db: AsyncSession = Depends(get_db),
-) -> list[StorySummary]:
-    """List stories with optional filtering.
-
-    Visibility filtering:
-    - Members see: public + private + own personal stories
-    - Non-members see: only public stories
-    - Orphaned stories: user's stories with no legacy associations
-    """
+) -> StoryScopedResponse | list[StorySummary]:
+    """List stories with optional filtering."""
     session = require_auth(request)
+
+    if scope:
+        result = await story_service.list_stories_scoped(
+            db=db,
+            user_id=session.user_id,
+            scope=scope,
+        )
+        return StoryScopedResponse(
+            items=result["items"],
+            counts=StoryScopeCounts(**result["counts"]),
+        )
 
     return await story_service.list_legacy_stories(
         db=db,
@@ -138,6 +151,48 @@ async def list_stories(
         legacy_id=legacy_id,
         orphaned=orphaned,
     )
+
+
+@router.get(
+    "/stats",
+    response_model=StoryStatsResponse,
+    summary="Get story stats",
+    description="Get story-specific statistics for the authenticated user.",
+)
+async def get_story_stats(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> StoryStatsResponse:
+    """Get story stats for the current user."""
+    session = require_auth(request)
+
+    result = await story_service.get_story_stats(
+        db=db,
+        user_id=session.user_id,
+    )
+    return StoryStatsResponse(**result)
+
+
+@router.get(
+    "/top-legacies",
+    response_model=list[TopLegacyResponse],
+    summary="Get top legacies by story count",
+    description="Get legacies the user has written the most stories about.",
+)
+async def get_top_legacies(
+    request: Request,
+    limit: int = Query(default=6, ge=1, le=20, description="Max results"),
+    db: AsyncSession = Depends(get_db),
+) -> list[TopLegacyResponse]:
+    """Get top legacies by story count for the current user."""
+    session = require_auth(request)
+
+    items = await story_service.get_top_legacies(
+        db=db,
+        user_id=session.user_id,
+        limit=limit,
+    )
+    return [TopLegacyResponse(**item) for item in items]
 
 
 @router.get(

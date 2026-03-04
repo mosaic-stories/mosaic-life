@@ -85,8 +85,10 @@ class TestListLegacies:
 
         assert response.status_code == 200
         result = response.json()
-        assert len(result) >= 1
-        assert any(legacy["id"] == str(test_legacy.id) for legacy in result)
+        assert "items" in result
+        assert "counts" in result
+        assert len(result["items"]) >= 1
+        assert any(legacy["id"] == str(test_legacy.id) for legacy in result["items"])
 
     @pytest.mark.asyncio
     async def test_list_legacies_requires_auth(

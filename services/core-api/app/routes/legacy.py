@@ -13,6 +13,8 @@ from ..schemas.legacy import (
     LegacyCreate,
     LegacyResponse,
     LegacySearchResponse,
+    LegacyScopeCounts,
+    LegacyScopedResponse,
     LegacyUpdate,
 )
 from ..schemas.media import SetProfileImageRequest
@@ -69,23 +71,32 @@ async def create_legacy(
 
 @router.get(
     "/",
-    response_model=list[LegacyResponse],
+    response_model=LegacyScopedResponse,
     summary="List user's legacies",
-    description="List all legacies where the user is a member (not pending).",
+    description="List all legacies where the user is a member (not pending), with scope filtering and counts.",
 )
 async def list_legacies(
     request: Request,
     db: AsyncSession = Depends(get_db),
-) -> list[LegacyResponse]:
-    """List all legacies where user is a member.
+    scope: Literal["all", "created", "connected", "favorites"] = Query(
+        default="all", description="Filter scope"
+    ),
+) -> LegacyScopedResponse:
+    """List all legacies where user is a member, with scope filtering.
 
     Does not include legacies where membership is pending.
+    Returns items filtered by scope and counts for all scopes.
     """
     session = require_auth(request)
 
-    return await legacy_service.list_user_legacies(
+    result = await legacy_service.list_user_legacies_scoped(
         db=db,
         user_id=session.user_id,
+        scope=scope,
+    )
+    return LegacyScopedResponse(
+        items=result["items"],
+        counts=LegacyScopeCounts(**result["counts"]),
     )
 
 

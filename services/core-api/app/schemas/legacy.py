@@ -92,6 +92,21 @@ class LegacyResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class LegacyScopeCounts(BaseModel):
+    """Filter counts for legacies hub."""
+
+    all: int
+    created: int
+    connected: int
+
+
+class LegacyScopedResponse(BaseModel):
+    """Legacies list with scope filter counts."""
+
+    items: list[LegacyResponse]
+    counts: LegacyScopeCounts
+
+
 class LegacySearchResponse(BaseModel):
     """Schema for legacy search results."""
 

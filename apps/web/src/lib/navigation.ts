@@ -1,4 +1,4 @@
-import { Home, Landmark, BookOpen, MessageCircle, Users } from 'lucide-react';
+import { Home, Landmark, BookOpen, Link2, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export interface NavItem {
@@ -11,6 +11,6 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Home', path: '/', icon: Home },
   { label: 'Legacies', path: '/legacies', icon: Landmark },
   { label: 'Stories', path: '/stories', icon: BookOpen },
-  { label: 'Conversations', path: '/conversations', icon: MessageCircle },
+  { label: 'Connections', path: '/connections', icon: Link2 },
   { label: 'Community', path: '/community', icon: Users },
 ];

@@ -31,6 +31,19 @@ export interface Legacy {
   favorite_count?: number;
 }
 
+export type LegacyScope = 'all' | 'created' | 'connected' | 'favorites';
+
+export interface LegacyScopeCounts {
+  all: number;
+  created: number;
+  connected: number;
+}
+
+export interface LegacyScopedResponse {
+  items: Legacy[];
+  counts: LegacyScopeCounts;
+}
+
 export interface CreateLegacyInput {
   name: string;
   birth_date?: string | null;
@@ -78,8 +91,9 @@ export function getLegacyContext(legacy: Legacy): 'memorial' | 'living-tribute' 
   return legacy.death_date ? 'memorial' : 'living-tribute';
 }
 
-export async function getLegacies(): Promise<Legacy[]> {
-  return apiGet<Legacy[]>('/api/legacies/');
+export async function getLegacies(scope: LegacyScope = 'all'): Promise<LegacyScopedResponse> {
+  const params = new URLSearchParams({ scope });
+  return apiGet<LegacyScopedResponse>(`/api/legacies/?${params.toString()}`);
 }
 
 export async function getLegacy(id: string): Promise<Legacy> {

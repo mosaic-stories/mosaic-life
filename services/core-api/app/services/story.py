@@ -3,11 +3,12 @@
 import logging
 import re
 from datetime import datetime, timezone
+from typing import TypedDict
 from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -580,6 +581,267 @@ async def list_legacy_stories(
     )
 
     return summaries
+
+
+async def get_story_stats(
+    db: AsyncSession,
+    user_id: UUID,
+) -> dict[str, int]:
+    """Get story-specific stats for a user.
+
+    Returns counts for: stories authored, favorites given to stories,
+    stories evolved via AI, distinct legacies written for.
+    """
+    from app.models.favorite import UserFavorite
+    from app.models.story_evolution import StoryEvolutionSession
+
+    # Count stories authored by user
+    my_stories_result = await db.execute(
+        select(func.count(Story.id)).where(Story.author_id == user_id)
+    )
+    my_stories_count = my_stories_result.scalar() or 0
+
+    # Count favorites given to stories
+    fav_result = await db.execute(
+        select(func.count(UserFavorite.id)).where(
+            UserFavorite.user_id == user_id,
+            UserFavorite.entity_type == "story",
+        )
+    )
+    favorites_given_count = fav_result.scalar() or 0
+
+    # Count stories evolved via AI (completed sessions)
+    evolved_result = await db.execute(
+        select(func.count(func.distinct(StoryEvolutionSession.story_id))).where(
+            StoryEvolutionSession.created_by == user_id,
+            StoryEvolutionSession.phase == "completed",
+        )
+    )
+    stories_evolved_count = evolved_result.scalar() or 0
+
+    # Count distinct legacies user has written stories for
+    legacies_result = await db.execute(
+        select(func.count(func.distinct(StoryLegacy.legacy_id)))
+        .join(Story, StoryLegacy.story_id == Story.id)
+        .where(Story.author_id == user_id)
+    )
+    legacies_written_for_count = legacies_result.scalar() or 0
+
+    logger.info(
+        "story.stats",
+        extra={"user_id": str(user_id)},
+    )
+
+    return {
+        "my_stories_count": my_stories_count,
+        "favorites_given_count": favorites_given_count,
+        "stories_evolved_count": stories_evolved_count,
+        "legacies_written_for_count": legacies_written_for_count,
+    }
+
+
+class TopLegacyItem(TypedDict):
+    """Internal typed dict for top legacy query results."""
+
+    legacy_id: UUID
+    legacy_name: str
+    profile_image_url: str | None
+    story_count: int
+
+
+class StoryScopedCounts(TypedDict):
+    """Internal typed dict for scoped story counts."""
+
+    all: int
+    mine: int
+    shared: int
+
+
+class StoryScopedResult(TypedDict):
+    """Internal typed dict for scoped story list result."""
+
+    items: list[StorySummary]
+    counts: StoryScopedCounts
+
+
+async def get_top_legacies(
+    db: AsyncSession,
+    user_id: UUID,
+    limit: int = 6,
+) -> list[TopLegacyItem]:
+    """Get legacies the user has written the most stories about.
+
+    Returns legacy_id, legacy_name, profile_image_url, and story_count,
+    ordered by story_count descending.
+    """
+    from ..services.legacy import get_profile_image_url
+
+    # Count stories per legacy for this author
+    result = await db.execute(
+        select(
+            StoryLegacy.legacy_id,
+            func.count(StoryLegacy.story_id).label("story_count"),
+        )
+        .join(Story, StoryLegacy.story_id == Story.id)
+        .where(Story.author_id == user_id)
+        .group_by(StoryLegacy.legacy_id)
+        .order_by(func.count(StoryLegacy.story_id).desc())
+        .limit(limit)
+    )
+    rows = result.all()
+
+    if not rows:
+        return []
+
+    # Fetch legacy details
+    legacy_ids = [row[0] for row in rows]
+    legacy_result = await db.execute(
+        select(Legacy)
+        .options(selectinload(Legacy.profile_image))
+        .where(Legacy.id.in_(legacy_ids))
+    )
+    legacies_by_id = {leg.id: leg for leg in legacy_result.scalars().all()}
+
+    items: list[TopLegacyItem] = []
+    for legacy_id, story_count in rows:
+        legacy = legacies_by_id.get(legacy_id)
+        if legacy:
+            items.append(
+                TopLegacyItem(
+                    legacy_id=legacy.id,
+                    legacy_name=legacy.name,
+                    profile_image_url=get_profile_image_url(legacy),
+                    story_count=story_count,
+                )
+            )
+
+    logger.info(
+        "story.top_legacies",
+        extra={"user_id": str(user_id), "count": len(items)},
+    )
+
+    return items
+
+
+async def list_stories_scoped(
+    db: AsyncSession,
+    user_id: UUID,
+    scope: str = "all",
+) -> StoryScopedResult:
+    """List stories by scope with filter counts.
+
+    Scopes:
+        all: all stories the user can see (authored + shared)
+        mine: stories authored by the user
+        shared: stories by others on legacies the user is a member of
+        favorites: stories the user has favorited
+        drafts: user's own draft stories
+    """
+    from app.models.favorite import UserFavorite
+
+    # Query user's own stories
+    mine_result = await db.execute(
+        select(Story)
+        .options(
+            selectinload(Story.author),
+            selectinload(Story.legacy_associations),
+        )
+        .where(Story.author_id == user_id)
+        .order_by(Story.created_at.desc())
+    )
+    mine_stories = list(mine_result.scalars().unique().all())
+
+    # Query shared stories (by others on legacies user is a member of)
+    user_legacy_ids = select(LegacyMember.legacy_id).where(
+        LegacyMember.user_id == user_id,
+        LegacyMember.role != "pending",
+    )
+    shared_result = await db.execute(
+        select(Story)
+        .options(
+            selectinload(Story.author),
+            selectinload(Story.legacy_associations),
+        )
+        .join(StoryLegacy, Story.id == StoryLegacy.story_id)
+        .where(
+            StoryLegacy.legacy_id.in_(user_legacy_ids),
+            Story.author_id != user_id,
+            Story.status == "published",
+            or_(
+                Story.visibility == "public",
+                Story.visibility == "private",
+            ),
+        )
+        .order_by(Story.created_at.desc())
+    )
+    shared_stories = list(shared_result.scalars().unique().all())
+
+    # Compute counts (published only for mine count to match visible items)
+    mine_published = [s for s in mine_stories if s.status == "published"]
+    counts: StoryScopedCounts = {
+        "all": len(mine_published) + len(shared_stories),
+        "mine": len(mine_published),
+        "shared": len(shared_stories),
+    }
+
+    # Resolve legacy names for all stories
+    all_stories_combined = mine_stories + shared_stories
+    all_legacy_ids: set[UUID] = set()
+    for story in all_stories_combined:
+        all_legacy_ids.update(assoc.legacy_id for assoc in story.legacy_associations)
+    legacy_names = await _get_legacy_names(db, list(all_legacy_ids))
+
+    def to_summary(story: Story) -> StorySummary:
+        return StorySummary(
+            id=story.id,
+            title=story.title,
+            content_preview=create_content_preview(story.content),
+            author_id=story.author_id,
+            author_name=story.author.name,
+            visibility=story.visibility,
+            status=story.status,
+            legacies=[
+                LegacyAssociationResponse(
+                    legacy_id=assoc.legacy_id,
+                    legacy_name=legacy_names.get(assoc.legacy_id, "Unknown"),
+                    role=assoc.role,
+                    position=assoc.position,
+                )
+                for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
+            ],
+            favorite_count=story.favorite_count or 0,
+            created_at=story.created_at,
+            updated_at=story.updated_at,
+        )
+
+    # Select items based on scope
+    if scope == "mine":
+        items = [to_summary(s) for s in mine_published]
+    elif scope == "shared":
+        items = [to_summary(s) for s in shared_stories]
+    elif scope == "favorites":
+        fav_result = await db.execute(
+            select(UserFavorite.entity_id).where(
+                UserFavorite.user_id == user_id,
+                UserFavorite.entity_type == "story",
+            )
+        )
+        fav_ids = {row[0] for row in fav_result.all()}
+        all_summaries = [to_summary(s) for s in mine_published + shared_stories]
+        items = [s for s in all_summaries if s.id in fav_ids]
+    elif scope == "drafts":
+        drafts = [s for s in mine_stories if s.status == "draft"]
+        items = [to_summary(s) for s in drafts]
+    else:
+        # "all" — mine (published) + shared
+        items = [to_summary(s) for s in mine_published + shared_stories]
+
+    logger.info(
+        "story.list_scoped",
+        extra={"user_id": str(user_id), "scope": scope, "count": len(items)},
+    )
+
+    return StoryScopedResult(items=items, counts=counts)
 
 
 async def list_public_stories(

@@ -9,9 +9,38 @@ vi.mock('@/contexts/AuthContext', () => ({
   }),
 }));
 
+vi.mock('@/features/settings/hooks/useSettings', () => ({
+  useStats: () => ({
+    data: {
+      legacies_count: 3,
+      stories_count: 5,
+      legacy_links_count: 72,
+      favorites_count: 2,
+    },
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/features/activity/hooks/useActivity', () => ({
+  useRecentlyViewed: () => ({
+    data: { tracking_enabled: false, items: [] },
+    isLoading: false,
+  }),
+  useSocialFeed: () => ({
+    data: { items: [], next_cursor: null, has_more: false },
+    isLoading: false,
+  }),
+}));
+
 vi.mock('@/features/legacy/hooks/useLegacies', () => ({
-  useLegacies: () => ({ data: [], isLoading: false }),
-  useExploreLegacies: () => ({ data: [], isLoading: false }),
+  useLegacies: () => ({
+    data: { items: [], counts: { all: 0, created: 0, connected: 0 } },
+    isLoading: false,
+  }),
+}));
+
+vi.mock('@/features/story/hooks/useStories', () => ({
+  useScopedStories: () => ({ data: { items: [], counts: { all: 0, mine: 0, shared: 0 } }, isLoading: false }),
 }));
 
 vi.mock('@/features/favorites/hooks/useFavorites', () => ({
@@ -33,33 +62,31 @@ function renderPage() {
       <MemoryRouter>
         <LegaciesPage />
       </MemoryRouter>
-    </QueryClientProvider>
+    </QueryClientProvider>,
   );
 }
 
 describe('LegaciesPage', () => {
-  it('renders My Legacies section', () => {
+  it('renders the page title', () => {
     renderPage();
-    expect(screen.getByText(/my legacies/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Legacies' })).toBeInTheDocument();
   });
 
-  it('renders Explore Legacies section', () => {
+  it('renders the New Legacy button', () => {
     renderPage();
-    expect(screen.getByText(/explore legacies/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /new legacy/i })).toBeInTheDocument();
   });
 
-  it('renders visibility filter buttons', () => {
+  it('renders stats bar', () => {
     renderPage();
-    expect(screen.getByRole('button', { name: /^all$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /public/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /private/i })).toBeInTheDocument();
+    expect(screen.getByText('Connections')).toBeInTheDocument();
+    expect(screen.getByText('72')).toBeInTheDocument();
   });
 
-  it('sets aria-pressed on the active visibility filter', () => {
+  it('renders tab triggers', () => {
     renderPage();
-    const allBtn = screen.getByRole('button', { name: /^all$/i });
-    expect(allBtn).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /public/i })).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByRole('button', { name: /private/i })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('tab', { name: /legacies/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /stories/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /activity/i })).toBeInTheDocument();
   });
 });
