@@ -50,6 +50,12 @@ export default function ConnectionsActivityTabContent({ activeFilter, onFilterCh
       if (legacyId) {
         navigate(`/legacy/${String(legacyId)}/story/${item.entity_id}`);
       }
+    } else if (item.entity_type === 'conversation') {
+      // Navigate to the legacy profile where the conversation lives.
+      const legacyId = (item.metadata as Record<string, unknown> | null)?.legacy_id;
+      if (legacyId) {
+        navigate(`/legacy/${String(legacyId)}`);
+      }
     }
   };
 

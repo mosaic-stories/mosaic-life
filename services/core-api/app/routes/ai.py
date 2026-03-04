@@ -130,13 +130,21 @@ async def create_conversation(
         user_id=session.user_id,
         data=data,
     )
+    primary_legacy = next(
+        (leg for leg in result.legacies if leg.position == 0),
+        result.legacies[0] if result.legacies else None,
+    )
     await activity_service.record_activity(
         db=db,
         user_id=session.user_id,
         action="ai_conversation_started",
         entity_type="conversation",
         entity_id=result.id,
-        metadata={"persona_id": result.persona_id, "title": result.title},
+        metadata={
+            "persona_id": result.persona_id,
+            "title": result.title,
+            "legacy_id": str(primary_legacy.legacy_id) if primary_legacy else None,
+        },
     )
     return result
 
@@ -160,13 +168,21 @@ async def create_new_conversation(
         user_id=session.user_id,
         data=data,
     )
+    primary_legacy = next(
+        (leg for leg in result.legacies if leg.position == 0),
+        result.legacies[0] if result.legacies else None,
+    )
     await activity_service.record_activity(
         db=db,
         user_id=session.user_id,
         action="ai_conversation_started",
         entity_type="conversation",
         entity_id=result.id,
-        metadata={"persona_id": result.persona_id, "title": result.title},
+        metadata={
+            "persona_id": result.persona_id,
+            "title": result.title,
+            "legacy_id": str(primary_legacy.legacy_id) if primary_legacy else None,
+        },
     )
     return result
 
