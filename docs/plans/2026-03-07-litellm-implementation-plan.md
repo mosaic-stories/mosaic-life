@@ -10,6 +10,22 @@
 
 **Design doc:** `docs/plans/2026-03-07-litellm-integration-design.md`
 
+## Execution Status
+
+- [x] Task 1: Create Helm Chart Scaffold
+- [x] Task 2: ServiceAccount & ExternalSecret Templates
+- [x] Task 3: ConfigMap Template
+- [x] Task 4: Deployment Template
+- [x] Task 5: Service & NetworkPolicy Templates
+- [x] Task 6: ArgoCD Application & Project Update
+- [x] Task 7: Docker Compose Local Development
+- [x] Task 8: Update Core-API LITELLM_BASE_URL References
+- [x] Task 9: IAM Role Documentation
+- [x] Task 10: Final Validation & Documentation Update
+
+Execution note: implementing directly on the current `develop` branch without worktrees, per repository and user instructions.
+Validation note: `helm lint infra/helm/litellm/`, full `helm template` render, `helm template` verification for `LITELLM_BASE_URL`, and `docker compose -f infra/compose/docker-compose.yml config --services` all succeeded on 2026-03-07.
+
 ---
 
 ## Task 1: Create Helm Chart Scaffold
@@ -843,9 +859,9 @@ git commit -m "feat(litellm): update core-api LITELLM_BASE_URL for cross-namespa
 
 ---
 
-## Task 9: IAM Role Documentation (Infrastructure Repo)
+## Task 9: IAM Role Documentation (CDK in This Repo)
 
-This task documents the IAM resources needed. These are created in the infrastructure repo (`/apps/mosaic-life-infrastructure`), not this repo. This task creates a runbook for the one-time setup.
+This task documents the IAM resources needed. These are created by the CDK app in this repository under `infra/cdk/`, not in the infrastructure repo. This task creates a runbook for the one-time setup.
 
 **Files:**
 - Create: `docs/ops/litellm-setup-runbook.md`

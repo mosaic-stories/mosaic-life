@@ -27,7 +27,7 @@ The MVP uses a **simplified stack** to enable rapid delivery:
 **What we're NOT using (deferred to future phases)**:
 - ❌ OpenSearch / Elasticsearch (using Postgres search)
 - ❌ SNS/SQS event bus (direct database writes)
-- ❌ LiteLLM proxy (direct OpenAI/Anthropic calls in Phase 3)
+- ✅ LiteLLM proxy (deployed in `aiservices` namespace, Bedrock models configured)
 - ❌ Module Federation plugins (deferred)
 - ❌ Microservices decomposition (single service)
 
@@ -434,6 +434,7 @@ OpenSearch indexes with tenant isolation:
 - Frontend (dev): http://localhost:5173
 - Frontend (prod build): http://localhost:3001
 - Backend API: http://localhost:8080
+- LiteLLM Proxy: http://localhost:14000
 - Documentation: http://localhost:8000 (via docker compose --profile docs)
 - PostgreSQL: localhost:15432
 - OpenSearch: http://localhost:9200

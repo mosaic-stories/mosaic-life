@@ -6,6 +6,7 @@ import { MosaicLifeStack } from '../lib/mosaic-life-stack';
 import { AuroraDatabaseStack } from '../lib/aurora-database-stack';
 import { StagingResourcesStack } from '../lib/staging-resources-stack';
 import { NeptuneDatabaseStack } from '../lib/neptune-database-stack';
+import { LiteLLMSharedStack } from '../lib/litellm-shared-stack';
 
 const app = new cdk.App();
 
@@ -69,6 +70,11 @@ new StagingResourcesStack(app, 'MosaicStagingResourcesStack', {
   env,
   vpc: appStack.vpc,
   domainName,
+});
+
+// LiteLLM Shared Stack - IRSA role for the shared aiservices deployment
+new LiteLLMSharedStack(app, 'MosaicLiteLLMSharedStack', {
+  env,
 });
 
 app.synth();

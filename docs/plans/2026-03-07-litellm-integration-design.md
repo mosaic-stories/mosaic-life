@@ -36,7 +36,7 @@ Deploy LiteLLM as a centralized AI model proxy within the EKS cluster. It provid
 
 1. **Single deployment in `aiservices` namespace** — shared by both prod and staging namespaces. Stage traffic is low; virtual keys/tags differentiate usage in reporting.
 2. **Separate database on shared Aurora instance** — dedicated `litellm` database with its own user. LiteLLM manages its own schema/migrations internally.
-3. **Dedicated IRSA role** (`mosaic-shared-litellm-role`) — Bedrock invoke + guardrails + Secrets Manager, scoped tightly. Separate from core-api role.
+3. **Dedicated IRSA role** (`mosaic-shared-litellm-role`) — Bedrock invoke + guardrails + Secrets Manager, scoped tightly. The role is defined in this repository's CDK app as application-owned infrastructure, separate from core-api role.
 4. **Credentials in AWS Secrets Manager** — master key, salt key, and DB credentials in `mosaic/shared/litellm/credentials`, pulled via ExternalSecret using the existing ClusterSecretStore.
 5. **No Redis** — single instance with in-memory rate tracking. Redis added later only if scaling to multiple replicas.
 6. **No ingress** — ClusterIP only, internal to the cluster. Access UI/API locally via `kubectl port-forward`.
@@ -114,6 +114,8 @@ The ExternalSecret template derives:
 Uses the existing `aws-secretsmanager` ClusterSecretStore (IRSA-authenticated).
 
 ## IRSA Role & IAM Policy
+
+The IRSA role is defined in this repository under `infra/cdk/lib/litellm-shared-stack.ts` and deployed via the CDK app in `infra/cdk/bin/mosaic-life.ts`.
 
 **Role name:** `mosaic-shared-litellm-role`
 
@@ -276,6 +278,7 @@ New ArgoCD Application at `infra/argocd/applications/litellm.yaml`:
 - Destination namespace: `aiservices`
 - Sync policy: automated, prune, self-heal, createNamespace
 - Single-source (no gitops values repo needed — one shared instance)
+- IRSA annotation comes directly from `infra/helm/litellm/values.yaml`, which is aligned with the CDK-managed role ARN
 
 ## Core-API Connectivity Update
 
@@ -298,7 +301,7 @@ Update core-api `.env` with `LITELLM_BASE_URL=http://litellm:4000`.
 
 1. **Aurora:** Create `litellm` database and user with `CREATE DATABASE litellm; CREATE USER litellm WITH PASSWORD '...'; GRANT ALL ON DATABASE litellm TO litellm;`
 2. **AWS Secrets Manager:** Create `mosaic/shared/litellm/credentials` with master key, salt key, and DB credentials
-3. **IAM:** Create `mosaic-shared-litellm-role` with Bedrock + Secrets Manager policies and IRSA trust for `aiservices/litellm` ServiceAccount
+3. **IAM/CDK:** Deploy the `MosaicLiteLLMSharedStack` stack from this repository to create `mosaic-shared-litellm-role` with Bedrock + Secrets Manager policies and IRSA trust for `aiservices/litellm`
 
 ## Future Considerations (Not Built Now)
 

@@ -1,0 +1,52 @@
+image:
+  repository: ghcr.io/berriai/litellm-database
+  tag: "main-v1.72.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 4000
+
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::033691785857:role/mosaic-shared-litellm-role"
+  name: litellm
+
+externalSecrets:
+  enabled: true
+  secretStoreName: aws-secretsmanager
+  secretStoreKind: ClusterSecretStore
+  credentialsSecretName: "mosaic/shared/litellm/credentials"
+  refreshInterval: "1h"
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1
+    memory: 1Gi
+
+networkPolicy:
+  enabled: true
+  allowedNamespaces:
+    - mosaic-prod
+    - mosaic-staging
+  vpcCidr: "10.20.0.0/16"
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
