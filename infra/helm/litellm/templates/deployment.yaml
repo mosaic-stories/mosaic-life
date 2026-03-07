@@ -68,8 +68,6 @@ spec:
               value: "true"
             - name: HOME
               value: /root
-            - name: DISABLE_SCHEMA_UPDATE
-              value: "true"
             - name: AWS_STS_REGIONAL_ENDPOINTS
               value: regional
             - name: AWS_DEFAULT_REGION
