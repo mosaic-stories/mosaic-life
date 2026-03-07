@@ -134,7 +134,7 @@ services:
 
   # LiteLLM AI Proxy
   litellm:
-    image: ghcr.io/berriai/litellm-database:main-v1.72.0
+    image: ghcr.io/berriai/litellm-database:main-stable
     ports:
       - "14000:4000"
     environment:

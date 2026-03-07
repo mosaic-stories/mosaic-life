@@ -63,7 +63,7 @@ maintainers:
 # infra/helm/litellm/values.yaml
 image:
   repository: ghcr.io/berriai/litellm-database
-  tag: "main-v1.72.0"
+  tag: "main-stable"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
@@ -760,7 +760,9 @@ Add the following service block after the `neptune-local` service (before the `d
 ```yaml
   # LiteLLM AI Proxy
   litellm:
-    image: ghcr.io/berriai/litellm-database:main-v1.72.0
+    image: ghcr.io/berriai/litellm-database:main-stable
+
+  Execution note: the originally planned tag `main-v1.72.0` was not present in GHCR at deployment time. The implemented configuration uses `ghcr.io/berriai/litellm-database:main-stable`, which was verified to exist.
     ports:
       - "14000:4000"
     environment:
