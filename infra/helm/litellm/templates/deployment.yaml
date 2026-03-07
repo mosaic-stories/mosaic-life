@@ -29,11 +29,15 @@ spec:
             - |
               echo "Copying Prisma cache from image to writable volume..."
               cp -r /root/.cache/* /app/cache/ 2>/dev/null || true
+              chown -R 1000:1000 /app/cache/
               echo "Contents of /app/cache:"
               ls -la /app/cache/
               echo "Prisma binaries:"
               find /app/cache -name 'query-engine*' -type f 2>/dev/null | head -5
               echo "Done."
+          securityContext:
+            runAsUser: 0
+            runAsNonRoot: false
           volumeMounts:
             - name: cache
               mountPath: /app/cache
