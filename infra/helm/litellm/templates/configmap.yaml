@@ -8,55 +8,50 @@ metadata:
 data:
   config.yaml: |
     model_list:
-      # Anthropic Claude models via Bedrock
+      # Anthropic Claude models via Bedrock cross-region inference profiles (us.*)
       - model_name: claude-sonnet-4-6
         litellm_params:
-          model: bedrock/anthropic.claude-sonnet-4-6-20250514
+          model: bedrock/us.anthropic.claude-sonnet-4-6
       - model_name: claude-opus-4-6
         litellm_params:
-          model: bedrock/anthropic.claude-opus-4-6-20250514
+          model: bedrock/us.anthropic.claude-opus-4-6-v1
       - model_name: claude-haiku-4-5
         litellm_params:
-          model: bedrock/anthropic.claude-haiku-4-5-20251001
+          model: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
 
       # Qwen via Bedrock
       - model_name: qwen3-next-80b
         litellm_params:
-          model: bedrock/qwen.qwen3-next-80b-a3b-v1:0
+          model: bedrock/qwen.qwen3-next-80b-a3b
 
       # Kimi via Bedrock
       - model_name: kimi-k2.5
         litellm_params:
-          model: bedrock/moonshotai.kimi-k2-5-v1:0
+          model: bedrock/moonshotai.kimi-k2.5
 
       # Mistral models via Bedrock
       - model_name: voxtral-small-24b
         litellm_params:
-          model: bedrock/mistral.voxtral-small-24b-2507-v1:0
+          model: bedrock/mistral.voxtral-small-24b-2507
       - model_name: voxtral-mini-3b
         litellm_params:
-          model: bedrock/mistral.voxtral-mini-3b-2507-v1:0
+          model: bedrock/mistral.voxtral-mini-3b-2507
       - model_name: magistral-small
         litellm_params:
-          model: bedrock/mistral.magistral-small-2509-v1:0
+          model: bedrock/mistral.magistral-small-2509
       - model_name: mistral-large-3
         litellm_params:
-          model: bedrock/mistral.mistral-large-2-v1:0
+          model: bedrock/mistral.mistral-large-3-675b-instruct
 
       # Amazon models via Bedrock
       - model_name: nova-multimodal-embeddings
         litellm_params:
-          model: bedrock/amazon.nova-multimodal-embeddings-v1:0
+          model: bedrock/amazon.nova-2-multimodal-embeddings-v1:0
 
-      # Whisper via Bedrock
-      - model_name: whisper-large-v3-turbo
-        litellm_params:
-          model: bedrock/openai.whisper-large-v3-turbo-v2:0
-
-      # Meta Llama via Bedrock
+      # Meta Llama via Bedrock cross-region inference profile (us.*)
       - model_name: llama4-maverick-17b
         litellm_params:
-          model: bedrock/meta.llama4-maverick-17b-instruct-v1:0
+          model: bedrock/us.meta.llama4-maverick-17b-instruct-v1:0
 
     general_settings:
       master_key: os.environ/LITELLM_MASTER_KEY
