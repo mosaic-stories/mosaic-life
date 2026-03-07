@@ -21,26 +21,20 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       initContainers:
-        - name: copy-prisma-binaries
+        - name: copy-prisma-cache
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["sh", "-c"]
           args:
             - |
-              echo "Copying Prisma cache from image to writable volume..."
-              cp -r /root/.cache/* /app/cache/ 2>/dev/null || true
-              chown -R 1000:1000 /app/cache/
-              echo "Contents of /app/cache:"
-              ls -la /app/cache/
-              echo "Prisma binaries:"
-              find /app/cache -name 'query-engine*' -type f 2>/dev/null | head -5
-              echo "Done."
+              cp -r /root/.cache /mnt/root/
+              chown -R 1000:1000 /mnt/root/
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
           volumeMounts:
-            - name: cache
-              mountPath: /app/cache
+            - name: root-home
+              mountPath: /mnt/root
       containers:
         - name: litellm
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -73,21 +67,15 @@ spec:
             - name: LITELLM_NON_ROOT
               value: "true"
             - name: HOME
-              value: /app/cache
-            - name: PRISMA_HOME_DIR
-              value: /app/cache
-            - name: XDG_CACHE_HOME
-              value: /app/cache
-            - name: PRISMA_BINARY_CACHE_DIR
-              value: /app/cache/prisma-python/binaries
-            - name: PRISMA_NODEENV_CACHE_DIR
-              value: /app/cache/nodeenv
-            - name: NPM_CONFIG_CACHE
-              value: /app/cache/npm
-            - name: LITELLM_MIGRATION_DIR
-              value: /app/migrations
+              value: /root
             - name: DISABLE_SCHEMA_UPDATE
               value: "true"
+            - name: AWS_STS_REGIONAL_ENDPOINTS
+              value: regional
+            - name: AWS_DEFAULT_REGION
+              value: us-east-1
+            - name: AWS_REGION
+              value: us-east-1
           livenessProbe:
             httpGet:
               path: /health/liveliness
@@ -113,19 +101,15 @@ spec:
               mountPath: /app/config.yaml
               subPath: config.yaml
               readOnly: true
-            - name: cache
-              mountPath: /app/cache
-            - name: migrations
-              mountPath: /app/migrations
+            - name: root-home
+              mountPath: /root
             - name: tmp
               mountPath: /tmp
       volumes:
         - name: config
           configMap:
             name: litellm-config
-        - name: cache
-          emptyDir: {}
-        - name: migrations
+        - name: root-home
           emptyDir: {}
         - name: tmp
           emptyDir: {}
