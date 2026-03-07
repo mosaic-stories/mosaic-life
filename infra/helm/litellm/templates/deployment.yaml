@@ -49,10 +49,20 @@ spec:
                 secretKeyRef:
                   name: litellm-credentials
                   key: DATABASE_URL
+            - name: LITELLM_NON_ROOT
+              value: "true"
+            - name: HOME
+              value: /app/cache
+            - name: PRISMA_HOME_DIR
+              value: /app/cache
             - name: XDG_CACHE_HOME
               value: /app/cache
             - name: PRISMA_BINARY_CACHE_DIR
               value: /app/cache/prisma-python/binaries
+            - name: PRISMA_NODEENV_CACHE_DIR
+              value: /app/cache/nodeenv
+            - name: NPM_CONFIG_CACHE
+              value: /app/cache/npm
             - name: LITELLM_MIGRATION_DIR
               value: /app/migrations
           livenessProbe:
