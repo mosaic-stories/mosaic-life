@@ -21,20 +21,41 @@ spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       initContainers:
-        - name: copy-prisma-cache
+        - name: prepare-writable-dirs
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["sh", "-c"]
           args:
             - |
-              cp -r /root/.cache /mnt/root/
-              chown -R 1000:1000 /mnt/root/
+              # Copy prisma cache for database client
+              cp -r /root/.cache /mnt/root-home/
+
+              # Copy litellm_proxy_extras migrations (post-migration sanity check writes here)
+              MIGRATIONS_SRC=$(python3 -c "import litellm_proxy_extras, os; print(os.path.join(os.path.dirname(litellm_proxy_extras.__file__), 'migrations'))")
+              if [ -d "$MIGRATIONS_SRC" ]; then
+                cp -a "$MIGRATIONS_SRC"/. /mnt/proxy-extras-migrations/
+              fi
+
+              # Copy UI assets (UI restructure writes here)
+              UI_SRC=$(python3 -c "import litellm.proxy._experimental as exp, os; print(os.path.join(os.path.dirname(exp.__file__), 'out'))")
+              if [ -d "$UI_SRC" ]; then
+                cp -a "$UI_SRC"/. /mnt/ui-out/
+              fi
+
+              # Set ownership for non-root main container
+              chown -R 1000:1000 /mnt/root-home/ /mnt/proxy-extras-migrations/ /mnt/ui-out/ /mnt/litellm-data/
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
           volumeMounts:
             - name: root-home
-              mountPath: /mnt/root
+              mountPath: /mnt/root-home
+            - name: proxy-extras-migrations
+              mountPath: /mnt/proxy-extras-migrations
+            - name: ui-out
+              mountPath: /mnt/ui-out
+            - name: litellm-data
+              mountPath: /mnt/litellm-data
       containers:
         - name: litellm
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -103,6 +124,12 @@ spec:
               mountPath: /root
             - name: tmp
               mountPath: /tmp
+            - name: litellm-data
+              mountPath: /var/lib/litellm
+            - name: proxy-extras-migrations
+              mountPath: /usr/lib/python3.13/site-packages/litellm_proxy_extras/migrations
+            - name: ui-out
+              mountPath: /usr/lib/python3.13/site-packages/litellm/proxy/_experimental/out
       volumes:
         - name: config
           configMap:
@@ -110,4 +137,10 @@ spec:
         - name: root-home
           emptyDir: {}
         - name: tmp
+          emptyDir: {}
+        - name: litellm-data
+          emptyDir: {}
+        - name: proxy-extras-migrations
+          emptyDir: {}
+        - name: ui-out
           emptyDir: {}
