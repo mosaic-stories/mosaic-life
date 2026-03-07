@@ -20,6 +20,23 @@ spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: copy-prisma-binaries
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ["sh", "-c"]
+          args:
+            - |
+              echo "Copying Prisma cache from image to writable volume..."
+              cp -r /root/.cache/* /app/cache/ 2>/dev/null || true
+              echo "Contents of /app/cache:"
+              ls -la /app/cache/
+              echo "Prisma binaries:"
+              find /app/cache -name 'query-engine*' -type f 2>/dev/null | head -5
+              echo "Done."
+          volumeMounts:
+            - name: cache
+              mountPath: /app/cache
       containers:
         - name: litellm
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -65,6 +82,8 @@ spec:
               value: /app/cache/npm
             - name: LITELLM_MIGRATION_DIR
               value: /app/migrations
+            - name: DISABLE_SCHEMA_UPDATE
+              value: "true"
           livenessProbe:
             httpGet:
               path: /health/liveliness
