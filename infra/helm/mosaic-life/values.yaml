@@ -249,6 +249,10 @@ coreApi:
           name: neptune-connection
           key: env_prefix
 
+    # LiteLLM AI Proxy
+    - name: LITELLM_BASE_URL
+      value: "http://litellm.aiservices.svc.cluster.local:4000"
+
     # Legacy Cognito (commented out - using Google OAuth instead)
     # - name: COGNITO_USER_POOL_ID
     #   value: "us-east-1_JLppKC09m"

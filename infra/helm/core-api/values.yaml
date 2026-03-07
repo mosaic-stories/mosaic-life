@@ -41,7 +41,7 @@ env:
   LOG_LEVEL: info
   OIDC_ISSUER: ""
   OIDC_CLIENT_ID: ""
-  LITELLM_BASE_URL: "http://litellm:4000"
+  LITELLM_BASE_URL: "http://litellm.aiservices.svc.cluster.local:4000"
   OPENSEARCH_URL: "http://opensearch:9200"
   SNS_TOPIC_ARN_EVENTS: ""
   SQS_QUEUE_URL_EVENTS: ""

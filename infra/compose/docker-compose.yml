@@ -108,6 +108,7 @@ services:
       - "15432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./init-litellm-db.sql:/docker-entrypoint-initdb.d/02-init-litellm.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d mosaic"]
       interval: 5s
@@ -129,6 +130,30 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+
+  # LiteLLM AI Proxy
+  litellm:
+    image: ghcr.io/berriai/litellm-database:main-v1.72.0
+    ports:
+      - "14000:4000"
+    environment:
+      LITELLM_MASTER_KEY: "sk-local-dev-key-1234"
+      LITELLM_SALT_KEY: "sk-local-salt-key-1234"
+      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/litellm"
+    volumes:
+      - ./litellm-config.yaml:/app/config.yaml:ro
+      # Mount AWS credentials for Bedrock access (uses host's STS credentials)
+      - ~/.aws:/root/.aws:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health/liveliness"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
 
   # Documentation Site (MkDocs)
