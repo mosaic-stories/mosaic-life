@@ -33,9 +33,9 @@ export default function StoryActivityTabContent({ activeFilter, onFilterChange }
 
   const handleActivityClick = (item: SocialFeedItem) => {
     if (item.entity_type === 'story') {
-      const legacyId = (item.metadata as Record<string, string> | null)?.legacy_id;
+      const legacyId = (item.metadata as Record<string, unknown> | null)?.legacy_id;
       if (legacyId) {
-        navigate(`/legacy/${legacyId}/story/${item.entity_id}`);
+        navigate(`/legacy/${String(legacyId)}/story/${item.entity_id}`);
       }
     }
   };

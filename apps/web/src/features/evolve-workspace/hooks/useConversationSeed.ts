@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { streamSeed } from '../api/seed';
 import { useAIChatStore, type ChatMessage } from '@/features/ai-chat/store/aiChatStore';
+import { useEvolveWorkspaceStore } from '../store/useEvolveWorkspaceStore';
 
 /**
  * Stream a seed opening message into the conversation when it's empty.
@@ -9,7 +10,8 @@ import { useAIChatStore, type ChatMessage } from '@/features/ai-chat/store/aiCha
  */
 export function useConversationSeed(
   conversationId: string | null,
-  storyId: string
+  storyId: string,
+  seedMode: 'default' | 'evolve_summary' = 'default'
 ) {
   const hasFiredRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
@@ -28,7 +30,9 @@ export function useConversationSeed(
     // Wait a tick for useAIChat to finish loading messages
     const timer = setTimeout(() => {
       const messages = getActiveMessages();
-      if (messages.length > 0) {
+      // For evolve_summary, messages already exist from clone — that's expected.
+      // Only skip seeding for default mode when messages are present.
+      if (messages.length > 0 && seedMode !== 'evolve_summary') {
         hasFiredRef.current = true;
         return;
       }
@@ -61,6 +65,14 @@ export function useConversationSeed(
             status: 'complete',
           });
           setStreaming(false);
+
+          // After evolve_summary seed completes, highlight the writer tool
+          if (seedMode === 'evolve_summary') {
+            useEvolveWorkspaceStore.getState().setWriterToolHighlighted(true);
+            setTimeout(() => {
+              useEvolveWorkspaceStore.getState().setWriterToolHighlighted(false);
+            }, 10000);
+          }
         },
         (errorMsg) => {
           console.error('Seed error:', errorMsg);
@@ -81,7 +93,8 @@ export function useConversationSeed(
             }
           }
           setStreaming(false);
-        }
+        },
+        seedMode
       );
     }, 100);
 
@@ -92,6 +105,7 @@ export function useConversationSeed(
   }, [
     conversationId,
     storyId,
+    seedMode,
     getActiveMessages,
     addMessage,
     appendToLastMessage,

@@ -51,6 +51,14 @@ interface EvolveWorkspaceState {
   setActivePersona: (personaId: string) => void;
   setConversationForPersona: (personaId: string, conversationId: string) => void;
 
+  // Writer tool highlight (pulse animation after evolve seed)
+  writerToolHighlighted: boolean;
+  setWriterToolHighlighted: (highlighted: boolean) => void;
+
+  // Seed mode for evolved conversations
+  seedMode: 'default' | 'evolve_summary';
+  setSeedMode: (mode: 'default' | 'evolve_summary') => void;
+
   // Reset
   reset: () => void;
 }
@@ -69,6 +77,8 @@ const initialState = {
   contextFilter: 'all' as FactCategory | 'all',
   activePersonaId: 'biographer' as string,
   conversationIds: {} as Record<string, string>,
+  writerToolHighlighted: false,
+  seedMode: 'default' as 'default' | 'evolve_summary',
 };
 
 export const useEvolveWorkspaceStore = create<EvolveWorkspaceState>((set) => ({
@@ -147,6 +157,9 @@ export const useEvolveWorkspaceStore = create<EvolveWorkspaceState>((set) => ({
     set((state) => ({
       conversationIds: { ...state.conversationIds, [personaId]: conversationId },
     })),
+
+  setWriterToolHighlighted: (highlighted) => set({ writerToolHighlighted: highlighted }),
+  setSeedMode: (mode) => set({ seedMode: mode }),
 
   reset: () => set(initialState),
 }));

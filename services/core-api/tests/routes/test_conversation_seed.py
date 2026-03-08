@@ -165,3 +165,60 @@ class TestConversationSeed:
 
         assert response.status_code == 403
         assert response.json()["detail"] == "Not authorized to view this story"
+
+    @pytest.mark.asyncio
+    async def test_seed_evolve_summary_mode(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+        test_story: Story,
+    ) -> None:
+        """Seed with evolve_summary mode should not return 204 even though messages exist."""
+        conv = AIConversation(
+            user_id=test_user.id,
+            persona_id="biographer",
+            story_id=test_story.id,
+        )
+        db_session.add(conv)
+        await db_session.flush()
+
+        db_session.add(
+            ConversationLegacy(
+                conversation_id=conv.id,
+                legacy_id=test_legacy.id,
+                role="primary",
+                position=0,
+            )
+        )
+
+        # Add pre-existing messages (from clone)
+        db_session.add(
+            AIMessage(
+                conversation_id=conv.id,
+                role="user",
+                content="Tell me about grandpa",
+            )
+        )
+        db_session.add(
+            AIMessage(
+                conversation_id=conv.id,
+                role="assistant",
+                content="Your grandpa was wonderful...",
+            )
+        )
+        await db_session.commit()
+
+        response = await client.post(
+            f"/api/ai/conversations/{conv.id}/seed",
+            params={
+                "story_id": str(test_story.id),
+                "seed_mode": "evolve_summary",
+            },
+            headers={**auth_headers, "Accept": "text/event-stream"},
+        )
+
+        # Should not return 204 even though messages exist
+        assert response.status_code == 200

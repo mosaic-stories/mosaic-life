@@ -10,6 +10,12 @@ export interface ChatMessage extends Message {
   error?: string;
 }
 
+export interface EvolveSuggestion {
+  reason: string;
+  conversationId: string;
+  dismissed: boolean;
+}
+
 export interface ConversationState {
   conversation: Conversation | null;
   messages: ChatMessage[];
@@ -22,6 +28,7 @@ interface AIChatState {
   activeConversationId: string | null;
   isStreaming: boolean;
   error: string | null;
+  evolveSuggestions: Map<string, EvolveSuggestion>;
 
   // Getters
   getActiveConversation: () => ConversationState | null;
@@ -38,6 +45,8 @@ interface AIChatState {
   setError: (error: string | null) => void;
   setConversationLoading: (conversationId: string, loading: boolean) => void;
   clearConversation: (conversationId: string) => void;
+  setEvolveSuggestion: (conversationId: string, reason: string) => void;
+  dismissEvolveSuggestion: (conversationId: string) => void;
   reset: () => void;
 }
 
@@ -46,6 +55,7 @@ const initialState = {
   activeConversationId: null,
   isStreaming: false,
   error: null,
+  evolveSuggestions: new Map<string, EvolveSuggestion>(),
 };
 
 export const useAIChatStore = create<AIChatState>((set, get) => ({
@@ -176,6 +186,29 @@ export const useAIChatStore = create<AIChatState>((set, get) => ({
             ? null
             : state.activeConversationId,
       };
+    });
+  },
+
+  setEvolveSuggestion: (conversationId, reason) => {
+    set((state) => {
+      const evolveSuggestions = new Map(state.evolveSuggestions);
+      evolveSuggestions.set(conversationId, {
+        reason,
+        conversationId,
+        dismissed: false,
+      });
+      return { evolveSuggestions };
+    });
+  },
+
+  dismissEvolveSuggestion: (conversationId) => {
+    set((state) => {
+      const evolveSuggestions = new Map(state.evolveSuggestions);
+      const existing = evolveSuggestions.get(conversationId);
+      if (existing) {
+        evolveSuggestions.set(conversationId, { ...existing, dismissed: true });
+      }
+      return { evolveSuggestions };
     });
   },
 

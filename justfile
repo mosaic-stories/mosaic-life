@@ -241,6 +241,13 @@ db-destroy:
 # Docker Image Build
 # ============================================================
 
+# Rebuild local docker compose stack
+rebuild-docker: 
+    docker compose -f infra/compose/docker-compose.yml down
+    docker volume rm compose_web-node-modules
+    docker compose -f infra/compose/docker-compose.yml build --no-cache
+    docker compose -f infra/compose/docker-compose.yml up -d
+
 # Build all Docker images
 build-all: build-web build-core-api
 

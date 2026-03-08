@@ -124,6 +124,7 @@ export function useAIChat({
     setError,
     setConversationLoading,
     getActiveConversation,
+    setEvolveSuggestion,
   } = useAIChatStore();
 
   const conversationState = getActiveConversation();
@@ -267,10 +268,14 @@ export function useAIChat({
           });
           setStreaming(false);
           setError(message);
+        },
+        // onEvolveSuggestion
+        (reason) => {
+          setEvolveSuggestion(conversationId, reason);
         }
       );
     },
-    [activeConversationId, isStreaming, addMessage, appendToLastMessage, updateLastMessage, setStreaming, setError]
+    [activeConversationId, isStreaming, addMessage, appendToLastMessage, updateLastMessage, setStreaming, setError, setEvolveSuggestion]
   );
 
   // Retry last message

@@ -7,14 +7,15 @@ export function streamSeed(
   storyId: string,
   onChunk: (content: string) => void,
   onDone: (messageId: string) => void,
-  onError: (message: string) => void
+  onError: (message: string) => void,
+  seedMode: 'default' | 'evolve_summary' = 'default'
 ): AbortController {
   const controller = new AbortController();
 
   (async () => {
     try {
       const response = await fetch(
-        `/api/ai/conversations/${conversationId}/seed?story_id=${encodeURIComponent(storyId)}`,
+        `/api/ai/conversations/${conversationId}/seed?story_id=${encodeURIComponent(storyId)}&seed_mode=${seedMode}`,
         {
           method: 'POST',
           credentials: 'include',

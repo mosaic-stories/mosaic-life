@@ -102,3 +102,13 @@ html {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Pulse glow animation for writer tool highlight */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+  50% { box-shadow: 0 0 8px 4px rgba(251, 191, 36, 0.3); }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 1.5s ease-in-out 3;
+}

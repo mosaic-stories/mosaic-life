@@ -80,6 +80,13 @@ class Story(Base):
         nullable=True,
     )
 
+    source_conversation_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("ai_conversations.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+    )
+
     # Relationships
     author: Mapped["User"] = relationship("User", foreign_keys=[author_id])
     legacy_associations: Mapped[list["StoryLegacy"]] = relationship(

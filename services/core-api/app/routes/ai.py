@@ -4,6 +4,7 @@ import asyncio
 import hmac
 import json
 import logging
+import re
 import time
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
@@ -28,6 +29,8 @@ from ..schemas.ai import (
     ConversationCreate,
     ConversationResponse,
     ConversationSummary,
+    EvolveConversationRequest,
+    EvolveConversationResponse,
     MessageCreate,
     MessageListResponse,
     PersonaResponse,
@@ -35,6 +38,7 @@ from ..schemas.ai import (
     SSEDebugEvent,
     SSEDoneEvent,
     SSEErrorEvent,
+    SSEEvolveSuggestionEvent,
 )
 from ..schemas.memory import FactResponse, FactVisibilityUpdate
 from ..schemas.retrieval import ChunkResult
@@ -59,6 +63,91 @@ def format_story_context(chunks: list[ChunkResult]) -> str:
         Formatted context string for system prompt, or empty string if no chunks.
     """
     return format_story_context_impl(chunks)
+
+
+_EVOLVE_SUGGEST_RE = re.compile(r"<<EVOLVE_SUGGEST:\s*(.*?)>>", re.DOTALL)
+_EVOLVE_SUGGEST_PREFIX = "<<EVOLVE_SUGGEST:"
+
+
+def parse_evolve_suggestion(text: str) -> tuple[str, str | None]:
+    """Extract evolve suggestion marker from AI response text.
+
+    Returns:
+        Tuple of (cleaned_text, reason_or_none)
+    """
+    match = _EVOLVE_SUGGEST_RE.search(text)
+    if not match:
+        return text, None
+    reason = match.group(1).strip()
+    cleaned = _EVOLVE_SUGGEST_RE.sub("", text).strip()
+    return cleaned, reason
+
+
+def _longest_marker_prefix_suffix(text: str) -> int:
+    """Return the longest suffix of text that could start an evolve marker."""
+    max_len = min(len(text), len(_EVOLVE_SUGGEST_PREFIX) - 1)
+    for size in range(max_len, 0, -1):
+        if text.endswith(_EVOLVE_SUGGEST_PREFIX[:size]):
+            return size
+    return 0
+
+
+def _consume_visible_chunk(
+    buffer: str,
+    in_marker: bool,
+    chunk: str,
+) -> tuple[list[str], str, bool]:
+    """Consume one streamed chunk while suppressing evolve markers."""
+    visible_chunks: list[str] = []
+    buffer += chunk
+
+    while buffer:
+        if in_marker:
+            marker_end = buffer.find(">>")
+            if marker_end == -1:
+                return visible_chunks, "", True
+
+            buffer = buffer[marker_end + 2 :]
+            in_marker = False
+            continue
+
+        marker_start = buffer.find(_EVOLVE_SUGGEST_PREFIX)
+        if marker_start != -1:
+            if marker_start > 0:
+                visible_chunks.append(buffer[:marker_start])
+            buffer = buffer[marker_start + len(_EVOLVE_SUGGEST_PREFIX) :]
+            in_marker = True
+            continue
+
+        partial_prefix_len = _longest_marker_prefix_suffix(buffer)
+        if partial_prefix_len:
+            visible_chunks.append(buffer[:-partial_prefix_len])
+            buffer = buffer[-partial_prefix_len:]
+        else:
+            visible_chunks.append(buffer)
+            buffer = ""
+
+    return visible_chunks, buffer, in_marker
+
+
+def stream_visible_chunks(chunks: list[str]) -> list[str]:
+    """Filter evolve markers from chunked streaming content."""
+    visible_chunks: list[str] = []
+    buffer = ""
+    in_marker = False
+
+    for chunk in chunks:
+        next_chunks, buffer, in_marker = _consume_visible_chunk(
+            buffer, in_marker, chunk
+        )
+        visible_chunks.extend(next_chunks)
+
+    if buffer and not in_marker:
+        visible_chunks.append(buffer)
+    elif buffer and in_marker:
+        visible_chunks.append(f"{_EVOLVE_SUGGEST_PREFIX}{buffer}")
+
+    return [chunk for chunk in visible_chunks if chunk]
 
 
 async def _resolve_story_id_for_extraction(
@@ -200,6 +289,10 @@ async def seed_conversation(
     story_id: UUID = Query(
         ..., description="Story to use as context for the opening message"
     ),
+    seed_mode: str = Query(
+        default="default",
+        description="Seed mode: 'default' for normal, 'evolve_summary' for evolved conversations",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """Seed a conversation with a contextual AI opening message via SSE."""
@@ -218,17 +311,19 @@ async def seed_conversation(
         )
 
         # Idempotency: if conversation already has messages, return 204
-        msg_count_result = await db.execute(
-            select(func.count(AIMessageModel.id)).where(
-                AIMessageModel.conversation_id == conversation_id
+        # (skip for evolve_summary mode — messages exist from clone)
+        if seed_mode != "evolve_summary":
+            msg_count_result = await db.execute(
+                select(func.count(AIMessageModel.id)).where(
+                    AIMessageModel.conversation_id == conversation_id
+                )
             )
-        )
-        if (msg_count_result.scalar() or 0) > 0:
-            return StreamingResponse(
-                content=iter([]),
-                status_code=204,
-                media_type="text/plain",
-            )
+            if (msg_count_result.scalar() or 0) > 0:
+                return StreamingResponse(
+                    content=iter([]),
+                    status_code=204,
+                    media_type="text/plain",
+                )
 
         story = await require_story_read_access(
             db=db,
@@ -291,7 +386,30 @@ async def seed_conversation(
         # Seed instruction (not saved to conversation)
         has_story_content = bool(story.content and story.content.strip())
 
-        if has_story_content:
+        if seed_mode == "evolve_summary":
+            # Get existing messages for context (from cloned conversation)
+            context_messages = await ai_service.get_context_messages(
+                db, conversation_id
+            )
+            conversation_summary = "\n".join(
+                f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
+                for m in context_messages
+            )
+            seed_instruction = (
+                "You are now in the Evolve Workspace helping the user create a "
+                "story from a conversation. "
+                "Here is the conversation that was evolved:\n\n"
+                f"{conversation_summary}\n\n"
+                "Please:\n"
+                "1. Briefly summarize the key narrative threads and memorable "
+                "details from this conversation\n"
+                "2. Suggest 2-3 possible story angles or themes you noticed\n"
+                "3. Ask the user which direction they'd like to take\n"
+                "4. Mention that when they're ready, they can use the Writer tool "
+                "(pencil icon) in the toolbar above to generate a draft story\n\n"
+                "Keep your response warm and concise."
+            )
+        elif has_story_content:
             seed_instruction = (
                 "[System] The user has just started a story evolution session. "
                 "This is the very first message in the conversation. Please:\n"
@@ -438,6 +556,44 @@ async def delete_conversation(
         conversation_id=conversation_id,
         user_id=session.user_id,
     )
+
+
+@router.post(
+    "/conversations/{conversation_id}/evolve",
+    response_model=EvolveConversationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Evolve conversation into a story",
+    description="Create a new draft story from a legacy conversation. "
+    "Clones the conversation and links it to the story.",
+)
+async def evolve_conversation_route(
+    conversation_id: UUID,
+    data: EvolveConversationRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> EvolveConversationResponse:
+    """Evolve a conversation into a draft story."""
+    session = require_auth(request)
+
+    result = await ai_service.evolve_conversation(
+        db=db,
+        conversation_id=conversation_id,
+        user_id=session.user_id,
+        title=data.title,
+    )
+
+    await db.commit()
+
+    logger.info(
+        "api.conversation.evolved",
+        extra={
+            "user_id": str(session.user_id),
+            "conversation_id": str(conversation_id),
+            "story_id": result.story_id,
+        },
+    )
+
+    return result
 
 
 # ============================================================================
@@ -648,6 +804,9 @@ async def send_message(
         async def generate_stream() -> AsyncGenerator[str, None]:
             """Generate SSE stream."""
             full_response = ""
+            visible_chunks: list[str] = []
+            stream_buffer = ""
+            stream_in_marker = False
             token_count: int | None = None
 
             try:
@@ -669,14 +828,36 @@ async def send_message(
                     max_tokens=persona.max_tokens,
                 ):
                     full_response += chunk
-                    event = SSEChunkEvent(content=chunk)
+                    next_chunks, stream_buffer, stream_in_marker = (
+                        _consume_visible_chunk(
+                            stream_buffer,
+                            stream_in_marker,
+                            chunk,
+                        )
+                    )
+                    for visible_chunk in next_chunks:
+                        visible_chunks.append(visible_chunk)
+                        event = SSEChunkEvent(content=visible_chunk)
+                        yield f"data: {event.model_dump_json()}\n\n"
+
+                if stream_buffer:
+                    trailing_chunk = (
+                        f"{_EVOLVE_SUGGEST_PREFIX}{stream_buffer}"
+                        if stream_in_marker
+                        else stream_buffer
+                    )
+                    visible_chunks.append(trailing_chunk)
+                    event = SSEChunkEvent(content=trailing_chunk)
                     yield f"data: {event.model_dump_json()}\n\n"
 
-                # Save assistant message
+                # Parse evolve suggestion marker before persisting
+                cleaned_response, evolve_reason = parse_evolve_suggestion(full_response)
+
+                # Save assistant message with cleaned content (marker stripped)
                 message = await storytelling_agent.save_assistant_message(
                     db=db,
                     conversation_id=conversation_id,
-                    content=full_response,
+                    content=cleaned_response,
                     token_count=token_count,
                 )
 
@@ -686,7 +867,7 @@ async def send_message(
                         conversation_id=conversation_id,
                         user_id=session.user_id,
                         user_content=data.content,
-                        assistant_content=full_response,
+                        assistant_content=cleaned_response,
                         message_id=message.id,
                     )
                 )
@@ -705,6 +886,11 @@ async def send_message(
                         "ai.chat.summarization_failed",
                         extra={"conversation_id": str(conversation_id)},
                     )
+
+                # Emit evolve_suggestion event if marker was present
+                if evolve_reason:
+                    suggest_event = SSEEvolveSuggestionEvent(reason=evolve_reason)
+                    yield f"data: {suggest_event.model_dump_json()}\n\n"
 
                 # Send done event
                 done_event = SSEDoneEvent(
@@ -734,7 +920,7 @@ async def send_message(
                     extra={
                         "conversation_id": str(conversation_id),
                         "message_id": str(message.id),
-                        "response_length": len(full_response),
+                        "response_length": len("".join(visible_chunks)),
                     },
                 )
 

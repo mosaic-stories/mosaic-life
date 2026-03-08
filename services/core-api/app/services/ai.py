@@ -11,12 +11,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..models.ai import AIConversation, AIMessage
-from ..models.associations import ConversationLegacy
+from ..models.associations import ConversationLegacy, StoryLegacy
 from ..models.legacy import Legacy, LegacyMember
+from ..models.story import Story
+from ..models.story_evolution import StoryEvolutionSession
 from ..schemas.ai import (
     ConversationCreate,
     ConversationResponse,
     ConversationSummary,
+    EvolveConversationResponse,
     MessageListResponse,
     MessageResponse,
 )
@@ -703,4 +706,154 @@ async def mark_message_blocked(
                 "message_id": str(message_id),
                 "conversation_id": str(message.conversation_id),
             },
+        )
+
+
+async def evolve_conversation(
+    db: AsyncSession,
+    conversation_id: UUID,
+    user_id: UUID,
+    title: str | None = None,
+) -> EvolveConversationResponse:
+    """Evolve a legacy conversation into a new draft story.
+
+    Atomically:
+    1. Creates a draft Story linked to the conversation's legacy
+    2. Clones the conversation with all messages
+    3. Links the clone to the new story
+    4. Inserts a system_notification breadcrumb in the original
+
+    Args:
+        db: Database session
+        conversation_id: Original conversation to evolve
+        user_id: Authenticated user ID
+        title: Optional story title (defaults to generated title)
+
+    Returns:
+        EvolveConversationResponse with new story and conversation IDs
+    """
+    with tracer.start_as_current_span("ai.conversation.evolve") as span:
+        span.set_attribute("user_id", str(user_id))
+        span.set_attribute("conversation_id", str(conversation_id))
+
+        # 1. Load original conversation with associations and messages
+        conv = await get_conversation(db, conversation_id, user_id)
+
+        # 2. Get primary legacy
+        legacy_associations = conv.legacy_associations
+        if not legacy_associations:
+            raise HTTPException(
+                status_code=400,
+                detail="Conversation must be associated with a legacy to evolve into a story",
+            )
+        primary_legacy_id = get_primary_legacy_id(conv)
+
+        # Revalidate membership before creating story
+        await check_legacy_access(db, user_id, primary_legacy_id)
+
+        # Load legacy name for title generation
+        legacy = await db.get(Legacy, primary_legacy_id)
+        legacy_name = legacy.name if legacy else "Unknown"
+
+        # 3. Create draft story
+        story_title = title or f"Story from conversation about {legacy_name}"
+        story = Story(
+            author_id=user_id,
+            title=story_title,
+            content="",
+            visibility="personal",
+            status="draft",
+            source_conversation_id=conversation_id,
+        )
+        db.add(story)
+        await db.flush()
+
+        # Create StoryLegacy association
+        story_legacy = StoryLegacy(
+            story_id=story.id,
+            legacy_id=primary_legacy_id,
+            role="primary",
+            position=0,
+        )
+        db.add(story_legacy)
+
+        # 4. Clone conversation
+        cloned_conv = AIConversation(
+            user_id=user_id,
+            persona_id=conv.persona_id,
+            title=conv.title,
+            source_conversation_id=conversation_id,
+            story_id=story.id,
+        )
+        db.add(cloned_conv)
+        await db.flush()
+
+        # Clone legacy associations
+        for assoc in legacy_associations:
+            db.add(
+                ConversationLegacy(
+                    conversation_id=cloned_conv.id,
+                    legacy_id=assoc.legacy_id,
+                    role=assoc.role,
+                    position=assoc.position,
+                )
+            )
+
+        # 5. Copy messages
+        messages = sorted(conv.messages, key=lambda m: m.created_at)
+        for msg in messages:
+            db.add(
+                AIMessage(
+                    conversation_id=cloned_conv.id,
+                    role=msg.role,
+                    content=msg.content,
+                    token_count=msg.token_count,
+                    blocked=msg.blocked,
+                    message_type=msg.message_type,
+                    metadata_=msg.metadata_,
+                )
+            )
+
+        # 6. Insert breadcrumb in original conversation
+        notification = AIMessage(
+            conversation_id=conversation_id,
+            role="assistant",
+            content=f'This conversation was evolved into a story: "{story_title}"',
+            message_type="system_notification",
+            metadata_={
+                "story_id": str(story.id),
+                "story_title": story_title,
+                "notification_type": "evolved_to_story",
+                "legacy_id": str(primary_legacy_id),
+            },
+        )
+        db.add(notification)
+
+        # 7. Create evolution session so the Evolve Workspace can
+        #    save drafts and accept/finish the story.
+        evo_session = StoryEvolutionSession(
+            story_id=story.id,
+            base_version_number=1,
+            conversation_id=cloned_conv.id,
+            phase="elicitation",
+            created_by=user_id,
+        )
+        db.add(evo_session)
+
+        await db.flush()
+
+        logger.info(
+            "conversation.evolved",
+            extra={
+                "user_id": str(user_id),
+                "source_conversation_id": str(conversation_id),
+                "cloned_conversation_id": str(cloned_conv.id),
+                "story_id": str(story.id),
+            },
+        )
+
+        return EvolveConversationResponse(
+            story_id=str(story.id),
+            conversation_id=str(cloned_conv.id),
+            story_title=story_title,
         )

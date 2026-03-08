@@ -1033,6 +1033,7 @@ async def get_story_detail(
         favorite_count=story.favorite_count or 0,
         version_count=version_count,
         has_draft=has_draft,
+        source_conversation_id=story.source_conversation_id,
         created_at=story.created_at,
         updated_at=story.updated_at,
     )

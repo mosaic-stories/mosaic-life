@@ -1,9 +1,14 @@
 """Tests for AI routes."""
 
-from uuid import uuid4
+import asyncio
+from datetime import datetime, timezone
+from types import SimpleNamespace
+from uuid import UUID, uuid4
 
 import pytest
 from httpx import AsyncClient
+from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.ai import AIConversation, AIMessage
@@ -11,9 +16,11 @@ from app.models.associations import ConversationLegacy
 from app.models.legacy import Legacy
 from app.models.story import Story
 from app.models.story_evolution import StoryEvolutionSession
+from app.schemas.ai import MessageResponse
 from app.models.user import User
 from app.routes.ai import _resolve_story_id_for_extraction, format_story_context
 from app.schemas.retrieval import ChunkResult
+from app.services import ai as ai_service
 from tests.conftest import create_auth_headers_for_user
 
 
@@ -191,6 +198,27 @@ class TestListPersonas:
 
         # Should work without auth (public endpoint for UI)
         assert response.status_code == 200
+
+
+class TestMessageResponseSchema:
+    """Schema-level tests for AI message responses."""
+
+    def test_message_response_rejects_unknown_role(self) -> None:
+        """Message response schema should reject roles outside the API contract."""
+        bad_message = SimpleNamespace(
+            id=uuid4(),
+            conversation_id=uuid4(),
+            role="system",
+            content="System notice",
+            token_count=None,
+            created_at=datetime.now(timezone.utc),
+            blocked=False,
+            message_type="system_notification",
+            metadata_=None,
+        )
+
+        with pytest.raises(ValidationError):
+            MessageResponse.model_validate(bad_message)
 
 
 class TestCreateConversation:
@@ -769,6 +797,118 @@ class TestSendMessage:
         )
 
         assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_send_message_hides_evolve_marker_and_extracts_cleaned_text(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """Streaming should suppress evolve markers and pass cleaned text to extraction."""
+        create_resp = await client.post(
+            "/api/ai/conversations",
+            json={
+                "persona_id": "biographer",
+                "legacies": [
+                    {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+                ],
+            },
+            headers=auth_headers,
+        )
+        conv_id = create_resp.json()["id"]
+
+        class FakeStorytellingAgent:
+            async def prepare_turn(self, **kwargs):
+                return SimpleNamespace(chunks_count=0, graph_context_metadata=None)
+
+            async def stream_response(self, **kwargs):
+                for chunk in [
+                    "Visible intro. ",
+                    "<<EVOLVE_SUGGEST:",
+                    " This should become a story.>>",
+                    " Visible outro.",
+                ]:
+                    yield chunk
+
+            async def save_assistant_message(
+                self,
+                db: AsyncSession,
+                conversation_id: UUID,
+                content: str,
+                token_count: int | None = None,
+            ):
+                return await ai_service.save_message(
+                    db=db,
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    content=content,
+                    token_count=token_count,
+                )
+
+        class FakeRegistry:
+            def get_storytelling_agent(self) -> FakeStorytellingAgent:
+                return FakeStorytellingAgent()
+
+        captured_extraction: dict[str, object] = {}
+        scheduled_tasks: list[asyncio.Task[None]] = []
+        real_create_task = asyncio.create_task
+
+        async def fake_extract_context_from_conversation(**kwargs):
+            captured_extraction.update(kwargs)
+
+        async def fake_maybe_summarize(**kwargs):
+            return None
+
+        def fake_create_task(coro):
+            task = real_create_task(coro)
+            scheduled_tasks.append(task)
+            return task
+
+        monkeypatch.setattr(
+            "app.routes.ai.get_provider_registry", lambda: FakeRegistry()
+        )
+        monkeypatch.setattr(
+            "app.routes.ai._extract_context_from_conversation",
+            fake_extract_context_from_conversation,
+        )
+        monkeypatch.setattr(
+            "app.routes.ai.memory_service.maybe_summarize", fake_maybe_summarize
+        )
+        monkeypatch.setattr("app.routes.ai.asyncio.create_task", fake_create_task)
+
+        response = await client.post(
+            f"/api/ai/conversations/{conv_id}/messages",
+            json={"content": "Tell me more."},
+            headers=auth_headers,
+        )
+
+        if scheduled_tasks:
+            await asyncio.gather(*scheduled_tasks)
+
+        assert response.status_code == 200
+        assert "<<EVOLVE_SUGGEST" not in response.text
+        assert '"type":"evolve_suggestion"' in response.text
+        assert "This should become a story." in response.text
+
+        assert (
+            captured_extraction["assistant_content"] == "Visible intro.  Visible outro."
+        )
+
+        assistant_result = await db_session.execute(
+            select(AIMessage)
+            .where(
+                AIMessage.conversation_id == UUID(conv_id),
+                AIMessage.role == "assistant",
+            )
+            .order_by(AIMessage.created_at.desc())
+        )
+        assistant_message = assistant_result.scalars().first()
+
+        assert assistant_message is not None
+        assert assistant_message.content == "Visible intro.  Visible outro."
 
 
 class TestAIWorkflow:

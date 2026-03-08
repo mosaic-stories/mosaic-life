@@ -56,6 +56,8 @@ export interface Message {
   token_count: number | null;
   created_at: string;
   blocked: boolean;
+  message_type?: 'chat' | 'system_notification' | 'evolve_suggestion';
+  metadata?: Record<string, unknown>;
 }
 
 export interface MessageListResponse {
@@ -91,7 +93,18 @@ export interface SSEErrorEvent {
   retryable: boolean;
 }
 
-export type SSEEvent = SSEChunkEvent | SSEDoneEvent | SSEErrorEvent;
+export interface SSEEvolveSuggestionEvent {
+  type: 'evolve_suggestion';
+  reason: string;
+}
+
+export type SSEEvent = SSEChunkEvent | SSEDoneEvent | SSEErrorEvent | SSEEvolveSuggestionEvent;
+
+export interface EvolveConversationResponse {
+  story_id: string;
+  conversation_id: string;
+  story_title: string;
+}
 
 // ============================================================================
 // API Functions
@@ -161,6 +174,28 @@ export async function deleteConversation(conversationId: string): Promise<void> 
 }
 
 /**
+ * Evolve a conversation into a draft story.
+ */
+export async function evolveConversation(
+  conversationId: string,
+  title?: string
+): Promise<EvolveConversationResponse> {
+  const response = await fetch(`/api/ai/conversations/${conversationId}/evolve`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: title || null }),
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(
+      (error as { detail?: string }).detail || 'Failed to evolve conversation'
+    );
+  }
+  return response.json();
+}
+
+/**
  * Send a message and stream the response.
  *
  * @param conversationId - The conversation ID
@@ -175,7 +210,8 @@ export function streamMessage(
   content: string,
   onChunk: (content: string) => void,
   onDone: (messageId: string, tokenCount: number | null) => void,
-  onError: (message: string, retryable: boolean) => void
+  onError: (message: string, retryable: boolean) => void,
+  onEvolveSuggestion?: (reason: string) => void
 ): AbortController {
   const controller = new AbortController();
 
@@ -243,6 +279,9 @@ export function streamMessage(
                     break;
                   case 'error':
                     onError(event.message, event.retryable);
+                    break;
+                  case 'evolve_suggestion':
+                    onEvolveSuggestion?.(event.reason);
                     break;
                 }
               } catch (parseError) {

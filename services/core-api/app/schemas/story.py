@@ -153,6 +153,7 @@ class StoryDetail(BaseModel):
     legacies: list[LegacyAssociationResponse]
     version_count: int | None = None
     has_draft: bool | None = None
+    source_conversation_id: UUID | None = None
     favorite_count: int = Field(
         default=0, description="Number of times this story has been favorited"
     )
