@@ -88,7 +88,7 @@ class MessageResponse(BaseModel):
 
     id: UUID
     conversation_id: UUID
-    role: Literal["user", "assistant"]
+    role: str
     content: str
     token_count: int | None
     created_at: datetime
@@ -96,6 +96,8 @@ class MessageResponse(BaseModel):
         default=False,
         description="Whether message was blocked by guardrail",
     )
+    message_type: str = "chat"
+    metadata: dict[str, object] | None = None
 
     model_config = {"from_attributes": True}
 
@@ -144,3 +146,37 @@ class SSEDebugEvent(BaseModel):
     context_sources: list[dict[str, object]] = Field(default_factory=list)
     graph_traversals: list[dict[str, object]] = Field(default_factory=list)
     circuit_state: str = "N/A"
+
+
+# ============================================================================
+# Evolve Conversation Schemas
+# ============================================================================
+
+
+class EvolveConversationRequest(BaseModel):
+    """Request to evolve a conversation into a story."""
+
+    title: str | None = None
+
+
+class EvolveConversationResponse(BaseModel):
+    """Response from evolving a conversation into a story."""
+
+    story_id: str
+    conversation_id: str
+    story_title: str
+
+
+class SystemNotificationData(BaseModel):
+    """Metadata for system notification messages."""
+
+    story_id: str
+    story_title: str
+    notification_type: str = "evolved_to_story"
+
+
+class SSEEvolveSuggestionEvent(BaseModel):
+    """SSE event for evolve suggestion."""
+
+    type: Literal["evolve_suggestion"] = "evolve_suggestion"
+    reason: str

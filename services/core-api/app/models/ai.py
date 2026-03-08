@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -53,6 +53,19 @@ class AIConversation(Base):
         DateTime(timezone=True),
         server_default=func.current_timestamp(),
         nullable=False,
+    )
+
+    source_conversation_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("ai_conversations.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
+    )
+    story_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("stories.id", ondelete="SET NULL"),
+        nullable=True,
+        default=None,
     )
 
     # Relationships
@@ -109,6 +122,13 @@ class AIMessage(Base):
         default=False,
         nullable=False,
         server_default="false",
+    )
+
+    message_type: Mapped[str] = mapped_column(
+        String(30), default="chat", server_default="chat", nullable=False
+    )
+    metadata_: Mapped[dict[str, object] | None] = mapped_column(
+        "metadata", JSON, nullable=True, default=None
     )
 
     created_at: Mapped[datetime] = mapped_column(
