@@ -88,7 +88,7 @@ class MessageResponse(BaseModel):
 
     id: UUID
     conversation_id: UUID
-    role: str
+    role: Literal["user", "assistant"]
     content: str
     token_count: int | None
     created_at: datetime

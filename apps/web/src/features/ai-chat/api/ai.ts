@@ -57,7 +57,7 @@ export interface Message {
   created_at: string;
   blocked: boolean;
   message_type?: 'chat' | 'system_notification' | 'evolve_suggestion';
-  metadata?: Record<string, string>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface MessageListResponse {

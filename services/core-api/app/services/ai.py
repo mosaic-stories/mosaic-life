@@ -808,7 +808,9 @@ async def evolve_conversation(
                     role=msg.role,
                     content=msg.content,
                     token_count=msg.token_count,
+                    blocked=msg.blocked,
                     message_type=msg.message_type,
+                    metadata_=msg.metadata_,
                 )
             )
 

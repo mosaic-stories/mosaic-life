@@ -1,6 +1,6 @@
 """Tests for evolve suggestion SSE event parsing."""
 
-from app.routes.ai import parse_evolve_suggestion
+from app.routes.ai import parse_evolve_suggestion, stream_visible_chunks
 
 
 class TestParseEvolveSuggestion:
@@ -51,3 +51,28 @@ class TestParseEvolveSuggestion:
         assert "Part two." in cleaned
         assert "<<EVOLVE_SUGGEST" not in cleaned
         assert reason == "Reason here."
+
+
+class TestVisibleStreamingChunks:
+    """Test marker suppression during SSE streaming."""
+
+    def test_hides_marker_split_across_chunks(self):
+        """Chunked marker content should never be surfaced to the client."""
+        chunks = [
+            "Opening sentence. ",
+            "<<EVOLVE_SUGGEST:",
+            " This should become a story.>>",
+            " Closing sentence.",
+        ]
+
+        visible_chunks = list(stream_visible_chunks(chunks))
+
+        assert visible_chunks == ["Opening sentence. ", " Closing sentence."]
+
+    def test_preserves_unmarked_chunks(self):
+        """Normal responses should stream unchanged."""
+        chunks = ["Part one. ", "Part two."]
+
+        visible_chunks = list(stream_visible_chunks(chunks))
+
+        assert visible_chunks == chunks

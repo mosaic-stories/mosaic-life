@@ -66,6 +66,7 @@ def format_story_context(chunks: list[ChunkResult]) -> str:
 
 
 _EVOLVE_SUGGEST_RE = re.compile(r"<<EVOLVE_SUGGEST:\s*(.*?)>>", re.DOTALL)
+_EVOLVE_SUGGEST_PREFIX = "<<EVOLVE_SUGGEST:"
 
 
 def parse_evolve_suggestion(text: str) -> tuple[str, str | None]:
@@ -80,6 +81,73 @@ def parse_evolve_suggestion(text: str) -> tuple[str, str | None]:
     reason = match.group(1).strip()
     cleaned = _EVOLVE_SUGGEST_RE.sub("", text).strip()
     return cleaned, reason
+
+
+def _longest_marker_prefix_suffix(text: str) -> int:
+    """Return the longest suffix of text that could start an evolve marker."""
+    max_len = min(len(text), len(_EVOLVE_SUGGEST_PREFIX) - 1)
+    for size in range(max_len, 0, -1):
+        if text.endswith(_EVOLVE_SUGGEST_PREFIX[:size]):
+            return size
+    return 0
+
+
+def _consume_visible_chunk(
+    buffer: str,
+    in_marker: bool,
+    chunk: str,
+) -> tuple[list[str], str, bool]:
+    """Consume one streamed chunk while suppressing evolve markers."""
+    visible_chunks: list[str] = []
+    buffer += chunk
+
+    while buffer:
+        if in_marker:
+            marker_end = buffer.find(">>")
+            if marker_end == -1:
+                return visible_chunks, "", True
+
+            buffer = buffer[marker_end + 2 :]
+            in_marker = False
+            continue
+
+        marker_start = buffer.find(_EVOLVE_SUGGEST_PREFIX)
+        if marker_start != -1:
+            if marker_start > 0:
+                visible_chunks.append(buffer[:marker_start])
+            buffer = buffer[marker_start + len(_EVOLVE_SUGGEST_PREFIX) :]
+            in_marker = True
+            continue
+
+        partial_prefix_len = _longest_marker_prefix_suffix(buffer)
+        if partial_prefix_len:
+            visible_chunks.append(buffer[:-partial_prefix_len])
+            buffer = buffer[-partial_prefix_len:]
+        else:
+            visible_chunks.append(buffer)
+            buffer = ""
+
+    return visible_chunks, buffer, in_marker
+
+
+def stream_visible_chunks(chunks: list[str]) -> list[str]:
+    """Filter evolve markers from chunked streaming content."""
+    visible_chunks: list[str] = []
+    buffer = ""
+    in_marker = False
+
+    for chunk in chunks:
+        next_chunks, buffer, in_marker = _consume_visible_chunk(
+            buffer, in_marker, chunk
+        )
+        visible_chunks.extend(next_chunks)
+
+    if buffer and not in_marker:
+        visible_chunks.append(buffer)
+    elif buffer and in_marker:
+        visible_chunks.append(f"{_EVOLVE_SUGGEST_PREFIX}{buffer}")
+
+    return [chunk for chunk in visible_chunks if chunk]
 
 
 async def _resolve_story_id_for_extraction(
@@ -736,6 +804,9 @@ async def send_message(
         async def generate_stream() -> AsyncGenerator[str, None]:
             """Generate SSE stream."""
             full_response = ""
+            visible_chunks: list[str] = []
+            stream_buffer = ""
+            stream_in_marker = False
             token_count: int | None = None
 
             try:
@@ -757,7 +828,26 @@ async def send_message(
                     max_tokens=persona.max_tokens,
                 ):
                     full_response += chunk
-                    event = SSEChunkEvent(content=chunk)
+                    next_chunks, stream_buffer, stream_in_marker = (
+                        _consume_visible_chunk(
+                            stream_buffer,
+                            stream_in_marker,
+                            chunk,
+                        )
+                    )
+                    for visible_chunk in next_chunks:
+                        visible_chunks.append(visible_chunk)
+                        event = SSEChunkEvent(content=visible_chunk)
+                        yield f"data: {event.model_dump_json()}\n\n"
+
+                if stream_buffer:
+                    trailing_chunk = (
+                        f"{_EVOLVE_SUGGEST_PREFIX}{stream_buffer}"
+                        if stream_in_marker
+                        else stream_buffer
+                    )
+                    visible_chunks.append(trailing_chunk)
+                    event = SSEChunkEvent(content=trailing_chunk)
                     yield f"data: {event.model_dump_json()}\n\n"
 
                 # Parse evolve suggestion marker before persisting
@@ -777,7 +867,7 @@ async def send_message(
                         conversation_id=conversation_id,
                         user_id=session.user_id,
                         user_content=data.content,
-                        assistant_content=full_response,
+                        assistant_content=cleaned_response,
                         message_id=message.id,
                     )
                 )
@@ -830,7 +920,7 @@ async def send_message(
                     extra={
                         "conversation_id": str(conversation_id),
                         "message_id": str(message.id),
-                        "response_length": len(full_response),
+                        "response_length": len("".join(visible_chunks)),
                     },
                 )
 

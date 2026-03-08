@@ -119,6 +119,65 @@ class TestEvolveConversation:
         assert count.scalar() == 5
 
     @pytest.mark.asyncio
+    async def test_evolve_preserves_blocked_and_metadata(
+        self, db_session, test_user, test_legacy
+    ):
+        """Cloned messages should preserve moderation flags and structured metadata."""
+        original = AIConversation(
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+        db_session.add(original)
+        await db_session.flush()
+
+        db_session.add(
+            ConversationLegacy(
+                conversation_id=original.id,
+                legacy_id=test_legacy.id,
+                role="primary",
+                position=0,
+            )
+        )
+        db_session.add(
+            AIMessage(
+                conversation_id=original.id,
+                role="assistant",
+                content="System breadcrumb",
+                blocked=True,
+                message_type="system_notification",
+                metadata_={
+                    "story_id": "story-123",
+                    "details": {"reason": "already evolved", "important": True},
+                },
+            )
+        )
+        await db_session.flush()
+
+        result = await evolve_conversation(
+            db=db_session,
+            conversation_id=original.id,
+            user_id=test_user.id,
+        )
+
+        from uuid import UUID as PyUUID
+
+        cloned_id = PyUUID(result.conversation_id)
+        cloned_result = await db_session.execute(
+            select(AIMessage)
+            .where(AIMessage.conversation_id == cloned_id)
+            .order_by(AIMessage.created_at.asc())
+        )
+        cloned_messages = cloned_result.scalars().all()
+
+        assert len(cloned_messages) == 1
+        assert cloned_messages[0].blocked is True
+        assert cloned_messages[0].message_type == "system_notification"
+        assert cloned_messages[0].metadata_ == {
+            "story_id": "story-123",
+            "details": {"reason": "already evolved", "important": True},
+        }
+
+    @pytest.mark.asyncio
     async def test_evolve_fails_without_legacy(self, db_session, test_user):
         """Should raise error if conversation has no legacy association."""
         conv = AIConversation(user_id=test_user.id, persona_id="biographer")

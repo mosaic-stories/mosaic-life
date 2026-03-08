@@ -3,21 +3,18 @@ import { Link } from 'react-router-dom';
 
 interface SystemNotificationMessageProps {
   content: string;
-  metadata?: {
-    story_id?: string;
-    story_title?: string;
-    legacy_id?: string;
-    notification_type?: string;
-  };
+  metadata?: Record<string, unknown>;
 }
 
 export function SystemNotificationMessage({
   content,
   metadata,
 }: SystemNotificationMessageProps) {
+  const legacyId = typeof metadata?.legacy_id === 'string' ? metadata.legacy_id : null;
+  const storyId = typeof metadata?.story_id === 'string' ? metadata.story_id : null;
   const storyLink =
-    metadata?.legacy_id && metadata?.story_id
-      ? `/legacy/${metadata.legacy_id}/story/${metadata.story_id}/evolve`
+    legacyId && storyId
+      ? `/legacy/${legacyId}/story/${storyId}/evolve`
       : null;
 
   return (

@@ -75,10 +75,12 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
 
   // Detect evolved conversations and set seed mode
   useEffect(() => {
-    if (story?.source_conversation_id) {
+    if (story?.source_conversation_id && evolveConversationId) {
       setSeedMode('evolve_summary');
+    } else {
+      setSeedMode('default');
     }
-  }, [story?.source_conversation_id, setSeedMode]);
+  }, [story?.source_conversation_id, evolveConversationId, setSeedMode]);
 
   // If a conversation_id was passed via the URL (from evolve), use it directly
   // instead of creating a new conversation.
