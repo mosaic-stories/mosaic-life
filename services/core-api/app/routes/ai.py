@@ -28,6 +28,8 @@ from ..schemas.ai import (
     ConversationCreate,
     ConversationResponse,
     ConversationSummary,
+    EvolveConversationRequest,
+    EvolveConversationResponse,
     MessageCreate,
     MessageListResponse,
     PersonaResponse,
@@ -438,6 +440,44 @@ async def delete_conversation(
         conversation_id=conversation_id,
         user_id=session.user_id,
     )
+
+
+@router.post(
+    "/conversations/{conversation_id}/evolve",
+    response_model=EvolveConversationResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Evolve conversation into a story",
+    description="Create a new draft story from a legacy conversation. "
+    "Clones the conversation and links it to the story.",
+)
+async def evolve_conversation_route(
+    conversation_id: UUID,
+    data: EvolveConversationRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> EvolveConversationResponse:
+    """Evolve a conversation into a draft story."""
+    session = require_auth(request)
+
+    result = await ai_service.evolve_conversation(
+        db=db,
+        conversation_id=conversation_id,
+        user_id=session.user_id,
+        title=data.title,
+    )
+
+    await db.commit()
+
+    logger.info(
+        "api.conversation.evolved",
+        extra={
+            "user_id": str(session.user_id),
+            "conversation_id": str(conversation_id),
+            "story_id": result.story_id,
+        },
+    )
+
+    return result
 
 
 # ============================================================================
