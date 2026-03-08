@@ -14,6 +14,7 @@ from ..models.ai import AIConversation, AIMessage
 from ..models.associations import ConversationLegacy, StoryLegacy
 from ..models.legacy import Legacy, LegacyMember
 from ..models.story import Story
+from ..models.story_evolution import StoryEvolutionSession
 from ..schemas.ai import (
     ConversationCreate,
     ConversationResponse,
@@ -825,6 +826,17 @@ async def evolve_conversation(
             },
         )
         db.add(notification)
+
+        # 7. Create evolution session so the Evolve Workspace can
+        #    save drafts and accept/finish the story.
+        evo_session = StoryEvolutionSession(
+            story_id=story.id,
+            base_version_number=1,
+            conversation_id=cloned_conv.id,
+            phase="elicitation",
+            created_by=user_id,
+        )
+        db.add(evo_session)
 
         await db.flush()
 

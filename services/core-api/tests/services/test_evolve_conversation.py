@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 
 from app.models.ai import AIConversation, AIMessage
 from app.models.associations import ConversationLegacy
+from app.models.story_evolution import StoryEvolutionSession
 from app.services.ai import evolve_conversation
 
 
@@ -239,3 +240,56 @@ class TestEvolveConversation:
                 user_id=test_user.id,
             )
         assert exc.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_evolve_creates_evolution_session(
+        self, db_session, test_user, test_legacy
+    ):
+        """Evolving should create a StoryEvolutionSession so the workspace can save drafts."""
+        conv = AIConversation(
+            user_id=test_user.id,
+            persona_id="biographer",
+        )
+        db_session.add(conv)
+        await db_session.flush()
+
+        db_session.add(
+            ConversationLegacy(
+                conversation_id=conv.id,
+                legacy_id=test_legacy.id,
+                role="primary",
+                position=0,
+            )
+        )
+        db_session.add(
+            AIMessage(
+                conversation_id=conv.id,
+                role="user",
+                content="Tell me about grandpa",
+            )
+        )
+        await db_session.flush()
+
+        result = await evolve_conversation(
+            db=db_session,
+            conversation_id=conv.id,
+            user_id=test_user.id,
+        )
+
+        # Verify an active evolution session was created for the story
+        from uuid import UUID as PyUUID
+
+        session_result = await db_session.execute(
+            select(StoryEvolutionSession).where(
+                StoryEvolutionSession.story_id == PyUUID(result.story_id),
+                StoryEvolutionSession.phase.notin_(
+                    StoryEvolutionSession.TERMINAL_PHASES
+                ),
+            )
+        )
+        evo_session = session_result.scalar_one_or_none()
+        assert evo_session is not None
+        assert str(evo_session.conversation_id) == result.conversation_id
+        assert evo_session.created_by == test_user.id
+        assert evo_session.phase == "elicitation"
+        assert evo_session.base_version_number == 1
