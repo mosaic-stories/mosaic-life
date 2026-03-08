@@ -33,7 +33,10 @@ export class LiteLLMSharedStack extends cdk.Stack {
           'bedrock:InvokeModel',
           'bedrock:InvokeModelWithResponseStream',
         ],
-        resources: [`arn:aws:bedrock:${this.region}::foundation-model/*`],
+        resources: [
+          `arn:aws:bedrock:*::foundation-model/*`,
+          `arn:aws:bedrock:${this.region}:${this.account}:inference-profile/*`,
+        ],
       })
     );
 

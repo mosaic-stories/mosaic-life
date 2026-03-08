@@ -57,8 +57,8 @@ class Settings(BaseModel):
     bedrock_guardrail_version: str | None = os.getenv("BEDROCK_GUARDRAIL_VERSION")
 
     # AI provider selection (Feature 3 abstraction)
-    ai_llm_provider: str = os.getenv("AI_LLM_PROVIDER", "bedrock").lower()
-    ai_embedding_provider: str = os.getenv("AI_EMBEDDING_PROVIDER", "bedrock").lower()
+    ai_llm_provider: str = os.getenv("AI_LLM_PROVIDER", "litellm").lower()
+    ai_embedding_provider: str = os.getenv("AI_EMBEDDING_PROVIDER", "litellm").lower()
 
     # OpenAI provider configuration (optional)
     openai_api_key: str | None = os.getenv("OPENAI_API_KEY")
@@ -67,6 +67,10 @@ class Settings(BaseModel):
     openai_embedding_model: str = os.getenv(
         "OPENAI_EMBEDDING_MODEL", "text-embedding-3-small"
     )
+
+    # LiteLLM provider configuration
+    litellm_base_url: str = os.getenv("LITELLM_BASE_URL", "http://localhost:14000")
+    litellm_api_key: str | None = os.getenv("LITELLM_API_KEY")
 
     # Storage Configuration
     storage_backend: str = os.getenv("STORAGE_BACKEND", "local")
@@ -98,14 +102,14 @@ class Settings(BaseModel):
     # Story evolution
     evolution_summarization_model_id: str = os.getenv(
         "EVOLUTION_SUMMARIZATION_MODEL_ID",
-        "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+        "claude-sonnet-4-6",
     )
 
     # Story versioning
     story_version_soft_cap: int = int(os.getenv("STORY_VERSION_SOFT_CAP", "50"))
     change_summary_model_id: str = os.getenv(
         "CHANGE_SUMMARY_MODEL_ID",
-        "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "claude-haiku-4-5",
     )
 
     # Internal API token for CronJob endpoints (cleanup, etc.)
@@ -124,13 +128,13 @@ class Settings(BaseModel):
     # Intent analysis model (lightweight, fast)
     intent_analysis_model_id: str = os.getenv(
         "INTENT_ANALYSIS_MODEL_ID",
-        "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "claude-haiku-4-5",
     )
 
     # Entity extraction model
     entity_extraction_model_id: str = os.getenv(
         "ENTITY_EXTRACTION_MODEL_ID",
-        "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+        "claude-haiku-4-5",
     )
 
 

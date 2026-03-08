@@ -357,6 +357,13 @@ networkPolicy:
       ports:
         - protocol: TCP
           port: 5432
+    - to: # Allow LiteLLM AI proxy in aiservices namespace
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: aiservices
+      ports:
+        - protocol: TCP
+          port: 4000
 
 # Pod Security Standards
 podSecurityContext:

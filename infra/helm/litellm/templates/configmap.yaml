@@ -53,6 +53,11 @@ data:
         litellm_params:
           model: bedrock/us.meta.llama4-maverick-17b-instruct-v1:0
 
+      # Amazon Titan Embeddings via Bedrock
+      - model_name: titan-embed-text-v2
+        litellm_params:
+          model: bedrock/amazon.titan-embed-text-v2:0
+
     general_settings:
       master_key: os.environ/LITELLM_MASTER_KEY
       database_url: os.environ/DATABASE_URL

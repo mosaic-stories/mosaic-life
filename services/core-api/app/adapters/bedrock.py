@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.bedrock")
 
 # Titan Embeddings v2 constants
-TITAN_EMBED_MODEL_ID = "amazon.titan-embed-text-v2:0"
+TITAN_EMBED_MODEL_ID = "titan-embed-text-v2"
 TITAN_EMBED_DIMENSION = 1024
 
 

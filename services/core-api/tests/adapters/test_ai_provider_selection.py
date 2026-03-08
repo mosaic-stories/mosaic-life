@@ -41,6 +41,8 @@ class TestProviderSelection:
                 openai_base_url="https://api.openai.com/v1",
                 openai_chat_model="gpt-4o-mini",
                 openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
             ),
         ):
             llm_provider = get_llm_provider()
@@ -66,6 +68,8 @@ class TestProviderSelection:
                 openai_base_url="https://api.openai.com/v1",
                 openai_chat_model="gpt-4o-mini",
                 openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
             ),
         ):
             llm_provider = get_llm_provider()
@@ -92,6 +96,8 @@ class TestProviderSelection:
                 openai_base_url="https://api.openai.com/v1",
                 openai_chat_model="gpt-4o-mini",
                 openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
             ),
         ):
             llm_provider = get_llm_provider(region="eu-west-1")
@@ -111,6 +117,8 @@ class TestProviderSelection:
                 openai_base_url="https://api.openai.com/v1",
                 openai_chat_model="gpt-4o-mini",
                 openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
             ),
         ):
             with pytest.raises(AIProviderError) as exc:
@@ -132,6 +140,8 @@ class TestProviderSelection:
                 openai_base_url="https://api.openai.com/v1",
                 openai_chat_model="gpt-4o-mini",
                 openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
             ),
         ):
             with pytest.raises(AIProviderError) as exc:
@@ -155,6 +165,8 @@ class TestProviderSelection:
                 openai_base_url="https://api.openai.com/v1",
                 openai_chat_model="gpt-4o-mini",
                 openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
             ),
         ):
             llm_provider = get_llm_provider()
@@ -177,6 +189,8 @@ class TestProviderSelection:
                 openai_base_url="https://api.openai.com/v1",
                 openai_chat_model="gpt-4o-mini",
                 openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
             ),
         ):
             embedding_provider = get_embedding_provider()
@@ -195,6 +209,8 @@ class TestProviderSelection:
                 openai_base_url="https://api.openai.com/v1",
                 openai_chat_model="gpt-4o-mini",
                 openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
             ),
         ):
             with pytest.raises(AIProviderError) as exc:
@@ -214,9 +230,91 @@ class TestProviderSelection:
                 openai_base_url="https://api.openai.com/v1",
                 openai_chat_model="gpt-4o-mini",
                 openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
             ),
         ):
             with pytest.raises(AIProviderError) as exc:
                 get_embedding_provider()
 
         assert "OPENAI_API_KEY is required" in exc.value.message
+
+    def test_litellm_llm_provider_selected(self) -> None:
+        """LiteLLM should be selected for LLM provider when configured."""
+        import app.adapters.litellm as litellm_module
+
+        litellm_module._adapter = None
+
+        with patch(
+            "app.providers.registry.get_settings",
+            return_value=SimpleNamespace(
+                ai_llm_provider="litellm",
+                ai_embedding_provider="bedrock",
+                aws_region="us-east-1",
+                openai_api_key=None,
+                openai_base_url="https://api.openai.com/v1",
+                openai_chat_model="gpt-4o-mini",
+                openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
+            ),
+        ):
+            from app.adapters.litellm import LiteLLMAdapter
+
+            llm_provider = get_llm_provider()
+
+        assert isinstance(llm_provider, LiteLLMAdapter)
+
+    def test_litellm_embedding_provider_selected(self) -> None:
+        """LiteLLM should be selected for embedding provider when configured."""
+        import app.adapters.litellm as litellm_module
+
+        litellm_module._adapter = None
+
+        with patch(
+            "app.providers.registry.get_settings",
+            return_value=SimpleNamespace(
+                ai_llm_provider="bedrock",
+                ai_embedding_provider="litellm",
+                aws_region="us-east-1",
+                openai_api_key=None,
+                openai_base_url="https://api.openai.com/v1",
+                openai_chat_model="gpt-4o-mini",
+                openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
+            ),
+        ):
+            from app.adapters.litellm import LiteLLMAdapter
+
+            embedding_provider = get_embedding_provider()
+
+        assert isinstance(embedding_provider, LiteLLMAdapter)
+
+    def test_defaults_to_litellm(self) -> None:
+        """Default provider settings should resolve to LiteLLM."""
+        import app.adapters.litellm as litellm_module
+
+        litellm_module._adapter = None
+
+        with patch(
+            "app.providers.registry.get_settings",
+            return_value=SimpleNamespace(
+                ai_llm_provider="litellm",
+                ai_embedding_provider="litellm",
+                aws_region="us-east-1",
+                openai_api_key=None,
+                openai_base_url="https://api.openai.com/v1",
+                openai_chat_model="gpt-4o-mini",
+                openai_embedding_model="text-embedding-3-small",
+                litellm_base_url="http://litellm:4000",
+                litellm_api_key="sk-test",
+            ),
+        ):
+            from app.adapters.litellm import LiteLLMAdapter
+
+            llm_provider = get_llm_provider()
+            embedding_provider = get_embedding_provider()
+
+        assert isinstance(llm_provider, LiteLLMAdapter)
+        assert isinstance(embedding_provider, LiteLLMAdapter)

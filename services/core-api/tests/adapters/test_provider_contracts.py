@@ -36,7 +36,13 @@ def _bedrock_provider() -> BedrockAdapter:
     return BedrockAdapter(region="us-east-1")
 
 
-@pytest.mark.parametrize("provider_kind", ["openai", "bedrock"])
+def _litellm_provider():
+    from app.adapters.litellm import LiteLLMAdapter
+
+    return LiteLLMAdapter(base_url="http://litellm:4000", api_key="sk-test")
+
+
+@pytest.mark.parametrize("provider_kind", ["openai", "bedrock", "litellm"])
 @pytest.mark.asyncio
 async def test_stream_success_yields_incremental_chunks(provider_kind: str) -> None:
     """All providers should emit incremental stream chunks."""
@@ -74,6 +80,40 @@ async def test_stream_success_yields_incremental_chunks(provider_kind: str) -> N
                 )
             )
 
+    elif provider_kind == "litellm":
+        provider = _litellm_provider()
+
+        async def mock_litellm_lines():
+            for line in [
+                'data: {"choices":[{"delta":{"content":"Hello"}}]}',
+                'data: {"choices":[{"delta":{"content":" world"}}]}',
+                "data: [DONE]",
+            ]:
+                yield line
+
+        response = Mock(status_code=200)
+        response.aiter_lines = mock_litellm_lines
+
+        stream_cm = AsyncMock()
+        stream_cm.__aenter__ = AsyncMock(return_value=response)
+        stream_cm.__aexit__ = AsyncMock(return_value=None)
+
+        client = Mock()
+        client.stream = Mock(return_value=stream_cm)
+
+        client_cm = AsyncMock()
+        client_cm.__aenter__ = AsyncMock(return_value=client)
+        client_cm.__aexit__ = AsyncMock(return_value=None)
+
+        with patch.object(provider, "_client", return_value=client_cm):
+            chunks = await _collect_chunks(
+                provider.stream_generate(
+                    messages=[{"role": "user", "content": "Hi"}],
+                    system_prompt="You are helpful",
+                    model_id="bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+                )
+            )
+
     else:
         provider = _bedrock_provider()
 
@@ -107,7 +147,7 @@ async def test_stream_success_yields_incremental_chunks(provider_kind: str) -> N
     assert chunks == ["Hello", " world"]
 
 
-@pytest.mark.parametrize("provider_kind", ["openai", "bedrock"])
+@pytest.mark.parametrize("provider_kind", ["openai", "bedrock", "litellm"])
 @pytest.mark.asyncio
 async def test_embed_shape_and_length_contract(provider_kind: str) -> None:
     """All providers should return one embedding vector per input text."""
@@ -115,6 +155,27 @@ async def test_embed_shape_and_length_contract(provider_kind: str) -> None:
 
     if provider_kind == "openai":
         provider = _openai_provider()
+
+        response = Mock(status_code=200)
+        response.json.return_value = {
+            "data": [
+                {"embedding": [0.1, 0.2]},
+                {"embedding": [0.3, 0.4]},
+            ]
+        }
+
+        client = AsyncMock()
+        client.post = AsyncMock(return_value=response)
+
+        client_cm = AsyncMock()
+        client_cm.__aenter__ = AsyncMock(return_value=client)
+        client_cm.__aexit__ = AsyncMock(return_value=None)
+
+        with patch.object(provider, "_client", return_value=client_cm):
+            embeddings = await provider.embed_texts(texts)
+
+    elif provider_kind == "litellm":
+        provider = _litellm_provider()
 
         response = Mock(status_code=200)
         response.json.return_value = {
@@ -166,12 +227,39 @@ async def test_embed_shape_and_length_contract(provider_kind: str) -> None:
     assert all(len(v) > 0 for v in embeddings)
 
 
-@pytest.mark.parametrize("provider_kind", ["openai", "bedrock"])
+@pytest.mark.parametrize("provider_kind", ["openai", "bedrock", "litellm"])
 @pytest.mark.asyncio
 async def test_retryable_vs_non_retryable_error_mapping(provider_kind: str) -> None:
     """Providers should map transient and auth errors to consistent retry flags."""
     if provider_kind == "openai":
         provider = _openai_provider()
+
+        transient = Mock(status_code=429, text="")
+        transient.json.return_value = {"error": {"message": "Rate limited"}}
+        auth = Mock(status_code=401, text="")
+        auth.json.return_value = {"error": {"message": "Bad key"}}
+
+        client = AsyncMock()
+        client.post = AsyncMock(side_effect=[transient, auth])
+
+        client_cm = AsyncMock()
+        client_cm.__aenter__ = AsyncMock(return_value=client)
+        client_cm.__aexit__ = AsyncMock(return_value=None)
+
+        with patch.object(provider, "_client", return_value=client_cm):
+            with pytest.raises(AIProviderError) as transient_exc:
+                await provider.embed_texts(["one"])
+
+            with pytest.raises(AIProviderError) as auth_exc:
+                await provider.embed_texts(["one"])
+
+        assert transient_exc.value.retryable is True
+        assert transient_exc.value.code == "rate_limit"
+        assert auth_exc.value.retryable is False
+        assert auth_exc.value.code == "auth_error"
+
+    elif provider_kind == "litellm":
+        provider = _litellm_provider()
 
         transient = Mock(status_code=429, text="")
         transient.json.return_value = {"error": {"message": "Rate limited"}}
@@ -230,7 +318,7 @@ async def test_retryable_vs_non_retryable_error_mapping(provider_kind: str) -> N
         assert auth_exc.value.code == "auth_error"
 
 
-@pytest.mark.parametrize("provider_kind", ["openai", "bedrock"])
+@pytest.mark.parametrize("provider_kind", ["openai", "bedrock", "litellm"])
 @pytest.mark.asyncio
 async def test_malformed_stream_payload_handling(provider_kind: str) -> None:
     """Malformed stream payloads should not crash providers when valid data follows."""
@@ -265,6 +353,42 @@ async def test_malformed_stream_payload_handling(provider_kind: str) -> None:
                     messages=[{"role": "user", "content": "Hi"}],
                     system_prompt="You are helpful",
                     model_id="gpt-4o-mini",
+                )
+            )
+
+        assert chunks == ["Hello"]
+
+    elif provider_kind == "litellm":
+        provider = _litellm_provider()
+
+        async def mock_litellm_lines():
+            for line in [
+                "data: not-json",
+                'data: {"choices":[{"delta":{"content":"Hello"}}]}',
+                "data: [DONE]",
+            ]:
+                yield line
+
+        response = Mock(status_code=200)
+        response.aiter_lines = mock_litellm_lines
+
+        stream_cm = AsyncMock()
+        stream_cm.__aenter__ = AsyncMock(return_value=response)
+        stream_cm.__aexit__ = AsyncMock(return_value=None)
+
+        client = Mock()
+        client.stream = Mock(return_value=stream_cm)
+
+        client_cm = AsyncMock()
+        client_cm.__aenter__ = AsyncMock(return_value=client)
+        client_cm.__aexit__ = AsyncMock(return_value=None)
+
+        with patch.object(provider, "_client", return_value=client_cm):
+            chunks = await _collect_chunks(
+                provider.stream_generate(
+                    messages=[{"role": "user", "content": "Hi"}],
+                    system_prompt="You are helpful",
+                    model_id="bedrock/us.anthropic.claude-sonnet-4-5-20250929-v1:0",
                 )
             )
 
@@ -317,6 +441,8 @@ def test_openai_auth_config_failure_contract() -> None:
             openai_embedding_model="text-embedding-3-small",
             bedrock_guardrail_id=None,
             bedrock_guardrail_version=None,
+            litellm_base_url="http://litellm:4000",
+            litellm_api_key="sk-test",
         )
     )
 
