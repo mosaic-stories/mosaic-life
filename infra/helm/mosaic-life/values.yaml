@@ -399,6 +399,9 @@ externalSecrets:
     property: "token"
   neptune:
     secretKey: "mosaic/prod/neptune/connection"
+  litellm:
+    # Optional: set to AWS Secrets Manager path containing {api_key: "<virtual key>"}
+    secretKey: ""
 
 # Entity Backfill Job (one-time graph population)
 entityBackfill:
