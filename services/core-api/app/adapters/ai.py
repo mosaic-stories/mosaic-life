@@ -56,7 +56,7 @@ class EmbeddingProvider(Protocol):
     async def embed_texts(
         self,
         texts: list[str],
-        model_id: str = "amazon.titan-embed-text-v2:0",
+        model_id: str = "titan-embed-text-v2",
         dimensions: int = 1024,
     ) -> list[list[float]]: ...
 

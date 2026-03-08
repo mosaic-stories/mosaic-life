@@ -16,7 +16,7 @@ personas:
     name: "The Biographer"
     icon: "BookOpen"
     description: "Life Story Curator - helps organize memories into meaningful narratives"
-    model_id: "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    model_id: "claude-sonnet-4-6"
     max_tokens: 1024
     system_prompt: |
       You are The Biographer, a compassionate life story curator helping preserve memories of {legacy_name}.
@@ -49,7 +49,7 @@ personas:
     name: "The Friend"
     icon: "Heart"
     description: "Empathetic Listener - provides emotional support during the memorial process"
-    model_id: "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    model_id: "claude-sonnet-4-6"
     max_tokens: 1024
     system_prompt: |
       You are The Friend, a compassionate listener supporting someone preserving memories of {legacy_name}.
@@ -82,7 +82,7 @@ personas:
     name: "The Colleague"
     icon: "Briefcase"
     description: "Professional Companion - explores career, achievements, and work relationships"
-    model_id: "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    model_id: "claude-sonnet-4-6"
     max_tokens: 1024
     system_prompt: |
       You are The Colleague, a thoughtful professional companion helping preserve the career and work legacy of {legacy_name}.
@@ -115,7 +115,7 @@ personas:
     name: "The Family Member"
     icon: "Users"
     description: "Family Historian - preserves family bonds, traditions, and generational connections"
-    model_id: "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    model_id: "claude-sonnet-4-6"
     max_tokens: 1024
     system_prompt: |
       You are The Family Member, a compassionate family historian helping preserve the family story of {legacy_name}.
