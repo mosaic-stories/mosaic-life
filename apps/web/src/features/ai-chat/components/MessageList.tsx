@@ -5,8 +5,13 @@
 import { forwardRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { Persona } from '@/features/ai-chat/api/ai';
-import type { ChatMessage as ChatMessageType } from '@/features/ai-chat/store/aiChatStore';
+import type {
+  ChatMessage as ChatMessageType,
+  EvolveSuggestion,
+} from '@/features/ai-chat/store/aiChatStore';
 import { ChatMessage } from './ChatMessage';
+import { EvolveSuggestionCard } from './EvolveSuggestionCard';
+import { SystemNotificationMessage } from './SystemNotificationMessage';
 import { PersonaIcon } from './PersonaIcon';
 import { getPersonaColor } from './utils';
 
@@ -16,6 +21,9 @@ interface MessageListProps {
   selectedPersona: Persona | undefined;
   selectedPersonaId: string;
   onRetry: () => void;
+  evolveSuggestion?: EvolveSuggestion | null;
+  onEvolve?: () => void;
+  onDismissSuggestion?: () => void;
 }
 
 export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(function MessageList(
@@ -25,6 +33,9 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(function
     selectedPersona,
     selectedPersonaId,
     onRetry,
+    evolveSuggestion,
+    onEvolve,
+    onDismissSuggestion,
   },
   ref
 ) {
@@ -55,9 +66,24 @@ export const MessageList = forwardRef<HTMLDivElement, MessageListProps>(function
         </div>
       ) : (
         <>
-          {messages.map((message) => (
-            <ChatMessage key={message.id} message={message} onRetry={onRetry} />
-          ))}
+          {messages.map((message) =>
+            message.message_type === 'system_notification' ? (
+              <SystemNotificationMessage
+                key={message.id}
+                content={message.content}
+                metadata={message.metadata}
+              />
+            ) : (
+              <ChatMessage key={message.id} message={message} onRetry={onRetry} />
+            )
+          )}
+          {evolveSuggestion && !evolveSuggestion.dismissed && onEvolve && onDismissSuggestion && (
+            <EvolveSuggestionCard
+              reason={evolveSuggestion.reason}
+              onEvolve={onEvolve}
+              onDismiss={onDismissSuggestion}
+            />
+          )}
           <div ref={ref} />
         </>
       )}

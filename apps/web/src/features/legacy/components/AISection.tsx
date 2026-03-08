@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Plus, Loader2, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Loader2, AlertCircle, GitBranch } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/components/ui/utils';
 import { useAIChat, usePersonas, useConversationList, useDeleteConversation } from '@/features/ai-chat/hooks/useAIChat';
@@ -9,6 +10,8 @@ import { ChatInput } from '@/features/ai-chat/components/ChatInput';
 import { ConversationHistoryPopover } from '@/features/ai-chat/components/ConversationHistoryPopover';
 import { PersonaIcon } from '@/features/ai-chat/components/PersonaIcon';
 import { getPersonaColor } from '@/features/ai-chat/components/utils';
+import { evolveConversation } from '@/features/ai-chat/api/ai';
+import { useAIChatStore } from '@/features/ai-chat/store/aiChatStore';
 import type { Persona } from '@/features/ai-chat/api/ai';
 
 export interface AISectionProps {
@@ -22,8 +25,10 @@ export default function AISection({ legacyId }: AISectionProps) {
   const [inputMessage, setInputMessage] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [isEvolving, setIsEvolving] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   // Fetch personas
   const { data: allPersonas, isLoading: personasLoading, error: personasError } = usePersonas();
@@ -53,6 +58,25 @@ export default function AISection({ legacyId }: AISectionProps) {
   });
 
   const selectedPersona = personas.find((p) => p.id === selectedPersonaId);
+
+  // Evolve suggestion state
+  const evolveSuggestions = useAIChatStore((s) => s.evolveSuggestions);
+  const dismissEvolveSuggestion = useAIChatStore((s) => s.dismissEvolveSuggestion);
+  const activeConvId = useAIChatStore((s) => s.activeConversationId);
+  const evolveSuggestion = activeConvId ? evolveSuggestions.get(activeConvId) ?? null : null;
+
+  const handleEvolve = async () => {
+    if (!activeConvId || !legacyId) return;
+    setIsEvolving(true);
+    try {
+      const result = await evolveConversation(activeConvId);
+      navigate(`/legacy/${legacyId}/story/${result.story_id}/evolve`);
+    } catch (error) {
+      console.error('Failed to evolve conversation:', error);
+    } finally {
+      setIsEvolving(false);
+    }
+  };
 
   // Auto-scroll on new messages
   useEffect(() => {
@@ -155,6 +179,17 @@ export default function AISection({ legacyId }: AISectionProps) {
           ))}
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleEvolve}
+            disabled={!activeConvId || isEvolving || messages.length === 0}
+            title="Evolve into Story"
+            className="gap-1"
+          >
+            <GitBranch className="size-4" />
+            <span className="hidden sm:inline">Evolve</span>
+          </Button>
           <Button variant="outline" size="sm" onClick={handleNewChat} className="gap-1">
             <Plus className="size-4" />
             <span className="hidden sm:inline">New Chat</span>
@@ -203,6 +238,9 @@ export default function AISection({ legacyId }: AISectionProps) {
           selectedPersona={selectedPersona}
           selectedPersonaId={selectedPersonaId}
           onRetry={retryLastMessage}
+          evolveSuggestion={evolveSuggestion}
+          onEvolve={handleEvolve}
+          onDismissSuggestion={activeConvId ? () => dismissEvolveSuggestion(activeConvId) : undefined}
         />
 
         <ChatInput

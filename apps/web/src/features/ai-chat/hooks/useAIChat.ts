@@ -124,6 +124,7 @@ export function useAIChat({
     setError,
     setConversationLoading,
     getActiveConversation,
+    setEvolveSuggestion,
   } = useAIChatStore();
 
   const conversationState = getActiveConversation();
@@ -267,6 +268,10 @@ export function useAIChat({
           });
           setStreaming(false);
           setError(message);
+        },
+        // onEvolveSuggestion
+        (reason) => {
+          setEvolveSuggestion(conversationId, reason);
         }
       );
     },

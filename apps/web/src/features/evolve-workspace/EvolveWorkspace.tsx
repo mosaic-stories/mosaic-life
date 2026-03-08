@@ -67,7 +67,16 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const conversationIds = useEvolveWorkspaceStore((s) => s.conversationIds);
   const setConversationForPersona = useEvolveWorkspaceStore((s) => s.setConversationForPersona);
 
+  const setSeedMode = useEvolveWorkspaceStore((s) => s.setSeedMode);
+
   const conversationId = conversationIds[activePersonaId] ?? null;
+
+  // Detect evolved conversations and set seed mode
+  useEffect(() => {
+    if (story?.source_conversation_id) {
+      setSeedMode('evolve_summary');
+    }
+  }, [story?.source_conversation_id, setSeedMode]);
 
   // Create a conversation for the active persona when it doesn't exist yet.
   useEffect(() => {

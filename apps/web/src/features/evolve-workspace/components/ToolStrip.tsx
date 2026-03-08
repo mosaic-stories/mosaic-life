@@ -24,12 +24,14 @@ function ToolButton({
   label,
   activeTool,
   onClick,
+  highlighted,
 }: {
   id: ToolId;
   icon: typeof MessageSquare;
   label: string;
   activeTool: ToolId;
   onClick: (id: ToolId) => void;
+  highlighted?: boolean;
 }) {
   return (
     <Tooltip>
@@ -41,6 +43,7 @@ function ToolButton({
             activeTool === id
               ? 'bg-theme-primary/10 text-theme-primary'
               : 'text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700',
+            highlighted && 'animate-pulse-glow',
           )}
           aria-label={label}
           aria-pressed={activeTool === id}
@@ -62,13 +65,22 @@ interface ToolStripProps {
 export function ToolStrip({ hasContent = false }: ToolStripProps) {
   const activeTool = useEvolveWorkspaceStore((s) => s.activeTool);
   const setActiveTool = useEvolveWorkspaceStore((s) => s.setActiveTool);
+  const writerToolHighlighted = useEvolveWorkspaceStore((s) => s.writerToolHighlighted);
+  const setWriterToolHighlighted = useEvolveWorkspaceStore((s) => s.setWriterToolHighlighted);
   const rewriteLabel = hasContent ? 'Rewrite' : 'AI Writer';
+
+  const handleToolClick = (id: ToolId) => {
+    setActiveTool(id);
+    if (id === 'rewrite' && writerToolHighlighted) {
+      setWriterToolHighlighted(false);
+    }
+  };
 
   return (
     <div className="flex flex-col items-center py-2 px-1 border-x bg-neutral-50 shrink-0 w-12">
       {/* Assembly tools */}
       {ASSEMBLY_TOOLS.map((tool) => (
-        <ToolButton key={tool.id} {...tool} activeTool={activeTool} onClick={setActiveTool} />
+        <ToolButton key={tool.id} {...tool} activeTool={activeTool} onClick={handleToolClick} />
       ))}
 
       {/* Divider */}
@@ -76,7 +88,7 @@ export function ToolStrip({ hasContent = false }: ToolStripProps) {
 
       {/* Reference tools */}
       {REFERENCE_TOOLS.map((tool) => (
-        <ToolButton key={tool.id} {...tool} activeTool={activeTool} onClick={setActiveTool} />
+        <ToolButton key={tool.id} {...tool} activeTool={activeTool} onClick={handleToolClick} />
       ))}
 
       {/* Spacer pushes Rewrite to bottom */}
@@ -86,7 +98,7 @@ export function ToolStrip({ hasContent = false }: ToolStripProps) {
       <hr className="w-6 border-neutral-200 my-1" />
 
       {/* Rewrite tool at bottom */}
-      <ToolButton {...REWRITE_TOOL_BASE} label={rewriteLabel} activeTool={activeTool} onClick={setActiveTool} />
+      <ToolButton {...REWRITE_TOOL_BASE} label={rewriteLabel} activeTool={activeTool} onClick={handleToolClick} highlighted={writerToolHighlighted} />
     </div>
   );
 }

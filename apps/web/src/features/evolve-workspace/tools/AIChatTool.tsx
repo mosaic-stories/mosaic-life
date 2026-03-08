@@ -19,6 +19,7 @@ export function AIChatTool({ legacyId, storyId, conversationId }: AIChatToolProp
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activePersonaId = useEvolveWorkspaceStore((s) => s.activePersonaId);
+  const seedMode = useEvolveWorkspaceStore((s) => s.seedMode);
 
   const {
     messages,
@@ -34,7 +35,7 @@ export function AIChatTool({ legacyId, storyId, conversationId }: AIChatToolProp
   });
 
   // Stream opening message when conversation is empty
-  useConversationSeed(conversationId, storyId);
+  useConversationSeed(conversationId, storyId, seedMode);
 
   // Auto-scroll on new messages
   useEffect(() => {

@@ -41,6 +41,7 @@ export interface StoryDetail {
   status: 'draft' | 'published';
   version_count: number | null;  // null if not author
   has_draft: boolean | null;     // null if not author
+  source_conversation_id: string | null;
   created_at: string;
   updated_at: string;
   favorite_count: number;
