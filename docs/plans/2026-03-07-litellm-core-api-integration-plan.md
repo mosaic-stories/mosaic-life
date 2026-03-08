@@ -12,7 +12,7 @@
 
 ---
 
-### Task 1: Add LiteLLM settings to configuration
+### Task 1: Add LiteLLM settings to configuration ✅ DONE (commit d287e3b)
 
 **Files:**
 - Modify: `services/core-api/app/config/settings.py`
@@ -84,7 +84,7 @@ git commit -m "feat: add LiteLLM settings and change default provider to litellm
 
 ---
 
-### Task 2: Update model IDs in personas.yaml and protocol defaults
+### Task 2: Update model IDs in personas.yaml and protocol defaults ✅ DONE (commit f26f36f)
 
 **Files:**
 - Modify: `services/core-api/app/config/personas.yaml`
@@ -123,7 +123,7 @@ git commit -m "feat: update model IDs to LiteLLM aliases"
 
 ---
 
-### Task 3: Write failing tests for LiteLLMAdapter
+### Task 3: Write failing tests for LiteLLMAdapter ✅ DONE (commit 3227782)
 
 **Files:**
 - Create: `services/core-api/tests/adapters/test_litellm.py`
@@ -468,7 +468,7 @@ git commit -m "test: add failing tests for LiteLLMAdapter"
 
 ---
 
-### Task 4: Implement LiteLLMAdapter
+### Task 4: Implement LiteLLMAdapter ✅ DONE
 
 **Files:**
 - Create: `services/core-api/app/adapters/litellm.py`
@@ -817,7 +817,7 @@ git commit -m "feat: implement LiteLLMAdapter for chat streaming and embeddings"
 
 ---
 
-### Task 5: Wire LiteLLM into the provider registry
+### Task 5: Wire LiteLLM into the provider registry ✅ DONE (commit 915c4e4)
 
 **Files:**
 - Modify: `services/core-api/app/providers/registry.py`
@@ -878,7 +878,7 @@ git commit -m "feat: add litellm provider to registry"
 
 ---
 
-### Task 6: Update provider selection and contract tests
+### Task 6: Update provider selection and contract tests ✅ DONE (commit f1c7c5e)
 
 **Files:**
 - Modify: `services/core-api/tests/adapters/test_ai_provider_selection.py`
@@ -1019,7 +1019,7 @@ git commit -m "test: add litellm to provider selection and contract tests"
 
 ---
 
-### Task 7: Update infrastructure configs
+### Task 7: Update infrastructure configs ✅ DONE (commit b82385c)
 
 **Files:**
 - Modify: `infra/helm/litellm/templates/configmap.yaml`
@@ -1089,7 +1089,7 @@ git commit -m "feat: update infrastructure configs for LiteLLM integration"
 
 ---
 
-### Task 8: Create AI models documentation
+### Task 8: Create AI models documentation ✅ DONE (commit bd2bb58)
 
 **Files:**
 - Create: `docs/ai-models.md`
@@ -1234,7 +1234,7 @@ git commit -m "docs: add AI models reference with LiteLLM integration details"
 
 ---
 
-### Task 9: Run full test suite and validate
+### Task 9: Run full test suite and validate ✅ DONE (922 passed, 0 failed)
 
 **Files:** None (validation only)
 
