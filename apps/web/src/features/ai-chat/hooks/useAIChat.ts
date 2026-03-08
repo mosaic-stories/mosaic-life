@@ -275,7 +275,7 @@ export function useAIChat({
         }
       );
     },
-    [activeConversationId, isStreaming, addMessage, appendToLastMessage, updateLastMessage, setStreaming, setError]
+    [activeConversationId, isStreaming, addMessage, appendToLastMessage, updateLastMessage, setStreaming, setError, setEvolveSuggestion]
   );
 
   // Retry last message

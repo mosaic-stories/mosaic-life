@@ -113,7 +113,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     return () => {
       mounted = false;
     };
-  }, [activePersonaId, legacyId, conversationIds, setConversationForPersona]);
+  }, [activePersonaId, legacyId, conversationIds, setConversationForPersona, evolveConversationId]);
 
   // Reset stores on unmount so navigation away starts clean.
   useEffect(() => {
