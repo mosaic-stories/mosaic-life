@@ -1,6 +1,6 @@
 # Evolve Conversation to Story — Implementation Plan
 
-> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
+> **Status: COMPLETED** — All 19 tasks implemented and validated on 2026-03-08.
 
 **Goal:** Allow users to promote a legacy AI chat conversation into a new draft story in the Evolve Workspace.
 
@@ -9,6 +9,23 @@
 **Tech Stack:** FastAPI, SQLAlchemy, Alembic (backend); React, TypeScript, Zustand, TanStack Query (frontend); SSE streaming with structured events.
 
 **Design Doc:** [docs/plans/2026-03-08-evolve-conversation-to-story-design.md](2026-03-08-evolve-conversation-to-story-design.md)
+
+## Implementation Summary
+
+| Phase | Tasks | Status | Commit |
+|-------|-------|--------|--------|
+| DB & Models | 1-3 | Done | `0d29f35` |
+| Service & Route | 4-5 | Done | `a9cdfa3` |
+| Seed & SSE & Prompts | 6-8 | Done | `57afa57` |
+| Frontend API & Store & Components | 9-12 | Done | `c74502a` |
+| Frontend Integration & Animation | 13-17 | Done | `3f836d8` |
+| Integration Test & Validation | 18-19 | Done | `72caec5` |
+
+**Validation Results:**
+- 935 backend tests passing (0 failures)
+- Ruff linting: clean
+- MyPy type checking: clean
+- TypeScript compilation: clean
 
 ---
 
