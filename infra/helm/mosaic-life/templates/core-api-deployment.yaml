@@ -57,6 +57,14 @@ spec:
         {{- if .Values.coreApi.extraEnv }}
         {{- toYaml .Values.coreApi.extraEnv | nindent 8 }}
         {{- end }}
+        {{- /* Inject LiteLLM API key from External Secret if configured */ -}}
+        {{- if .Values.externalSecrets.litellm.secretKey }}
+        - name: LITELLM_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: litellm-api-key
+              key: LITELLM_API_KEY
+        {{- end }}
         {{- if .Values.coreApi.envFrom }}
         envFrom:
         {{- toYaml .Values.coreApi.envFrom | nindent 8 }}
