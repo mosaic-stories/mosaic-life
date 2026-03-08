@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Loader2, Share2, MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -38,7 +38,10 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
     return authUser ? { name: authUser.name || authUser.email, email: authUser.email, avatarUrl: authUser.avatar_url } : null;
   }, [authUser]);
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState<SectionId>('stories');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as SectionId | null;
+  const conversationParam = searchParams.get('conversation') || undefined;
+  const [activeSection, setActiveSection] = useState<SectionId>(tabParam || 'stories');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMemberDrawer, setShowMemberDrawer] = useState(false);
 
@@ -254,7 +257,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         )}
 
         {activeSection === 'ai' && (
-          <AISection legacyId={legacyId} />
+          <AISection legacyId={legacyId} initialConversationId={conversationParam} />
         )}
       </main>
 

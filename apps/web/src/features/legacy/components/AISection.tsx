@@ -16,15 +16,16 @@ import type { Persona } from '@/features/ai-chat/api/ai';
 
 export interface AISectionProps {
   legacyId: string;
+  initialConversationId?: string;
 }
 
 const ALLOWED_PERSONAS = ['biographer', 'friend'];
 
-export default function AISection({ legacyId }: AISectionProps) {
+export default function AISection({ legacyId, initialConversationId }: AISectionProps) {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>('biographer');
   const [inputMessage, setInputMessage] = useState('');
   const [showHistory, setShowHistory] = useState(false);
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialConversationId ?? null);
   const [isEvolving, setIsEvolving] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
