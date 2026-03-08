@@ -70,6 +70,14 @@ class ProviderRegistry:
             self._require_openai_config(operation="stream_generate")
             return self._get_openai_llm_provider()
 
+        if provider == "litellm":
+            from ..adapters.litellm import get_litellm_adapter
+
+            return get_litellm_adapter(
+                base_url=self._settings.litellm_base_url,
+                api_key=self._settings.litellm_api_key or "",
+            )
+
         raise AIProviderError(
             message=f"Unsupported LLM provider configured: {provider}",
             retryable=False,
@@ -90,6 +98,14 @@ class ProviderRegistry:
         if provider == "openai":
             self._require_openai_config(operation="embed_texts")
             return self._get_openai_embedding_provider()
+
+        if provider == "litellm":
+            from ..adapters.litellm import get_litellm_adapter
+
+            return get_litellm_adapter(
+                base_url=self._settings.litellm_base_url,
+                api_key=self._settings.litellm_api_key or "",
+            )
 
         raise AIProviderError(
             message=f"Unsupported embedding provider configured: {provider}",
@@ -180,6 +196,8 @@ def _settings_signature(settings: Settings) -> tuple[str, ...]:
         settings.openai_base_url,
         settings.openai_chat_model,
         settings.openai_embedding_model,
+        settings.litellm_base_url,
+        settings.litellm_api_key or "",
     )
 
 
