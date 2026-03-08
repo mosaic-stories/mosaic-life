@@ -4,6 +4,7 @@ import asyncio
 import hmac
 import json
 import logging
+import re
 import time
 from collections.abc import AsyncGenerator
 from datetime import datetime, timezone
@@ -61,6 +62,23 @@ def format_story_context(chunks: list[ChunkResult]) -> str:
         Formatted context string for system prompt, or empty string if no chunks.
     """
     return format_story_context_impl(chunks)
+
+
+_EVOLVE_SUGGEST_RE = re.compile(r"<<EVOLVE_SUGGEST:\s*(.*?)>>", re.DOTALL)
+
+
+def parse_evolve_suggestion(text: str) -> tuple[str, str | None]:
+    """Extract evolve suggestion marker from AI response text.
+
+    Returns:
+        Tuple of (cleaned_text, reason_or_none)
+    """
+    match = _EVOLVE_SUGGEST_RE.search(text)
+    if not match:
+        return text, None
+    reason = match.group(1).strip()
+    cleaned = _EVOLVE_SUGGEST_RE.sub("", text).strip()
+    return cleaned, reason
 
 
 async def _resolve_story_id_for_extraction(
@@ -202,6 +220,10 @@ async def seed_conversation(
     story_id: UUID = Query(
         ..., description="Story to use as context for the opening message"
     ),
+    seed_mode: str = Query(
+        default="default",
+        description="Seed mode: 'default' for normal, 'evolve_summary' for evolved conversations",
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
     """Seed a conversation with a contextual AI opening message via SSE."""
@@ -220,17 +242,19 @@ async def seed_conversation(
         )
 
         # Idempotency: if conversation already has messages, return 204
-        msg_count_result = await db.execute(
-            select(func.count(AIMessageModel.id)).where(
-                AIMessageModel.conversation_id == conversation_id
+        # (skip for evolve_summary mode — messages exist from clone)
+        if seed_mode != "evolve_summary":
+            msg_count_result = await db.execute(
+                select(func.count(AIMessageModel.id)).where(
+                    AIMessageModel.conversation_id == conversation_id
+                )
             )
-        )
-        if (msg_count_result.scalar() or 0) > 0:
-            return StreamingResponse(
-                content=iter([]),
-                status_code=204,
-                media_type="text/plain",
-            )
+            if (msg_count_result.scalar() or 0) > 0:
+                return StreamingResponse(
+                    content=iter([]),
+                    status_code=204,
+                    media_type="text/plain",
+                )
 
         story = await require_story_read_access(
             db=db,
@@ -293,7 +317,30 @@ async def seed_conversation(
         # Seed instruction (not saved to conversation)
         has_story_content = bool(story.content and story.content.strip())
 
-        if has_story_content:
+        if seed_mode == "evolve_summary":
+            # Get existing messages for context (from cloned conversation)
+            context_messages = await ai_service.get_context_messages(
+                db, conversation_id
+            )
+            conversation_summary = "\n".join(
+                f"{'User' if m['role'] == 'user' else 'Assistant'}: {m['content']}"
+                for m in context_messages
+            )
+            seed_instruction = (
+                "You are now in the Evolve Workspace helping the user create a "
+                "story from a conversation. "
+                "Here is the conversation that was evolved:\n\n"
+                f"{conversation_summary}\n\n"
+                "Please:\n"
+                "1. Briefly summarize the key narrative threads and memorable "
+                "details from this conversation\n"
+                "2. Suggest 2-3 possible story angles or themes you noticed\n"
+                "3. Ask the user which direction they'd like to take\n"
+                "4. Mention that when they're ready, they can use the Writer tool "
+                "(pencil icon) in the toolbar above to generate a draft story\n\n"
+                "Keep your response warm and concise."
+            )
+        elif has_story_content:
             seed_instruction = (
                 "[System] The user has just started a story evolution session. "
                 "This is the very first message in the conversation. Please:\n"
