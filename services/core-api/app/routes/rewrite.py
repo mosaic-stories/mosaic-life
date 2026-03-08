@@ -16,6 +16,7 @@ from app.database import get_db
 from app.models.legacy import Legacy
 from app.models.story import Story
 from app.models.associations import StoryLegacy
+from app.models.story_evolution import StoryEvolutionSession
 from app.models.story_version import StoryVersion
 from app.providers.registry import get_provider_registry
 from app.schemas.ai import SSEErrorEvent
@@ -237,7 +238,32 @@ async def _save_rewrite_version(
     user_id: UUID,
     conversation_id: str | None,
 ) -> StoryVersion:
-    """Save the rewritten content as a draft version."""
+    """Save the rewritten content as a draft version.
+
+    Replaces any existing draft for the story (enforced by the
+    ``uq_story_versions_one_draft`` unique partial index) and links
+    the new draft to the active evolution session when one exists.
+    """
+    # Find the active evolution session (if any) so we can link the draft
+    evo_result = await db.execute(
+        select(StoryEvolutionSession).where(
+            StoryEvolutionSession.story_id == story.id,
+            StoryEvolutionSession.phase.notin_(StoryEvolutionSession.TERMINAL_PHASES),
+        )
+    )
+    evo_session = evo_result.scalar_one_or_none()
+
+    # Delete any existing draft to satisfy the one-draft-per-story constraint
+    existing_drafts = await db.execute(
+        select(StoryVersion).where(
+            StoryVersion.story_id == story.id,
+            StoryVersion.status == "draft",
+        )
+    )
+    for old_draft in existing_drafts.scalars():
+        await db.delete(old_draft)
+    await db.flush()
+
     # Get next version number
     max_result = await db.execute(
         select(StoryVersion.version_number)
@@ -260,6 +286,12 @@ async def _save_rewrite_version(
         draft.source_conversation_id = conversation_id  # type: ignore[assignment]
 
     db.add(draft)
+    await db.flush()
+
+    # Link draft to the evolution session so save-draft and accept work
+    if evo_session:
+        evo_session.draft_version_id = draft.id
+
     await db.commit()
     await db.refresh(draft)
 
