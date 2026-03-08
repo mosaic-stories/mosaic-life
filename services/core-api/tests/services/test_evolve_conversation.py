@@ -188,3 +188,54 @@ class TestEvolveConversation:
         )
 
         assert result.story_title == "Grandpa's Workshop"
+
+    @pytest.mark.asyncio
+    async def test_evolve_fails_when_membership_revoked(
+        self, db_session, test_user, test_legacy
+    ):
+        """Should raise 403 if user's legacy membership was revoked before evolving."""
+        from app.models.legacy import LegacyMember
+
+        # Create conversation with legacy association
+        conv = AIConversation(user_id=test_user.id, persona_id="biographer")
+        db_session.add(conv)
+        await db_session.flush()
+
+        db_session.add(
+            ConversationLegacy(
+                conversation_id=conv.id,
+                legacy_id=test_legacy.id,
+                role="primary",
+                position=0,
+            )
+        )
+        db_session.add(
+            AIMessage(
+                conversation_id=conv.id,
+                role="user",
+                content="A memory to evolve",
+            )
+        )
+        await db_session.flush()
+
+        # Remove the user's legacy membership to simulate revocation
+        result = await db_session.execute(
+            select(LegacyMember).where(
+                LegacyMember.user_id == test_user.id,
+                LegacyMember.legacy_id == test_legacy.id,
+            )
+        )
+        member = result.scalar_one_or_none()
+        if member:
+            await db_session.delete(member)
+            await db_session.flush()
+
+        from fastapi import HTTPException
+
+        with pytest.raises(HTTPException) as exc:
+            await evolve_conversation(
+                db=db_session,
+                conversation_id=conv.id,
+                user_id=test_user.id,
+            )
+        assert exc.value.status_code == 403

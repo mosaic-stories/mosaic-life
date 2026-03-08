@@ -38,6 +38,7 @@ from ..schemas.ai import (
     SSEDebugEvent,
     SSEDoneEvent,
     SSEErrorEvent,
+    SSEEvolveSuggestionEvent,
 )
 from ..schemas.memory import FactResponse, FactVisibilityUpdate
 from ..schemas.retrieval import ChunkResult
@@ -759,11 +760,14 @@ async def send_message(
                     event = SSEChunkEvent(content=chunk)
                     yield f"data: {event.model_dump_json()}\n\n"
 
-                # Save assistant message
+                # Parse evolve suggestion marker before persisting
+                cleaned_response, evolve_reason = parse_evolve_suggestion(full_response)
+
+                # Save assistant message with cleaned content (marker stripped)
                 message = await storytelling_agent.save_assistant_message(
                     db=db,
                     conversation_id=conversation_id,
-                    content=full_response,
+                    content=cleaned_response,
                     token_count=token_count,
                 )
 
@@ -792,6 +796,11 @@ async def send_message(
                         "ai.chat.summarization_failed",
                         extra={"conversation_id": str(conversation_id)},
                     )
+
+                # Emit evolve_suggestion event if marker was present
+                if evolve_reason:
+                    suggest_event = SSEEvolveSuggestionEvent(reason=evolve_reason)
+                    yield f"data: {suggest_event.model_dump_json()}\n\n"
 
                 # Send done event
                 done_event = SSEDoneEvent(

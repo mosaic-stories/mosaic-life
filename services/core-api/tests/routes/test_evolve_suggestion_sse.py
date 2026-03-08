@@ -35,3 +35,19 @@ class TestParseEvolveSuggestion:
         cleaned, reason = parse_evolve_suggestion(text)
         assert reason == "This deserves to be preserved as a story."
         assert "<<EVOLVE_SUGGEST" not in cleaned
+
+    def test_cleaned_text_has_no_trailing_whitespace(self):
+        """Cleaned text should have no leftover whitespace from marker removal."""
+        text = "Great story! <<EVOLVE_SUGGEST: Nice memory.>>  "
+        cleaned, reason = parse_evolve_suggestion(text)
+        assert cleaned == "Great story!"
+        assert reason == "Nice memory."
+
+    def test_marker_in_middle_of_text(self):
+        """Should handle marker appearing mid-sentence."""
+        text = "Part one. <<EVOLVE_SUGGEST: Reason here.>> Part two."
+        cleaned, reason = parse_evolve_suggestion(text)
+        assert "Part one." in cleaned
+        assert "Part two." in cleaned
+        assert "<<EVOLVE_SUGGEST" not in cleaned
+        assert reason == "Reason here."

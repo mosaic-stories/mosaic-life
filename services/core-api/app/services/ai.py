@@ -747,6 +747,9 @@ async def evolve_conversation(
             )
         primary_legacy_id = get_primary_legacy_id(conv)
 
+        # Revalidate membership before creating story
+        await check_legacy_access(db, user_id, primary_legacy_id)
+
         # Load legacy name for title generation
         legacy = await db.get(Legacy, primary_legacy_id)
         legacy_name = legacy.name if legacy else "Unknown"

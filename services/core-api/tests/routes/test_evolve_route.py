@@ -100,3 +100,57 @@ class TestEvolveRoute:
             json={},
         )
         assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_evolve_returns_403_when_membership_revoked(
+        self,
+        client: AsyncClient,
+        db_session,
+        test_user: User,
+        test_legacy: Legacy,
+        auth_headers: dict[str, str],
+    ):
+        """Should return 403 if user's legacy membership was revoked."""
+        from sqlalchemy import select
+        from app.models.legacy import LegacyMember
+
+        conv = AIConversation(user_id=test_user.id, persona_id="biographer")
+        db_session.add(conv)
+        await db_session.flush()
+
+        db_session.add(
+            ConversationLegacy(
+                conversation_id=conv.id,
+                legacy_id=test_legacy.id,
+                role="primary",
+                position=0,
+            )
+        )
+        db_session.add(
+            AIMessage(
+                conversation_id=conv.id,
+                role="user",
+                content="A memory",
+            )
+        )
+        await db_session.flush()
+
+        # Revoke membership
+        result = await db_session.execute(
+            select(LegacyMember).where(
+                LegacyMember.user_id == test_user.id,
+                LegacyMember.legacy_id == test_legacy.id,
+            )
+        )
+        member = result.scalar_one_or_none()
+        if member:
+            await db_session.delete(member)
+            await db_session.flush()
+        await db_session.commit()
+
+        response = await client.post(
+            f"/api/ai/conversations/{conv.id}/evolve",
+            json={},
+            headers=auth_headers,
+        )
+        assert response.status_code == 403

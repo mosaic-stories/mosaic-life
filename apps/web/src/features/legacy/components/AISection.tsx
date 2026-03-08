@@ -70,7 +70,7 @@ export default function AISection({ legacyId }: AISectionProps) {
     setIsEvolving(true);
     try {
       const result = await evolveConversation(activeConvId);
-      navigate(`/legacy/${legacyId}/story/${result.story_id}/evolve`);
+      navigate(`/legacy/${legacyId}/story/${result.story_id}/evolve?conversation_id=${result.conversation_id}`);
     } catch (error) {
       console.error('Failed to evolve conversation:', error);
     } finally {

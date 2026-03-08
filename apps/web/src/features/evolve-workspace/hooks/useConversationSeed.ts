@@ -30,7 +30,9 @@ export function useConversationSeed(
     // Wait a tick for useAIChat to finish loading messages
     const timer = setTimeout(() => {
       const messages = getActiveMessages();
-      if (messages.length > 0) {
+      // For evolve_summary, messages already exist from clone — that's expected.
+      // Only skip seeding for default mode when messages are present.
+      if (messages.length > 0 && seedMode !== 'evolve_summary') {
         hasFiredRef.current = true;
         return;
       }

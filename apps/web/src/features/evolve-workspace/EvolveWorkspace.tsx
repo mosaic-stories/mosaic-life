@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import {
@@ -37,6 +37,8 @@ interface EvolveWorkspaceProps {
 
 export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLegacyId }: EvolveWorkspaceProps) {
   const params = useParams<{ storyId: string; legacyId: string }>();
+  const [searchParams] = useSearchParams();
+  const evolveConversationId = searchParams.get('conversation_id');
   const storyId = propStoryId ?? params.storyId ?? '';
   const legacyId = propLegacyId ?? params.legacyId ?? '';
 
@@ -78,9 +80,17 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     }
   }, [story?.source_conversation_id, setSeedMode]);
 
+  // If a conversation_id was passed via the URL (from evolve), use it directly
+  // instead of creating a new conversation.
+  useEffect(() => {
+    if (evolveConversationId && !conversationIds[activePersonaId]) {
+      setConversationForPersona(activePersonaId, evolveConversationId);
+    }
+  }, [evolveConversationId, activePersonaId, conversationIds, setConversationForPersona]);
+
   // Create a conversation for the active persona when it doesn't exist yet.
   useEffect(() => {
-    if (conversationIds[activePersonaId]) return;
+    if (conversationIds[activePersonaId] || evolveConversationId) return;
 
     let mounted = true;
 
