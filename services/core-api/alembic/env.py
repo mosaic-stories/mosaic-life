@@ -24,6 +24,7 @@ from app.models import (  # noqa: F401
     Story,
     StoryContext,
     StoryEvolutionSession,
+    StoryPrompt,
     StoryVersion,
     SupportRequest,
     User,
