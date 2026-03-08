@@ -97,7 +97,9 @@ class MessageResponse(BaseModel):
         description="Whether message was blocked by guardrail",
     )
     message_type: str = "chat"
-    metadata: dict[str, object] | None = None
+    metadata: dict[str, object] | None = Field(
+        default=None, validation_alias="metadata_"
+    )
 
     model_config = {"from_attributes": True}
 
