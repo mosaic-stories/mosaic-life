@@ -1,6 +1,5 @@
 """Tests for LiteLLM adapter."""
 
-import json
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
