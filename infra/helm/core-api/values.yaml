@@ -50,6 +50,14 @@ env:
   # AWS Region for Bedrock and other AWS services
   AWS_REGION: "us-east-1"
 
+  # AI Provider Configuration
+  AI_LLM_PROVIDER: "litellm"
+  AI_EMBEDDING_PROVIDER: "litellm"
+  EVOLUTION_SUMMARIZATION_MODEL_ID: "claude-sonnet-4-6"
+  CHANGE_SUMMARY_MODEL_ID: "claude-haiku-4-5"
+  INTENT_ANALYSIS_MODEL_ID: "claude-haiku-4-5"
+  ENTITY_EXTRACTION_MODEL_ID: "claude-haiku-4-5"
+
   # Bedrock Guardrails (populated from CDK outputs per environment)
   # Leave empty to disable guardrails (e.g., local dev)
   BEDROCK_GUARDRAIL_ID: ""
