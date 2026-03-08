@@ -680,6 +680,6 @@ class TestBedrockMetricsRecording:
 
             mock_hist.labels.assert_called_once_with(
                 provider="bedrock",
-                model="amazon.titan-embed-text-v2:0",
+                model="titan-embed-text-v2",
             )
             mock_hist.labels.return_value.observe.assert_called_once()
