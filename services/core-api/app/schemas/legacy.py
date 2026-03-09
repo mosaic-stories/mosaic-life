@@ -88,6 +88,9 @@ class LegacyResponse(BaseModel):
     favorite_count: int = Field(
         default=0, description="Number of times this legacy has been favorited"
     )
+    story_count: int = Field(
+        default=0, description="Number of stories associated with this legacy"
+    )
 
     model_config = {"from_attributes": True}
 

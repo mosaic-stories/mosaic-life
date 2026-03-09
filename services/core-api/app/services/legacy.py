@@ -6,9 +6,11 @@ from typing import TypedDict
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+from ..models.associations import StoryLegacy
 
 from ..adapters.storage import get_storage_adapter
 from ..models.legacy import Legacy, LegacyMember
@@ -90,6 +92,31 @@ def get_profile_image_url(legacy: Legacy) -> str | None:
         return None
     storage = get_storage_adapter()
     return storage.generate_download_url(legacy.profile_image.storage_path)
+
+
+async def get_story_count(db: AsyncSession, legacy_id: UUID) -> int:
+    """Get the number of stories associated with a legacy."""
+    result = await db.execute(
+        select(func.count(StoryLegacy.story_id)).where(
+            StoryLegacy.legacy_id == legacy_id
+        )
+    )
+    return result.scalar() or 0
+
+
+async def get_story_counts(
+    db: AsyncSession, legacy_ids: list[UUID]
+) -> dict[UUID, int]:
+    """Get story counts for multiple legacies in a single query."""
+    if not legacy_ids:
+        return {}
+    result = await db.execute(
+        select(StoryLegacy.legacy_id, func.count(StoryLegacy.story_id))
+        .where(StoryLegacy.legacy_id.in_(legacy_ids))
+        .group_by(StoryLegacy.legacy_id)
+    )
+    counts = {row[0]: row[1] for row in result.all()}
+    return {lid: counts.get(lid, 0) for lid in legacy_ids}
 
 
 async def check_legacy_access(
@@ -256,6 +283,7 @@ async def create_legacy(
         creator_name=creator.name,
         person_id=legacy.person_id,
         favorite_count=legacy.favorite_count or 0,
+        story_count=0,
     )
 
 
@@ -295,6 +323,10 @@ async def list_user_legacies(
         },
     )
 
+    # Batch-fetch story counts
+    legacy_ids = [legacy.id for legacy in legacies]
+    story_counts = await get_story_counts(db, legacy_ids)
+
     return [
         LegacyResponse(
             id=legacy.id,
@@ -312,6 +344,7 @@ async def list_user_legacies(
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
             favorite_count=legacy.favorite_count or 0,
+            story_count=story_counts.get(legacy.id, 0),
         )
         for legacy in legacies
     ]
@@ -350,6 +383,10 @@ async def list_user_legacies_scoped(
     )
     rows = result.all()
 
+    # Batch-fetch story counts
+    legacy_ids = [legacy.id for legacy, _role in rows]
+    story_counts = await get_story_counts(db, legacy_ids)
+
     # Compute counts
     all_legacies = []
     created_legacies = []
@@ -372,6 +409,7 @@ async def list_user_legacies_scoped(
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
             favorite_count=legacy.favorite_count or 0,
+            story_count=story_counts.get(legacy.id, 0),
         )
         all_legacies.append(resp)
         if role == "creator":
@@ -555,6 +593,10 @@ async def explore_legacies(
         },
     )
 
+    # Batch-fetch story counts
+    legacy_ids = [legacy.id for legacy in legacies]
+    story_counts = await get_story_counts(db, legacy_ids)
+
     return [
         LegacyResponse(
             id=legacy.id,
@@ -585,6 +627,7 @@ async def explore_legacies(
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
             favorite_count=legacy.favorite_count or 0,
+            story_count=story_counts.get(legacy.id, 0),
         )
         for legacy in legacies
     ]
@@ -652,6 +695,8 @@ async def get_legacy_public(
         if member.role != "pending"
     ]
 
+    story_count = await get_story_count(db, legacy.id)
+
     return LegacyResponse(
         id=legacy.id,
         name=legacy.name,
@@ -669,6 +714,7 @@ async def get_legacy_public(
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
         favorite_count=legacy.favorite_count or 0,
+        story_count=story_count,
     )
 
 
@@ -740,6 +786,8 @@ async def get_legacy_detail(
         for member in legacy.members
     ]
 
+    story_count = await get_story_count(db, legacy.id)
+
     return LegacyResponse(
         id=legacy.id,
         name=legacy.name,
@@ -757,6 +805,7 @@ async def get_legacy_detail(
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
         favorite_count=legacy.favorite_count or 0,
+        story_count=story_count,
     )
 
 
@@ -957,6 +1006,8 @@ async def update_legacy(
         },
     )
 
+    story_count = await get_story_count(db, legacy.id)
+
     return LegacyResponse(
         id=legacy.id,
         name=legacy.name,
@@ -971,6 +1022,7 @@ async def update_legacy(
         creator_name=legacy.creator.name,
         person_id=legacy.person_id,
         favorite_count=legacy.favorite_count or 0,
+        story_count=story_count,
     )
 
 

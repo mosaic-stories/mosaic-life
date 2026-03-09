@@ -29,6 +29,7 @@ export interface Legacy {
   profile_image_url?: string | null;
   person_id?: string | null;
   favorite_count?: number;
+  story_count: number;
 }
 
 export type LegacyScope = 'all' | 'created' | 'connected' | 'favorites';
