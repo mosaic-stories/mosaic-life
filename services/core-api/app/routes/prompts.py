@@ -39,6 +39,9 @@ async def get_current_prompt(
 
     legacy = await db.get(Legacy, prompt.legacy_id)
     legacy_name = legacy.name if legacy else "Unknown"
+    legacy_profile_image_url = None
+    if legacy and legacy.profile_image_id:
+        legacy_profile_image_url = f"/api/legacies/{legacy.id}/profile-image"
 
     await db.commit()
 
@@ -46,6 +49,7 @@ async def get_current_prompt(
         id=str(prompt.id),
         legacy_id=str(prompt.legacy_id),
         legacy_name=legacy_name,
+        legacy_profile_image_url=legacy_profile_image_url,
         prompt_text=prompt.prompt_text,
         category=prompt.category,
         created_at=prompt.created_at,
@@ -67,6 +71,9 @@ async def shuffle_prompt(
 
     legacy = await db.get(Legacy, prompt.legacy_id)
     legacy_name = legacy.name if legacy else "Unknown"
+    legacy_profile_image_url = None
+    if legacy and legacy.profile_image_id:
+        legacy_profile_image_url = f"/api/legacies/{legacy.id}/profile-image"
 
     await db.commit()
 
@@ -74,6 +81,7 @@ async def shuffle_prompt(
         id=str(prompt.id),
         legacy_id=str(prompt.legacy_id),
         legacy_name=legacy_name,
+        legacy_profile_image_url=legacy_profile_image_url,
         prompt_text=prompt.prompt_text,
         category=prompt.category,
         created_at=prompt.created_at,

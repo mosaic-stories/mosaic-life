@@ -4,6 +4,7 @@ export interface StoryPrompt {
   id: string;
   legacy_id: string;
   legacy_name: string;
+  legacy_profile_image_url: string | null;
   prompt_text: string;
   category: string;
   created_at: string;
