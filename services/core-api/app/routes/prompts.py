@@ -15,11 +15,18 @@ from ..schemas.story_prompt import (
     ActOnPromptResponse,
     StoryPromptResponse,
 )
+from ..services.legacy import get_profile_image_url
 from ..services import story_prompts as prompts_service
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/prompts", tags=["prompts"])
+
+
+def _legacy_profile_image_url(legacy: Legacy | None) -> str | None:
+    if not legacy or not legacy.profile_image_id:
+        return None
+    return get_profile_image_url(legacy)
 
 
 @router.get("/current", response_model=StoryPromptResponse | None)
@@ -39,9 +46,7 @@ async def get_current_prompt(
 
     legacy = await db.get(Legacy, prompt.legacy_id)
     legacy_name = legacy.name if legacy else "Unknown"
-    legacy_profile_image_url = None
-    if legacy and legacy.profile_image_id:
-        legacy_profile_image_url = f"/api/legacies/{legacy.id}/profile-image"
+    legacy_profile_image_url = _legacy_profile_image_url(legacy)
 
     await db.commit()
 
@@ -71,9 +76,7 @@ async def shuffle_prompt(
 
     legacy = await db.get(Legacy, prompt.legacy_id)
     legacy_name = legacy.name if legacy else "Unknown"
-    legacy_profile_image_url = None
-    if legacy and legacy.profile_image_id:
-        legacy_profile_image_url = f"/api/legacies/{legacy.id}/profile-image"
+    legacy_profile_image_url = _legacy_profile_image_url(legacy)
 
     await db.commit()
 
