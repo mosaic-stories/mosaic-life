@@ -446,7 +446,7 @@ async def seed_conversation(
                 "2. Suggest 2-3 possible story angles or themes you noticed\n"
                 "3. Ask the user which direction they'd like to take\n"
                 "4. Mention that when they're ready, they can use the Writer tool "
-                "(pencil icon) in the toolbar above to generate a draft story\n\n"
+                "(sparkle icon) in the toolbar above to generate a draft story\n\n"
                 "Keep your response warm and concise."
             )
         elif has_story_content:
