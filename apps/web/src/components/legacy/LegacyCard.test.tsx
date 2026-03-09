@@ -19,6 +19,7 @@ const baseLegacy: Legacy = {
     { user_id: 'u2', email: 'b@b.com', name: 'B', role: 'admirer', joined_at: '2025-01-01' },
   ],
   profile_image_url: null,
+  story_count: 0,
 };
 
 function renderCard(props: Partial<React.ComponentProps<typeof LegacyCard>> = {}) {
