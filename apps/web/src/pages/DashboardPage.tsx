@@ -9,6 +9,7 @@ import RecentlyViewedSection from '@/features/activity/components/RecentlyViewed
 import FavoritesSection from '@/features/favorites/components/FavoritesSection';
 import ContextualGreeting from '@/components/dashboard/ContextualGreeting';
 import LegacyCard from '@/components/legacy/LegacyCard';
+import StoryPromptCard from '@/features/story-prompts/components/StoryPromptCard';
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -24,6 +25,8 @@ export default function DashboardPage() {
         title="Recently Viewed Legacies"
         description="Legacies you've visited recently"
       />
+
+      <StoryPromptCard />
 
       {/* My Legacies */}
       <section className="bg-neutral-50 py-20">

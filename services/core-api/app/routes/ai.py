@@ -13,7 +13,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import StreamingResponse
 from opentelemetry import trace
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..adapters.ai import AIProviderError
@@ -286,12 +286,12 @@ async def create_new_conversation(
 async def seed_conversation(
     conversation_id: UUID,
     request: Request,
-    story_id: UUID = Query(
-        ..., description="Story to use as context for the opening message"
+    story_id: UUID | None = Query(
+        None, description="Story to use as context for the opening message"
     ),
     seed_mode: str = Query(
         default="default",
-        description="Seed mode: 'default' for normal, 'evolve_summary' for evolved conversations",
+        description="Seed mode: 'default' for normal, 'evolve_summary' for evolved conversations, 'story_prompt' for prompt-seeded AI chat conversations",
     ),
     db: AsyncSession = Depends(get_db),
 ) -> StreamingResponse:
@@ -301,7 +301,9 @@ async def seed_conversation(
     with tracer.start_as_current_span("ai.conversation.seed") as span:
         span.set_attribute("user_id", str(session.user_id))
         span.set_attribute("conversation_id", str(conversation_id))
-        span.set_attribute("story_id", str(story_id))
+        span.set_attribute("seed_mode", seed_mode)
+        if story_id is not None:
+            span.set_attribute("story_id", str(story_id))
 
         # Get conversation and verify ownership
         conversation = await ai_service.get_conversation(
@@ -310,26 +312,55 @@ async def seed_conversation(
             user_id=session.user_id,
         )
 
-        # Idempotency: if conversation already has messages, return 204
-        # (skip for evolve_summary mode — messages exist from clone)
-        if seed_mode != "evolve_summary":
-            msg_count_result = await db.execute(
-                select(func.count(AIMessageModel.id)).where(
-                    AIMessageModel.conversation_id == conversation_id
-                )
-            )
-            if (msg_count_result.scalar() or 0) > 0:
+        message_result = await db.execute(
+            select(AIMessageModel)
+            .where(AIMessageModel.conversation_id == conversation_id)
+            .order_by(AIMessageModel.created_at.asc(), AIMessageModel.id.asc())
+        )
+        conversation_messages = list(message_result.scalars())
+
+        prompt_message: str | None = None
+
+        # Idempotency rules vary by seed mode.
+        if seed_mode == "story_prompt":
+            if any(message.role == "assistant" for message in conversation_messages):
                 return StreamingResponse(
                     content=iter([]),
                     status_code=204,
                     media_type="text/plain",
                 )
 
-        story = await require_story_read_access(
-            db=db,
-            story_id=story_id,
-            user_id=session.user_id,
-        )
+            if (
+                len(conversation_messages) != 1
+                or conversation_messages[0].role != "user"
+            ):
+                return StreamingResponse(
+                    content=iter([]),
+                    status_code=204,
+                    media_type="text/plain",
+                )
+
+            prompt_message = conversation_messages[0].content
+        elif seed_mode != "evolve_summary":
+            if conversation_messages:
+                return StreamingResponse(
+                    content=iter([]),
+                    status_code=204,
+                    media_type="text/plain",
+                )
+
+        story = None
+        if seed_mode != "story_prompt":
+            if story_id is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="story_id is required for this seed mode",
+                )
+            story = await require_story_read_access(
+                db=db,
+                story_id=story_id,
+                user_id=session.user_id,
+            )
 
         # Load legacy name from conversation's linked legacy
         primary_legacy_id = ai_service.get_primary_legacy_id(conversation)
@@ -349,25 +380,26 @@ async def seed_conversation(
         # Best-effort graph context
         story_context = ""
         registry = get_provider_registry()
-        try:
-            graph_context_service = registry.get_graph_context_service()
-            if graph_context_service:
-                assembled = await graph_context_service.assemble_context(
-                    query=story.content[:500],
-                    legacy_id=primary_legacy_id,
-                    user_id=session.user_id,
-                    persona_type=conversation.persona_id,
-                    db=db,
-                    token_budget=2000,
-                    legacy_name=legacy.name,
+        if seed_mode != "story_prompt" and story is not None:
+            try:
+                graph_context_service = registry.get_graph_context_service()
+                if graph_context_service:
+                    assembled = await graph_context_service.assemble_context(
+                        query=story.content[:500],
+                        legacy_id=primary_legacy_id,
+                        user_id=session.user_id,
+                        persona_type=conversation.persona_id,
+                        db=db,
+                        token_budget=2000,
+                        legacy_name=legacy.name,
+                    )
+                    story_context = assembled.formatted_context
+                    span.set_attribute("graph.context_length", len(story_context))
+            except Exception:
+                logger.warning(
+                    "ai.seed.graph_context_failed",
+                    extra={"conversation_id": str(conversation_id)},
                 )
-                story_context = assembled.formatted_context
-                span.set_attribute("graph.context_length", len(story_context))
-        except Exception:
-            logger.warning(
-                "ai.seed.graph_context_failed",
-                extra={"conversation_id": str(conversation_id)},
-            )
 
         # Build elicitation-mode system prompt
         from ..config.personas import build_system_prompt
@@ -376,17 +408,25 @@ async def seed_conversation(
             persona_id=conversation.persona_id,
             legacy_name=legacy.name,
             story_context=story_context,
-            elicitation_mode=True,
-            original_story_text=story.content,
+            elicitation_mode=seed_mode != "story_prompt",
+            original_story_text=story.content if story is not None else None,
             include_graph_suggestions=bool(story_context),
         )
         if not system_prompt:
             raise HTTPException(status_code=500, detail="Failed to build system prompt")
 
         # Seed instruction (not saved to conversation)
-        has_story_content = bool(story.content and story.content.strip())
+        has_story_content = bool(story and story.content and story.content.strip())
 
-        if seed_mode == "evolve_summary":
+        if seed_mode == "story_prompt":
+            seed_instruction = (
+                "[System] The user's opening message in this conversation is:\n\n"
+                f"{prompt_message}\n\n"
+                "Please respond as the selected persona. Acknowledge the memory prompt, "
+                "offer 1-2 concrete follow-up directions, and ask one warm question that helps "
+                "the user continue the conversation. Keep it concise and natural."
+            )
+        elif seed_mode == "evolve_summary":
             # Get existing messages for context (from cloned conversation)
             context_messages = await ai_service.get_context_messages(
                 db, conversation_id

@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Loader2, Share2, MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -28,6 +28,8 @@ import AISection from './AISection';
 import DeleteLegacyDialog from './DeleteLegacyDialog';
 import LegacyLinkPanel from '@/features/legacy-link/components/LegacyLinkPanel';
 
+type PromptSeedMode = 'story_prompt' | undefined;
+
 interface LegacyProfileProps {
   legacyId: string;
 }
@@ -38,7 +40,13 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
     return authUser ? { name: authUser.name || authUser.email, email: authUser.email, avatarUrl: authUser.avatar_url } : null;
   }, [authUser]);
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState<SectionId>('stories');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as SectionId | null;
+  const conversationParam = searchParams.get('conversation') || undefined;
+  const promptSeedMode: PromptSeedMode = searchParams.get('seed') === 'story_prompt'
+    ? 'story_prompt'
+    : undefined;
+  const [activeSection, setActiveSection] = useState<SectionId>(tabParam || 'stories');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMemberDrawer, setShowMemberDrawer] = useState(false);
 
@@ -48,6 +56,10 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const deleteLegacy = useDeleteLegacy();
 
   const createStory = useCreateStory();
+
+  useEffect(() => {
+    setActiveSection(tabParam || 'stories');
+  }, [tabParam]);
 
   const legacy = legacyQuery.data;
   const legacyLoading = legacyQuery.isLoading;
@@ -254,7 +266,11 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         )}
 
         {activeSection === 'ai' && (
-          <AISection legacyId={legacyId} />
+          <AISection
+            legacyId={legacyId}
+            initialConversationId={conversationParam}
+            initialSeedMode={promptSeedMode}
+          />
         )}
       </main>
 

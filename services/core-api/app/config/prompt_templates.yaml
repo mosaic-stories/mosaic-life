@@ -1,0 +1,47 @@
+categories:
+  meals_traditions:
+    label: "Meals & Traditions"
+    templates:
+      - id: "meals_001"
+        text: "What's a favorite meal or tradition you shared with {name}?"
+      - id: "meals_002"
+        text: "Did {name} have a signature dish or recipe they were known for?"
+      - id: "meals_003"
+        text: "Was there a holiday tradition that {name} always looked forward to?"
+  life_lessons:
+    label: "Life Lessons"
+    templates:
+      - id: "lessons_001"
+        text: "What's the best piece of advice {name} ever gave you?"
+      - id: "lessons_002"
+        text: "Was there a moment when {name} taught you something without saying a word?"
+      - id: "lessons_003"
+        text: "What value or principle did {name} live by that you most admire?"
+  funny_moments:
+    label: "Funny Moments"
+    templates:
+      - id: "funny_001"
+        text: "What's a story about {name} that always makes you laugh?"
+      - id: "funny_002"
+        text: "Did {name} have a favorite joke or saying that everyone remembers?"
+  relationships:
+    label: "Relationships"
+    templates:
+      - id: "rel_001"
+        text: "How did you first meet {name}, and what was your earliest impression?"
+      - id: "rel_002"
+        text: "Who was {name}'s closest friend, and what made that bond special?"
+  milestones:
+    label: "Milestones"
+    templates:
+      - id: "mile_001"
+        text: "What's a proud moment in {name}'s life that deserves to be remembered?"
+      - id: "mile_002"
+        text: "Was there a turning point in {name}'s life that shaped who they became?"
+  passions:
+    label: "Passions & Hobbies"
+    templates:
+      - id: "passions_001"
+        text: "What was {name} most passionate about, and how did they share that passion?"
+      - id: "passions_002"
+        text: "Did {name} have a hobby or interest that surprised people?"
