@@ -12,6 +12,7 @@ class StoryPromptResponse(BaseModel):
     id: str
     legacy_id: str
     legacy_name: str
+    legacy_profile_image_url: str | None = None
     prompt_text: str
     category: str
     created_at: datetime

@@ -60,12 +60,18 @@ export default function ActivityFeedItem({
   const timeAgo = formatDistanceToNow(new Date(item.created_at), {
     addSuffix: true,
   });
+  const isInteractive = Boolean(onClick);
 
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex items-start gap-3 w-full text-left py-3 px-2 rounded-lg hover:bg-neutral-50 transition-colors"
+      disabled={!isInteractive}
+      className={`flex items-start gap-3 w-full text-left py-3 px-2 rounded-lg transition-colors ${
+        isInteractive
+          ? 'hover:bg-neutral-50'
+          : 'cursor-not-allowed opacity-60'
+      }`}
     >
       <div className="mt-0.5 flex-shrink-0 size-8 rounded-full bg-neutral-100 flex items-center justify-center">
         <Icon className="size-4 text-neutral-500" />

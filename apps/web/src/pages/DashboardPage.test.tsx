@@ -19,7 +19,7 @@ vi.mock('@/features/activity/hooks/useActivity', () => ({
 }));
 
 vi.mock('@/features/legacy/hooks/useLegacies', () => ({
-  useLegacies: () => ({ data: [], isLoading: false }),
+  useLegacies: () => ({ data: { items: [] }, isLoading: false }),
 }));
 
 vi.mock('@/features/favorites/hooks/useFavorites', () => ({
@@ -46,7 +46,8 @@ describe('DashboardPage', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-02T10:00:00'));
     renderPage();
-    expect(screen.getByText(/good morning, joe/i)).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).toMatch(/good morning,\s*joe/i);
     vi.useRealTimers();
   });
 
@@ -55,15 +56,19 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/my legacies/i)).toBeInTheDocument();
   });
 
+  it('renders the create legacy tile', () => {
+    renderPage();
+    expect(screen.getByRole('link', { name: /create a legacy/i })).toBeInTheDocument();
+  });
+
   it('does NOT render hero or CTA sections', () => {
     renderPage();
     expect(screen.queryByText(/honor the lives and milestones/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/start creating today/i)).not.toBeInTheDocument();
   });
 
-  it('shows "View all" link when more than 2 legacies exist', async () => {
-    // The default mock returns empty array, so the link shouldn't show
+  it('renders "View all" link in the My Legacies header', () => {
     renderPage();
-    expect(screen.queryByText(/view all/i)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View all' })).toBeInTheDocument();
   });
 });

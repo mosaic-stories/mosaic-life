@@ -1,106 +1,96 @@
-import { Plus, Loader2, ArrowRight } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Loader2, ArrowRight, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import Footer from '@/components/Footer';
+import { Card } from '@/components/ui/card';
 import { useLegacies } from '@/features/legacy/hooks/useLegacies';
-import RecentActivitySection from '@/features/activity/components/RecentActivitySection';
-import RecentlyViewedSection from '@/features/activity/components/RecentlyViewedSection';
-import FavoritesSection from '@/features/favorites/components/FavoritesSection';
 import ContextualGreeting from '@/components/dashboard/ContextualGreeting';
 import LegacyCard from '@/components/legacy/LegacyCard';
 import StoryPromptCard from '@/features/story-prompts/components/StoryPromptCard';
+import RecentStoriesList from '@/components/dashboard/RecentStoriesList';
+import QuickActions from '@/components/dashboard/QuickActions';
+import SidebarActivity from '@/components/dashboard/SidebarActivity';
+import SidebarFavorites from '@/components/dashboard/SidebarFavorites';
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
   const { data: myLegaciesData, isLoading: myLegaciesLoading } = useLegacies('all', { enabled: true });
   const myLegacies = myLegaciesData?.items;
 
   return (
     <div className="min-h-screen flex flex-col">
+      {/* Hero */}
       <ContextualGreeting />
 
-      <RecentlyViewedSection
-        entityType="legacy"
-        title="Recently Viewed Legacies"
-        description="Legacies you've visited recently"
-      />
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-6 pb-16 w-full">
+        <div className="grid lg:grid-cols-[1fr_340px] gap-8 mt-8">
 
-      <StoryPromptCard />
+          {/* LEFT COLUMN */}
+          <div className="space-y-8">
+            <StoryPromptCard />
 
-      {/* My Legacies */}
-      <section className="bg-neutral-50 py-20">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex items-center justify-between mb-8">
-            <div className="space-y-2">
-              <h2 className="text-neutral-900">My Legacies</h2>
-              <p className="text-neutral-600">The tributes you've created and manage</p>
-            </div>
-            <Button
-              onClick={() => navigate('/legacy/new')}
-              className="gap-2 bg-theme-primary hover:bg-theme-primary-dark"
-            >
-              <Plus className="size-4" />
-              Create New
-            </Button>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {myLegaciesLoading && (
-              <div className="col-span-full flex items-center justify-center py-12">
-                <Loader2 className="size-6 animate-spin text-theme-primary" />
+            {/* My Legacies */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-serif font-medium tracking-tight">My Legacies</h2>
+                <Link
+                  to="/legacies"
+                  className="text-xs text-theme-primary font-medium hover:underline"
+                >
+                  View all
+                </Link>
               </div>
-            )}
 
-            {!myLegaciesLoading && myLegacies?.slice(0, 2).map((legacy) => (
-              <LegacyCard key={legacy.id} legacy={legacy} />
-            ))}
-
-            {/* Create New Card */}
-            <Card
-              className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group border-2 border-dashed border-neutral-300 hover:border-theme-primary bg-neutral-50 hover:bg-white"
-              onClick={() => navigate('/legacy/new')}
-            >
-              <div className="aspect-[4/3] flex items-center justify-center bg-gradient-to-br from-theme-gradient-from to-theme-gradient-to">
-                <div className="text-center space-y-3">
-                  <div className="size-16 rounded-full bg-white/80 flex items-center justify-center mx-auto">
-                    <Plus className="size-8 text-theme-primary" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {myLegaciesLoading && (
+                  <div className="col-span-full flex items-center justify-center py-12">
+                    <Loader2 className="size-6 animate-spin text-theme-primary" />
                   </div>
-                  <p className="text-neutral-700">Create New Legacy</p>
+                )}
+
+                {!myLegaciesLoading && myLegacies?.slice(0, 2).map((legacy) => (
+                  <LegacyCard key={legacy.id} legacy={legacy} hideContextBadge />
+                ))}
+
+                {!myLegaciesLoading && (
+                  <Link to="/legacy/new" aria-label="Create a Legacy">
+                    <Card className="group flex aspect-[4/3] items-center justify-center border-2 border-dashed border-neutral-300 bg-neutral-50 transition-colors hover:border-theme-primary hover:bg-white hover:shadow-lg">
+                      <div className="text-center">
+                        <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-white text-theme-primary shadow-sm transition-transform group-hover:scale-105">
+                          <Plus className="size-7" />
+                        </div>
+                        <div className="text-sm font-medium text-neutral-800">Create a Legacy</div>
+                        <div className="mt-1 text-xs text-neutral-500">Start a new memory space</div>
+                      </div>
+                    </Card>
+                  </Link>
+                )}
+              </div>
+
+              {!myLegaciesLoading && myLegacies && myLegacies.length > 2 && (
+                <div className="mt-4 text-center">
+                  <Link
+                    to="/legacies"
+                    className="text-sm text-theme-primary hover:text-theme-primary-dark font-medium inline-flex items-center gap-1"
+                  >
+                    View all {myLegacies.length} legacies
+                    <ArrowRight className="size-4" />
+                  </Link>
                 </div>
-              </div>
-              <div className="p-5 space-y-3">
-                <h3 className="text-neutral-900 text-center">Start a New Tribute</h3>
-                <p className="text-sm text-neutral-600 text-center">
-                  Honor someone special with a digital legacy
-                </p>
-              </div>
-            </Card>
+              )}
+            </section>
+
+            <RecentStoriesList />
           </div>
 
-          {!myLegaciesLoading && myLegacies && myLegacies.length > 2 && (
-            <div className="mt-6 text-center">
-              <Link
-                to="/legacies"
-                className="text-sm text-theme-primary hover:text-theme-primary-dark font-medium inline-flex items-center gap-1"
-              >
-                View all {myLegacies.length} legacies
-                <ArrowRight className="size-4" />
-              </Link>
-            </div>
-          )}
+          {/* RIGHT SIDEBAR */}
+          <div className="space-y-5 lg:sticky lg:top-20 lg:self-start">
+            <QuickActions />
+            <SidebarActivity />
+            <SidebarFavorites />
+          </div>
+
         </div>
-      </section>
-
-      <RecentlyViewedSection
-        entityType="story"
-        title="Recently Viewed Stories"
-        description="Stories you've read recently"
-      />
-
-      <RecentActivitySection />
-
-      <FavoritesSection />
+      </div>
 
       <Footer />
     </div>

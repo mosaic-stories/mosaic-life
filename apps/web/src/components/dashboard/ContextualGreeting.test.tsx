@@ -46,30 +46,34 @@ describe('ContextualGreeting', () => {
   it('shows morning greeting before noon', () => {
     vi.setSystemTime(new Date('2026-03-02T09:00:00'));
     renderGreeting();
-    expect(screen.getByText(/good morning, joe/i)).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).toMatch(/good morning,\s*joe/i);
   });
 
   it('shows afternoon greeting after noon', () => {
     vi.setSystemTime(new Date('2026-03-02T14:00:00'));
     renderGreeting();
-    expect(screen.getByText(/good afternoon, joe/i)).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).toMatch(/good afternoon,\s*joe/i);
   });
 
   it('shows evening greeting after 5pm', () => {
     vi.setSystemTime(new Date('2026-03-02T19:00:00'));
     renderGreeting();
-    expect(screen.getByText(/good evening, joe/i)).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).toMatch(/good evening,\s*joe/i);
   });
 
   it('shows night greeting after 9pm', () => {
     vi.setSystemTime(new Date('2026-03-02T23:00:00'));
     renderGreeting();
-    expect(screen.getByText(/good night, joe/i)).toBeInTheDocument();
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).toMatch(/good night,\s*joe/i);
   });
 
   it('shows fallback prompt when no activity or notifications', () => {
     vi.setSystemTime(new Date('2026-03-02T10:00:00'));
     renderGreeting();
-    expect(screen.getByText(/what would you like to work on today/i)).toBeInTheDocument();
+    expect(screen.getByText(/every story you tell keeps a memory alive/i)).toBeInTheDocument();
   });
 });

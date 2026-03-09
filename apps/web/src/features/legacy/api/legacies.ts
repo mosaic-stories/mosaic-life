@@ -25,10 +25,12 @@ export interface Legacy {
   creator_email?: string | null;
   creator_name?: string | null;
   members?: LegacyMember[] | null;
+  current_user_role?: 'creator' | 'admin' | 'advocate' | 'admirer';
   profile_image_id?: string | null;
   profile_image_url?: string | null;
   person_id?: string | null;
   favorite_count?: number;
+  story_count: number;
 }
 
 export type LegacyScope = 'all' | 'created' | 'connected' | 'favorites';

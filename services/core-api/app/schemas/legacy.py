@@ -77,6 +77,10 @@ class LegacyResponse(BaseModel):
 
     # Optional: include member info
     members: list[LegacyMemberResponse] | None = None
+    current_user_role: str = Field(
+        default="admirer",
+        description="Current user's membership role for this legacy",
+    )
 
     # Person
     person_id: UUID | None = None
@@ -87,6 +91,9 @@ class LegacyResponse(BaseModel):
 
     favorite_count: int = Field(
         default=0, description="Number of times this legacy has been favorited"
+    )
+    story_count: int = Field(
+        default=0, description="Number of stories associated with this legacy"
     )
 
     model_config = {"from_attributes": True}

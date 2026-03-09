@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Loader2 } from 'lucide-react';
 import {
@@ -8,6 +9,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useLegacies } from '@/features/legacy/hooks/useLegacies';
+import { useCreateStory } from '@/features/story/hooks/useStories';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 
 interface LegacyPickerDialogProps {
@@ -18,10 +20,30 @@ interface LegacyPickerDialogProps {
 export default function LegacyPickerDialog({ open, onOpenChange }: LegacyPickerDialogProps) {
   const navigate = useNavigate();
   const { data, isLoading } = useLegacies('all', { enabled: open });
+  const createStory = useCreateStory();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSelect = (legacyId: string) => {
-    onOpenChange(false);
-    navigate(`/legacy/${legacyId}/story/new`);
+  const handleSelect = async (legacyId: string) => {
+    setErrorMessage(null);
+    try {
+      const title = `Untitled Story - ${new Date().toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })}`;
+      const newStory = await createStory.mutateAsync({
+        title,
+        content: '',
+        visibility: 'private',
+        status: 'draft',
+        legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
+      });
+      onOpenChange(false);
+      navigate(`/legacy/${legacyId}/story/${newStory.id}/evolve`);
+    } catch (error) {
+      console.error('Failed to create story:', error);
+      setErrorMessage('Unable to create a draft story. Please try again.');
+    }
   };
 
   return (
@@ -33,6 +55,12 @@ export default function LegacyPickerDialog({ open, onOpenChange }: LegacyPickerD
             Select which legacy this story is about.
           </DialogDescription>
         </DialogHeader>
+
+        {errorMessage && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {errorMessage}
+          </p>
+        )}
 
         {isLoading && (
           <div className="flex items-center justify-center py-8">
@@ -46,6 +74,7 @@ export default function LegacyPickerDialog({ open, onOpenChange }: LegacyPickerD
               <button
                 key={legacy.id}
                 onClick={() => handleSelect(legacy.id)}
+                disabled={createStory.isPending}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-neutral-100 transition-colors text-left"
               >
                 <div className="size-10 rounded-full overflow-hidden bg-neutral-100 flex-shrink-0">
