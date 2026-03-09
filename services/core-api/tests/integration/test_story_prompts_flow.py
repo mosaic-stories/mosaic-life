@@ -6,8 +6,10 @@ get prompt, shuffle prompt, act on prompt (discuss).
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import delete
 
 from app.models.legacy import Legacy
+from app.models.legacy import LegacyMember
 from app.models.user import User
 from tests.conftest import create_auth_headers_for_user
 
@@ -175,3 +177,60 @@ class TestStoryPromptsFlow:
             headers=headers,
         )
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_act_on_prompt_requires_current_legacy_membership(
+        self,
+        client: AsyncClient,
+        db_session,
+        test_user: User,
+        test_legacy: Legacy,
+    ) -> None:
+        """Acting on a prompt should fail if membership was revoked after prompt creation."""
+        headers = create_auth_headers_for_user(test_user)
+
+        response = await client.get("/api/prompts/current", headers=headers)
+        assert response.status_code == 200
+        prompt_id = response.json()["id"]
+
+        await db_session.execute(
+            delete(LegacyMember).where(
+                LegacyMember.legacy_id == test_legacy.id,
+                LegacyMember.user_id == test_user.id,
+            )
+        )
+        await db_session.commit()
+
+        response = await client.post(
+            f"/api/prompts/{prompt_id}/act",
+            headers=headers,
+            json={"action": "discuss"},
+        )
+
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_current_prompt_omits_inaccessible_active_prompt(
+        self,
+        client: AsyncClient,
+        db_session,
+        test_user: User,
+        test_legacy: Legacy,
+    ) -> None:
+        """Current prompt should not surface an active prompt for a legacy the user can no longer access."""
+        headers = create_auth_headers_for_user(test_user)
+
+        response = await client.get("/api/prompts/current", headers=headers)
+        assert response.status_code == 200
+
+        await db_session.execute(
+            delete(LegacyMember).where(
+                LegacyMember.legacy_id == test_legacy.id,
+                LegacyMember.user_id == test_user.id,
+            )
+        )
+        await db_session.commit()
+
+        response = await client.get("/api/prompts/current", headers=headers)
+
+        assert response.status_code == 204

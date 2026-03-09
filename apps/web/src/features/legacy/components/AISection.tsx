@@ -11,22 +11,27 @@ import { ConversationHistoryPopover } from '@/features/ai-chat/components/Conver
 import { PersonaIcon } from '@/features/ai-chat/components/PersonaIcon';
 import { getPersonaColor } from '@/features/ai-chat/components/utils';
 import { evolveConversation } from '@/features/ai-chat/api/ai';
+import { streamPromptSeed } from '@/features/ai-chat/api/seedPrompt';
 import { useAIChatStore } from '@/features/ai-chat/store/aiChatStore';
 import type { Persona } from '@/features/ai-chat/api/ai';
 
 export interface AISectionProps {
   legacyId: string;
   initialConversationId?: string;
+  initialSeedMode?: 'story_prompt';
 }
 
 const ALLOWED_PERSONAS = ['biographer', 'friend'];
 
-export default function AISection({ legacyId, initialConversationId }: AISectionProps) {
+export default function AISection({ legacyId, initialConversationId, initialSeedMode }: AISectionProps) {
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>('biographer');
   const [inputMessage, setInputMessage] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(initialConversationId ?? null);
   const [isEvolving, setIsEvolving] = useState(false);
+  const hasMountedPersonaRef = useRef(false);
+  const promptSeedAbortRef = useRef<AbortController | null>(null);
+  const seededPromptConversationsRef = useRef(new Set<string>());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
@@ -64,6 +69,11 @@ export default function AISection({ legacyId, initialConversationId }: AISection
   const evolveSuggestions = useAIChatStore((s) => s.evolveSuggestions);
   const dismissEvolveSuggestion = useAIChatStore((s) => s.dismissEvolveSuggestion);
   const activeConvId = useAIChatStore((s) => s.activeConversationId);
+  const addMessage = useAIChatStore((s) => s.addMessage);
+  const appendToLastMessage = useAIChatStore((s) => s.appendToLastMessage);
+  const updateLastMessage = useAIChatStore((s) => s.updateLastMessage);
+  const setStreaming = useAIChatStore((s) => s.setStreaming);
+  const setStoreError = useAIChatStore((s) => s.setError);
   const evolveSuggestion = activeConvId ? evolveSuggestions.get(activeConvId) ?? null : null;
 
   const handleEvolve = async () => {
@@ -108,8 +118,79 @@ export default function AISection({ legacyId, initialConversationId }: AISection
 
   // Reset conversation when persona changes
   useEffect(() => {
+    if (!hasMountedPersonaRef.current) {
+      hasMountedPersonaRef.current = true;
+      return;
+    }
     setSelectedConversationId(null);
   }, [selectedPersonaId]);
+
+  useEffect(() => {
+    if (initialConversationId) {
+      setSelectedConversationId(initialConversationId);
+    }
+  }, [initialConversationId]);
+
+  useEffect(() => {
+    return () => {
+      promptSeedAbortRef.current?.abort();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (initialSeedMode !== 'story_prompt') return;
+    if (!initialConversationId || selectedConversationId !== initialConversationId) return;
+    if (seededPromptConversationsRef.current.has(initialConversationId)) return;
+    if (messages.length !== 1 || messages[0]?.role !== 'user') return;
+    if (messages.some((message) => message.role === 'assistant')) return;
+
+    seededPromptConversationsRef.current.add(initialConversationId);
+    setStoreError(null);
+
+    addMessage(initialConversationId, {
+      id: `prompt-seed-${Date.now()}`,
+      conversation_id: initialConversationId,
+      role: 'assistant',
+      content: '',
+      token_count: null,
+      created_at: new Date().toISOString(),
+      blocked: false,
+      status: 'streaming',
+    });
+    setStreaming(true);
+
+    promptSeedAbortRef.current = streamPromptSeed(
+      initialConversationId,
+      (chunk) => {
+        appendToLastMessage(initialConversationId, chunk);
+      },
+      (messageId) => {
+        updateLastMessage(initialConversationId, {
+          id: messageId,
+          status: 'complete',
+        });
+        setStreaming(false);
+      },
+      (message) => {
+        updateLastMessage(initialConversationId, {
+          status: 'error',
+          error: message,
+        });
+        setStreaming(false);
+        setStoreError(message);
+      },
+    );
+  }, [
+    addMessage,
+    appendToLastMessage,
+    initialConversationId,
+    initialSeedMode,
+    messages,
+    selectedConversationId,
+    setStoreError,
+    setStreaming,
+    updateLastMessage,
+  ]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isStreaming) return;

@@ -31,7 +31,7 @@ export default function StoryPromptCard() {
     });
     if (result.conversation_id) {
       navigate(
-        `/legacy/${result.legacy_id}?tab=ai&conversation=${result.conversation_id}`,
+        `/legacy/${result.legacy_id}?tab=ai&conversation=${result.conversation_id}&seed=story_prompt`,
       );
     }
   };

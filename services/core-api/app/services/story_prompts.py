@@ -7,6 +7,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config.prompt_templates import get_all_templates
@@ -53,6 +54,22 @@ def select_template(
     return random.choice(by_category[chosen_category])
 
 
+async def has_legacy_access(
+    db: AsyncSession,
+    user_id: UUID,
+    legacy_id: UUID,
+) -> bool:
+    """Check whether the user is still an active member of the legacy."""
+    result = await db.execute(
+        select(LegacyMember.legacy_id).where(
+            LegacyMember.user_id == user_id,
+            LegacyMember.legacy_id == legacy_id,
+            LegacyMember.role != "pending",
+        )
+    )
+    return result.scalar_one_or_none() is not None
+
+
 async def select_legacy(db: AsyncSession, user_id: UUID) -> UUID | None:
     """Pick the user's most recently interacted-with legacy.
 
@@ -63,6 +80,12 @@ async def select_legacy(db: AsyncSession, user_id: UUID) -> UUID | None:
     story_legacy_q = (
         select(StoryLegacy.legacy_id, func.max(Story.updated_at).label("last_at"))
         .join(Story, Story.id == StoryLegacy.story_id)
+        .join(
+            LegacyMember,
+            (LegacyMember.legacy_id == StoryLegacy.legacy_id)
+            & (LegacyMember.user_id == user_id)
+            & (LegacyMember.role != "pending"),
+        )
         .where(Story.author_id == user_id)
         .group_by(StoryLegacy.legacy_id)
     )
@@ -76,6 +99,12 @@ async def select_legacy(db: AsyncSession, user_id: UUID) -> UUID | None:
         .join(
             AIConversation,
             AIConversation.id == ConversationLegacy.conversation_id,
+        )
+        .join(
+            LegacyMember,
+            (LegacyMember.legacy_id == ConversationLegacy.legacy_id)
+            & (LegacyMember.user_id == user_id)
+            & (LegacyMember.role != "pending"),
         )
         .where(AIConversation.user_id == user_id)
         .group_by(ConversationLegacy.legacy_id)
@@ -132,20 +161,43 @@ async def get_or_create_active_prompt(
     Auto-rotates prompts older than ROTATION_HOURS.
     Returns None if user has no legacies.
     """
-    q = select(StoryPrompt).where(
-        StoryPrompt.user_id == user_id,
-        StoryPrompt.status == "active",
+    q = (
+        select(StoryPrompt)
+        .where(
+            StoryPrompt.user_id == user_id,
+            StoryPrompt.status == "active",
+        )
+        .order_by(StoryPrompt.created_at.desc(), StoryPrompt.id.desc())
     )
     result = await db.execute(q)
-    active = result.scalar_one_or_none()
+    active_prompts = list(result.scalars())
 
-    if active:
-        cutoff = datetime.now(timezone.utc) - timedelta(hours=ROTATION_HOURS)
-        if active.created_at.replace(tzinfo=timezone.utc) < cutoff:
-            active.status = "rotated"
-            await db.flush()
-        else:
-            return active
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=ROTATION_HOURS)
+    prompt_to_keep: StoryPrompt | None = None
+
+    for prompt in active_prompts:
+        created_at = prompt.created_at
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+
+        is_expired = created_at < cutoff
+        is_accessible = await has_legacy_access(db, user_id, prompt.legacy_id)
+
+        if prompt_to_keep is None and is_accessible and not is_expired:
+            prompt_to_keep = prompt
+            continue
+
+        prompt.status = "rotated"
+
+    if len(active_prompts) > 1 or any(
+        prompt.status == "rotated"
+        for prompt in active_prompts
+        if prompt is not prompt_to_keep
+    ):
+        await db.flush()
+
+    if prompt_to_keep:
+        return prompt_to_keep
 
     return await _generate_prompt(db, user_id)
 
@@ -188,8 +240,15 @@ async def _generate_prompt(
         category=category,
         status="active",
     )
-    db.add(prompt)
-    await db.flush()
+    try:
+        async with db.begin_nested():
+            db.add(prompt)
+            await db.flush()
+    except IntegrityError:
+        existing = await get_or_create_active_prompt(db, user_id)
+        if existing:
+            return existing
+        raise
 
     logger.info(
         "story_prompt.created",
@@ -229,6 +288,11 @@ async def act_on_prompt(
         raise HTTPException(status_code=404, detail="Prompt not found")
     if prompt.status != "active":
         raise HTTPException(status_code=400, detail="Prompt is no longer active")
+    if not await has_legacy_access(db, user_id, prompt.legacy_id):
+        raise HTTPException(
+            status_code=403,
+            detail="You must be a legacy member to use this prompt",
+        )
 
     legacy = await db.get(Legacy, prompt.legacy_id)
     legacy_name = legacy.name if legacy else "Unknown"

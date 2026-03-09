@@ -28,6 +28,8 @@ import AISection from './AISection';
 import DeleteLegacyDialog from './DeleteLegacyDialog';
 import LegacyLinkPanel from '@/features/legacy-link/components/LegacyLinkPanel';
 
+type PromptSeedMode = 'story_prompt' | undefined;
+
 interface LegacyProfileProps {
   legacyId: string;
 }
@@ -41,6 +43,9 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab') as SectionId | null;
   const conversationParam = searchParams.get('conversation') || undefined;
+  const promptSeedMode: PromptSeedMode = searchParams.get('seed') === 'story_prompt'
+    ? 'story_prompt'
+    : undefined;
   const [activeSection, setActiveSection] = useState<SectionId>(tabParam || 'stories');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMemberDrawer, setShowMemberDrawer] = useState(false);
@@ -257,7 +262,11 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         )}
 
         {activeSection === 'ai' && (
-          <AISection legacyId={legacyId} initialConversationId={conversationParam} />
+          <AISection
+            legacyId={legacyId}
+            initialConversationId={conversationParam}
+            initialSeedMode={promptSeedMode}
+          />
         )}
       </main>
 
