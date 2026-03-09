@@ -104,9 +104,7 @@ async def get_story_count(db: AsyncSession, legacy_id: UUID) -> int:
     return result.scalar() or 0
 
 
-async def get_story_counts(
-    db: AsyncSession, legacy_ids: list[UUID]
-) -> dict[UUID, int]:
+async def get_story_counts(db: AsyncSession, legacy_ids: list[UUID]) -> dict[UUID, int]:
     """Get story counts for multiple legacies in a single query."""
     if not legacy_ids:
         return {}
