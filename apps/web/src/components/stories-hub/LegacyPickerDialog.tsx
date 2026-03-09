@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Users, Loader2 } from 'lucide-react';
 import {
@@ -20,9 +21,10 @@ export default function LegacyPickerDialog({ open, onOpenChange }: LegacyPickerD
   const navigate = useNavigate();
   const { data, isLoading } = useLegacies('all', { enabled: open });
   const createStory = useCreateStory();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleSelect = async (legacyId: string) => {
-    onOpenChange(false);
+    setErrorMessage(null);
     try {
       const title = `Untitled Story - ${new Date().toLocaleDateString(undefined, {
         month: 'short',
@@ -36,9 +38,11 @@ export default function LegacyPickerDialog({ open, onOpenChange }: LegacyPickerD
         status: 'draft',
         legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
       });
+      onOpenChange(false);
       navigate(`/legacy/${legacyId}/story/${newStory.id}/evolve`);
     } catch (error) {
       console.error('Failed to create story:', error);
+      setErrorMessage('Unable to create a draft story. Please try again.');
     }
   };
 
@@ -51,6 +55,12 @@ export default function LegacyPickerDialog({ open, onOpenChange }: LegacyPickerD
             Select which legacy this story is about.
           </DialogDescription>
         </DialogHeader>
+
+        {errorMessage && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {errorMessage}
+          </p>
+        )}
 
         {isLoading && (
           <div className="flex items-center justify-center py-8">

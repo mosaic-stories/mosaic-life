@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
@@ -72,5 +72,18 @@ describe('LegacyPickerDialog', () => {
       }),
     );
     expect(mockNavigate).toHaveBeenCalledWith('/legacy/1/story/story-123/evolve');
+  });
+
+  it('keeps the dialog open and shows an error when story creation fails', async () => {
+    const user = userEvent.setup();
+    const error = new Error('request failed');
+    mockMutateAsync.mockRejectedValueOnce(error);
+
+    const { onOpenChange } = renderDialog();
+    await user.click(screen.getByText('Margaret Chen'));
+
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(screen.getByText(/unable to create a draft story/i)).toBeInTheDocument();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 });

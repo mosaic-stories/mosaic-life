@@ -9,6 +9,14 @@ function getActivityRoute(item: SocialFeedItem): string | null {
   switch (item.entity_type) {
     case 'legacy':
       return `/legacy/${item.entity_id}`;
+    case 'conversation': {
+      const legacyId =
+        item.entity?.legacy_id ??
+        (item.metadata as { legacy_id?: string } | null)?.legacy_id;
+      return legacyId
+        ? `/legacy/${legacyId}?tab=ai&conversation=${item.entity_id}`
+        : null;
+    }
     case 'story': {
       const legacyId =
         item.entity?.legacy_id ??
@@ -54,17 +62,18 @@ export default function SidebarActivity() {
       )}
       {!isLoading && !isError && data && data.items.length > 0 && (
         <div className="divide-y divide-neutral-100">
-          {data.items.map((item) => (
-            <ActivityFeedItem
-              key={item.id}
-              item={item}
-              currentUserId={user?.id || ''}
-              onClick={() => {
-                const route = getActivityRoute(item);
-                if (route) navigate(route);
-              }}
-            />
-          ))}
+          {data.items.map((item) => {
+            const route = getActivityRoute(item);
+
+            return (
+              <ActivityFeedItem
+                key={item.id}
+                item={item}
+                currentUserId={user?.id || ''}
+                onClick={route ? () => navigate(route) : undefined}
+              />
+            );
+          })}
         </div>
       )}
     </div>

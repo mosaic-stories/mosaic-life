@@ -25,15 +25,22 @@ export default function RecentStoriesList() {
           const story = item.entity;
           if (!story) return null;
           const legacyId = story.legacy_id;
+          const canNavigate = Boolean(legacyId);
 
           return (
             <button
               type="button"
               key={item.entity_id}
-              onClick={() =>
-                legacyId && navigate(`/legacy/${legacyId}/story/${item.entity_id}`)
-              }
-              className="flex items-start gap-3.5 bg-white rounded-xl px-4 py-3.5 border border-neutral-100 shadow-sm cursor-pointer hover:shadow-md transition-shadow"
+              disabled={!canNavigate}
+              onClick={() => {
+                if (!legacyId) return;
+                navigate(`/legacy/${legacyId}/story/${item.entity_id}`);
+              }}
+              className={`flex items-start gap-3.5 bg-white rounded-xl px-4 py-3.5 border border-neutral-100 shadow-sm transition-shadow ${
+                canNavigate
+                  ? 'cursor-pointer hover:shadow-md'
+                  : 'cursor-not-allowed opacity-60'
+              }`}
             >
               <div
                 className={`w-1 h-10 rounded-full shrink-0 mt-0.5 ${
