@@ -264,6 +264,14 @@ export default function TermsOfService() {
                   We are not liable for any damages arising from your use of the platform
                 </span>
               </li>
+              <li className="flex gap-3">
+                <span className="text-theme-primary font-medium">•</span>
+                <span>
+                  While we implement encryption, security reviews, and network controls to protect your
+                  data, we cannot guarantee against all security breaches. If you are uncomfortable with
+                  this risk, we encourage you to self-host your own instance for full control
+                </span>
+              </li>
             </ul>
             <Card className="p-6 border-amber-200 bg-amber-50 space-y-2">
               <p className="text-neutral-700 text-sm leading-relaxed">
