@@ -146,25 +146,46 @@ export default function AISection({ legacyId, initialConversationId, initialSeed
 
     seededPromptConversationsRef.current.add(initialConversationId);
     setStoreError(null);
-
-    addMessage(initialConversationId, {
-      id: `prompt-seed-${Date.now()}`,
-      conversation_id: initialConversationId,
-      role: 'assistant',
-      content: '',
-      token_count: null,
-      created_at: new Date().toISOString(),
-      blocked: false,
-      status: 'streaming',
-    });
     setStreaming(true);
+
+    let hasOptimisticAssistant = false;
 
     promptSeedAbortRef.current = streamPromptSeed(
       initialConversationId,
       (chunk) => {
+        if (!hasOptimisticAssistant) {
+          hasOptimisticAssistant = true;
+          addMessage(initialConversationId, {
+            id: `prompt-seed-${Date.now()}`,
+            conversation_id: initialConversationId,
+            role: 'assistant',
+            content: chunk,
+            token_count: null,
+            created_at: new Date().toISOString(),
+            blocked: false,
+            status: 'streaming',
+          });
+          return;
+        }
+
         appendToLastMessage(initialConversationId, chunk);
       },
       (messageId) => {
+        if (!hasOptimisticAssistant) {
+          addMessage(initialConversationId, {
+            id: messageId,
+            conversation_id: initialConversationId,
+            role: 'assistant',
+            content: '',
+            token_count: null,
+            created_at: new Date().toISOString(),
+            blocked: false,
+            status: 'complete',
+          });
+          setStreaming(false);
+          return;
+        }
+
         updateLastMessage(initialConversationId, {
           id: messageId,
           status: 'complete',
@@ -178,6 +199,9 @@ export default function AISection({ legacyId, initialConversationId, initialSeed
         });
         setStreaming(false);
         setStoreError(message);
+      },
+      () => {
+        setStreaming(false);
       },
     );
   }, [

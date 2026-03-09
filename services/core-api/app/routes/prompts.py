@@ -34,6 +34,7 @@ async def get_current_prompt(
     session_data = require_auth(request)
     prompt = await prompts_service.get_or_create_active_prompt(db, session_data.user_id)
     if not prompt:
+        await db.commit()
         return Response(status_code=204)
 
     legacy = await db.get(Legacy, prompt.legacy_id)
@@ -61,6 +62,7 @@ async def shuffle_prompt(
     session_data = require_auth(request)
     prompt = await prompts_service.shuffle_prompt(db, prompt_id, session_data.user_id)
     if not prompt:
+        await db.commit()
         return Response(status_code=204)
 
     legacy = await db.get(Legacy, prompt.legacy_id)

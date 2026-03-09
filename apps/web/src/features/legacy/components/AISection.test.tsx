@@ -9,6 +9,11 @@ const mocks = vi.hoisted(() => ({
   useConversationList: vi.fn(),
   useDeleteConversation: vi.fn(),
   streamPromptSeed: vi.fn(),
+  addMessage: vi.fn(),
+  appendToLastMessage: vi.fn(),
+  updateLastMessage: vi.fn(),
+  setStreaming: vi.fn(),
+  setError: vi.fn(),
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -44,11 +49,11 @@ vi.mock('@/features/ai-chat/store/aiChatStore', () => ({
     evolveSuggestions: new Map(),
     dismissEvolveSuggestion: vi.fn(),
     activeConversationId: 'conv-123',
-    addMessage: vi.fn(),
-    appendToLastMessage: vi.fn(),
-    updateLastMessage: vi.fn(),
-    setStreaming: vi.fn(),
-    setError: vi.fn(),
+    addMessage: mocks.addMessage,
+    appendToLastMessage: mocks.appendToLastMessage,
+    updateLastMessage: mocks.updateLastMessage,
+    setStreaming: mocks.setStreaming,
+    setError: mocks.setError,
   }),
 }));
 
@@ -87,6 +92,11 @@ describe('AISection routed conversation handoff', () => {
     mocks.navigate.mockReset();
     mocks.streamPromptSeed.mockReset();
     mocks.streamPromptSeed.mockReturnValue({ abort: vi.fn() });
+    mocks.addMessage.mockReset();
+    mocks.appendToLastMessage.mockReset();
+    mocks.updateLastMessage.mockReset();
+    mocks.setStreaming.mockReset();
+    mocks.setError.mockReset();
     mocks.usePersonas.mockReturnValue({
       data: [
         { id: 'biographer', name: 'Biographer' },
@@ -167,7 +177,65 @@ describe('AISection routed conversation handoff', () => {
         expect.any(Function),
         expect.any(Function),
         expect.any(Function),
+        expect.any(Function),
       );
     });
+  });
+
+  it('clears streaming state when prompt seeding no-ops', async () => {
+    let onNoop: (() => void) | undefined;
+
+    mocks.useAIChat.mockReturnValue({
+      messages: [
+        {
+          id: 'msg-1',
+          conversation_id: 'conv-123',
+          role: 'user',
+          content: 'Tell me about Karen and cooking.',
+          token_count: null,
+          created_at: new Date().toISOString(),
+          blocked: false,
+          status: 'complete',
+        },
+      ],
+      isLoading: false,
+      isStreaming: false,
+      error: null,
+      sendMessage: vi.fn(),
+      retryLastMessage: vi.fn(),
+      clearError: vi.fn(),
+      startNewConversation: vi.fn(),
+    });
+
+    mocks.streamPromptSeed.mockImplementation(
+      (
+        _conversationId: string,
+        _onChunk: (chunk: string) => void,
+        _onDone: (messageId: string) => void,
+        _onError: (message: string) => void,
+        receivedOnNoop: () => void,
+      ) => {
+        onNoop = receivedOnNoop;
+        return { abort: vi.fn() };
+      },
+    );
+
+    render(
+      <MemoryRouter>
+        <AISection
+          legacyId="legacy-1"
+          initialConversationId="conv-123"
+          initialSeedMode="story_prompt"
+        />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(onNoop).toBeTypeOf('function');
+    });
+
+    onNoop?.();
+
+    expect(mocks.setStreaming).toHaveBeenCalledWith(false);
   });
 });

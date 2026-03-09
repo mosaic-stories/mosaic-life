@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Lock, Loader2, Share2, MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,10 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const deleteLegacy = useDeleteLegacy();
 
   const createStory = useCreateStory();
+
+  useEffect(() => {
+    setActiveSection(tabParam || 'stories');
+  }, [tabParam]);
 
   const legacy = legacyQuery.data;
   const legacyLoading = legacyQuery.isLoading;

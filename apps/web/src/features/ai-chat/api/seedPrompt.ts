@@ -3,6 +3,7 @@ export function streamPromptSeed(
   onChunk: (content: string) => void,
   onDone: (messageId: string) => void,
   onError: (message: string) => void,
+  onNoop: () => void,
 ): AbortController {
   const controller = new AbortController();
 
@@ -18,7 +19,10 @@ export function streamPromptSeed(
         },
       );
 
-      if (response.status === 204) return;
+      if (response.status === 204) {
+        onNoop();
+        return;
+      }
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));

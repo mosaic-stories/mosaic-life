@@ -16,12 +16,14 @@ export interface ActOnPromptResponse {
   conversation_id?: string;
 }
 
-export function getCurrentPrompt(): Promise<StoryPrompt | null> {
-  return apiGet<StoryPrompt | null>('/api/prompts/current');
+export async function getCurrentPrompt(): Promise<StoryPrompt | null> {
+  const response = await apiGet<StoryPrompt | null | undefined>('/api/prompts/current');
+  return response ?? null;
 }
 
-export function shufflePrompt(promptId: string): Promise<StoryPrompt | null> {
-  return apiPost<StoryPrompt | null>(`/api/prompts/${promptId}/shuffle`);
+export async function shufflePrompt(promptId: string): Promise<StoryPrompt | null> {
+  const response = await apiPost<StoryPrompt | null | undefined>(`/api/prompts/${promptId}/shuffle`);
+  return response ?? null;
 }
 
 export function actOnPrompt(
