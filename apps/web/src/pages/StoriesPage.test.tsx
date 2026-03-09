@@ -9,25 +9,36 @@ vi.mock('@/contexts/AuthContext', () => ({
   }),
 }));
 
-vi.mock('@/features/story/hooks/useStories', () => ({
-  useStoryStats: () => ({
-    data: {
-      my_stories_count: 12,
-      favorites_given_count: 8,
-      stories_evolved_count: 3,
-      legacies_written_for_count: 5,
-    },
-    isLoading: false,
-  }),
-  useTopLegacies: () => ({
-    data: [],
-    isLoading: false,
-  }),
-  useScopedStories: () => ({
-    data: { items: [], counts: { all: 0, mine: 0, shared: 0 } },
-    isLoading: false,
-  }),
-}));
+vi.mock('@/features/story/hooks/useStories', async () => {
+  const actual = await vi.importActual<typeof import('@/features/story/hooks/useStories')>(
+    '@/features/story/hooks/useStories',
+  );
+
+  return {
+    ...actual,
+    useStoryStats: () => ({
+      data: {
+        my_stories_count: 12,
+        favorites_given_count: 8,
+        stories_evolved_count: 3,
+        legacies_written_for_count: 5,
+      },
+      isLoading: false,
+    }),
+    useTopLegacies: () => ({
+      data: [],
+      isLoading: false,
+    }),
+    useScopedStories: () => ({
+      data: { items: [], counts: { all: 0, mine: 0, shared: 0 } },
+      isLoading: false,
+    }),
+    useCreateStory: () => ({
+      mutateAsync: vi.fn(),
+      isPending: false,
+    }),
+  };
+});
 
 vi.mock('@/features/activity/hooks/useActivity', () => ({
   useSocialFeed: () => ({
