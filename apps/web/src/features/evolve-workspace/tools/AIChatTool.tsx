@@ -79,8 +79,8 @@ export function AIChatTool({ legacyId, storyId, conversationId }: AIChatToolProp
                   : 'bg-red-50 text-red-700'
             }`}
           >
-            {msg.role === 'assistant' && msg.status === 'streaming' ? (
-              <Streamdown isAnimating={true} caret="block">
+            {msg.role === 'assistant' ? (
+              <Streamdown isAnimating={msg.status === 'streaming'} caret="block">
                 {msg.content}
               </Streamdown>
             ) : (

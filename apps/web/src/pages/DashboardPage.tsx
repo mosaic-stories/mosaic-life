@@ -51,7 +51,7 @@ export default function DashboardPage() {
                   <LegacyCard key={legacy.id} legacy={legacy} hideContextBadge />
                 ))}
 
-                {!myLegaciesLoading && (
+                {!myLegaciesLoading && (!myLegacies || myLegacies.length === 0) && (
                   <Link to="/legacy/new" aria-label="Create a Legacy">
                     <Card className="group flex aspect-[4/3] items-center justify-center border-2 border-dashed border-neutral-300 bg-neutral-50 transition-colors hover:border-theme-primary hover:bg-white hover:shadow-lg">
                       <div className="text-center">
