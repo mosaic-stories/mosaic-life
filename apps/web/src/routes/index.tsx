@@ -22,6 +22,8 @@ const MediaGallery = lazy(() => import('@/features/media/components/MediaGallery
 const InviteAcceptPage = lazy(() => import('@/features/members/components/InviteAcceptPage'));
 const NotificationHistory = lazy(() => import('@/features/notifications/components/NotificationHistory'));
 const StoryEvolution = lazy(() => import('@/features/evolve-workspace/EvolveWorkspace'));
+const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
+const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 
 // Settings components
 const SettingsLayout = lazy(() => import('@/features/settings/components/SettingsLayout'));
@@ -88,6 +90,14 @@ export const router = createBrowserRouter([
       {
         path: 'community',
         element: <LazyPage><Community /></LazyPage>,
+      },
+      {
+        path: 'terms',
+        element: <LazyPage><TermsOfService /></LazyPage>,
+      },
+      {
+        path: 'privacy',
+        element: <LazyPage><PrivacyPolicy /></LazyPage>,
       },
       // Authenticated navigation pages
       {

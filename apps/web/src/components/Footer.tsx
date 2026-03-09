@@ -72,14 +72,6 @@ export default function Footer() {
               </li>
               <li>
                 <button
-                  onClick={() => navigate('/contact')}
-                  className="text-neutral-600 hover:text-neutral-900 transition-colors"
-                >
-                  Contact
-                </button>
-              </li>
-              <li>
-                <button
                   onClick={() => navigate('/privacy')}
                   className="text-neutral-600 hover:text-neutral-900 transition-colors"
                 >
@@ -125,7 +117,7 @@ export default function Footer() {
 
         {/* Bottom bar */}
         <div className="pt-8 border-t border-neutral-200 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-neutral-500">
-          <p>&copy; 2025 Mosaic Life. All rights reserved.</p>
+          <p>2026 Mosaic Life</p>
           <p className="text-neutral-400">mosaiclife.me</p>
         </div>
       </div>
