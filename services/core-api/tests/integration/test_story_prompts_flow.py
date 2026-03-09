@@ -54,7 +54,9 @@ class TestStoryPromptsFlow:
 
         # Step 1: Get initial prompt
         response = await client.get("/api/prompts/current", headers=headers)
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"Expected 200, got {response.status_code}: {response.text}"
+        )
 
         data = response.json()
         assert "id" in data
@@ -65,14 +67,15 @@ class TestStoryPromptsFlow:
         assert data["legacy_name"] == "Test Legacy"
 
         first_prompt_id = data["id"]
-        first_prompt_text = data["prompt_text"]
 
         # Step 2: Shuffle the prompt
         response = await client.post(
             f"/api/prompts/{first_prompt_id}/shuffle",
             headers=headers,
         )
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"Expected 200, got {response.status_code}: {response.text}"
+        )
 
         shuffled_data = response.json()
         assert "id" in shuffled_data
@@ -86,7 +89,9 @@ class TestStoryPromptsFlow:
             headers=headers,
             json={"action": "discuss"},
         )
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"Expected 200, got {response.status_code}: {response.text}"
+        )
 
         act_data = response.json()
         assert act_data["action"] == "discuss"
@@ -114,7 +119,9 @@ class TestStoryPromptsFlow:
             headers=headers,
             json={"action": "write_story"},
         )
-        assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
+        assert response.status_code == 200, (
+            f"Expected 200, got {response.status_code}: {response.text}"
+        )
 
         act_data = response.json()
         assert act_data["action"] == "write_story"
