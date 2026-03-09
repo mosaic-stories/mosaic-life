@@ -10,6 +10,22 @@
 
 **Design Doc:** `docs/plans/2026-03-09-dashboard-redesign-design.md`
 
+## Status
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 1 | Backend: `legacy_profile_image_url` on prompts | ✅ Done |
+| 2 | Backend: `story_count` on legacies | ✅ Done |
+| 3 | Frontend: ContextualGreeting hero | ✅ Done |
+| 4 | Frontend: StoryPromptCard avatar | ✅ Done |
+| 5 | Frontend: LegacyCard overlays | ✅ Done |
+| 6 | Frontend: RecentStoriesList | ✅ Done |
+| 7 | Frontend: QuickActions | ✅ Done |
+| 8 | Frontend: SidebarActivity | ✅ Done |
+| 9 | Frontend: SidebarFavorites | ✅ Done |
+| 10 | Frontend: DashboardPage layout | ✅ Done |
+| 11 | Visual polish & testing | ✅ Done |
+
 ---
 
 ### Task 1: Backend — Add `legacy_profile_image_url` to Story Prompt Response
