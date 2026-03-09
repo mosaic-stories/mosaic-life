@@ -10,6 +10,25 @@
 
 **Design Doc:** `docs/plans/2026-03-08-story-prompts-design.md`
 
+**Status: COMPLETE** (implemented 2026-03-08)
+
+| Task | Status | Commit |
+|------|--------|--------|
+| Task 1: Prompt Templates YAML Config + Loader | Done | 321abf0 |
+| Task 2: StoryPrompt Database Model + Migration | Done | 321abf0 |
+| Task 3: Pydantic Schemas for Story Prompts | Done | 321abf0 |
+| Task 4: Story Prompts Service Layer | Done | 46a5b96 |
+| Task 5: Story Prompts API Routes | Done | 46a5b96 |
+| Task 6: Frontend API Client + Hook | Done | 659a279 |
+| Task 7: StoryPromptCard Component | Done | 659a279 |
+| Task 8: Dashboard Integration | Done | 659a279 |
+| Task 9: Legacy Profile Tab Navigation | Done | 6a6f76a |
+| Task 10: Seed Conversation After Navigation | Done | 6a6f76a |
+| Task 11: Backend Validation + Final Cleanup | Done | (all clean) |
+| Task 12: Integration Test — Full Flow | Done | 4305ea7 |
+
+**Validation:** 964 backend tests pass, 6 integration tests pass, TypeScript compiles clean, ruff + mypy clean.
+
 ---
 
 ## Task 1: Prompt Templates YAML Config + Loader
