@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import LegacyCard from './LegacyCard';
 import type { Legacy } from '@/features/legacy/api/legacies';
@@ -55,5 +56,18 @@ describe('LegacyCard', () => {
   it('renders trailing action when provided', () => {
     renderCard({ trailingAction: <span data-testid="fav-btn">Fav</span> });
     expect(screen.getByTestId('fav-btn')).toBeInTheDocument();
+  });
+
+  it('suppresses the context badge when requested', () => {
+    renderCard({ hideContextBadge: true });
+    expect(screen.queryByText(/living tribute/i)).not.toBeInTheDocument();
+  });
+
+  it('supports keyboard activation on the card container', async () => {
+    renderCard();
+    const card = screen.getByRole('button', { name: /test legacy/i });
+    card.focus();
+    await userEvent.keyboard('{Enter}');
+    expect(card).toHaveFocus();
   });
 });

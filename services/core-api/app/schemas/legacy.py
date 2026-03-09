@@ -77,6 +77,10 @@ class LegacyResponse(BaseModel):
 
     # Optional: include member info
     members: list[LegacyMemberResponse] | None = None
+    current_user_role: str = Field(
+        default="admirer",
+        description="Current user's membership role for this legacy",
+    )
 
     # Person
     person_id: UUID | None = None

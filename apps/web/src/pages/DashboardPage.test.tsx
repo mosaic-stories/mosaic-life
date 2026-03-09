@@ -56,6 +56,11 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/my legacies/i)).toBeInTheDocument();
   });
 
+  it('renders the create legacy tile', () => {
+    renderPage();
+    expect(screen.getByRole('link', { name: /create a legacy/i })).toBeInTheDocument();
+  });
+
   it('does NOT render hero or CTA sections', () => {
     renderPage();
     expect(screen.queryByText(/honor the lives and milestones/i)).not.toBeInTheDocument();
@@ -64,6 +69,6 @@ describe('DashboardPage', () => {
 
   it('renders "View all" link in the My Legacies header', () => {
     renderPage();
-    expect(screen.getByText('View all')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'View all' })).toBeInTheDocument();
   });
 });

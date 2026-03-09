@@ -1,6 +1,7 @@
-import { Loader2, ArrowRight } from 'lucide-react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Loader2, ArrowRight, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import Footer from '@/components/Footer';
+import { Card } from '@/components/ui/card';
 import { useLegacies } from '@/features/legacy/hooks/useLegacies';
 import ContextualGreeting from '@/components/dashboard/ContextualGreeting';
 import LegacyCard from '@/components/legacy/LegacyCard';
@@ -11,7 +12,6 @@ import SidebarActivity from '@/components/dashboard/SidebarActivity';
 import SidebarFavorites from '@/components/dashboard/SidebarFavorites';
 
 export default function DashboardPage() {
-  const navigate = useNavigate();
   const { data: myLegaciesData, isLoading: myLegaciesLoading } = useLegacies('all', { enabled: true });
   const myLegacies = myLegaciesData?.items;
 
@@ -32,12 +32,12 @@ export default function DashboardPage() {
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-serif font-medium tracking-tight">My Legacies</h2>
-                <span
-                  onClick={() => navigate('/legacies')}
-                  className="text-xs text-theme-primary font-medium cursor-pointer hover:underline"
+                <Link
+                  to="/legacies"
+                  className="text-xs text-theme-primary font-medium hover:underline"
                 >
                   View all
-                </span>
+                </Link>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -48,8 +48,22 @@ export default function DashboardPage() {
                 )}
 
                 {!myLegaciesLoading && myLegacies?.slice(0, 2).map((legacy) => (
-                  <LegacyCard key={legacy.id} legacy={legacy} />
+                  <LegacyCard key={legacy.id} legacy={legacy} hideContextBadge />
                 ))}
+
+                {!myLegaciesLoading && (
+                  <Link to="/legacy/new" aria-label="Create a Legacy">
+                    <Card className="group flex aspect-[4/3] items-center justify-center border-2 border-dashed border-neutral-300 bg-neutral-50 transition-colors hover:border-theme-primary hover:bg-white hover:shadow-lg">
+                      <div className="text-center">
+                        <div className="mx-auto mb-3 flex size-14 items-center justify-center rounded-full bg-white text-theme-primary shadow-sm transition-transform group-hover:scale-105">
+                          <Plus className="size-7" />
+                        </div>
+                        <div className="text-sm font-medium text-neutral-800">Create a Legacy</div>
+                        <div className="mt-1 text-xs text-neutral-500">Start a new memory space</div>
+                      </div>
+                    </Card>
+                  </Link>
+                )}
               </div>
 
               {!myLegaciesLoading && myLegacies && myLegacies.length > 2 && (

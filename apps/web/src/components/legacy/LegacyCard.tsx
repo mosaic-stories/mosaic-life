@@ -13,18 +13,35 @@ export interface LegacyCardProps {
   trailingAction?: React.ReactNode;
   /** When true, show public/private visibility indicator in the footer */
   showVisibility?: boolean;
+  /** When true, suppress the context badge in the text area */
+  hideContextBadge?: boolean;
 }
 
-export default function LegacyCard({ legacy, trailingAction, showVisibility }: LegacyCardProps) {
+export default function LegacyCard({
+  legacy,
+  trailingAction,
+  showVisibility,
+  hideContextBadge,
+}: LegacyCardProps) {
   const navigate = useNavigate();
   const dates = formatLegacyDates(legacy);
   const context = getLegacyContext(legacy);
   const memberCount = legacy.members?.length || 0;
+  const handleNavigate = () => navigate(`/legacy/${legacy.id}`);
 
   return (
     <Card
       className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
-      onClick={() => navigate(`/legacy/${legacy.id}`)}
+      onClick={handleNavigate}
+      onKeyDown={(event) => {
+        if (event.target !== event.currentTarget) return;
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleNavigate();
+        }
+      }}
+      role="button"
+      tabIndex={0}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-neutral-100 flex items-center justify-center">
         {legacy.profile_image_url ? (
@@ -59,9 +76,11 @@ export default function LegacyCard({ legacy, trailingAction, showVisibility }: L
           </div>
           <div className="flex items-center gap-1">
             {trailingAction}
-            <Badge variant="outline" className={CONTEXT_COLORS[context] || 'bg-neutral-100 text-neutral-800'}>
-              {CONTEXT_LABELS[context] || context}
-            </Badge>
+            {!hideContextBadge && (
+              <Badge variant="outline" className={CONTEXT_COLORS[context] || 'bg-neutral-100 text-neutral-800'}>
+                {CONTEXT_LABELS[context] || context}
+              </Badge>
+            )}
           </div>
         </div>
         {legacy.biography && (
@@ -80,6 +99,7 @@ export default function LegacyCard({ legacy, trailingAction, showVisibility }: L
         )}
         <div className="flex gap-2 mt-3">
           <button
+            type="button"
             onClick={(e) => { e.stopPropagation(); navigate(`/legacy/${legacy.id}?tab=stories`); }}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
           >
@@ -87,6 +107,7 @@ export default function LegacyCard({ legacy, trailingAction, showVisibility }: L
             {legacy.story_count ?? 0} Stories
           </button>
           <button
+            type="button"
             onClick={(e) => { e.stopPropagation(); navigate(`/legacy/${legacy.id}?tab=ai`); }}
             className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
           >

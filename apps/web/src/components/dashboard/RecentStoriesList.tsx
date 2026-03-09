@@ -27,7 +27,8 @@ export default function RecentStoriesList() {
           const legacyId = story.legacy_id;
 
           return (
-            <div
+            <button
+              type="button"
               key={item.entity_id}
               onClick={() =>
                 legacyId && navigate(`/legacy/${legacyId}/story/${item.entity_id}`)
@@ -64,7 +65,7 @@ export default function RecentStoriesList() {
                   )}
                 </div>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

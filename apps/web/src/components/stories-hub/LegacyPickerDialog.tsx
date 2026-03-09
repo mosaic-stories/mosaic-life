@@ -8,6 +8,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { useLegacies } from '@/features/legacy/hooks/useLegacies';
+import { useCreateStory } from '@/features/story/hooks/useStories';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 
 interface LegacyPickerDialogProps {
@@ -18,10 +19,27 @@ interface LegacyPickerDialogProps {
 export default function LegacyPickerDialog({ open, onOpenChange }: LegacyPickerDialogProps) {
   const navigate = useNavigate();
   const { data, isLoading } = useLegacies('all', { enabled: open });
+  const createStory = useCreateStory();
 
-  const handleSelect = (legacyId: string) => {
+  const handleSelect = async (legacyId: string) => {
     onOpenChange(false);
-    navigate(`/legacy/${legacyId}/story/new`);
+    try {
+      const title = `Untitled Story - ${new Date().toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })}`;
+      const newStory = await createStory.mutateAsync({
+        title,
+        content: '',
+        visibility: 'private',
+        status: 'draft',
+        legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
+      });
+      navigate(`/legacy/${legacyId}/story/${newStory.id}/evolve`);
+    } catch (error) {
+      console.error('Failed to create story:', error);
+    }
   };
 
   return (
@@ -46,6 +64,7 @@ export default function LegacyPickerDialog({ open, onOpenChange }: LegacyPickerD
               <button
                 key={legacy.id}
                 onClick={() => handleSelect(legacy.id)}
+                disabled={createStory.isPending}
                 className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-neutral-100 transition-colors text-left"
               >
                 <div className="size-10 rounded-full overflow-hidden bg-neutral-100 flex-shrink-0">

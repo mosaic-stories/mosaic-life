@@ -3,6 +3,7 @@
 import pytest
 from httpx import AsyncClient
 
+from app.models.legacy import Legacy
 from app.models.user import User
 
 
@@ -15,6 +16,7 @@ class TestLegacyScope:
         client: AsyncClient,
         auth_headers: dict[str, str],
         test_user: User,
+        test_legacy: Legacy,
     ):
         """Default scope returns all legacies and counts object."""
         response = await client.get("/api/legacies/", headers=auth_headers)
@@ -25,6 +27,7 @@ class TestLegacyScope:
         assert "all" in data["counts"]
         assert "created" in data["counts"]
         assert "connected" in data["counts"]
+        assert data["items"][0]["current_user_role"] == "creator"
 
     @pytest.mark.asyncio
     async def test_scope_created_filters_to_own_legacies(
