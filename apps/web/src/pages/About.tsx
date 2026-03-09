@@ -85,9 +85,10 @@ export default function About() {
                     <h3 className="text-neutral-900">Joe Hewitt</h3>
                     <p className="text-sm text-theme-primary font-medium">Creator & Developer</p>
                     <p className="text-sm text-neutral-600 leading-relaxed">
-                      Principal DevOps Architect turned platform builder. Joe designed and built Mosaic
+                      DevOps Architect turned platform builder. Joe designed and built Mosaic
                       Life from the ground up, driven by the need to preserve his mother's memory and
-                      help others do the same.
+                      help others do the same. Supported by his loving wife Kristen and two amazing
+                      kids, Jacob and Kayla, who provide inspiration and insights throughout this journey.
                     </p>
                   </div>
                 </Card>
@@ -97,8 +98,9 @@ export default function About() {
                     <h3 className="text-neutral-900">Jeremy Hewitt</h3>
                     <p className="text-sm text-theme-primary font-medium">Co-Builder</p>
                     <p className="text-sm text-neutral-600 leading-relaxed">
-                      Joe's brother and partner in building and maintaining the platform. Jeremy brings
-                      his own perspective and shared purpose to honor their mother's legacy.
+                      A data engineer and natural problem solver, Jeremy brings analytical depth
+                      to the platform. His attentive listening skills are what we strive to achieve
+                      with our AI personas — truly hearing people and drawing out what matters most.
                     </p>
                   </div>
                 </Card>
@@ -106,10 +108,13 @@ export default function About() {
                 <Card className="p-6 space-y-4">
                   <div className="space-y-2">
                     <h3 className="text-neutral-900">Jay Hewitt</h3>
-                    <p className="text-sm text-theme-primary font-medium">Co-Builder</p>
+                    <p className="text-sm text-theme-primary font-medium">Advisor</p>
                     <p className="text-sm text-neutral-600 leading-relaxed">
-                      Joe and Jeremy's father, who joins them in building and maintaining the platform.
-                      Together, the three carry forward Karen's memory through this work.
+                      A lifetime builder and creator in construction services, Jay brings that same
+                      hands-on spirit to this platform. He and Karen were each other's biggest
+                      supporters through 50 years of marriage — values they instilled in their family.
+                      Jay's perspective helps shape how Mosaic Life can keep someone's memory with us
+                      forever.
                     </p>
                   </div>
                 </Card>
