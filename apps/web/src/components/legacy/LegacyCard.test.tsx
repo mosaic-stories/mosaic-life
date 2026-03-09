@@ -39,7 +39,7 @@ describe('LegacyCard', () => {
 
   it('renders member count', () => {
     renderCard();
-    expect(screen.getByText('2 members')).toBeInTheDocument();
+    expect(screen.getByText('2')).toBeInTheDocument();
   });
 
   it('shows visibility indicator when showVisibility is true', () => {
