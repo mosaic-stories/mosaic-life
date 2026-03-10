@@ -921,6 +921,7 @@ async def build_generation_context(
     db: AsyncSession,
     session: StoryEvolutionSession,
     include_draft: bool = False,
+    user_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     """Build the context package for the writing agent."""
     from app.config.personas import get_persona
@@ -955,6 +956,24 @@ async def build_generation_context(
         if legacy:
             legacy_name = legacy.name
 
+    # Best-effort relationship context
+    relationship_context = ""
+    effective_user_id = user_id or session.created_by
+    try:
+        from app.services import member_profile as member_profile_service
+        from app.services.relationship_context import format_relationship_context
+
+        if primary:
+            profile = await member_profile_service.get_profile(
+                db, primary.legacy_id, effective_user_id
+            )
+            relationship_context = format_relationship_context(profile, legacy_name)
+    except Exception:
+        logger.warning(
+            "evolution.generation_context.relationship_context_failed",
+            extra={"session_id": str(session.id)},
+        )
+
     # Get persona model_id via conversation
     conv_result = await db.execute(
         select(AIConversation).where(AIConversation.id == session.conversation_id)
@@ -972,6 +991,7 @@ async def build_generation_context(
         "writing_style": session.writing_style or "vivid",
         "length_preference": session.length_preference or "similar",
         "legacy_name": legacy_name,
+        "relationship_context": relationship_context,
         "story_title": story.title,
         "model_id": model_id,
     }

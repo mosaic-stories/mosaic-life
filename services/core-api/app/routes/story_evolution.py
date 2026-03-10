@@ -283,7 +283,7 @@ async def generate_draft(
     async def generate_stream() -> AsyncGenerator[str, None]:
         try:
             context = await evolution_service.build_generation_context(
-                db=db, session=evo_session
+                db=db, session=evo_session, user_id=session_data.user_id
             )
 
             system_prompt = writer.build_system_prompt(
@@ -371,7 +371,10 @@ async def revise_draft(
     async def revise_stream() -> AsyncGenerator[str, None]:
         try:
             context = await evolution_service.build_generation_context(
-                db=db, session=evo_session, include_draft=True
+                db=db,
+                session=evo_session,
+                include_draft=True,
+                user_id=session_data.user_id,
             )
 
             system_prompt = writer.build_system_prompt(
