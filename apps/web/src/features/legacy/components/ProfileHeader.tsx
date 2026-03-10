@@ -98,18 +98,10 @@ function RelationshipSummary({
     );
   }
 
-  if (profile.legacy_to_viewer) {
+  if (segments.length === 0) {
     segments.push(
-      <span key="legacy-to-viewer" className="text-neutral-600">
-        {profile.legacy_to_viewer}
-      </span>
-    );
-  }
-
-  if (profile.viewer_to_legacy) {
-    segments.push(
-      <span key="viewer-to-legacy" className="text-neutral-500 italic">
-        {profile.viewer_to_legacy}
+      <span key="details-added" className="text-neutral-600">
+        Relationship details added
       </span>
     );
   }

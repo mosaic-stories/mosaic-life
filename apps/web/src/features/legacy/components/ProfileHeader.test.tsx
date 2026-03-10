@@ -9,7 +9,7 @@ vi.mock('@/lib/url', () => ({
 }));
 
 describe('ProfileHeader', () => {
-  it('shows saved narrative-only relationship details instead of the empty prompt', () => {
+  it('shows a saved-state summary for narrative-only relationship details without exposing the narrative text', () => {
     render(
       <MemoryRouter>
         <ProfileHeader
@@ -47,6 +47,7 @@ describe('ProfileHeader', () => {
     expect(
       screen.queryByText('Describe your relationship with Test Legacy →')
     ).not.toBeInTheDocument();
-    expect(screen.getByText('She was my guiding light.')).toBeInTheDocument();
+    expect(screen.getByText('Relationship details added')).toBeInTheDocument();
+    expect(screen.queryByText('She was my guiding light.')).not.toBeInTheDocument();
   });
 });
