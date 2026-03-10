@@ -69,6 +69,44 @@ async def test_update_profile_with_character_traits(
 
 
 @pytest.mark.asyncio
+async def test_update_profile_clears_explicit_nulls_and_empty_list(
+    db_session: AsyncSession, test_legacy: Legacy, test_user: User
+) -> None:
+    """update_profile clears explicitly provided nullable fields."""
+    await update_profile(
+        db_session,
+        test_legacy.id,
+        test_user.id,
+        MemberProfileUpdate(
+            relationship_type="parent",
+            nickname="Mom",
+            legacy_to_viewer="She raised me",
+            viewer_to_legacy="I am her child",
+            character_traits=["kind", "funny"],
+        ),
+    )
+
+    result = await update_profile(
+        db_session,
+        test_legacy.id,
+        test_user.id,
+        MemberProfileUpdate(
+            relationship_type=None,
+            nickname=None,
+            legacy_to_viewer=None,
+            character_traits=[],
+        ),
+    )
+
+    assert result is not None
+    assert result.relationship_type is None
+    assert result.nickname is None
+    assert result.legacy_to_viewer is None
+    assert result.viewer_to_legacy == "I am her child"
+    assert result.character_traits == []
+
+
+@pytest.mark.asyncio
 async def test_get_profile_after_update(
     db_session: AsyncSession, test_legacy: Legacy, test_user: User
 ) -> None:

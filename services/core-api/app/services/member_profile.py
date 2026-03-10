@@ -63,9 +63,9 @@ async def update_profile(
 
     existing = dict(member.profile) if member.profile else {}
 
-    # Merge: only update fields that were explicitly provided
-    update_data = data.model_dump(exclude_unset=True)
-    for key, value in update_data.items():
+    # Merge: update only fields explicitly provided, including nulls for clears.
+    for key in data.model_fields_set:
+        value = getattr(data, key)
         if value is not None and hasattr(value, "value"):
             existing[key] = value.value
         else:

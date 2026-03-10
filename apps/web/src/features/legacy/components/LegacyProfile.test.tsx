@@ -48,6 +48,10 @@ vi.mock('@/features/story/hooks/useStories', () => ({
   useCreateStory: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
+vi.mock('@/features/members/components/MyRelationshipSection', () => ({
+  default: () => <div data-testid="my-relationship-section" />,
+}));
+
 vi.mock('@/features/legacy/api/legacies', () => ({
   formatLegacyDates: () => 'Jan 1, 1900 - Jan 1, 2000',
 }));
@@ -116,5 +120,16 @@ describe('LegacyProfile tab sync', () => {
 
     expect(screen.getByTestId('ai-section')).toBeInTheDocument();
     expect(screen.queryByTestId('stories-section')).not.toBeInTheDocument();
+  });
+
+  it('shows My Relationship for admirer members', () => {
+    mocks.legacy = {
+      ...mocks.legacy,
+      members: [{ email: 'test@example.com', role: 'admirer' }],
+    };
+
+    render(<LegacyProfile legacyId="legacy-1" />);
+
+    expect(screen.getByTestId('my-relationship-section')).toBeInTheDocument();
   });
 });

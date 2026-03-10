@@ -155,7 +155,7 @@ async def update_user_profile(
         user.name = data.name
     if data.bio is not None:
         user.bio = data.bio
-    if data.gender is not None:
+    if "gender" in data.model_fields_set:
         user.gender = data.gender
 
     await db.commit()

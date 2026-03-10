@@ -24,6 +24,11 @@ const RELATIONSHIP_OPTIONS = Object.entries(RELATIONSHIP_TYPE_LABELS) as [
   string,
 ][];
 
+function normalizeOptionalText(value: string) {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
 export default function MyRelationshipSection({
   legacyId,
   legacyName,
@@ -82,13 +87,13 @@ export default function MyRelationshipSection({
 
   const handleSave = async () => {
     await updateProfile.mutateAsync({
-      ...(relationshipType
-        ? { relationship_type: relationshipType as RelationshipType }
-        : {}),
-      ...(nickname ? { nickname } : {}),
-      ...(legacyToViewer ? { legacy_to_viewer: legacyToViewer } : {}),
-      ...(viewerToLegacy ? { viewer_to_legacy: viewerToLegacy } : {}),
-      ...(traits.length > 0 ? { character_traits: traits } : {}),
+      relationship_type: relationshipType
+        ? (relationshipType as RelationshipType)
+        : null,
+      nickname: normalizeOptionalText(nickname),
+      legacy_to_viewer: normalizeOptionalText(legacyToViewer),
+      viewer_to_legacy: normalizeOptionalText(viewerToLegacy),
+      character_traits: traits,
     });
     setIsEditing(false);
     setHasInitialized(false); // re-init from server data

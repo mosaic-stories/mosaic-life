@@ -1002,7 +1002,7 @@ async def update_legacy(
         legacy.biography = data.biography
     if data.visibility is not None:
         legacy.visibility = data.visibility
-    if data.gender is not None:
+    if "gender" in data.model_fields_set:
         legacy.gender = data.gender
 
     legacy.updated_at = datetime.now(timezone.utc)

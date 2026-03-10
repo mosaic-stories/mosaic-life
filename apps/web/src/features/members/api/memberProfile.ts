@@ -30,10 +30,10 @@ export interface MemberProfile {
 }
 
 export interface MemberProfileUpdate {
-  relationship_type?: RelationshipType;
-  nickname?: string;
-  legacy_to_viewer?: string;
-  viewer_to_legacy?: string;
+  relationship_type?: RelationshipType | null;
+  nickname?: string | null;
+  legacy_to_viewer?: string | null;
+  viewer_to_legacy?: string | null;
   character_traits?: string[];
 }
 

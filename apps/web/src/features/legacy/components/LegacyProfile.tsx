@@ -233,7 +233,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         onMembersClick={() => setShowMemberDrawer(true)}
       />
 
-      {currentUserRole && currentUserRole !== 'admirer' && (
+      {isMember && (
         <MyRelationshipSection legacyId={legacyId} legacyName={legacy.name} />
       )}
 

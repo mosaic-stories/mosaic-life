@@ -30,7 +30,7 @@ export interface UserProfile {
 export interface ProfileUpdateRequest {
   name?: string;
   bio?: string;
-  gender?: string;
+  gender?: string | null;
 }
 
 export interface UserStats {

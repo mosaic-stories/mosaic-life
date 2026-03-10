@@ -44,7 +44,7 @@ export default function ProfileSettings() {
 
   const handleSave = () => {
     updateProfile.mutate(
-      { name, bio, gender: gender || undefined },
+      { name, bio, gender: gender || null },
       {
         onSuccess: () => {
           setHasChanges(false);
