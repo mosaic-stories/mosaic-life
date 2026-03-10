@@ -172,6 +172,7 @@ def build_system_prompt(
     legacy_name: str,
     story_context: str = "",
     facts: list[Any] | None = None,
+    relationship_context: str = "",
     elicitation_mode: bool = False,
     original_story_text: str | None = None,
     include_graph_suggestions: bool = False,
@@ -183,6 +184,7 @@ def build_system_prompt(
         legacy_name: Name of the legacy being discussed.
         story_context: Retrieved story context to include in prompt.
         facts: Optional list of LegacyFact objects to inject.
+        relationship_context: Formatted relationship profile text to include.
         elicitation_mode: Whether to append elicitation mode directive.
         original_story_text: The story text being evolved (used in elicitation mode).
         include_graph_suggestions: Whether to append the graph suggestions directive
@@ -200,6 +202,9 @@ def build_system_prompt(
     persona_prompt = persona.system_prompt.replace("{legacy_name}", legacy_name)
 
     prompt = f"{base}\n\n{persona_prompt}"
+
+    if relationship_context:
+        prompt = f"{prompt}\n\n{relationship_context}"
 
     if story_context:
         prompt = f"{prompt}\n\n{story_context}"

@@ -239,3 +239,44 @@ class TestBuildSystemPromptWithFacts:
         prompt = build_system_prompt("biographer", "John")
         assert prompt is not None
         assert "Known facts" not in prompt
+
+
+class TestBuildSystemPromptWithRelationshipContext:
+    """Tests for build_system_prompt with relationship_context parameter."""
+
+    def test_includes_relationship_context_in_prompt(self) -> None:
+        context = "## Your Relationship with Jane\n\nRelationship: parent"
+        prompt = build_system_prompt("biographer", "Jane", relationship_context=context)
+        assert prompt is not None
+        assert "Your Relationship with Jane" in prompt
+        assert "Relationship: parent" in prompt
+
+    def test_empty_relationship_context_adds_nothing(self) -> None:
+        prompt_without = build_system_prompt("biographer", "Jane")
+        prompt_empty = build_system_prompt(
+            "biographer", "Jane", relationship_context=""
+        )
+        assert prompt_without == prompt_empty
+
+    def test_relationship_context_appears_before_story_context(self) -> None:
+        rel_context = "## Your Relationship with Jane\n\nRelationship: parent"
+        story_context = "## Relevant stories\n\nGrandma loved gardening."
+        prompt = build_system_prompt(
+            "biographer",
+            "Jane",
+            story_context=story_context,
+            relationship_context=rel_context,
+        )
+        assert prompt is not None
+        assert prompt.index("Your Relationship") < prompt.index("Relevant stories")
+
+    def test_relationship_context_appears_after_persona_prompt(self) -> None:
+        rel_context = "## Your Relationship with Jane\n\nRelationship: parent"
+        prompt = build_system_prompt(
+            "biographer", "Jane", relationship_context=rel_context
+        )
+        assert prompt is not None
+        persona = get_persona("biographer")
+        assert persona is not None
+        persona_text = persona.system_prompt.replace("{legacy_name}", "Jane")
+        assert prompt.index(persona_text) < prompt.index("Your Relationship")
