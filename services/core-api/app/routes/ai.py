@@ -401,6 +401,22 @@ async def seed_conversation(
                     extra={"conversation_id": str(conversation_id)},
                 )
 
+        # Best-effort relationship context
+        relationship_context = ""
+        try:
+            from ..services import member_profile as member_profile_service
+            from ..services.relationship_context import format_relationship_context
+
+            profile = await member_profile_service.get_profile(
+                db, primary_legacy_id, session.user_id
+            )
+            relationship_context = format_relationship_context(profile, legacy.name)
+        except Exception:
+            logger.warning(
+                "ai.seed.relationship_context_failed",
+                extra={"conversation_id": str(conversation_id)},
+            )
+
         # Build elicitation-mode system prompt
         from ..config.personas import build_system_prompt
 
@@ -408,6 +424,7 @@ async def seed_conversation(
             persona_id=conversation.persona_id,
             legacy_name=legacy.name,
             story_context=story_context,
+            relationship_context=relationship_context,
             elicitation_mode=seed_mode != "story_prompt",
             original_story_text=story.content if story is not None else None,
             include_graph_suggestions=bool(story_context),
