@@ -24,7 +24,7 @@ async def member_with_profile(
     member = result.scalar_one()
     member.profile = {
         "relationship_type": "parent",
-        "nickname": "Mom",
+        "nicknames": ["Mom", "Mama"],
         "legacy_to_viewer": "She was my guiding light.",
         "viewer_to_legacy": "Her youngest child.",
         "character_traits": ["kind", "resilient", "funny"],
@@ -58,7 +58,7 @@ async def test_legacy_member_profile_stores_jsonb(
     """Profile column stores and retrieves JSONB data."""
     assert member_with_profile.profile is not None
     assert member_with_profile.profile["relationship_type"] == "parent"
-    assert member_with_profile.profile["nickname"] == "Mom"
+    assert member_with_profile.profile["nicknames"] == ["Mom", "Mama"]
     assert "kind" in member_with_profile.profile["character_traits"]
 
 

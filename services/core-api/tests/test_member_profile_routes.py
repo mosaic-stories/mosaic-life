@@ -31,7 +31,7 @@ async def test_put_profile_creates(
         f"/api/legacies/{test_legacy.id}/profile",
         json={
             "relationship_type": "parent",
-            "nickname": "Mom",
+            "nicknames": ["Mom"],
             "character_traits": ["kind", "warm"],
         },
         headers=headers,
@@ -39,7 +39,7 @@ async def test_put_profile_creates(
     assert response.status_code == 200
     data = response.json()
     assert data["relationship_type"] == "parent"
-    assert data["nickname"] == "Mom"
+    assert data["nicknames"] == ["Mom"]
     assert data["character_traits"] == ["kind", "warm"]
 
 
@@ -52,19 +52,19 @@ async def test_put_profile_partial_update(
     # Create initial
     await client.put(
         f"/api/legacies/{test_legacy.id}/profile",
-        json={"relationship_type": "parent", "nickname": "Mom"},
+        json={"relationship_type": "parent", "nicknames": ["Mom"]},
         headers=headers,
     )
     # Partial update
     response = await client.put(
         f"/api/legacies/{test_legacy.id}/profile",
-        json={"nickname": "Mama"},
+        json={"nicknames": ["Mom", "Mama"]},
         headers=headers,
     )
     assert response.status_code == 200
     data = response.json()
     assert data["relationship_type"] == "parent"  # preserved
-    assert data["nickname"] == "Mama"  # updated
+    assert data["nicknames"] == ["Mom", "Mama"]  # updated
 
 
 @pytest.mark.asyncio
@@ -75,7 +75,7 @@ async def test_get_profile_after_update(
     headers = create_auth_headers_for_user(test_user)
     await client.put(
         f"/api/legacies/{test_legacy.id}/profile",
-        json={"relationship_type": "sibling", "nickname": "Bro"},
+        json={"relationship_type": "sibling", "nicknames": ["Bro"]},
         headers=headers,
     )
     response = await client.get(
@@ -84,7 +84,7 @@ async def test_get_profile_after_update(
     assert response.status_code == 200
     data = response.json()
     assert data["relationship_type"] == "sibling"
-    assert data["nickname"] == "Bro"
+    assert data["nicknames"] == ["Bro"]
 
 
 @pytest.mark.asyncio
@@ -107,14 +107,29 @@ async def test_profile_non_member_forbidden(
 
 
 @pytest.mark.asyncio
-async def test_put_profile_invalid_relationship_type(
+async def test_put_profile_accepts_custom_relationship_type(
     client: AsyncClient, test_legacy: Legacy, test_user: User
 ) -> None:
-    """PUT rejects invalid relationship_type."""
+    """PUT accepts custom relationship_type values."""
     headers = create_auth_headers_for_user(test_user)
     response = await client.put(
         f"/api/legacies/{test_legacy.id}/profile",
-        json={"relationship_type": "invalid_type"},
+        json={"relationship_type": "godmother"},
+        headers=headers,
+    )
+    assert response.status_code == 200
+    assert response.json()["relationship_type"] == "godmother"
+
+
+@pytest.mark.asyncio
+async def test_put_profile_rejects_too_many_nicknames(
+    client: AsyncClient, test_legacy: Legacy, test_user: User
+) -> None:
+    """PUT rejects more than 10 nicknames."""
+    headers = create_auth_headers_for_user(test_user)
+    response = await client.put(
+        f"/api/legacies/{test_legacy.id}/profile",
+        json={"nicknames": [f"name{i}" for i in range(11)]},
         headers=headers,
     )
     assert response.status_code == 422

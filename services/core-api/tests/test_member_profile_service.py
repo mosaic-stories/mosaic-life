@@ -25,12 +25,12 @@ async def test_update_profile_creates_new(
     """update_profile creates a profile when none exists."""
     data = MemberProfileUpdate(
         relationship_type="parent",
-        nickname="Mom",
+        nicknames=["Mom"],
     )
     result = await update_profile(db_session, test_legacy.id, test_user.id, data)
     assert result is not None
     assert result.relationship_type == "parent"
-    assert result.nickname == "Mom"
+    assert result.nicknames == ["Mom"]
     assert result.legacy_to_viewer is None
 
 
@@ -42,17 +42,17 @@ async def test_update_profile_merges_partial(
     # First update
     data1 = MemberProfileUpdate(
         relationship_type="parent",
-        nickname="Mom",
+        nicknames=["Mom"],
     )
     await update_profile(db_session, test_legacy.id, test_user.id, data1)
 
-    # Second partial update — only changes nickname
-    data2 = MemberProfileUpdate(nickname="Mama")
+    # Second partial update — only changes nicknames
+    data2 = MemberProfileUpdate(nicknames=["Mom", "Mama"])
     result = await update_profile(db_session, test_legacy.id, test_user.id, data2)
 
     assert result is not None
     assert result.relationship_type == "parent"  # preserved
-    assert result.nickname == "Mama"  # updated
+    assert result.nicknames == ["Mom", "Mama"]  # updated
 
 
 @pytest.mark.asyncio
@@ -79,7 +79,7 @@ async def test_update_profile_clears_explicit_nulls_and_empty_list(
         test_user.id,
         MemberProfileUpdate(
             relationship_type="parent",
-            nickname="Mom",
+            nicknames=["Mom"],
             legacy_to_viewer="She raised me",
             viewer_to_legacy="I am her child",
             character_traits=["kind", "funny"],
@@ -92,7 +92,7 @@ async def test_update_profile_clears_explicit_nulls_and_empty_list(
         test_user.id,
         MemberProfileUpdate(
             relationship_type=None,
-            nickname=None,
+            nicknames=None,
             legacy_to_viewer=None,
             character_traits=[],
         ),
@@ -100,7 +100,7 @@ async def test_update_profile_clears_explicit_nulls_and_empty_list(
 
     assert result is not None
     assert result.relationship_type is None
-    assert result.nickname is None
+    assert result.nicknames is None
     assert result.legacy_to_viewer is None
     assert result.viewer_to_legacy == "I am her child"
     assert result.character_traits == []
@@ -113,7 +113,7 @@ async def test_get_profile_after_update(
     """get_profile returns data after update_profile."""
     data = MemberProfileUpdate(
         relationship_type="sibling",
-        nickname="Sis",
+        nicknames=["Sis"],
         legacy_to_viewer="My older sister",
         viewer_to_legacy="Her little brother",
         character_traits=["brave"],
@@ -122,7 +122,7 @@ async def test_get_profile_after_update(
     result = await get_profile(db_session, test_legacy.id, test_user.id)
     assert result is not None
     assert result.relationship_type == "sibling"
-    assert result.nickname == "Sis"
+    assert result.nicknames == ["Sis"]
     assert result.legacy_to_viewer == "My older sister"
     assert result.viewer_to_legacy == "Her little brother"
     assert result.character_traits == ["brave"]
@@ -135,10 +135,25 @@ async def test_update_profile_non_member_raises(
     """update_profile raises 403 for non-members."""
     from fastapi import HTTPException
 
-    data = MemberProfileUpdate(nickname="Test")
+    data = MemberProfileUpdate(nicknames=["Test"])
     with pytest.raises(HTTPException) as exc_info:
         await update_profile(db_session, test_legacy.id, test_user_2.id, data)
     assert exc_info.value.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_update_profile_with_custom_relationship_type(
+    db_session: AsyncSession, test_legacy: Legacy, test_user: User
+) -> None:
+    """update_profile accepts custom relationship types."""
+    data = MemberProfileUpdate(
+        relationship_type="godmother",
+        nicknames=["Auntie G"],
+    )
+    result = await update_profile(db_session, test_legacy.id, test_user.id, data)
+    assert result is not None
+    assert result.relationship_type == "godmother"
+    assert result.nicknames == ["Auntie G"]
 
 
 @pytest.mark.asyncio
