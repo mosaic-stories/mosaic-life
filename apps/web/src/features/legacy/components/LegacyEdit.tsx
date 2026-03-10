@@ -91,27 +91,36 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
     }
   }, []);
 
+  const isCreator = legacy?.current_user_role === 'creator';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!name.trim()) {
+    if (isCreator && !name.trim()) {
       setError('Please enter a name for the legacy');
       return;
     }
 
     try {
-      const legacyPromise = updateLegacy.mutateAsync({
-        id: legacyId,
-        data: {
-          name: name.trim(),
-          birth_date: birthDate || null,
-          death_date: deathDate || null,
-          biography: normalizeOptionalText(biography),
-          gender: normalizeOptionalText(gender),
-          visibility,
-        },
-      });
+      const promises: Promise<unknown>[] = [];
+
+      // Only update legacy details if user is the creator
+      if (isCreator) {
+        promises.push(
+          updateLegacy.mutateAsync({
+            id: legacyId,
+            data: {
+              name: name.trim(),
+              birth_date: birthDate || null,
+              death_date: deathDate || null,
+              biography: normalizeOptionalText(biography),
+              gender: normalizeOptionalText(gender),
+              visibility,
+            },
+          })
+        );
+      }
 
       // Build profile update — only include fields that have values
       const profileData: Record<string, unknown> = {};
@@ -121,9 +130,9 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
       profileData.viewer_to_legacy = normalizeOptionalText(viewerToLegacy);
       profileData.character_traits = traits;
 
-      const profilePromise = updateMemberProfile.mutateAsync(profileData);
+      promises.push(updateMemberProfile.mutateAsync(profileData));
 
-      await Promise.all([legacyPromise, profilePromise]);
+      await Promise.all(promises);
 
       navigate(`/legacy/${legacyId}`);
     } catch (err) {
@@ -181,9 +190,11 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
             <div className="size-16 rounded-full bg-theme-accent-light flex items-center justify-center mx-auto">
               <BookHeart className="size-8 text-theme-primary" />
             </div>
-            <h1 className="text-neutral-900">Edit Legacy</h1>
+            <h1 className="text-neutral-900">{isCreator ? 'Edit Legacy' : 'My Relationship'}</h1>
             <p className="text-neutral-600">
-              Update the details for this legacy.
+              {isCreator
+                ? 'Update the details for this legacy.'
+                : `Describe your relationship with ${legacy?.name ?? 'this person'}.`}
             </p>
           </div>
 
@@ -195,122 +206,126 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="Enter the person's name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-                <p className="text-xs text-neutral-500">
-                  This is the name that will appear on the legacy page.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="birthDate">Birth Date</Label>
-                  <div className="relative">
+              {isCreator && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name *</Label>
                     <Input
-                      id="birthDate"
-                      type="date"
-                      value={birthDate}
-                      onChange={(e) => setBirthDate(e.target.value)}
+                      id="name"
+                      placeholder="Enter the person's name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
                     />
+                    <p className="text-xs text-neutral-500">
+                      This is the name that will appear on the legacy page.
+                    </p>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="deathDate">Death Date (if applicable)</Label>
-                  <Input
-                    id="deathDate"
-                    type="date"
-                    value={deathDate}
-                    onChange={(e) => setDeathDate(e.target.value)}
-                  />
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="biography">Biography</Label>
-                <Textarea
-                  id="biography"
-                  placeholder="Share a brief biography or description..."
-                  value={biography}
-                  onChange={(e) => setBiography(e.target.value)}
-                  rows={4}
-                />
-                <p className="text-xs text-neutral-500">
-                  A short description that introduces this person to visitors.
-                </p>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="gender">Gender</Label>
-                <select
-                  id="gender"
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary"
-                >
-                  <option value="">Not specified</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="non_binary">Non-binary</option>
-                  <option value="prefer_not_to_say">Prefer not to say</option>
-                </select>
-                <p className="text-xs text-neutral-500">
-                  Used to personalize AI conversations about this person.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <Label>Visibility</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setVisibility('private')}
-                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
-                      visibility === 'private'
-                        ? 'border-theme-primary bg-theme-accent-light'
-                        : 'border-neutral-200 hover:border-neutral-300'
-                    }`}
-                  >
-                    <Lock className={`size-5 ${visibility === 'private' ? 'text-theme-primary' : 'text-neutral-500'}`} />
-                    <div className="text-left">
-                      <div className={`font-medium ${visibility === 'private' ? 'text-theme-primary' : 'text-neutral-900'}`}>
-                        Private
-                      </div>
-                      <div className="text-xs text-neutral-500">
-                        Only invited members can view
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="birthDate">Birth Date</Label>
+                      <div className="relative">
+                        <Input
+                          id="birthDate"
+                          type="date"
+                          value={birthDate}
+                          onChange={(e) => setBirthDate(e.target.value)}
+                        />
                       </div>
                     </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVisibility('public')}
-                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
-                      visibility === 'public'
-                        ? 'border-theme-primary bg-theme-accent-light'
-                        : 'border-neutral-200 hover:border-neutral-300'
-                    }`}
-                  >
-                    <Globe className={`size-5 ${visibility === 'public' ? 'text-theme-primary' : 'text-neutral-500'}`} />
-                    <div className="text-left">
-                      <div className={`font-medium ${visibility === 'public' ? 'text-theme-primary' : 'text-neutral-900'}`}>
-                        Public
-                      </div>
-                      <div className="text-xs text-neutral-500">
-                        Anyone can discover and view
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="deathDate">Death Date (if applicable)</Label>
+                      <Input
+                        id="deathDate"
+                        type="date"
+                        value={deathDate}
+                        onChange={(e) => setDeathDate(e.target.value)}
+                      />
                     </div>
-                  </button>
-                </div>
-                <p className="text-xs text-neutral-500">
-                  Control who can see this legacy.
-                </p>
-              </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="biography">Biography</Label>
+                    <Textarea
+                      id="biography"
+                      placeholder="Share a brief biography or description..."
+                      value={biography}
+                      onChange={(e) => setBiography(e.target.value)}
+                      rows={4}
+                    />
+                    <p className="text-xs text-neutral-500">
+                      A short description that introduces this person to visitors.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <select
+                      id="gender"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                      className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary"
+                    >
+                      <option value="">Not specified</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="non_binary">Non-binary</option>
+                      <option value="prefer_not_to_say">Prefer not to say</option>
+                    </select>
+                    <p className="text-xs text-neutral-500">
+                      Used to personalize AI conversations about this person.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Visibility</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setVisibility('private')}
+                        className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                          visibility === 'private'
+                            ? 'border-theme-primary bg-theme-accent-light'
+                            : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        <Lock className={`size-5 ${visibility === 'private' ? 'text-theme-primary' : 'text-neutral-500'}`} />
+                        <div className="text-left">
+                          <div className={`font-medium ${visibility === 'private' ? 'text-theme-primary' : 'text-neutral-900'}`}>
+                            Private
+                          </div>
+                          <div className="text-xs text-neutral-500">
+                            Only invited members can view
+                          </div>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVisibility('public')}
+                        className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                          visibility === 'public'
+                            ? 'border-theme-primary bg-theme-accent-light'
+                            : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        <Globe className={`size-5 ${visibility === 'public' ? 'text-theme-primary' : 'text-neutral-500'}`} />
+                        <div className="text-left">
+                          <div className={`font-medium ${visibility === 'public' ? 'text-theme-primary' : 'text-neutral-900'}`}>
+                            Public
+                          </div>
+                          <div className="text-xs text-neutral-500">
+                            Anyone can discover and view
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                    <p className="text-xs text-neutral-500">
+                      Control who can see this legacy.
+                    </p>
+                  </div>
+                </>
+              )}
 
               {/* My Relationship section */}
               <div className="border border-neutral-200 rounded-lg overflow-hidden">
