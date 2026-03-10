@@ -275,11 +275,30 @@ async def generate_opening_message(
                     extra={"session_id": str(session.id)},
                 )
 
+        # Best-effort relationship context
+        relationship_context = ""
+        try:
+            from app.services import member_profile as member_profile_service
+            from app.services.relationship_context import format_relationship_context
+
+            primary_legacy_id = primary.legacy_id if primary else None
+            if primary_legacy_id:
+                profile = await member_profile_service.get_profile(
+                    db, primary_legacy_id, session.created_by
+                )
+                relationship_context = format_relationship_context(profile, legacy_name)
+        except Exception:
+            logger.warning(
+                "evolution.opening.relationship_context_failed",
+                extra={"session_id": str(session.id)},
+            )
+
         # Build system prompt with elicitation mode active
         system_prompt = build_system_prompt(
             persona_id=persona_id,
             legacy_name=legacy_name,
             story_context=story_context,
+            relationship_context=relationship_context,
             elicitation_mode=True,
             original_story_text=story.content,
             include_graph_suggestions=bool(story_context),
