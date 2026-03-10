@@ -16,18 +16,18 @@
 
 | Task | Status |
 |------|--------|
-| Task 1: Backend Schema Changes | Not started |
-| Task 2: Backend Test Updates | Not started |
-| Task 3: Backend — Add gender to LegacyCreate | Not started |
-| Task 4: Frontend — TagInput Component | Not started |
-| Task 5: Frontend — RelationshipCombobox Component | Not started |
-| Task 6: Frontend — Relationship Label Utilities | Not started |
-| Task 7: Frontend — API Types Update | Not started |
-| Task 8: Frontend — ProfileHeader Relationship Summary | Not started |
-| Task 9: Frontend — LegacyEdit Relationship Section | Not started |
-| Task 10: Frontend — LegacyCreation Updates | Not started |
-| Task 11: Frontend — Remove MyRelationshipSection | Not started |
-| Task 12: Final Validation | Not started |
+| Task 1: Backend Schema Changes | Done |
+| Task 2: Backend Test Updates | Done |
+| Task 3: Backend — Add gender to LegacyCreate | Done |
+| Task 4: Frontend — TagInput Component | Done |
+| Task 5: Frontend — RelationshipCombobox Component | Done |
+| Task 6: Frontend — Relationship Label Utilities | Done |
+| Task 7: Frontend — API Types Update | Done |
+| Task 8: Frontend — ProfileHeader Relationship Summary | Done |
+| Task 9: Frontend — LegacyEdit Relationship Section | Done |
+| Task 10: Frontend — LegacyCreation Updates | Done |
+| Task 11: Frontend — Remove MyRelationshipSection | Done |
+| Task 12: Final Validation | Done |
 
 ---
 
