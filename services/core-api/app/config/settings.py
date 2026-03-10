@@ -31,7 +31,7 @@ class Settings(BaseModel):
     session_secret_key: str = os.getenv(
         "SESSION_SECRET_KEY", "dev-secret-change-in-production"
     )
-    session_cookie_name: str = "mosaic_session"
+    session_cookie_name: str = os.getenv("SESSION_COOKIE_NAME", "mosaic_session")
     session_cookie_secure: bool = os.getenv("ENV", "dev") != "dev"
     # Session expiry in seconds (default: 7 days = 604800 seconds)
     # Common values: 24h=86400, 7d=604800, 30d=2592000

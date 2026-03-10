@@ -23,6 +23,11 @@ web:
 # Core API - staging configuration
 coreApi:
   replicaCount: 2
+  extraEnv:
+    - name: SESSION_COOKIE_NAME
+      value: "mosaic_session_stage"
+    - name: SESSION_COOKIE_DOMAIN
+      value: ".stage.mosaiclife.me"
 
 # External Secrets - staging overrides
 externalSecrets:
