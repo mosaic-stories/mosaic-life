@@ -39,7 +39,7 @@ function LegacyCard({ legacy, onClick }: { legacy: Legacy; onClick: () => void }
 
   return (
     <Card
-      className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
+      className="min-w-0 overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
       onClick={onClick}
     >
       <div className="h-40 bg-neutral-100 overflow-hidden">
@@ -55,9 +55,9 @@ function LegacyCard({ legacy, onClick }: { legacy: Legacy; onClick: () => void }
           </div>
         )}
       </div>
-      <div className="p-5 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-semibold text-neutral-900 line-clamp-1">{legacy.name}</h3>
+      <div className="min-w-0 p-5 space-y-3">
+        <div className="min-w-0 flex items-start justify-between gap-2">
+          <h3 className="min-w-0 font-semibold text-neutral-900 line-clamp-1">{legacy.name}</h3>
           <Badge className={`shrink-0 text-xs ${contextColors[context] || 'bg-neutral-100 text-neutral-800'}`}>
             {contextLabels[context] || context}
           </Badge>

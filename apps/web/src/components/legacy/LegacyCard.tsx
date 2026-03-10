@@ -31,7 +31,7 @@ export default function LegacyCard({
 
   return (
     <Card
-      className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+      className="min-w-0 overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
       onClick={handleNavigate}
       onKeyDown={(event) => {
         if (event.target !== event.currentTarget) return;
@@ -68,13 +68,13 @@ export default function LegacyCard({
           </span>
         </div>
       </div>
-      <div className="p-5 space-y-3">
+      <div className="min-w-0 p-5 space-y-3">
         <div className="flex items-start justify-between gap-2">
-          <div className="space-y-1 flex-1">
-            <h3 className="text-neutral-900">{legacy.name}</h3>
+          <div className="min-w-0 flex-1 space-y-1">
+            <h3 className="truncate text-neutral-900">{legacy.name}</h3>
             {dates && <p className="text-sm text-neutral-500">{dates}</p>}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="shrink-0 flex items-center gap-1">
             {trailingAction}
             {!hideContextBadge && (
               <Badge variant="outline" className={CONTEXT_COLORS[context] || 'bg-neutral-100 text-neutral-800'}>
@@ -97,11 +97,11 @@ export default function LegacyCard({
             </span>
           </div>
         )}
-        <div className="flex gap-2 mt-3">
+        <div className="mt-3 flex gap-2 min-w-0">
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); navigate(`/legacy/${legacy.id}?tab=stories`); }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
+            className="flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
           >
             <BookOpen className="size-3.5" />
             {legacy.story_count ?? 0} Stories
@@ -109,7 +109,7 @@ export default function LegacyCard({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); navigate(`/legacy/${legacy.id}?tab=ai`); }}
-            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
+            className="flex-1 min-w-0 flex items-center justify-center gap-1.5 py-2 text-xs font-medium border border-neutral-200 rounded-lg hover:bg-neutral-50 transition-colors"
           >
             <MessageSquare className="size-3.5" />
             Talk to AI
