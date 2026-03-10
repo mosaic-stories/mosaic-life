@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useLegacy, useUpdateLegacy } from '@/features/legacy/hooks/useLegacies';
 import type { LegacyVisibility } from '@/features/legacy/api/legacies';
+import { normalizeOptionalText } from '@/lib/form-utils';
 import { SEOHead } from '@/components/seo';
 import PageActionBar from '@/components/PageActionBar';
 
@@ -58,8 +59,8 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
           name: name.trim(),
           birth_date: birthDate || null,
           death_date: deathDate || null,
-          biography: biography.trim() || null,
-          gender: gender || null,
+          biography: normalizeOptionalText(biography),
+          gender: normalizeOptionalText(gender),
           visibility,
         },
       });

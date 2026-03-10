@@ -13,6 +13,7 @@ import {
   RELATIONSHIP_TYPE_LABELS,
   type RelationshipType,
 } from '@/features/members/api/memberProfile';
+import { normalizeOptionalText } from '@/lib/form-utils';
 
 interface MyRelationshipSectionProps {
   legacyId: string;
@@ -23,11 +24,6 @@ const RELATIONSHIP_OPTIONS = Object.entries(RELATIONSHIP_TYPE_LABELS) as [
   RelationshipType,
   string,
 ][];
-
-function normalizeOptionalText(value: string) {
-  const trimmed = value.trim();
-  return trimmed ? trimmed : null;
-}
 
 export default function MyRelationshipSection({
   legacyId,
