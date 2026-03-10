@@ -53,4 +53,24 @@ describe('ProfileSettings', () => {
       );
     });
   });
+
+  it('sends null when bio is cleared', async () => {
+    const user = userEvent.setup();
+
+    render(<ProfileSettings />);
+
+    await user.clear(screen.getByLabelText('Bio (optional)'));
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      expect(mocks.mutate).toHaveBeenCalledWith(
+        {
+          name: 'Alex Example',
+          bio: null,
+          gender: 'male',
+        },
+        expect.objectContaining({ onSuccess: expect.any(Function) })
+      );
+    });
+  });
 });

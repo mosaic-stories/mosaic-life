@@ -49,7 +49,7 @@ export default function ProfileSettings() {
 
   const handleSave = () => {
     updateProfile.mutate(
-      { name, bio: bio.trim() || undefined, gender: normalizeOptionalText(gender) },
+      { name, bio: normalizeOptionalText(bio), gender: normalizeOptionalText(gender) },
       {
         onSuccess: () => {
           setHasChanges(false);

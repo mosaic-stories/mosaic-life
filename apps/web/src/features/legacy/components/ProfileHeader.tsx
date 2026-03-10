@@ -34,6 +34,8 @@ function RelationshipSummary({
     profile &&
     (profile.relationship_type ||
       (profile.nicknames && profile.nicknames.length > 0) ||
+      profile.legacy_to_viewer ||
+      profile.viewer_to_legacy ||
       (profile.character_traits && profile.character_traits.length > 0));
 
   if (!hasProfile) {
@@ -92,6 +94,22 @@ function RelationshipSummary({
         {extra > 0 && (
           <span className="text-xs text-neutral-400">+{extra} more</span>
         )}
+      </span>
+    );
+  }
+
+  if (profile.legacy_to_viewer) {
+    segments.push(
+      <span key="legacy-to-viewer" className="text-neutral-600">
+        {profile.legacy_to_viewer}
+      </span>
+    );
+  }
+
+  if (profile.viewer_to_legacy) {
+    segments.push(
+      <span key="viewer-to-legacy" className="text-neutral-500 italic">
+        {profile.viewer_to_legacy}
       </span>
     );
   }

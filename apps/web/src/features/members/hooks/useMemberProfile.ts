@@ -11,10 +11,14 @@ export const memberProfileKeys = {
     [...memberProfileKeys.all, legacyId] as const,
 };
 
-export function useMemberProfile(legacyId: string) {
+export function useMemberProfile(
+  legacyId: string,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: memberProfileKeys.detail(legacyId),
     queryFn: () => getMemberProfile(legacyId),
+    enabled: options?.enabled ?? true,
   });
 }
 

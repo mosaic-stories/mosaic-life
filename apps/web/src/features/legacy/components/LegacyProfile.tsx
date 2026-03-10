@@ -77,7 +77,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
 
   const currentUserRole = currentUserMember?.role || 'admirer';
   const isMember = !!currentUserMember;
-  const memberProfileQuery = useMemberProfile(legacyId);
+  const memberProfileQuery = useMemberProfile(legacyId, { enabled: isMember });
 
   // Check if current user is the creator of the legacy
   const _isCreator = currentUserRole === 'creator';

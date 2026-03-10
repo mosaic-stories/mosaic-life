@@ -29,7 +29,7 @@ export interface UserProfile {
 
 export interface ProfileUpdateRequest {
   name?: string;
-  bio?: string;
+  bio?: string | null;
   gender?: string | null;
 }
 

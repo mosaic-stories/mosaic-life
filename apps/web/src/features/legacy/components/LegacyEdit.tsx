@@ -89,6 +89,9 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
     if (params.get('section') === 'relationship') {
       setRelationshipExpanded(true);
     }
+    if (params.get('notice') === 'profile-save-failed') {
+      setError('Legacy created, but your relationship details could not be saved. Please review and save this section again.');
+    }
   }, []);
 
   const isCreator = legacy?.current_user_role === 'creator';
@@ -103,12 +106,14 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
     }
 
     try {
-      const promises: Promise<unknown>[] = [];
+      let legacySaved = !isCreator;
+      let profileSaved = false;
+      let legacySaveFailed = false;
 
       // Only update legacy details if user is the creator
       if (isCreator) {
-        promises.push(
-          updateLegacy.mutateAsync({
+        try {
+          await updateLegacy.mutateAsync({
             id: legacyId,
             data: {
               name: name.trim(),
@@ -118,8 +123,12 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
               gender: normalizeOptionalText(gender),
               visibility,
             },
-          })
-        );
+          });
+          legacySaved = true;
+        } catch (legacyError) {
+          legacySaveFailed = true;
+          console.error('Legacy save failed:', legacyError);
+        }
       }
 
       // Build profile update — only include fields that have values
@@ -130,11 +139,33 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
       profileData.viewer_to_legacy = normalizeOptionalText(viewerToLegacy);
       profileData.character_traits = traits;
 
-      promises.push(updateMemberProfile.mutateAsync(profileData));
+      try {
+        await updateMemberProfile.mutateAsync(profileData);
+        profileSaved = true;
+      } catch (profileError) {
+        console.error('Relationship profile save failed:', profileError);
+      }
 
-      await Promise.all(promises);
+      if (legacySaved && profileSaved) {
+        navigate(`/legacy/${legacyId}`);
+        return;
+      }
 
-      navigate(`/legacy/${legacyId}`);
+      if (legacySaved && !profileSaved) {
+        setError('Legacy details were saved, but your relationship details could not be saved. Please try again.');
+        return;
+      }
+
+      if (!legacySaved && profileSaved) {
+        setError('Your relationship details were saved, but the legacy details could not be saved. Please try again.');
+        return;
+      }
+
+      if (legacySaveFailed) {
+        setError('Failed to save changes. Please try again.');
+        return;
+      }
+
     } catch (err) {
       setError('Failed to save changes. Please try again.');
       console.error('Error saving:', err);

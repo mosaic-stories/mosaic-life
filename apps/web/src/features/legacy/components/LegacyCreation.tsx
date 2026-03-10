@@ -78,13 +78,19 @@ export default function LegacyCreation() {
         traits.length > 0;
 
       if (hasRelationshipData) {
-        await updateMemberProfile(legacy.id, {
-          relationship_type: relationshipType || null,
-          nicknames: nicknames.length > 0 ? nicknames : null,
-          legacy_to_viewer: normalizeOptionalText(legacyToViewer),
-          viewer_to_legacy: normalizeOptionalText(viewerToLegacy),
-          character_traits: traits,
-        });
+        try {
+          await updateMemberProfile(legacy.id, {
+            relationship_type: relationshipType || null,
+            nicknames: nicknames.length > 0 ? nicknames : null,
+            legacy_to_viewer: normalizeOptionalText(legacyToViewer),
+            viewer_to_legacy: normalizeOptionalText(viewerToLegacy),
+            character_traits: traits,
+          });
+        } catch (profileError) {
+          console.error('Relationship profile save failed after legacy creation:', profileError);
+          navigate(`/legacy/${legacy.id}/edit?section=relationship&notice=profile-save-failed`);
+          return;
+        }
       }
 
       navigate(`/legacy/${legacy.id}`);
