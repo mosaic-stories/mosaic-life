@@ -10,7 +10,7 @@
 
 ---
 
-### Task 1: Create the Formatter Function (TDD)
+### Task 1: Create the Formatter Function (TDD) ✅
 
 **Files:**
 - Create: `services/core-api/app/services/relationship_context.py`
@@ -209,7 +209,7 @@ git commit -m "feat: add relationship context formatter for AI prompts"
 
 ---
 
-### Task 2: Add `relationship_context` Parameter to `build_system_prompt` (TDD)
+### Task 2: Add `relationship_context` Parameter to `build_system_prompt` (TDD) ✅
 
 **Files:**
 - Modify: `services/core-api/app/config/personas.py:170-224`
@@ -321,7 +321,7 @@ git commit -m "feat: add relationship_context parameter to build_system_prompt"
 
 ---
 
-### Task 3: Inject Relationship Context in `prepare_turn`
+### Task 3: Inject Relationship Context in `prepare_turn` ✅
 
 **Files:**
 - Modify: `services/core-api/app/adapters/storytelling.py:180-299`
@@ -385,7 +385,7 @@ git commit -m "feat: inject relationship context into chat prepare_turn"
 
 ---
 
-### Task 4: Inject Relationship Context in Seed Endpoint
+### Task 4: Inject Relationship Context in Seed Endpoint ✅
 
 **Files:**
 - Modify: `services/core-api/app/routes/ai.py:404-414`
@@ -440,7 +440,7 @@ git commit -m "feat: inject relationship context into conversation seed endpoint
 
 ---
 
-### Task 5: Inject Relationship Context in Evolution Opening
+### Task 5: Inject Relationship Context in Evolution Opening ✅
 
 **Files:**
 - Modify: `services/core-api/app/services/story_evolution.py:189-286`
@@ -499,7 +499,7 @@ git commit -m "feat: inject relationship context into evolution opening"
 
 ---
 
-### Task 6: Inject Relationship Context in `build_generation_context`
+### Task 6: Inject Relationship Context in `build_generation_context` ✅
 
 **Files:**
 - Modify: `services/core-api/app/services/story_evolution.py:901-968`
@@ -588,7 +588,7 @@ git commit -m "feat: inject relationship context into story generation context"
 
 ---
 
-### Task 7: Inject Relationship Context in Rewrite Endpoint
+### Task 7: Inject Relationship Context in Rewrite Endpoint ✅
 
 **Files:**
 - Modify: `services/core-api/app/routes/rewrite.py:131-137`
@@ -646,7 +646,7 @@ git commit -m "feat: inject relationship context into rewrite endpoint"
 
 ---
 
-### Task 8: Final Validation
+### Task 8: Final Validation ✅
 
 **Step 1: Run full test suite**
 
