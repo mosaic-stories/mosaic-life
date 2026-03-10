@@ -237,6 +237,7 @@ async def create_legacy(
         death_date=data.death_date,
         biography=data.biography,
         visibility=data.visibility,
+        gender=data.gender,
         created_by=user_id,
         person_id=person_id,
     )

@@ -53,6 +53,7 @@ export interface CreateLegacyInput {
   death_date?: string | null;
   biography?: string | null;
   visibility?: LegacyVisibility;
+  gender?: string | null;
   person_id?: string | null;
 }
 

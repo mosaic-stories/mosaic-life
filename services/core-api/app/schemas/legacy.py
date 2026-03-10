@@ -25,6 +25,7 @@ class LegacyCreate(BaseModel):
         default="private",
         description="Legacy visibility: 'public' (anyone can view) or 'private' (members only)",
     )
+    gender: GenderType | None = Field(None, description="Gender of the legacy subject")
     person_id: UUID | None = Field(
         None,
         description="Optional: link to existing Person. If not provided, a Person is auto-created.",
