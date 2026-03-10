@@ -2,31 +2,7 @@
 
 from enum import Enum
 
-from pydantic import BaseModel, Field
-
-
-class RelationshipType(str, Enum):
-    """Supported relationship types."""
-
-    parent = "parent"
-    child = "child"
-    spouse = "spouse"
-    sibling = "sibling"
-    grandparent = "grandparent"
-    grandchild = "grandchild"
-    aunt = "aunt"
-    uncle = "uncle"
-    cousin = "cousin"
-    niece = "niece"
-    nephew = "nephew"
-    in_law = "in_law"
-    friend = "friend"
-    colleague = "colleague"
-    mentor = "mentor"
-    mentee = "mentee"
-    caregiver = "caregiver"
-    neighbor = "neighbor"
-    other = "other"
+from pydantic import BaseModel, Field, field_validator
 
 
 class GenderType(str, Enum):
@@ -38,21 +14,58 @@ class GenderType(str, Enum):
     prefer_not_to_say = "prefer_not_to_say"
 
 
+# Predefined relationship types (not enforced server-side; used for frontend suggestions)
+PREDEFINED_RELATIONSHIP_TYPES: list[str] = [
+    "parent",
+    "child",
+    "spouse",
+    "sibling",
+    "grandparent",
+    "grandchild",
+    "aunt",
+    "uncle",
+    "cousin",
+    "niece",
+    "nephew",
+    "in_law",
+    "friend",
+    "colleague",
+    "mentor",
+    "mentee",
+    "caregiver",
+    "neighbor",
+    "other",
+]
+
+
 class MemberProfileUpdate(BaseModel):
     """Request to create or update a member's relationship profile."""
 
-    relationship_type: RelationshipType | None = None
-    nickname: str | None = Field(None, max_length=100)
+    relationship_type: str | None = Field(None, max_length=50)
+    nicknames: list[str] | None = None
     legacy_to_viewer: str | None = Field(None, max_length=1000)
     viewer_to_legacy: str | None = Field(None, max_length=1000)
     character_traits: list[str] | None = None
+
+    @field_validator("nicknames")
+    @classmethod
+    def validate_nicknames(cls, v: list[str] | None) -> list[str] | None:
+        if v is not None:
+            if len(v) > 10:
+                msg = "Maximum 10 nicknames allowed"
+                raise ValueError(msg)
+            for name in v:
+                if len(name) > 100:
+                    msg = "Each nickname must be 100 characters or less"
+                    raise ValueError(msg)
+        return v
 
 
 class MemberProfileResponse(BaseModel):
     """Response containing a member's relationship profile."""
 
-    relationship_type: RelationshipType | None = None
-    nickname: str | None = None
+    relationship_type: str | None = None
+    nicknames: list[str] | None = None
     legacy_to_viewer: str | None = None
     viewer_to_legacy: str | None = None
     character_traits: list[str] | None = None

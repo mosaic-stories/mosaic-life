@@ -65,11 +65,7 @@ async def update_profile(
 
     # Merge: update only fields explicitly provided, including nulls for clears.
     for key in data.model_fields_set:
-        value = getattr(data, key)
-        if value is not None and hasattr(value, "value"):
-            existing[key] = value.value
-        else:
-            existing[key] = value
+        existing[key] = getattr(data, key)
 
     member.profile = existing
     await db.commit()
