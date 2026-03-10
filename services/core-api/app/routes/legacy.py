@@ -18,9 +18,11 @@ from ..schemas.legacy import (
     LegacyUpdate,
 )
 from ..schemas.media import SetProfileImageRequest
+from ..schemas.member_profile import MemberProfileResponse, MemberProfileUpdate
 from ..services import activity as activity_service
 from ..services import legacy as legacy_service
 from ..services import member as member_service
+from ..services import member_profile as member_profile_service
 from ..services import media as media_service
 from pydantic import BaseModel
 
@@ -431,6 +433,48 @@ async def remove_member(
         legacy_id=legacy_id,
         target_user_id=user_id,
         actor_id=session.user_id,
+    )
+
+
+@router.get(
+    "/{legacy_id}/profile",
+    response_model=MemberProfileResponse | None,
+    summary="Get member relationship profile",
+    description="Get the current user's relationship profile for this legacy.",
+)
+async def get_member_profile(
+    legacy_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> MemberProfileResponse | None:
+    """Get the current user's relationship profile for this legacy."""
+    session = require_auth(request)
+    return await member_profile_service.get_profile(
+        db=db,
+        legacy_id=legacy_id,
+        user_id=session.user_id,
+    )
+
+
+@router.put(
+    "/{legacy_id}/profile",
+    response_model=MemberProfileResponse,
+    summary="Update member relationship profile",
+    description="Create or update the current user's relationship profile for this legacy.",
+)
+async def update_member_profile(
+    legacy_id: UUID,
+    data: MemberProfileUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> MemberProfileResponse:
+    """Create or update the current user's relationship profile."""
+    session = require_auth(request)
+    return await member_profile_service.update_profile(
+        db=db,
+        legacy_id=legacy_id,
+        user_id=session.user_id,
+        data=data,
     )
 
 
