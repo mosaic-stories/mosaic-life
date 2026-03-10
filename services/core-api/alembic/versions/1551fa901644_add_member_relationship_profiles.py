@@ -5,14 +5,15 @@ Revises: 7f2b8c3d4e51
 Create Date: 2026-03-10 01:07:28.712349
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import JSONB
 
 
 # revision identifiers, used by Alembic.
-revision = '1551fa901644'
-down_revision = '7f2b8c3d4e51'
+revision = "1551fa901644"
+down_revision = "7f2b8c3d4e51"
 branch_labels = None
 depends_on = None
 

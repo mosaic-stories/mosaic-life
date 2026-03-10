@@ -13,9 +13,7 @@ from ..schemas.member_profile import MemberProfileResponse, MemberProfileUpdate
 logger = logging.getLogger(__name__)
 
 
-async def _get_member(
-    db: AsyncSession, legacy_id: UUID, user_id: UUID
-) -> LegacyMember:
+async def _get_member(db: AsyncSession, legacy_id: UUID, user_id: UUID) -> LegacyMember:
     """Get a legacy member, raising 403 if not found or pending."""
     result = await db.execute(
         select(LegacyMember).where(

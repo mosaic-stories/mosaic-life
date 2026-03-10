@@ -74,9 +74,7 @@ async def test_legacy_gender_column(
 
 
 @pytest.mark.asyncio
-async def test_user_gender_column(
-    db_session: AsyncSession, test_user: User
-) -> None:
+async def test_user_gender_column(db_session: AsyncSession, test_user: User) -> None:
     """User gender column stores and retrieves."""
     test_user.gender = "male"
     await db_session.commit()

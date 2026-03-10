@@ -88,9 +88,7 @@ async def test_get_profile_after_update(
 
 
 @pytest.mark.asyncio
-async def test_profile_requires_auth(
-    client: AsyncClient, test_legacy: Legacy
-) -> None:
+async def test_profile_requires_auth(client: AsyncClient, test_legacy: Legacy) -> None:
     """Profile endpoints require authentication."""
     response = await client.get(f"/api/legacies/{test_legacy.id}/profile")
     assert response.status_code in (401, 403)

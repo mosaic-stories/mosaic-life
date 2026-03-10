@@ -22,6 +22,7 @@ export interface UserProfile {
   email: string;
   name: string;
   bio: string | null;
+  gender: string | null;
   avatar_url: string | null;
   created_at: string;
 }
@@ -29,6 +30,7 @@ export interface UserProfile {
 export interface ProfileUpdateRequest {
   name?: string;
   bio?: string;
+  gender?: string;
 }
 
 export interface UserStats {

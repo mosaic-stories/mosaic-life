@@ -17,27 +17,34 @@ export default function ProfileSettings() {
 
   const [name, setName] = useState('');
   const [bio, setBio] = useState('');
+  const [gender, setGender] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
 
   // Initialize form when profile loads
-  if (profile && !hasChanges && name === '' && bio === '') {
+  if (profile && !hasChanges && name === '' && bio === '' && gender === '') {
     setName(profile.name);
     setBio(profile.bio || '');
+    setGender(profile.gender || '');
   }
 
   const handleNameChange = (value: string) => {
     setName(value);
-    setHasChanges(value !== profile?.name || bio !== (profile?.bio || ''));
+    setHasChanges(value !== profile?.name || bio !== (profile?.bio || '') || gender !== (profile?.gender || ''));
   };
 
   const handleBioChange = (value: string) => {
     setBio(value);
-    setHasChanges(name !== profile?.name || value !== (profile?.bio || ''));
+    setHasChanges(name !== profile?.name || value !== (profile?.bio || '') || gender !== (profile?.gender || ''));
+  };
+
+  const handleGenderChange = (value: string) => {
+    setGender(value);
+    setHasChanges(name !== profile?.name || bio !== (profile?.bio || '') || value !== (profile?.gender || ''));
   };
 
   const handleSave = () => {
     updateProfile.mutate(
-      { name, bio },
+      { name, bio, gender: gender || undefined },
       {
         onSuccess: () => {
           setHasChanges(false);
@@ -50,6 +57,7 @@ export default function ProfileSettings() {
     if (profile) {
       setName(profile.name);
       setBio(profile.bio || '');
+      setGender(profile.gender || '');
       setHasChanges(false);
     }
   };
@@ -138,6 +146,28 @@ export default function ProfileSettings() {
           rows={4}
         />
         <p className="mt-1 text-sm text-gray-400">{bio.length}/500 characters</p>
+      </div>
+
+      {/* Gender */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <Label htmlFor="gender" className="text-sm font-medium text-gray-700">
+          Gender (optional)
+        </Label>
+        <select
+          id="gender"
+          value={gender}
+          onChange={(e) => handleGenderChange(e.target.value)}
+          className="mt-2 w-full max-w-md rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary"
+        >
+          <option value="">Not specified</option>
+          <option value="male">Male</option>
+          <option value="female">Female</option>
+          <option value="non_binary">Non-binary</option>
+          <option value="prefer_not_to_say">Prefer not to say</option>
+        </select>
+        <p className="mt-1 text-sm text-gray-500">
+          Used to personalize AI conversations.
+        </p>
       </div>
 
       {/* Actions */}

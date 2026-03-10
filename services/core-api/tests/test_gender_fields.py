@@ -52,9 +52,7 @@ async def test_legacy_response_includes_gender(
 
 
 @pytest.mark.asyncio
-async def test_update_user_profile_gender(
-    client: AsyncClient, test_user: User
-) -> None:
+async def test_update_user_profile_gender(client: AsyncClient, test_user: User) -> None:
     """PATCH /api/users/me/profile updates gender field."""
     headers = create_auth_headers_for_user(test_user)
     response = await client.patch(

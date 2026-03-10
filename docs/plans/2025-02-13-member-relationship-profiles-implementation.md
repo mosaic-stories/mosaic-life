@@ -22,11 +22,11 @@
 | Task 4: Backend Service | ✅ Complete |
 | Task 5: API Routes | ✅ Complete |
 | Task 6: Gender Fields | ✅ Complete |
-| Task 7: Frontend API/Hooks | ⬜ Pending |
-| Task 8: MyRelationshipSection | ⬜ Pending |
-| Task 9: Profile Page Integration | ⬜ Pending |
-| Task 10: Gender Dropdowns | ⬜ Pending |
-| Task 11: Final Validation | ⬜ Pending |
+| Task 7: Frontend API/Hooks | ✅ Complete |
+| Task 8: MyRelationshipSection | ✅ Complete |
+| Task 9: Profile Page Integration | ✅ Complete |
+| Task 10: Gender Dropdowns | ✅ Complete |
+| Task 11: Final Validation | ✅ Complete |
 
 ---
 

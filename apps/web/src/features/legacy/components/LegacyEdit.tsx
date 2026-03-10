@@ -24,6 +24,7 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
   const [birthDate, setBirthDate] = useState('');
   const [deathDate, setDeathDate] = useState('');
   const [biography, setBiography] = useState('');
+  const [gender, setGender] = useState('');
   const [visibility, setVisibility] = useState<LegacyVisibility>('private');
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
@@ -35,6 +36,7 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
       setBirthDate(legacy.birth_date || '');
       setDeathDate(legacy.death_date || '');
       setBiography(legacy.biography || '');
+      setGender(legacy.gender || '');
       setVisibility(legacy.visibility || 'private');
       setHasInitialized(true);
     }
@@ -57,6 +59,7 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
           birth_date: birthDate || null,
           death_date: deathDate || null,
           biography: biography.trim() || null,
+          gender: gender || null,
           visibility,
         },
       });
@@ -180,6 +183,25 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
                 />
                 <p className="text-xs text-neutral-500">
                   A short description that introduces this person to visitors.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender</Label>
+                <select
+                  id="gender"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary"
+                >
+                  <option value="">Not specified</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="non_binary">Non-binary</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+                <p className="text-xs text-neutral-500">
+                  Used to personalize AI conversations about this person.
                 </p>
               </div>
 

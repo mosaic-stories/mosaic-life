@@ -16,6 +16,7 @@ import { useStoriesWithFallback, useCreateStory } from '@/features/story/hooks/u
 import { formatLegacyDates } from '@/features/legacy/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import MemberDrawer from '@/features/members/components/MemberDrawer';
+import MyRelationshipSection from '@/features/members/components/MyRelationshipSection';
 import { SEOHead, getLegacySchema } from '@/components/seo';
 import type { LegacySchemaInput } from '@/components/seo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -231,6 +232,10 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         memberCount={memberCount}
         onMembersClick={() => setShowMemberDrawer(true)}
       />
+
+      {currentUserRole && currentUserRole !== 'admirer' && (
+        <MyRelationshipSection legacyId={legacyId} legacyName={legacy.name} />
+      )}
 
       <SectionNav
         activeSection={activeSection}
