@@ -48,8 +48,8 @@ vi.mock('@/features/story/hooks/useStories', () => ({
   useCreateStory: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-vi.mock('@/features/members/components/MyRelationshipSection', () => ({
-  default: () => <div data-testid="my-relationship-section" />,
+vi.mock('@/features/members/hooks/useMemberProfile', () => ({
+  useMemberProfile: () => ({ data: null, isLoading: false }),
 }));
 
 vi.mock('@/features/legacy/api/legacies', () => ({
@@ -122,7 +122,7 @@ describe('LegacyProfile tab sync', () => {
     expect(screen.queryByTestId('stories-section')).not.toBeInTheDocument();
   });
 
-  it('shows My Relationship for admirer members', () => {
+  it('renders profile header for admirer members', () => {
     mocks.legacy = {
       ...mocks.legacy,
       members: [{ email: 'test@example.com', role: 'admirer' }],
@@ -130,6 +130,6 @@ describe('LegacyProfile tab sync', () => {
 
     render(<LegacyProfile legacyId="legacy-1" />);
 
-    expect(screen.getByTestId('my-relationship-section')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-header')).toBeInTheDocument();
   });
 });

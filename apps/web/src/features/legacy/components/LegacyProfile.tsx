@@ -16,7 +16,7 @@ import { useStoriesWithFallback, useCreateStory } from '@/features/story/hooks/u
 import { formatLegacyDates } from '@/features/legacy/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import MemberDrawer from '@/features/members/components/MemberDrawer';
-import MyRelationshipSection from '@/features/members/components/MyRelationshipSection';
+import { useMemberProfile } from '@/features/members/hooks/useMemberProfile';
 import { SEOHead, getLegacySchema } from '@/components/seo';
 import type { LegacySchemaInput } from '@/components/seo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -77,6 +77,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
 
   const currentUserRole = currentUserMember?.role || 'admirer';
   const isMember = !!currentUserMember;
+  const memberProfileQuery = useMemberProfile(legacyId);
 
   // Check if current user is the creator of the legacy
   const _isCreator = currentUserRole === 'creator';
@@ -231,11 +232,10 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         storyCount={storyCount}
         memberCount={memberCount}
         onMembersClick={() => setShowMemberDrawer(true)}
+        memberProfile={memberProfileQuery.data}
+        isMember={isMember}
+        legacyId={legacyId}
       />
-
-      {isMember && (
-        <MyRelationshipSection legacyId={legacyId} legacyName={legacy.name} />
-      )}
 
       <SectionNav
         activeSection={activeSection}
