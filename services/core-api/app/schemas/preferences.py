@@ -2,6 +2,8 @@
 
 from pydantic import BaseModel, Field
 
+from .member_profile import GenderType
+
 
 class UserPreferences(BaseModel):
     """User preferences structure."""
@@ -45,6 +47,7 @@ class ProfileUpdateRequest(BaseModel):
 
     name: str | None = Field(None, min_length=1, max_length=100)
     bio: str | None = Field(None, max_length=500)
+    gender: GenderType | None = Field(None, description="User's gender")
 
 
 class ProfileResponse(BaseModel):
@@ -54,6 +57,7 @@ class ProfileResponse(BaseModel):
     email: str
     name: str
     bio: str | None
+    gender: str | None = None
     avatar_url: str | None
     created_at: str
 

@@ -37,6 +37,7 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     avatar_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
     preferences: Mapped[dict[str, Any]] = mapped_column(
         MutableDict.as_mutable(JSON),
         nullable=False,

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookHeart, Globe, Lock, Loader2, Users, Check } from 'lucide-react';
+import { BookHeart, Globe, Lock, Loader2, Users, Check, ChevronDown, ChevronUp, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,10 @@ import type { PersonMatchCandidate } from '@/features/person/api/persons';
 import type { LegacyVisibility } from '@/features/legacy/api/legacies';
 import { SEOHead } from '@/components/seo';
 import PageActionBar from '@/components/PageActionBar';
+import TagInput from '@/components/ui/tag-input';
+import RelationshipCombobox from '@/components/ui/relationship-combobox';
+import { updateMemberProfile } from '@/features/members/api/memberProfile';
+import { normalizeOptionalText } from '@/lib/form-utils';
 
 export default function LegacyCreation() {
   const navigate = useNavigate();
@@ -24,6 +28,15 @@ export default function LegacyCreation() {
   const [visibility, setVisibility] = useState<LegacyVisibility>('private');
   const [error, setError] = useState<string | null>(null);
   const [selectedPerson, setSelectedPerson] = useState<PersonMatchCandidate | null>(null);
+  const [gender, setGender] = useState('');
+
+  // Relationship profile state
+  const [relationshipExpanded, setRelationshipExpanded] = useState(false);
+  const [relationshipType, setRelationshipType] = useState('');
+  const [nicknames, setNicknames] = useState<string[]>([]);
+  const [legacyToViewer, setLegacyToViewer] = useState('');
+  const [viewerToLegacy, setViewerToLegacy] = useState('');
+  const [traits, setTraits] = useState<string[]>([]);
 
   const matchQuery = usePersonMatch(name, birthDate || null, deathDate || null);
   const candidates = matchQuery.data?.candidates ?? [];
@@ -51,11 +64,35 @@ export default function LegacyCreation() {
         birth_date: birthDate || null,
         death_date: deathDate || null,
         biography: biography.trim() || null,
+        gender: normalizeOptionalText(gender),
         visibility,
         person_id: selectedPerson?.person_id ?? null,
       });
 
-      // Navigate to the newly created legacy
+      // Save relationship profile if any fields were filled
+      const hasRelationshipData =
+        relationshipType ||
+        nicknames.length > 0 ||
+        legacyToViewer.trim() ||
+        viewerToLegacy.trim() ||
+        traits.length > 0;
+
+      if (hasRelationshipData) {
+        try {
+          await updateMemberProfile(legacy.id, {
+            relationship_type: relationshipType || null,
+            nicknames: nicknames.length > 0 ? nicknames : null,
+            legacy_to_viewer: normalizeOptionalText(legacyToViewer),
+            viewer_to_legacy: normalizeOptionalText(viewerToLegacy),
+            character_traits: traits,
+          });
+        } catch (profileError) {
+          console.error('Relationship profile save failed after legacy creation:', profileError);
+          navigate(`/legacy/${legacy.id}/edit?section=relationship&notice=profile-save-failed`);
+          return;
+        }
+      }
+
       navigate(`/legacy/${legacy.id}`);
     } catch (err) {
       setError('Failed to create legacy. Please try again.');
@@ -208,6 +245,25 @@ export default function LegacyCreation() {
                 </p>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender</Label>
+                <select
+                  id="gender"
+                  value={gender}
+                  onChange={(e) => setGender(e.target.value)}
+                  className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary"
+                >
+                  <option value="">Not specified</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="non_binary">Non-binary</option>
+                  <option value="prefer_not_to_say">Prefer not to say</option>
+                </select>
+                <p className="text-xs text-neutral-500">
+                  Used to personalize AI conversations about this person.
+                </p>
+              </div>
+
               <div className="space-y-3">
                 <Label>Visibility</Label>
                 <div className="grid grid-cols-2 gap-3">
@@ -253,6 +309,98 @@ export default function LegacyCreation() {
                 <p className="text-xs text-neutral-500">
                   You can change this setting later.
                 </p>
+              </div>
+
+              {/* My Relationship section */}
+              <div className="border border-neutral-200 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setRelationshipExpanded(!relationshipExpanded)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-neutral-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <Heart className="size-5 text-theme-primary" />
+                    <div>
+                      <span className="font-medium text-neutral-900">My Relationship</span>
+                      <span className="text-sm text-neutral-500 ml-2">(optional)</span>
+                    </div>
+                  </div>
+                  {relationshipExpanded ? (
+                    <ChevronUp className="size-5 text-neutral-400" />
+                  ) : (
+                    <ChevronDown className="size-5 text-neutral-400" />
+                  )}
+                </button>
+
+                {relationshipExpanded && (
+                  <div className="px-4 pb-4 border-t border-neutral-100 pt-4 space-y-5">
+                    <p className="text-sm text-neutral-500">
+                      Describe your personal relationship with this person. This is private to you.
+                    </p>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="relationshipType">Relationship</Label>
+                      <RelationshipCombobox
+                        value={relationshipType}
+                        onChange={setRelationshipType}
+                        legacyGender={gender || null}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="nicknames">What do you call them?</Label>
+                      <TagInput
+                        id="nicknames"
+                        values={nicknames}
+                        onChange={setNicknames}
+                        placeholder="Type a name and press Enter..."
+                        maxItems={10}
+                        maxLength={100}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="legacyToViewer">Who they are to you</Label>
+                      <Textarea
+                        id="legacyToViewer"
+                        placeholder="In your own words, describe who this person is to you..."
+                        value={legacyToViewer}
+                        onChange={(e) => setLegacyToViewer(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                      />
+                      <p className="text-xs text-neutral-400">
+                        {legacyToViewer.length}/1000
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="viewerToLegacy">Who you are to them</Label>
+                      <Textarea
+                        id="viewerToLegacy"
+                        placeholder="How would they describe your role in their life?"
+                        value={viewerToLegacy}
+                        onChange={(e) => setViewerToLegacy(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                      />
+                      <p className="text-xs text-neutral-400">
+                        {viewerToLegacy.length}/1000
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="characterTraits">Character traits</Label>
+                      <TagInput
+                        id="characterTraits"
+                        values={traits}
+                        onChange={setTraits}
+                        placeholder="Type a trait and press Enter..."
+                        maxItems={20}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4 pt-4">

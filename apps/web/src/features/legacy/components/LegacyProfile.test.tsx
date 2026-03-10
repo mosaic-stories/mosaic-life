@@ -8,7 +8,10 @@ const mocks = vi.hoisted(() => ({
     name: 'Test User',
     email: 'test@example.com',
     avatar_url: null,
-  },
+  } as { name: string; email: string; avatar_url: string | null } | null,
+  memberProfileHook: vi.fn<
+    (legacyId: string, options?: { enabled?: boolean }) => { data: null; isLoading: boolean }
+  >(() => ({ data: null, isLoading: false })),
   legacy: {
     id: 'legacy-1',
     name: 'Test Legacy',
@@ -46,6 +49,13 @@ vi.mock('@/features/legacy/hooks/useLegacies', () => ({
 vi.mock('@/features/story/hooks/useStories', () => ({
   useStoriesWithFallback: () => ({ data: [], isLoading: false, error: null }),
   useCreateStory: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+
+vi.mock('@/features/members/hooks/useMemberProfile', () => ({
+  useMemberProfile: (
+    legacyId: string,
+    options?: { enabled?: boolean }
+  ) => mocks.memberProfileHook(legacyId, options),
 }));
 
 vi.mock('@/features/legacy/api/legacies', () => ({
@@ -103,6 +113,27 @@ describe('LegacyProfile tab sync', () => {
   beforeEach(() => {
     mocks.searchParams = new URLSearchParams('tab=stories');
     mocks.navigate.mockReset();
+    mocks.authUser = {
+      name: 'Test User',
+      email: 'test@example.com',
+      avatar_url: null,
+    };
+    mocks.memberProfileHook.mockReset();
+    mocks.memberProfileHook.mockReturnValue({ data: null, isLoading: false });
+    mocks.legacy = {
+      id: 'legacy-1',
+      name: 'Test Legacy',
+      biography: 'Test biography',
+      members: [{ email: 'test@example.com', role: 'creator' }],
+      profile_image_url: null,
+      birth_date: null,
+      death_date: null,
+      created_at: '2026-03-09T00:00:00Z',
+      updated_at: '2026-03-09T00:00:00Z',
+      person_id: 'person-1',
+      profile_image_id: null,
+      visibility: 'public',
+    };
   });
 
   it('updates the visible section when the tab query param changes while mounted', () => {
@@ -116,5 +147,30 @@ describe('LegacyProfile tab sync', () => {
 
     expect(screen.getByTestId('ai-section')).toBeInTheDocument();
     expect(screen.queryByTestId('stories-section')).not.toBeInTheDocument();
+  });
+
+  it('renders profile header for admirer members', () => {
+    mocks.legacy = {
+      ...mocks.legacy,
+      members: [{ email: 'test@example.com', role: 'admirer' }],
+    };
+
+    render(<LegacyProfile legacyId="legacy-1" />);
+
+    expect(screen.getByTestId('profile-header')).toBeInTheDocument();
+  });
+
+  it('disables member profile loading for public viewers who are not members', () => {
+    mocks.authUser = null;
+    mocks.legacy = {
+      ...mocks.legacy,
+      members: [],
+    };
+
+    render(<LegacyProfile legacyId="legacy-1" />);
+
+    expect(mocks.memberProfileHook).toHaveBeenCalledWith('legacy-1', {
+      enabled: false,
+    });
   });
 });

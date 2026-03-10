@@ -237,6 +237,7 @@ async def create_legacy(
         death_date=data.death_date,
         biography=data.biography,
         visibility=data.visibility,
+        gender=data.gender,
         created_by=user_id,
         person_id=person_id,
     )
@@ -273,6 +274,7 @@ async def create_legacy(
         birth_date=legacy.birth_date,
         death_date=legacy.death_date,
         biography=legacy.biography,
+        gender=legacy.gender,
         visibility=legacy.visibility,
         created_by=legacy.created_by,
         created_at=legacy.created_at,
@@ -333,6 +335,7 @@ async def list_user_legacies(
             birth_date=legacy.birth_date,
             death_date=legacy.death_date,
             biography=legacy.biography,
+            gender=legacy.gender,
             visibility=legacy.visibility,
             created_by=legacy.created_by,
             created_at=legacy.created_at,
@@ -399,6 +402,7 @@ async def list_user_legacies_scoped(
             birth_date=legacy.birth_date,
             death_date=legacy.death_date,
             biography=legacy.biography,
+            gender=legacy.gender,
             visibility=legacy.visibility,
             created_by=legacy.created_by,
             created_at=legacy.created_at,
@@ -605,6 +609,7 @@ async def explore_legacies(
             birth_date=legacy.birth_date,
             death_date=legacy.death_date,
             biography=legacy.biography,
+            gender=legacy.gender,
             visibility=legacy.visibility,
             created_by=legacy.created_by,
             created_at=legacy.created_at,
@@ -705,6 +710,7 @@ async def get_legacy_public(
         birth_date=legacy.birth_date,
         death_date=legacy.death_date,
         biography=legacy.biography,
+        gender=legacy.gender,
         visibility=legacy.visibility,
         created_by=legacy.created_by,
         created_at=legacy.created_at,
@@ -791,12 +797,20 @@ async def get_legacy_detail(
 
     story_count = await get_story_count(db, legacy.id)
 
+    # Determine actual role for the requesting user
+    user_role = "admirer"
+    for member in legacy.members:
+        if member.user_id == user_id:
+            user_role = member.role
+            break
+
     return LegacyResponse(
         id=legacy.id,
         name=legacy.name,
         birth_date=legacy.birth_date,
         death_date=legacy.death_date,
         biography=legacy.biography,
+        gender=legacy.gender,
         visibility=legacy.visibility,
         created_by=legacy.created_by,
         created_at=legacy.created_at,
@@ -804,7 +818,7 @@ async def get_legacy_detail(
         creator_email=legacy.creator.email,
         creator_name=legacy.creator.name,
         members=members,
-        current_user_role="admirer",
+        current_user_role=user_role,
         person_id=legacy.person_id,
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
@@ -996,6 +1010,8 @@ async def update_legacy(
         legacy.biography = data.biography
     if data.visibility is not None:
         legacy.visibility = data.visibility
+    if "gender" in data.model_fields_set:
+        legacy.gender = data.gender
 
     legacy.updated_at = datetime.now(timezone.utc)
 
@@ -1018,6 +1034,7 @@ async def update_legacy(
         birth_date=legacy.birth_date,
         death_date=legacy.death_date,
         biography=legacy.biography,
+        gender=legacy.gender,
         visibility=legacy.visibility,
         created_by=legacy.created_by,
         created_at=legacy.created_at,

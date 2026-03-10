@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookHeart, Globe, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { BookHeart, Globe, Lock, Loader2, AlertCircle, ChevronDown, ChevronUp, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -8,8 +8,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useLegacy, useUpdateLegacy } from '@/features/legacy/hooks/useLegacies';
 import type { LegacyVisibility } from '@/features/legacy/api/legacies';
+import { normalizeOptionalText } from '@/lib/form-utils';
 import { SEOHead } from '@/components/seo';
 import PageActionBar from '@/components/PageActionBar';
+import TagInput from '@/components/ui/tag-input';
+import RelationshipCombobox from '@/components/ui/relationship-combobox';
+import {
+  useMemberProfile,
+  useUpdateMemberProfile,
+} from '@/features/members/hooks/useMemberProfile';
+import type { MemberProfileUpdate } from '@/features/members/api/memberProfile';
 
 interface LegacyEditProps {
   legacyId: string;
@@ -24,9 +32,22 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
   const [birthDate, setBirthDate] = useState('');
   const [deathDate, setDeathDate] = useState('');
   const [biography, setBiography] = useState('');
+  const [gender, setGender] = useState('');
   const [visibility, setVisibility] = useState<LegacyVisibility>('private');
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+
+  // Relationship profile state
+  const [relationshipExpanded, setRelationshipExpanded] = useState(false);
+  const [relationshipType, setRelationshipType] = useState('');
+  const [nicknames, setNicknames] = useState<string[]>([]);
+  const [legacyToViewer, setLegacyToViewer] = useState('');
+  const [viewerToLegacy, setViewerToLegacy] = useState('');
+  const [traits, setTraits] = useState<string[]>([]);
+  const [profileInitialized, setProfileInitialized] = useState(false);
+
+  const memberProfileQuery = useMemberProfile(legacyId);
+  const updateMemberProfile = useUpdateMemberProfile(legacyId);
 
   // Initialize form with legacy data when it loads
   useEffect(() => {
@@ -35,37 +56,120 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
       setBirthDate(legacy.birth_date || '');
       setDeathDate(legacy.death_date || '');
       setBiography(legacy.biography || '');
+      setGender(legacy.gender || '');
       setVisibility(legacy.visibility || 'private');
       setHasInitialized(true);
     }
   }, [legacy, hasInitialized]);
 
+  // Initialize relationship profile when it loads
+  useEffect(() => {
+    const profile = memberProfileQuery.data;
+    if (profile && !profileInitialized) {
+      setRelationshipType(profile.relationship_type || '');
+      setNicknames(profile.nicknames || []);
+      setLegacyToViewer(profile.legacy_to_viewer || '');
+      setViewerToLegacy(profile.viewer_to_legacy || '');
+      setTraits(profile.character_traits || []);
+      setProfileInitialized(true);
+      // Auto-expand if profile has data
+      if (
+        profile.relationship_type ||
+        (profile.nicknames && profile.nicknames.length > 0) ||
+        profile.legacy_to_viewer ||
+        profile.viewer_to_legacy ||
+        (profile.character_traits && profile.character_traits.length > 0)
+      ) {
+        setRelationshipExpanded(true);
+      }
+    }
+  }, [memberProfileQuery.data, profileInitialized]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('section') === 'relationship') {
+      setRelationshipExpanded(true);
+    }
+    if (params.get('notice') === 'profile-save-failed') {
+      setError('Legacy created, but your relationship details could not be saved. Please review and save this section again.');
+    }
+  }, []);
+
+  const isCreator = legacy?.current_user_role === 'creator';
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    if (!name.trim()) {
+    if (isCreator && !name.trim()) {
       setError('Please enter a name for the legacy');
       return;
     }
 
     try {
-      await updateLegacy.mutateAsync({
-        id: legacyId,
-        data: {
-          name: name.trim(),
-          birth_date: birthDate || null,
-          death_date: deathDate || null,
-          biography: biography.trim() || null,
-          visibility,
-        },
-      });
+      let legacySaved = !isCreator;
+      let profileSaved = false;
+      let legacySaveFailed = false;
 
-      // Navigate back to the legacy profile
-      navigate(`/legacy/${legacyId}`);
+      // Only update legacy details if user is the creator
+      if (isCreator) {
+        try {
+          await updateLegacy.mutateAsync({
+            id: legacyId,
+            data: {
+              name: name.trim(),
+              birth_date: birthDate || null,
+              death_date: deathDate || null,
+              biography: normalizeOptionalText(biography),
+              gender: normalizeOptionalText(gender),
+              visibility,
+            },
+          });
+          legacySaved = true;
+        } catch (legacyError) {
+          legacySaveFailed = true;
+          console.error('Legacy save failed:', legacyError);
+        }
+      }
+
+      const profileData: MemberProfileUpdate = {
+        relationship_type: relationshipType || null,
+        nicknames: nicknames.length > 0 ? nicknames : null,
+        legacy_to_viewer: normalizeOptionalText(legacyToViewer),
+        viewer_to_legacy: normalizeOptionalText(viewerToLegacy),
+        character_traits: traits,
+      };
+
+      try {
+        await updateMemberProfile.mutateAsync(profileData);
+        profileSaved = true;
+      } catch (profileError) {
+        console.error('Relationship profile save failed:', profileError);
+      }
+
+      if (legacySaved && profileSaved) {
+        navigate(`/legacy/${legacyId}`);
+        return;
+      }
+
+      if (legacySaved && !profileSaved) {
+        setError('Legacy details were saved, but your relationship details could not be saved. Please try again.');
+        return;
+      }
+
+      if (!legacySaved && profileSaved) {
+        setError('Your relationship details were saved, but the legacy details could not be saved. Please try again.');
+        return;
+      }
+
+      if (legacySaveFailed) {
+        setError('Failed to save changes. Please try again.');
+        return;
+      }
+
     } catch (err) {
-      setError('Failed to update legacy. Please try again.');
-      console.error('Error updating legacy:', err);
+      setError('Failed to save changes. Please try again.');
+      console.error('Error saving:', err);
     }
   };
 
@@ -118,9 +222,11 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
             <div className="size-16 rounded-full bg-theme-accent-light flex items-center justify-center mx-auto">
               <BookHeart className="size-8 text-theme-primary" />
             </div>
-            <h1 className="text-neutral-900">Edit Legacy</h1>
+            <h1 className="text-neutral-900">{isCreator ? 'Edit Legacy' : 'My Relationship'}</h1>
             <p className="text-neutral-600">
-              Update the details for this legacy.
+              {isCreator
+                ? 'Update the details for this legacy.'
+                : `Describe your relationship with ${legacy?.name ?? 'this person'}.`}
             </p>
           </div>
 
@@ -132,102 +238,217 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="name">Name *</Label>
-                <Input
-                  id="name"
-                  placeholder="Enter the person's name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                />
-                <p className="text-xs text-neutral-500">
-                  This is the name that will appear on the legacy page.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="birthDate">Birth Date</Label>
-                  <div className="relative">
+              {isCreator && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name *</Label>
                     <Input
-                      id="birthDate"
-                      type="date"
-                      value={birthDate}
-                      onChange={(e) => setBirthDate(e.target.value)}
+                      id="name"
+                      placeholder="Enter the person's name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
                     />
+                    <p className="text-xs text-neutral-500">
+                      This is the name that will appear on the legacy page.
+                    </p>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="deathDate">Death Date (if applicable)</Label>
-                  <Input
-                    id="deathDate"
-                    type="date"
-                    value={deathDate}
-                    onChange={(e) => setDeathDate(e.target.value)}
-                  />
-                </div>
-              </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="biography">Biography</Label>
-                <Textarea
-                  id="biography"
-                  placeholder="Share a brief biography or description..."
-                  value={biography}
-                  onChange={(e) => setBiography(e.target.value)}
-                  rows={4}
-                />
-                <p className="text-xs text-neutral-500">
-                  A short description that introduces this person to visitors.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <Label>Visibility</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setVisibility('private')}
-                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
-                      visibility === 'private'
-                        ? 'border-theme-primary bg-theme-accent-light'
-                        : 'border-neutral-200 hover:border-neutral-300'
-                    }`}
-                  >
-                    <Lock className={`size-5 ${visibility === 'private' ? 'text-theme-primary' : 'text-neutral-500'}`} />
-                    <div className="text-left">
-                      <div className={`font-medium ${visibility === 'private' ? 'text-theme-primary' : 'text-neutral-900'}`}>
-                        Private
-                      </div>
-                      <div className="text-xs text-neutral-500">
-                        Only invited members can view
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="birthDate">Birth Date</Label>
+                      <div className="relative">
+                        <Input
+                          id="birthDate"
+                          type="date"
+                          value={birthDate}
+                          onChange={(e) => setBirthDate(e.target.value)}
+                        />
                       </div>
                     </div>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setVisibility('public')}
-                    className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
-                      visibility === 'public'
-                        ? 'border-theme-primary bg-theme-accent-light'
-                        : 'border-neutral-200 hover:border-neutral-300'
-                    }`}
-                  >
-                    <Globe className={`size-5 ${visibility === 'public' ? 'text-theme-primary' : 'text-neutral-500'}`} />
-                    <div className="text-left">
-                      <div className={`font-medium ${visibility === 'public' ? 'text-theme-primary' : 'text-neutral-900'}`}>
-                        Public
-                      </div>
-                      <div className="text-xs text-neutral-500">
-                        Anyone can discover and view
-                      </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="deathDate">Death Date (if applicable)</Label>
+                      <Input
+                        id="deathDate"
+                        type="date"
+                        value={deathDate}
+                        onChange={(e) => setDeathDate(e.target.value)}
+                      />
                     </div>
-                  </button>
-                </div>
-                <p className="text-xs text-neutral-500">
-                  Control who can see this legacy.
-                </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="biography">Biography</Label>
+                    <Textarea
+                      id="biography"
+                      placeholder="Share a brief biography or description..."
+                      value={biography}
+                      onChange={(e) => setBiography(e.target.value)}
+                      rows={4}
+                    />
+                    <p className="text-xs text-neutral-500">
+                      A short description that introduces this person to visitors.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="gender">Gender</Label>
+                    <select
+                      id="gender"
+                      value={gender}
+                      onChange={(e) => setGender(e.target.value)}
+                      className="w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-theme-primary"
+                    >
+                      <option value="">Not specified</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="non_binary">Non-binary</option>
+                      <option value="prefer_not_to_say">Prefer not to say</option>
+                    </select>
+                    <p className="text-xs text-neutral-500">
+                      Used to personalize AI conversations about this person.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Visibility</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setVisibility('private')}
+                        className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                          visibility === 'private'
+                            ? 'border-theme-primary bg-theme-accent-light'
+                            : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        <Lock className={`size-5 ${visibility === 'private' ? 'text-theme-primary' : 'text-neutral-500'}`} />
+                        <div className="text-left">
+                          <div className={`font-medium ${visibility === 'private' ? 'text-theme-primary' : 'text-neutral-900'}`}>
+                            Private
+                          </div>
+                          <div className="text-xs text-neutral-500">
+                            Only invited members can view
+                          </div>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVisibility('public')}
+                        className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                          visibility === 'public'
+                            ? 'border-theme-primary bg-theme-accent-light'
+                            : 'border-neutral-200 hover:border-neutral-300'
+                        }`}
+                      >
+                        <Globe className={`size-5 ${visibility === 'public' ? 'text-theme-primary' : 'text-neutral-500'}`} />
+                        <div className="text-left">
+                          <div className={`font-medium ${visibility === 'public' ? 'text-theme-primary' : 'text-neutral-900'}`}>
+                            Public
+                          </div>
+                          <div className="text-xs text-neutral-500">
+                            Anyone can discover and view
+                          </div>
+                        </div>
+                      </button>
+                    </div>
+                    <p className="text-xs text-neutral-500">
+                      Control who can see this legacy.
+                    </p>
+                  </div>
+                </>
+              )}
+
+              {/* My Relationship section */}
+              <div className="border border-neutral-200 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setRelationshipExpanded(!relationshipExpanded)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-neutral-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <Heart className="size-5 text-theme-primary" />
+                    <div>
+                      <span className="font-medium text-neutral-900">My Relationship</span>
+                      <span className="text-sm text-neutral-500 ml-2">(optional)</span>
+                    </div>
+                  </div>
+                  {relationshipExpanded ? (
+                    <ChevronUp className="size-5 text-neutral-400" />
+                  ) : (
+                    <ChevronDown className="size-5 text-neutral-400" />
+                  )}
+                </button>
+
+                {relationshipExpanded && (
+                  <div className="px-4 pb-4 border-t border-neutral-100 pt-4 space-y-5">
+                    <p className="text-sm text-neutral-500">
+                      Describe your personal relationship with this person. This is private to you.
+                    </p>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="relationshipType">Relationship</Label>
+                      <RelationshipCombobox
+                        value={relationshipType}
+                        onChange={setRelationshipType}
+                        legacyGender={gender || legacy?.gender}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="nicknames">What do you call them?</Label>
+                      <TagInput
+                        id="nicknames"
+                        values={nicknames}
+                        onChange={setNicknames}
+                        placeholder="Type a name and press Enter..."
+                        maxItems={10}
+                        maxLength={100}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="legacyToViewer">Who they are to you</Label>
+                      <Textarea
+                        id="legacyToViewer"
+                        placeholder="In your own words, describe who this person is to you..."
+                        value={legacyToViewer}
+                        onChange={(e) => setLegacyToViewer(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                      />
+                      <p className="text-xs text-neutral-400">
+                        {legacyToViewer.length}/1000
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="viewerToLegacy">Who you are to them</Label>
+                      <Textarea
+                        id="viewerToLegacy"
+                        placeholder="How would they describe your role in their life?"
+                        value={viewerToLegacy}
+                        onChange={(e) => setViewerToLegacy(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                      />
+                      <p className="text-xs text-neutral-400">
+                        {viewerToLegacy.length}/1000
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="characterTraits">Character traits</Label>
+                      <TagInput
+                        id="characterTraits"
+                        values={traits}
+                        onChange={setTraits}
+                        placeholder="Type a trait and press Enter..."
+                        maxItems={20}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-4 pt-4">
@@ -241,10 +462,10 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={updateLegacy.isPending}
+                  disabled={updateLegacy.isPending || updateMemberProfile.isPending}
                   className="flex-1 bg-theme-primary hover:bg-theme-primary-dark"
                 >
-                  {updateLegacy.isPending ? (
+                  {(updateLegacy.isPending || updateMemberProfile.isPending) ? (
                     <>
                       <Loader2 className="size-4 mr-2 animate-spin" />
                       Saving...

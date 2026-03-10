@@ -265,6 +265,25 @@ class DefaultStorytellingAgent:
             span.set_attribute("chunks_retrieved", len(chunks))
             span.set_attribute("facts_retrieved", len(facts))
 
+            # Best-effort relationship context
+            relationship_context = ""
+            try:
+                from ..services import member_profile as member_profile_service
+                from ..services.relationship_context import format_relationship_context
+
+                profile = await member_profile_service.get_profile(
+                    db, legacy_id, user_id
+                )
+                relationship_context = format_relationship_context(profile, legacy_name)
+            except Exception as exc:
+                logger.warning(
+                    "ai.chat.relationship_context_failed",
+                    extra={
+                        "conversation_id": str(conversation_id),
+                        "error": str(exc),
+                    },
+                )
+
             # Check if this conversation is linked to an active evolution session
             from ..models.story import Story
             from ..models.story_evolution import StoryEvolutionSession
@@ -293,6 +312,7 @@ class DefaultStorytellingAgent:
                 legacy_name,
                 story_context,
                 facts=facts,
+                relationship_context=relationship_context,
                 elicitation_mode=elicitation_mode,
                 original_story_text=original_story_text,
                 include_graph_suggestions=(elicitation_mode and bool(story_context)),

@@ -236,21 +236,23 @@ export default function MyLegacies() {
 
           {!isLoading && !error && (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {/* Create new legacy card */}
-              <Card
-                className="p-8 border-dashed hover:border-theme-accent hover:bg-theme-accent-light/30 transition-colors cursor-pointer"
-                onClick={handleCreateLegacy}
-              >
-                <div className="text-center space-y-3">
-                  <div className="size-12 rounded-full bg-theme-accent-light flex items-center justify-center mx-auto">
-                    <Plus className="size-6 text-theme-primary" />
+              {/* Create new legacy card - only shown when no legacies exist */}
+              {(!data?.items || data.items.length === 0) && (
+                <Card
+                  className="p-8 border-dashed hover:border-theme-accent hover:bg-theme-accent-light/30 transition-colors cursor-pointer"
+                  onClick={handleCreateLegacy}
+                >
+                  <div className="text-center space-y-3">
+                    <div className="size-12 rounded-full bg-theme-accent-light flex items-center justify-center mx-auto">
+                      <Plus className="size-6 text-theme-primary" />
+                    </div>
+                    <div>
+                      <p className="text-neutral-900">Create a new legacy</p>
+                      <p className="text-sm text-neutral-500">Start preserving memories</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-neutral-900">Create a new legacy</p>
-                    <p className="text-sm text-neutral-500">Start preserving memories</p>
-                  </div>
-                </div>
-              </Card>
+                </Card>
+              )}
 
               {/* Existing legacies */}
               {data?.items?.map((legacy) => (

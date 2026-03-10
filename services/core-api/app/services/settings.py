@@ -135,6 +135,7 @@ async def get_user_profile(db: AsyncSession, user_id: UUID) -> ProfileResponse:
         email=user.email,
         name=user.name,
         bio=user.bio,
+        gender=user.gender,
         avatar_url=user.avatar_url,
         created_at=user.created_at.isoformat(),
     )
@@ -152,8 +153,10 @@ async def update_user_profile(
 
     if data.name is not None:
         user.name = data.name
-    if data.bio is not None:
+    if "bio" in data.model_fields_set:
         user.bio = data.bio
+    if "gender" in data.model_fields_set:
+        user.gender = data.gender
 
     await db.commit()
     await db.refresh(user)
@@ -165,6 +168,7 @@ async def update_user_profile(
         email=user.email,
         name=user.name,
         bio=user.bio,
+        gender=user.gender,
         avatar_url=user.avatar_url,
         created_at=user.created_at.isoformat(),
     )

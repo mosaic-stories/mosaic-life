@@ -217,13 +217,18 @@ jobs:
     runs-on: ubuntu-latest
     needs: [build-web, build-core-api, sign-images]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    concurrency:
+      group: gitops-update-${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+      cancel-in-progress: false
     steps:
       - name: Checkout GitOps repo
         uses: actions/checkout@v4
         with:
           repository: mosaic-stories/gitops
           token: ${{ secrets.GITOPS_PAT }}
+          path: gitops
           ref: main
+          fetch-depth: 0
 
       - name: Install yq
         run: |
@@ -231,6 +236,7 @@ jobs:
           sudo chmod +x /usr/local/bin/yq
 
       - name: Update image tags
+        working-directory: gitops
         env:
           ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
           COMMIT_SHA: ${{ github.sha }}
@@ -253,6 +259,7 @@ jobs:
           cat "environments/${ENVIRONMENT}/values.yaml"
 
       - name: Commit and push changes
+        working-directory: gitops
         env:
           ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
           COMMIT_SHA: ${{ github.sha }}
@@ -262,6 +269,7 @@ jobs:
           
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout main
           
           git add environments/${ENVIRONMENT}/values.yaml
           
@@ -279,10 +287,21 @@ jobs:
             -m "This will deploy:" \
             -m "- mosaic-life/web:${IMAGE_TAG}" \
             -m "- mosaic-life/core-api:${IMAGE_TAG}"
-          
-          git push origin main
-          
-          echo ""
-          echo "✅ GitOps repository updated successfully"
-          echo "📦 Deployed image tag: ${IMAGE_TAG}"
-          echo "🚀 ArgoCD will automatically sync the ${ENVIRONMENT} environment"
+
+          for attempt in 1 2 3; do
+            git pull --rebase origin main
+
+            if git push origin HEAD:main; then
+              echo ""
+              echo "✅ GitOps repository updated successfully"
+              echo "📦 Deployed image tag: ${IMAGE_TAG}"
+              echo "🚀 ArgoCD will automatically sync the ${ENVIRONMENT} environment"
+              exit 0
+            fi
+
+            echo "Push attempt ${attempt} failed; retrying after backoff"
+            sleep $((attempt * 5))
+          done
+
+          echo "GitOps push failed after 3 attempts"
+          exit 1

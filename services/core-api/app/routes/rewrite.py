@@ -128,11 +128,32 @@ async def rewrite_story(
                     f"\n\n## Key Details (user-curated)\n{facts_text}"
                 )
 
+            # Best-effort relationship context
+            relationship_context = ""
+            try:
+                from app.services import member_profile as member_profile_service
+                from app.services.relationship_context import (
+                    format_relationship_context,
+                )
+
+                if primary:
+                    profile = await member_profile_service.get_profile(
+                        db, primary.legacy_id, user_id
+                    )
+                    relationship_context = format_relationship_context(
+                        profile, legacy_name
+                    )
+            except Exception as exc:
+                logger.warning(
+                    "rewrite.relationship_context_failed",
+                    extra={"error": str(exc)},
+                )
+
             system_prompt = writer.build_system_prompt(
                 writing_style=data.writing_style or "vivid",
                 length_preference=data.length_preference or "similar",
                 legacy_name=legacy_name,
-                relationship_context="",
+                relationship_context=relationship_context,
                 is_revision=False,
             )
 

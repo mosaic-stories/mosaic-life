@@ -22,13 +22,15 @@ export interface UserProfile {
   email: string;
   name: string;
   bio: string | null;
+  gender: string | null;
   avatar_url: string | null;
   created_at: string;
 }
 
 export interface ProfileUpdateRequest {
   name?: string;
-  bio?: string;
+  bio?: string | null;
+  gender?: string | null;
 }
 
 export interface UserStats {

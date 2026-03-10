@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from .member_profile import GenderType
+
 
 class LegacyCreate(BaseModel):
     """Schema for creating a new legacy."""
@@ -23,6 +25,7 @@ class LegacyCreate(BaseModel):
         default="private",
         description="Legacy visibility: 'public' (anyone can view) or 'private' (members only)",
     )
+    gender: GenderType | None = Field(None, description="Gender of the legacy subject")
     person_id: UUID | None = Field(
         None,
         description="Optional: link to existing Person. If not provided, a Person is auto-created.",
@@ -42,6 +45,7 @@ class LegacyUpdate(BaseModel):
         default=None,
         description="Legacy visibility: 'public' or 'private'",
     )
+    gender: GenderType | None = Field(None, description="Gender of the legacy subject")
 
 
 class LegacyMemberResponse(BaseModel):
@@ -64,6 +68,7 @@ class LegacyResponse(BaseModel):
     birth_date: date | None
     death_date: date | None
     biography: str | None
+    gender: str | None = None
     created_by: UUID
     created_at: datetime
     updated_at: datetime

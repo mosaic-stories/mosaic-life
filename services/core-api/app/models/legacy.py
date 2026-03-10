@@ -1,10 +1,11 @@
 """Legacy and LegacyMember models."""
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    JSON,
     Date,
     DateTime,
     ForeignKey,
@@ -41,6 +42,7 @@ class Legacy(Base):
     birth_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     death_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     biography: Mapped[str | None] = mapped_column(Text, nullable=True)
+    gender: Mapped[str | None] = mapped_column(String(20), nullable=True)
 
     visibility: Mapped[str] = mapped_column(
         String(20),
@@ -141,6 +143,8 @@ class LegacyMember(Base):
         server_default=func.current_timestamp(),
         nullable=False,
     )
+
+    profile: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # Relationships
     legacy: Mapped["Legacy"] = relationship("Legacy", back_populates="members")

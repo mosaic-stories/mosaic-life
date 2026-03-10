@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Streamdown } from 'streamdown';
+import 'streamdown/styles.css';
 import type { ChatMessage as ChatMessageType } from '@/features/ai-chat/store/aiChatStore';
 import { formatTimestamp } from './utils';
 
@@ -43,12 +45,15 @@ export function ChatMessage({ message, onRetry }: ChatMessageProps) {
                 : 'bg-white'
           }`}
         >
-          <p className={isUser ? 'text-white' : hasError ? 'text-red-700' : 'text-neutral-700'}>
-            {message.content}
-            {isStreamingMessage && (
-              <span className="inline-block w-2 h-4 ml-1 bg-amber-500 animate-pulse" />
-            )}
-          </p>
+          {isUser ? (
+            <p className="text-white">{message.content}</p>
+          ) : (
+            <div className={hasError ? 'text-red-700' : 'text-neutral-700'}>
+              <Streamdown isAnimating={isStreamingMessage} caret="block">
+                {message.content}
+              </Streamdown>
+            </div>
+          )}
           {message.blocked && (
             <Badge variant="outline" className="text-xs text-red-500 border-red-200 mt-1">
               <ShieldAlert className="size-3 mr-1" />

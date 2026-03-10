@@ -18,6 +18,7 @@ export interface Legacy {
   birth_date: string | null;
   death_date: string | null;
   biography: string | null;
+  gender?: string | null;
   visibility: LegacyVisibility;
   created_by: string;
   created_at: string;
@@ -52,6 +53,7 @@ export interface CreateLegacyInput {
   death_date?: string | null;
   biography?: string | null;
   visibility?: LegacyVisibility;
+  gender?: string | null;
   person_id?: string | null;
 }
 
@@ -60,6 +62,7 @@ export interface UpdateLegacyInput {
   birth_date?: string | null;
   death_date?: string | null;
   biography?: string | null;
+  gender?: string | null;
   visibility?: LegacyVisibility;
 }
 
