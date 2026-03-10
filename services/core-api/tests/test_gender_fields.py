@@ -111,6 +111,28 @@ async def test_clear_user_profile_gender(client: AsyncClient, test_user: User) -
 
 
 @pytest.mark.asyncio
+async def test_clear_user_profile_bio(client: AsyncClient, test_user: User) -> None:
+    """PATCH /api/users/me/profile clears bio when null is provided explicitly."""
+    headers = create_auth_headers_for_user(test_user)
+
+    set_response = await client.patch(
+        "/api/users/me/profile",
+        json={"bio": "About me"},
+        headers=headers,
+    )
+    assert set_response.status_code == 200
+    assert set_response.json()["bio"] == "About me"
+
+    clear_response = await client.patch(
+        "/api/users/me/profile",
+        json={"bio": None},
+        headers=headers,
+    )
+    assert clear_response.status_code == 200
+    assert clear_response.json()["bio"] is None
+
+
+@pytest.mark.asyncio
 async def test_user_profile_response_includes_gender(
     client: AsyncClient, test_user: User
 ) -> None:

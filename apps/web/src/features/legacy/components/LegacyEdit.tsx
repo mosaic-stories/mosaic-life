@@ -17,6 +17,7 @@ import {
   useMemberProfile,
   useUpdateMemberProfile,
 } from '@/features/members/hooks/useMemberProfile';
+import type { MemberProfileUpdate } from '@/features/members/api/memberProfile';
 
 interface LegacyEditProps {
   legacyId: string;
@@ -131,13 +132,13 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
         }
       }
 
-      // Build profile update — only include fields that have values
-      const profileData: Record<string, unknown> = {};
-      profileData.relationship_type = relationshipType || null;
-      profileData.nicknames = nicknames.length > 0 ? nicknames : null;
-      profileData.legacy_to_viewer = normalizeOptionalText(legacyToViewer);
-      profileData.viewer_to_legacy = normalizeOptionalText(viewerToLegacy);
-      profileData.character_traits = traits;
+      const profileData: MemberProfileUpdate = {
+        relationship_type: relationshipType || null,
+        nicknames: nicknames.length > 0 ? nicknames : null,
+        legacy_to_viewer: normalizeOptionalText(legacyToViewer),
+        viewer_to_legacy: normalizeOptionalText(viewerToLegacy),
+        character_traits: traits,
+      };
 
       try {
         await updateMemberProfile.mutateAsync(profileData);

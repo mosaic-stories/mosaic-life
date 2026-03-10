@@ -153,7 +153,7 @@ async def update_user_profile(
 
     if data.name is not None:
         user.name = data.name
-    if data.bio is not None:
+    if "bio" in data.model_fields_set:
         user.bio = data.bio
     if "gender" in data.model_fields_set:
         user.gender = data.gender
