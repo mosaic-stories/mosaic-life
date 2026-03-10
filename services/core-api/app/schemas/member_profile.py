@@ -65,8 +65,8 @@ class MemberProfileUpdate(BaseModel):
     def validate_character_traits(cls, v: list[str] | None) -> list[str] | None:
         if v is None:
             return None
-        if len(v) > 20:
-            msg = "Maximum 20 character traits allowed"
+        if len(v) > 10:
+            msg = "Maximum 10 character traits allowed"
             raise ValueError(msg)
         for trait in v:
             if not trait.strip():

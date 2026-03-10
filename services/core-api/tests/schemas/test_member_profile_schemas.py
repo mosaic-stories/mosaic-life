@@ -31,16 +31,16 @@ class TestCharacterTraitsValidation:
         profile = _make(character_traits=[])
         assert profile.character_traits == []
 
-    def test_exactly_20_traits_accepted(self) -> None:
-        traits = [f"trait_{i}" for i in range(20)]
+    def test_exactly_10_traits_accepted(self) -> None:
+        traits = [f"trait_{i}" for i in range(10)]
         profile = _make(character_traits=traits)
         assert profile.character_traits is not None
-        assert len(profile.character_traits) == 20
+        assert len(profile.character_traits) == 10
 
-    def test_more_than_20_traits_raises(self) -> None:
-        traits = [f"trait_{i}" for i in range(21)]
+    def test_more_than_10_traits_raises(self) -> None:
+        traits = [f"trait_{i}" for i in range(11)]
         with pytest.raises(
-            ValidationError, match="Maximum 20 character traits allowed"
+            ValidationError, match="Maximum 10 character traits allowed"
         ):
             _make(character_traits=traits)
 
