@@ -121,7 +121,6 @@ export default function ProfileHeader({
   isMember,
   legacyId,
 }: ProfileHeaderProps) {
-  const navigate = useNavigate();
   return (
     <section className="bg-white border-b">
       <div className="max-w-7xl mx-auto px-6 py-12">
