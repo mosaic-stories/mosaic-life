@@ -28,13 +28,13 @@ export default function StoryCard({ story, onClick, isFavorited = false }: Story
 
   return (
     <Card
-      className="p-8 space-y-4 hover:shadow-md transition-shadow cursor-pointer"
+      className="min-w-0 p-8 space-y-4 hover:shadow-md transition-shadow cursor-pointer"
       onClick={onClick}
     >
-      <div className="flex items-start justify-between">
-        <div className="space-y-1 flex-1">
+      <div className="min-w-0 flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="text-neutral-900">{story.title}</h3>
+            <h3 className="truncate text-neutral-900">{story.title}</h3>
             {story.status === 'draft' && (
               <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
                 Draft
@@ -51,7 +51,7 @@ export default function StoryCard({ story, onClick, isFavorited = false }: Story
             <p className="text-neutral-600 text-sm line-clamp-2 mt-2">{story.content_preview}</p>
           )}
           {associatedLegaciesLabel && (
-            <p className="text-neutral-500 text-sm mt-2">About: {associatedLegaciesLabel}</p>
+            <p className="truncate text-neutral-500 text-sm mt-2">About: {associatedLegaciesLabel}</p>
           )}
           <div className="flex items-center gap-3 text-sm text-neutral-500 mt-3">
             <div className="flex items-center gap-2">
@@ -76,12 +76,14 @@ export default function StoryCard({ story, onClick, isFavorited = false }: Story
           </div>
         </div>
         {!story.shared_from && (
-          <FavoriteButton
-            entityType="story"
-            entityId={story.id}
-            isFavorited={isFavorited}
-            favoriteCount={story.favorite_count}
-          />
+          <div className="shrink-0">
+            <FavoriteButton
+              entityType="story"
+              entityId={story.id}
+              isFavorited={isFavorited}
+              favoriteCount={story.favorite_count}
+            />
+          </div>
         )}
       </div>
     </Card>

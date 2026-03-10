@@ -19,7 +19,27 @@ vi.mock('@/features/activity/hooks/useActivity', () => ({
 }));
 
 vi.mock('@/features/legacy/hooks/useLegacies', () => ({
-  useLegacies: () => ({ data: { items: [] }, isLoading: false }),
+  useLegacies: () => ({
+    data: {
+      items: [
+        {
+          id: 'legacy-1',
+          name: 'A production length legacy name that should still fit inside the dashboard without forcing horizontal scrolling across the page',
+          birth_date: '1950-01-01',
+          death_date: '2020-12-31',
+          biography: 'Long production biography content that should wrap or clamp instead of widening the dashboard grid and pushing the sidebar off screen.',
+          visibility: 'public',
+          created_by: 'user-1',
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-01T00:00:00Z',
+          members: [],
+          profile_image_url: null,
+          story_count: 4,
+        },
+      ],
+    },
+    isLoading: false,
+  }),
 }));
 
 vi.mock('@/features/favorites/hooks/useFavorites', () => ({
@@ -56,9 +76,13 @@ describe('DashboardPage', () => {
     expect(screen.getByText(/my legacies/i)).toBeInTheDocument();
   });
 
-  it('renders the create legacy tile', () => {
+  it('renders a legacy card when legacies exist', () => {
     renderPage();
-    expect(screen.getByRole('link', { name: /create a legacy/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /a production length legacy name that should still fit inside the dashboard/i,
+      }),
+    ).toBeInTheDocument();
   });
 
   it('does NOT render hero or CTA sections', () => {
@@ -70,5 +94,18 @@ describe('DashboardPage', () => {
   it('renders "View all" link in the My Legacies header', () => {
     renderPage();
     expect(screen.getByRole('link', { name: 'View all' })).toBeInTheDocument();
+  });
+
+  it('uses viewport-safe grid constraints for dashboard columns', () => {
+    const { container } = renderPage();
+
+    const layoutGrid = container.querySelector('.grid');
+    expect(layoutGrid?.className).toContain('lg:grid-cols-[minmax(0,1fr)_340px]');
+
+    const leftColumn = layoutGrid?.children.item(0) as HTMLElement | null;
+    const rightColumn = layoutGrid?.children.item(1) as HTMLElement | null;
+
+    expect(leftColumn?.className).toContain('min-w-0');
+    expect(rightColumn?.className).toContain('min-w-0');
   });
 });

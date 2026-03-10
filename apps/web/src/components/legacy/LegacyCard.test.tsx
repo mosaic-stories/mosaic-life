@@ -38,6 +38,29 @@ describe('LegacyCard', () => {
     expect(screen.getByText(/a wonderful person/i)).toBeInTheDocument();
   });
 
+  it('uses truncation-safe layout classes for long content', () => {
+    renderCard({
+      legacy: {
+        ...baseLegacy,
+        name: 'An exceptionally long legacy name that should not force the dashboard card wider than its grid track when production data is present',
+        biography: 'A very long biography intended to mimic production content and ensure the card keeps its content inside the available viewport width without growing its parent layout unexpectedly.',
+      },
+      trailingAction: <span data-testid="fav-btn">Fav</span>,
+    });
+
+    const title = screen.getByRole('heading', {
+      level: 3,
+      name: /an exceptionally long legacy name/i,
+    });
+    expect(title.className).toContain('truncate');
+
+    const textColumn = title.parentElement;
+    expect(textColumn?.className).toContain('min-w-0');
+
+    const trailingAction = screen.getByTestId('fav-btn').parentElement;
+    expect(trailingAction?.className).toContain('shrink-0');
+  });
+
   it('renders member count', () => {
     renderCard();
     expect(screen.getByText('2')).toBeInTheDocument();

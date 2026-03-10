@@ -22,10 +22,10 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 pb-16 w-full">
-        <div className="grid lg:grid-cols-[1fr_340px] gap-8 mt-8">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-8 mt-8">
 
           {/* LEFT COLUMN */}
-          <div className="space-y-8">
+          <div className="min-w-0 space-y-8">
             <StoryPromptCard />
 
             {/* My Legacies */}
@@ -83,7 +83,7 @@ export default function DashboardPage() {
           </div>
 
           {/* RIGHT SIDEBAR */}
-          <div className="space-y-5 lg:sticky lg:top-20 lg:self-start">
+          <div className="min-w-0 space-y-5 lg:sticky lg:top-20 lg:self-start">
             <QuickActions />
             <SidebarActivity />
             <SidebarFavorites />

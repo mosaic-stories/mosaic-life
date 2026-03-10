@@ -40,7 +40,7 @@ function LegacyCard({
     <Card
       role="button"
       tabIndex={0}
-      className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
+      className="min-w-0 overflow-hidden hover:shadow-lg transition-shadow cursor-pointer group"
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -60,9 +60,9 @@ function LegacyCard({
           <Users className="size-12 text-neutral-300" />
         )}
       </div>
-      <div className="p-5 space-y-3">
-        <div className="space-y-1">
-          <h3 className="text-neutral-900">{entity.name}</h3>
+      <div className="min-w-0 p-5 space-y-3">
+        <div className="min-w-0 space-y-1">
+          <h3 className="truncate text-neutral-900">{entity.name}</h3>
           {dates && <p className="text-sm text-neutral-500">{dates}</p>}
         </div>
         {entity.biography && (
