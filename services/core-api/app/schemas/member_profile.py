@@ -60,6 +60,23 @@ class MemberProfileUpdate(BaseModel):
                     raise ValueError(msg)
         return v
 
+    @field_validator("character_traits")
+    @classmethod
+    def validate_character_traits(cls, v: list[str] | None) -> list[str] | None:
+        if v is None:
+            return None
+        if len(v) > 20:
+            msg = "Maximum 20 character traits allowed"
+            raise ValueError(msg)
+        for trait in v:
+            if not trait.strip():
+                msg = "Character traits must not be empty"
+                raise ValueError(msg)
+            if len(trait) > 100:
+                msg = "Each character trait must be 100 characters or less"
+                raise ValueError(msg)
+        return v
+
 
 class MemberProfileResponse(BaseModel):
     """Response containing a member's relationship profile."""
