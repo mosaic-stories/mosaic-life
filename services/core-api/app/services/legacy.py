@@ -797,6 +797,13 @@ async def get_legacy_detail(
 
     story_count = await get_story_count(db, legacy.id)
 
+    # Determine actual role for the requesting user
+    user_role = "admirer"
+    for member in legacy.members:
+        if member.user_id == user_id:
+            user_role = member.role
+            break
+
     return LegacyResponse(
         id=legacy.id,
         name=legacy.name,
@@ -811,7 +818,7 @@ async def get_legacy_detail(
         creator_email=legacy.creator.email,
         creator_name=legacy.creator.name,
         members=members,
-        current_user_role="admirer",
+        current_user_role=user_role,
         person_id=legacy.person_id,
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
