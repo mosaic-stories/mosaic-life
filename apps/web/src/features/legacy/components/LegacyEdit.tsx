@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookHeart, Globe, Lock, Loader2, AlertCircle } from 'lucide-react';
+import { BookHeart, Globe, Lock, Loader2, AlertCircle, ChevronDown, ChevronUp, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,12 @@ import type { LegacyVisibility } from '@/features/legacy/api/legacies';
 import { normalizeOptionalText } from '@/lib/form-utils';
 import { SEOHead } from '@/components/seo';
 import PageActionBar from '@/components/PageActionBar';
+import TagInput from '@/components/ui/tag-input';
+import RelationshipCombobox from '@/components/ui/relationship-combobox';
+import {
+  useMemberProfile,
+  useUpdateMemberProfile,
+} from '@/features/members/hooks/useMemberProfile';
 
 interface LegacyEditProps {
   legacyId: string;
@@ -30,6 +36,18 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
 
+  // Relationship profile state
+  const [relationshipExpanded, setRelationshipExpanded] = useState(false);
+  const [relationshipType, setRelationshipType] = useState('');
+  const [nicknames, setNicknames] = useState<string[]>([]);
+  const [legacyToViewer, setLegacyToViewer] = useState('');
+  const [viewerToLegacy, setViewerToLegacy] = useState('');
+  const [traits, setTraits] = useState<string[]>([]);
+  const [profileInitialized, setProfileInitialized] = useState(false);
+
+  const memberProfileQuery = useMemberProfile(legacyId);
+  const updateMemberProfile = useUpdateMemberProfile(legacyId);
+
   // Initialize form with legacy data when it loads
   useEffect(() => {
     if (legacy && !hasInitialized) {
@@ -43,6 +61,36 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
     }
   }, [legacy, hasInitialized]);
 
+  // Initialize relationship profile when it loads
+  useEffect(() => {
+    const profile = memberProfileQuery.data;
+    if (profile && !profileInitialized) {
+      setRelationshipType(profile.relationship_type || '');
+      setNicknames(profile.nicknames || []);
+      setLegacyToViewer(profile.legacy_to_viewer || '');
+      setViewerToLegacy(profile.viewer_to_legacy || '');
+      setTraits(profile.character_traits || []);
+      setProfileInitialized(true);
+      // Auto-expand if profile has data
+      if (
+        profile.relationship_type ||
+        (profile.nicknames && profile.nicknames.length > 0) ||
+        profile.legacy_to_viewer ||
+        profile.viewer_to_legacy ||
+        (profile.character_traits && profile.character_traits.length > 0)
+      ) {
+        setRelationshipExpanded(true);
+      }
+    }
+  }, [memberProfileQuery.data, profileInitialized]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('section') === 'relationship') {
+      setRelationshipExpanded(true);
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -53,7 +101,7 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
     }
 
     try {
-      await updateLegacy.mutateAsync({
+      const legacyPromise = updateLegacy.mutateAsync({
         id: legacyId,
         data: {
           name: name.trim(),
@@ -65,11 +113,22 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
         },
       });
 
-      // Navigate back to the legacy profile
+      // Build profile update — only include fields that have values
+      const profileData: Record<string, unknown> = {};
+      profileData.relationship_type = relationshipType || null;
+      profileData.nicknames = nicknames.length > 0 ? nicknames : null;
+      profileData.legacy_to_viewer = normalizeOptionalText(legacyToViewer);
+      profileData.viewer_to_legacy = normalizeOptionalText(viewerToLegacy);
+      profileData.character_traits = traits;
+
+      const profilePromise = updateMemberProfile.mutateAsync(profileData);
+
+      await Promise.all([legacyPromise, profilePromise]);
+
       navigate(`/legacy/${legacyId}`);
     } catch (err) {
-      setError('Failed to update legacy. Please try again.');
-      console.error('Error updating legacy:', err);
+      setError('Failed to save changes. Please try again.');
+      console.error('Error saving:', err);
     }
   };
 
@@ -253,6 +312,98 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
                 </p>
               </div>
 
+              {/* My Relationship section */}
+              <div className="border border-neutral-200 rounded-lg overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => setRelationshipExpanded(!relationshipExpanded)}
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-neutral-50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <Heart className="size-5 text-theme-primary" />
+                    <div>
+                      <span className="font-medium text-neutral-900">My Relationship</span>
+                      <span className="text-sm text-neutral-500 ml-2">(optional)</span>
+                    </div>
+                  </div>
+                  {relationshipExpanded ? (
+                    <ChevronUp className="size-5 text-neutral-400" />
+                  ) : (
+                    <ChevronDown className="size-5 text-neutral-400" />
+                  )}
+                </button>
+
+                {relationshipExpanded && (
+                  <div className="px-4 pb-4 border-t border-neutral-100 pt-4 space-y-5">
+                    <p className="text-sm text-neutral-500">
+                      Describe your personal relationship with this person. This is private to you.
+                    </p>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="relationshipType">Relationship</Label>
+                      <RelationshipCombobox
+                        value={relationshipType}
+                        onChange={setRelationshipType}
+                        legacyGender={gender || legacy?.gender}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="nicknames">What do you call them?</Label>
+                      <TagInput
+                        id="nicknames"
+                        values={nicknames}
+                        onChange={setNicknames}
+                        placeholder="Type a name and press Enter..."
+                        maxItems={10}
+                        maxLength={100}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="legacyToViewer">Who they are to you</Label>
+                      <Textarea
+                        id="legacyToViewer"
+                        placeholder="In your own words, describe who this person is to you..."
+                        value={legacyToViewer}
+                        onChange={(e) => setLegacyToViewer(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                      />
+                      <p className="text-xs text-neutral-400">
+                        {legacyToViewer.length}/1000
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="viewerToLegacy">Who you are to them</Label>
+                      <Textarea
+                        id="viewerToLegacy"
+                        placeholder="How would they describe your role in their life?"
+                        value={viewerToLegacy}
+                        onChange={(e) => setViewerToLegacy(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                      />
+                      <p className="text-xs text-neutral-400">
+                        {viewerToLegacy.length}/1000
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="characterTraits">Character traits</Label>
+                      <TagInput
+                        id="characterTraits"
+                        values={traits}
+                        onChange={setTraits}
+                        placeholder="Type a trait and press Enter..."
+                        maxItems={20}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-4 pt-4">
                 <Button
                   type="button"
@@ -264,10 +415,10 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={updateLegacy.isPending}
+                  disabled={updateLegacy.isPending || updateMemberProfile.isPending}
                   className="flex-1 bg-theme-primary hover:bg-theme-primary-dark"
                 >
-                  {updateLegacy.isPending ? (
+                  {(updateLegacy.isPending || updateMemberProfile.isPending) ? (
                     <>
                       <Loader2 className="size-4 mr-2 animate-spin" />
                       Saving...
