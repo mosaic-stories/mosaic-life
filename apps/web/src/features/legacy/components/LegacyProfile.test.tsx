@@ -95,6 +95,10 @@ vi.mock('./DeleteLegacyDialog', () => ({
   default: () => null,
 }));
 
+vi.mock('./LegacySidebar', () => ({
+  default: () => <div data-testid="legacy-sidebar" />,
+}));
+
 vi.mock('@/features/members/components/MemberDrawer', () => ({
   default: () => null,
 }));
@@ -103,13 +107,9 @@ vi.mock('@/features/legacy-link/components/LegacyLinkPanel', () => ({
   default: () => <div data-testid="links-section" />,
 }));
 
-vi.mock('@/components/PageActionBar', () => ({
-  default: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
-}));
-
 import LegacyProfile from './LegacyProfile';
 
-describe('LegacyProfile tab sync', () => {
+describe('LegacyProfile', () => {
   beforeEach(() => {
     mocks.searchParams = new URLSearchParams('tab=stories');
     mocks.navigate.mockReset();
@@ -147,6 +147,13 @@ describe('LegacyProfile tab sync', () => {
 
     expect(screen.getByTestId('ai-section')).toBeInTheDocument();
     expect(screen.queryByTestId('stories-section')).not.toBeInTheDocument();
+  });
+
+  it('renders profile header and sidebar', () => {
+    render(<LegacyProfile legacyId="legacy-1" />);
+
+    expect(screen.getByTestId('profile-header')).toBeInTheDocument();
+    expect(screen.getByTestId('legacy-sidebar')).toBeInTheDocument();
   });
 
   it('renders profile header for admirer members', () => {
