@@ -197,7 +197,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         onMembersClick={() => setShowMemberDrawer(true)}
       />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-9">
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 gap-9 ${activeSection !== 'media' ? 'lg:grid-cols-[1fr_320px]' : ''}`}>
         {/* Main content */}
         <main>
           {activeSection === 'stories' && (
@@ -237,12 +237,14 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         </main>
 
         {/* Sidebar */}
-        <LegacySidebar
-          legacy={legacy}
-          legacyId={legacyId}
-          onMembersClick={() => setShowMemberDrawer(true)}
-          onSectionChange={setActiveSection}
-        />
+        {activeSection !== 'media' && (
+          <LegacySidebar
+            legacy={legacy}
+            legacyId={legacyId}
+            onMembersClick={() => setShowMemberDrawer(true)}
+            onSectionChange={setActiveSection}
+          />
+        )}
       </div>
 
       <DeleteLegacyDialog

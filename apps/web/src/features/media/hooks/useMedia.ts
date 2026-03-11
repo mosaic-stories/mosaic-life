@@ -8,8 +8,16 @@ import {
   deleteMedia,
   setProfileImage,
   validateFile,
+  updateMedia,
+  tagPerson,
+  untagPerson,
+  addMediaTag,
+  removeMediaTag,
+  listLegacyTags,
+  searchPersons,
   type MediaItem,
   type LegacyAssociationInput,
+  type MediaUpdateData,
 } from '@/features/media/api/media';
 import { legacyKeys } from '@/features/legacy/hooks/useLegacies';
 
@@ -114,5 +122,88 @@ export function useSetProfileImage(legacyId: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: legacyKeys.detail(legacyId) });
     },
+  });
+}
+
+export function useUpdateMedia(legacyId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ mediaId, data }: { mediaId: string; data: MediaUpdateData }) =>
+      updateMedia(mediaId, data),
+    onSuccess: () => {
+      if (legacyId) {
+        queryClient.invalidateQueries({ queryKey: mediaKeys.list(legacyId) });
+      }
+      queryClient.invalidateQueries({ queryKey: mediaKeys.lists() });
+    },
+  });
+}
+
+export function useTagPerson(legacyId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ mediaId, data }: { mediaId: string; data: { person_id?: string; name?: string; role: string } }) =>
+      tagPerson(mediaId, data),
+    onSuccess: () => {
+      if (legacyId) {
+        queryClient.invalidateQueries({ queryKey: mediaKeys.list(legacyId) });
+      }
+    },
+  });
+}
+
+export function useUntagPerson(legacyId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ mediaId, personId }: { mediaId: string; personId: string }) =>
+      untagPerson(mediaId, personId),
+    onSuccess: () => {
+      if (legacyId) {
+        queryClient.invalidateQueries({ queryKey: mediaKeys.list(legacyId) });
+      }
+    },
+  });
+}
+
+export function useAddTag(legacyId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ mediaId, name, legacyId: lid }: { mediaId: string; name: string; legacyId: string }) =>
+      addMediaTag(mediaId, name, lid),
+    onSuccess: () => {
+      if (legacyId) {
+        queryClient.invalidateQueries({ queryKey: mediaKeys.list(legacyId) });
+      }
+    },
+  });
+}
+
+export function useRemoveTag(legacyId?: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ mediaId, tagId }: { mediaId: string; tagId: string }) =>
+      removeMediaTag(mediaId, tagId),
+    onSuccess: () => {
+      if (legacyId) {
+        queryClient.invalidateQueries({ queryKey: mediaKeys.list(legacyId) });
+      }
+    },
+  });
+}
+
+export function useLegacyTags(legacyId?: string) {
+  return useQuery({
+    queryKey: [...mediaKeys.all, 'tags', legacyId] as const,
+    queryFn: () => listLegacyTags(legacyId!),
+    enabled: !!legacyId,
+  });
+}
+
+export function useSearchPersons(query: string, legacyId?: string) {
+  return useQuery({
+    queryKey: [...mediaKeys.all, 'person-search', query, legacyId] as const,
+    queryFn: () => searchPersons(query, legacyId),
+    enabled: query.length >= 2,
+    staleTime: 30_000,
   });
 }
