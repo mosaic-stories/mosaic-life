@@ -12,12 +12,12 @@ import { useStats } from '@/features/settings/hooks/useSettings';
 const DEFAULT_TAB = 'legacies';
 const DEFAULT_FILTERS: Record<string, string> = {
   legacies: 'all',
-  stories: 'mine',
+  stories: 'all',
   activity: 'all',
 };
 const VALID_FILTERS: Record<string, string[]> = {
   legacies: ['all', 'created', 'connected', 'favorites'],
-  stories: ['mine', 'shared', 'favorites'],
+  stories: ['all', 'mine', 'favorites', 'public', 'private'],
   activity: ['all', 'mine'],
 };
 
