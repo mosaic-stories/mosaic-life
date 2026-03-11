@@ -3,9 +3,13 @@
 import pytest
 from datetime import datetime, timedelta, timezone
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.associations import MediaPerson, MediaTag
 from app.models.legacy import Legacy
 from app.models.media import Media
+from app.models.person import Person
+from app.models.tag import Tag
 from app.models.user import User
 
 
@@ -212,8 +216,33 @@ class TestGetMedia:
         auth_headers: dict[str, str],
         test_legacy: Legacy,
         test_media: Media,
+        db_session: AsyncSession,
     ):
         """Test getting media details."""
+        person = Person(canonical_name="Tagged Person")
+        db_session.add(person)
+        await db_session.flush()
+
+        tag = Tag(
+            name="wedding", legacy_id=test_legacy.id, created_by=test_media.owner_id
+        )
+        db_session.add(tag)
+        await db_session.flush()
+
+        test_media.caption = "Ceremony photo"
+        test_media.date_taken = "1962"
+        test_media.location = "Chicago"
+        test_media.era = "1960s"
+        db_session.add(MediaTag(media_id=test_media.id, tag_id=tag.id))
+        db_session.add(
+            MediaPerson(
+                media_id=test_media.id,
+                person_id=person.id,
+                role="subject",
+            )
+        )
+        await db_session.commit()
+
         response = await client.get(
             f"/api/media/{test_media.id}",
             headers=auth_headers,
@@ -224,6 +253,40 @@ class TestGetMedia:
         assert data["id"] == str(test_media.id)
         assert "download_url" in data
         assert "storage_path" in data
+        assert data["caption"] == "Ceremony photo"
+        assert data["date_taken"] == "1962"
+        assert data["location"] == "Chicago"
+        assert data["era"] == "1960s"
+        assert data["tags"] == [{"id": str(tag.id), "name": "wedding"}]
+        assert data["people"] == [
+            {
+                "person_id": str(person.id),
+                "person_name": "Tagged Person",
+                "role": "subject",
+            }
+        ]
+
+
+class TestMediaTags:
+    """Tests for POST /api/media/{media_id}/tags."""
+
+    @pytest.mark.asyncio
+    async def test_rejects_cross_legacy_tag_attachment(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy_2: Legacy,
+        test_media: Media,
+    ):
+        response = await client.post(
+            f"/api/media/{test_media.id}/tags",
+            params={"legacy_id": str(test_legacy_2.id)},
+            headers=auth_headers,
+            json={"name": "cross-legacy"},
+        )
+
+        assert response.status_code == 400
+        assert "associated with this media" in response.json()["detail"]
 
     @pytest.mark.asyncio
     async def test_not_found(

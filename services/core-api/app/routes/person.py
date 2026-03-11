@@ -56,14 +56,24 @@ async def get_match_candidates(
 async def search_persons(
     request: Request,
     q: str = Query(..., min_length=1, max_length=200, description="Search query"),
-    legacy_id: UUID | None = Query(
-        None, description="Scope to persons linked to this legacy"
-    ),
+    legacy_id: UUID = Query(..., description="Scope to persons linked to this legacy"),
     db: AsyncSession = Depends(get_db),
 ) -> list[PersonSearchResult]:
     """Search persons by name."""
     session = require_auth(request)
-    logger.info("person.search", extra={"user_id": str(session.user_id), "query": q})
+    logger.info(
+        "person.search",
+        extra={
+            "user_id": str(session.user_id),
+            "query": q,
+            "legacy_id": str(legacy_id),
+        },
+    )
     from ..services.person import search_persons as search_persons_svc
 
-    return await search_persons_svc(db=db, query=q, legacy_id=legacy_id)
+    return await search_persons_svc(
+        db=db,
+        user_id=session.user_id,
+        query=q,
+        legacy_id=legacy_id,
+    )

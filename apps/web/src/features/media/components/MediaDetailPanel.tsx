@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   X, ChevronLeft, ChevronRight, Download, Star, Sparkles,
   Info, Users, Tag, BookOpen, Calendar, MapPin, Clock, FileText,
-  HardDrive, Plus, Search,
+  HardDrive, Plus, Search, Trash2,
 } from 'lucide-react';
 import { type MediaItem } from '@/features/media/api/media';
 import { getMediaContentUrl } from '@/features/media/api/media';
@@ -31,6 +31,7 @@ interface MediaDetailPanelProps {
   onClose: () => void;
   onNavigate: (mediaId: string) => void;
   isAuthenticated: boolean;
+  onRequestDelete?: (mediaId: string) => void;
 }
 
 function formatBytes(bytes: number): string {
@@ -49,6 +50,7 @@ export default function MediaDetailPanel({
   onClose,
   onNavigate,
   isAuthenticated,
+  onRequestDelete,
 }: MediaDetailPanelProps) {
   const [tagInput, setTagInput] = useState('');
   const [personSearch, setPersonSearch] = useState('');
@@ -95,12 +97,26 @@ export default function MediaDetailPanel({
   const addTag = useAddTag(legacyId);
   const removeTag = useRemoveTag(legacyId);
   const setProfileImage = useSetProfileImage(legacyId);
-  const { data: _legacyTags } = useLegacyTags(legacyId);
+  const { data: legacyTags } = useLegacyTags(legacyId);
   const { data: personSearchResults } = useSearchPersons(personSearch, legacyId);
   const { data: favoriteData } = useFavoriteCheck('media', [media.id]);
 
   const isFavorited = favoriteData?.favorites[media.id] ?? false;
   const isProfileImage = media.id === profileImageId;
+  const normalizedTagInput = tagInput.trim().toLowerCase();
+  const filteredTagSuggestions = normalizedTagInput
+    ? (legacyTags ?? [])
+      .filter((tag) =>
+        tag.name.toLowerCase().includes(normalizedTagInput)
+        && !media.tags.some((mediaTag) => mediaTag.name.toLowerCase() === tag.name.toLowerCase())
+      )
+      .slice(0, 5)
+    : [];
+  const showCreatePerson =
+    showPersonSearch
+    && personSearch.trim().length >= 2
+    && !!personSearchResults
+    && personSearchResults.length === 0;
 
   const handleCaptionSave = () => {
     setEditingCaption(false);
@@ -135,9 +151,33 @@ export default function MediaDetailPanel({
     }
   };
 
+  const handleAddTag = (name: string) => {
+    addTag.mutate(
+      { mediaId: media.id, name, legacyId },
+      {
+        onSuccess: () => setTagInput(''),
+      }
+    );
+  };
+
   const handleTagPerson = (personId: string) => {
     tagPerson.mutate(
       { mediaId: media.id, data: { person_id: personId, role: 'subject' } },
+      {
+        onSuccess: () => {
+          setPersonSearch('');
+          setShowPersonSearch(false);
+        },
+      }
+    );
+  };
+
+  const handleCreatePerson = () => {
+    const name = personSearch.trim();
+    if (!name) return;
+
+    tagPerson.mutate(
+      { mediaId: media.id, data: { name, role: 'subject' } },
       {
         onSuccess: () => {
           setPersonSearch('');
@@ -232,6 +272,17 @@ export default function MediaDetailPanel({
                 Set as Profile
               </button>
             )
+          )}
+
+          {isAuthenticated && onRequestDelete && (
+            <button
+              onClick={() => onRequestDelete(media.id)}
+              className="inline-flex items-center gap-1.5 text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-md px-2.5 py-1.5 transition-colors"
+              aria-label="Delete Photo"
+            >
+              <Trash2 size={13} />
+              Delete
+            </button>
           )}
         </div>
       </div>
@@ -419,11 +470,24 @@ export default function MediaDetailPanel({
                     ))}
                   </ul>
                 )}
-                {personSearch.length >= 2 &&
-                  personSearchResults &&
-                  personSearchResults.length === 0 && (
-                    <p className="text-xs text-neutral-400 px-1">No results found</p>
-                  )}
+                {showCreatePerson && (
+                  <div className="border border-dashed border-stone-300 rounded-md px-3 py-2.5 bg-stone-50 space-y-2">
+                    <p className="text-xs text-neutral-500">
+                      No matches found. Create a new person from this name?
+                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm text-neutral-800 truncate">{personSearch.trim()}</span>
+                      <button
+                        onClick={handleCreatePerson}
+                        disabled={tagPerson.isPending}
+                        className="shrink-0 inline-flex items-center gap-1.5 text-xs text-neutral-700 hover:text-neutral-900 bg-white border border-stone-300 rounded-md px-2.5 py-1.5 transition-colors disabled:opacity-50"
+                      >
+                        <Plus size={12} />
+                        Create person
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -451,16 +515,33 @@ export default function MediaDetailPanel({
             )}
 
             {isAuthenticated && (
-              <div className="flex items-center gap-2 mt-1.5">
-                <Plus size={13} className="text-neutral-400 shrink-0" />
-                <input
-                  value={tagInput}
-                  onChange={(e) => setTagInput(e.target.value)}
-                  onKeyDown={handleTagKeyDown}
-                  placeholder="Add a tag and press Enter..."
-                  className="flex-1 text-sm border border-stone-300 rounded-md px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-stone-400 bg-stone-50"
-                  disabled={addTag.isPending}
-                />
+              <div className="mt-1.5 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Plus size={13} className="text-neutral-400 shrink-0" />
+                  <input
+                    value={tagInput}
+                    onChange={(e) => setTagInput(e.target.value)}
+                    onKeyDown={handleTagKeyDown}
+                    placeholder="Add a tag and press Enter..."
+                    className="flex-1 text-sm border border-stone-300 rounded-md px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-stone-400 bg-stone-50"
+                    disabled={addTag.isPending}
+                  />
+                </div>
+                {filteredTagSuggestions.length > 0 && (
+                  <ul className="border border-stone-200 rounded-md overflow-hidden shadow-sm">
+                    {filteredTagSuggestions.map((tag) => (
+                      <li key={tag.id}>
+                        <button
+                          onClick={() => handleAddTag(tag.name)}
+                          disabled={addTag.isPending}
+                          className="w-full text-left text-sm px-3 py-2 hover:bg-stone-50 transition-colors text-neutral-800 disabled:opacity-50"
+                        >
+                          {tag.name}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )}
           </div>

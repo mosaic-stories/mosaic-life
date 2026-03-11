@@ -384,66 +384,8 @@ async def get_media_detail(
     Raises:
         HTTPException: 404 if not found, 403 if no access
     """
-    # Load media with associations
-    result = await db.execute(
-        select(Media)
-        .options(
-            selectinload(Media.owner),
-            selectinload(Media.legacy_associations),
-        )
-        .where(Media.id == media_id)
-    )
-    media = result.scalar_one_or_none()
-
-    if not media:
-        raise HTTPException(status_code=404, detail="Media not found")
-
-    # Check union access: user must be member of at least one associated legacy
-    if media.legacy_associations:
-        legacy_ids = [assoc.legacy_id for assoc in media.legacy_associations]
-
-        member_result = await db.execute(
-            select(LegacyMember).where(
-                LegacyMember.user_id == user_id,
-                LegacyMember.legacy_id.in_(legacy_ids),
-                LegacyMember.role != "pending",
-            )
-        )
-        member = member_result.scalar_one_or_none()
-
-        if not member:
-            raise HTTPException(
-                status_code=403,
-                detail="Must be a member of an associated legacy to view media",
-            )
-
-    # Get legacy names
-    legacy_ids = [assoc.legacy_id for assoc in media.legacy_associations]
-    legacy_names = await _get_legacy_names(db, legacy_ids)
-
-    storage = get_storage_adapter()
-
-    return MediaDetail(
-        id=media.id,
-        filename=media.filename,
-        content_type=media.content_type,
-        size_bytes=media.size_bytes,
-        storage_path=media.storage_path,
-        download_url=storage.generate_download_url(media.storage_path),
-        uploaded_by=media.owner_id,
-        uploader_name=media.owner.name,
-        legacies=[
-            LegacyAssociationResponse(
-                legacy_id=assoc.legacy_id,
-                legacy_name=legacy_names.get(assoc.legacy_id, "Unknown"),
-                role=assoc.role,
-                position=assoc.position,
-            )
-            for assoc in sorted(media.legacy_associations, key=lambda a: a.position)
-        ],
-        created_at=media.created_at,
-        favorite_count=media.favorite_count or 0,
-    )
+    media = await _check_media_access(db, user_id, media_id)
+    return await _build_media_detail(db, media)
 
 
 async def delete_media(
@@ -591,6 +533,7 @@ async def _check_media_access(
     result = await db.execute(
         select(Media)
         .options(
+            selectinload(Media.owner),
             selectinload(Media.legacy_associations),
         )
         .where(Media.id == media_id)
@@ -622,6 +565,26 @@ async def _check_media_access(
         status_code=403,
         detail="Not authorized to access this media",
     )
+
+
+async def _require_legacy_membership(
+    db: AsyncSession,
+    user_id: UUID,
+    legacy_id: UUID,
+) -> None:
+    """Require that a user is a non-pending member of the given legacy."""
+    member_result = await db.execute(
+        select(LegacyMember).where(
+            LegacyMember.legacy_id == legacy_id,
+            LegacyMember.user_id == user_id,
+            LegacyMember.role != "pending",
+        )
+    )
+    if member_result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Must be a member of the legacy to manage tags",
+        )
 
 
 async def _build_media_detail(
@@ -989,7 +952,14 @@ async def add_media_tag(
     Raises:
         HTTPException: 403/404 access errors, 409 if tag already on media
     """
-    await _check_media_access(db, user_id, media_id)
+    media = await _check_media_access(db, user_id, media_id)
+    await _require_legacy_membership(db, user_id, legacy_id)
+
+    if all(assoc.legacy_id != legacy_id for assoc in media.legacy_associations):
+        raise HTTPException(
+            status_code=400,
+            detail="legacy_id must be associated with this media",
+        )
 
     # Find or create the Tag for this legacy
     tag_result = await db.execute(
@@ -1098,19 +1068,7 @@ async def list_legacy_tags(
     Raises:
         HTTPException: 403 if not a member
     """
-    # Verify membership
-    member_result = await db.execute(
-        select(LegacyMember).where(
-            LegacyMember.legacy_id == legacy_id,
-            LegacyMember.user_id == user_id,
-            LegacyMember.role != "pending",
-        )
-    )
-    if not member_result.scalar_one_or_none():
-        raise HTTPException(
-            status_code=403,
-            detail="Must be a member of the legacy to view tags",
-        )
+    await _require_legacy_membership(db, user_id, legacy_id)
 
     result = await db.execute(
         select(Tag).where(Tag.legacy_id == legacy_id).order_by(Tag.name)

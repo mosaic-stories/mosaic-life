@@ -160,6 +160,12 @@ export default function MediaSection({
               onClose={() => setSelectedMediaId(null)}
               onNavigate={handleNavigate}
               isAuthenticated={isAuthenticated}
+              onRequestDelete={(mediaId) => {
+                const mediaItem = media?.find((item) => item.id === mediaId);
+                if (mediaItem) {
+                  setDeleteTarget(mediaItem);
+                }
+              }}
             />
           </div>
         )}
@@ -177,6 +183,12 @@ export default function MediaSection({
               onClose={() => setSelectedMediaId(null)}
               onNavigate={handleNavigate}
               isAuthenticated={isAuthenticated}
+              onRequestDelete={(mediaId) => {
+                const mediaItem = media?.find((item) => item.id === mediaId);
+                if (mediaItem) {
+                  setDeleteTarget(mediaItem);
+                }
+              }}
             />
           )}
         </SheetContent>
