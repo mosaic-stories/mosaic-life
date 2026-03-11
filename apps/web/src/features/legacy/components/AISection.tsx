@@ -331,7 +331,7 @@ export default function AISection({ legacyId, initialConversationId, initialSeed
       <div className="flex-1 flex flex-col bg-neutral-50 rounded-xl border overflow-hidden min-h-0">
         {/* Streaming indicator */}
         {isStreaming && (
-          <div className="px-4 py-1.5 bg-amber-50 border-b border-amber-100 text-xs text-amber-700 flex items-center gap-2">
+          <div className="px-4 py-1.5 bg-theme-accent-light border-b border-theme-accent/30 text-xs text-theme-primary-dark flex items-center gap-2">
             <Loader2 className="size-3 animate-spin" />
             {selectedPersona?.name || 'Agent'} is thinking...
           </div>
@@ -379,7 +379,7 @@ function PersonaPill({
       className={cn(
         'flex items-center gap-2 px-3 py-1.5 rounded-full border text-sm font-medium transition-all',
         isSelected
-          ? 'bg-amber-50 border-amber-300 text-amber-900 shadow-sm'
+          ? 'bg-theme-primary text-white border-theme-primary shadow-sm'
           : 'bg-white border-neutral-200 text-neutral-600 hover:border-neutral-300 hover:text-neutral-900'
       )}
     >
