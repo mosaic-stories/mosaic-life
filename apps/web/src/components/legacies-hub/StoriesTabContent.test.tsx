@@ -40,12 +40,22 @@ vi.mock('@/features/legacy/components/StoryCard', () => ({
   ),
 }));
 
+vi.mock('@/features/activity/hooks/useActivity', () => ({
+  useRecentlyViewed: () => ({ data: { tracking_enabled: false, items: [] }, isLoading: false }),
+}));
+
+vi.mock('@/features/legacy/components/StoryCardList', () => ({
+  default: ({ story }: { story: { title: string } }) => (
+    <div data-testid="story-card-list">{story.title}</div>
+  ),
+}));
+
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return { ...actual, useNavigate: () => vi.fn() };
 });
 
-function renderContent(activeFilter = 'mine', onFilterChange = vi.fn()) {
+function renderContent(activeFilter = 'all', onFilterChange = vi.fn()) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
@@ -59,27 +69,30 @@ function renderContent(activeFilter = 'mine', onFilterChange = vi.fn()) {
 describe('StoriesTabContent', () => {
   it('renders all filter option labels', () => {
     renderContent();
+    expect(screen.getByRole('button', { name: /^all$/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /my stories/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /shared/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /favorites/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /public/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /private/i })).toBeInTheDocument();
   });
 
   it('marks the active filter as pressed', () => {
-    renderContent('shared');
-    expect(screen.getByRole('button', { name: /shared/i })).toHaveAttribute('aria-pressed', 'true');
+    renderContent('public');
+    expect(screen.getByRole('button', { name: /public/i })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: /my stories/i })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('calls onFilterChange when a filter is clicked', async () => {
     const onFilterChange = vi.fn();
-    renderContent('mine', onFilterChange);
-    await userEvent.click(screen.getByRole('button', { name: /shared/i }));
-    expect(onFilterChange).toHaveBeenCalledWith('shared');
+    renderContent('all', onFilterChange);
+    await userEvent.click(screen.getByRole('button', { name: /public/i }));
+    expect(onFilterChange).toHaveBeenCalledWith('public');
   });
 
   it('passes the correct scope to useScopedStories', () => {
-    renderContent('shared');
-    expect(mockUseScopedStories).toHaveBeenCalledWith('shared');
+    renderContent('public');
+    // 'public' filter maps to 'all' API scope, filtered client-side
+    expect(mockUseScopedStories).toHaveBeenCalledWith('all');
   });
 
   it('renders story cards when data is available', () => {
@@ -93,16 +106,16 @@ describe('StoriesTabContent', () => {
     expect(screen.getByText(/haven't favorited any stories/i)).toBeInTheDocument();
   });
 
-  it('shows shared empty-state message on shared filter with no data', () => {
+  it('shows public empty-state message on public filter with no data', () => {
     mockUseScopedStories.mockReturnValueOnce({ data: { items: [], counts: { all: 0, mine: 0, shared: 0 } }, isLoading: false });
-    renderContent('shared');
-    expect(screen.getByText(/no shared stories/i)).toBeInTheDocument();
+    renderContent('public');
+    expect(screen.getByText(/no stories found/i)).toBeInTheDocument();
   });
 
   it('shows mine empty-state message on mine filter with no data', () => {
     mockUseScopedStories.mockReturnValueOnce({ data: { items: [], counts: { all: 0, mine: 0, shared: 0 } }, isLoading: false });
     renderContent('mine');
-    expect(screen.getByText(/haven't written any stories/i)).toBeInTheDocument();
+    expect(screen.getByText(/no stories found/i)).toBeInTheDocument();
   });
 
   it('shows loading spinner while fetching', () => {

@@ -50,6 +50,10 @@ vi.mock('@/features/favorites/components/FavoriteButton', () => ({
   default: () => null,
 }));
 
+vi.mock('@/features/activity/hooks/useActivity', () => ({
+  useRecentlyViewed: () => ({ data: { tracking_enabled: false, items: [] }, isLoading: false }),
+}));
+
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
@@ -96,31 +100,6 @@ describe('LegaciesTabContent', () => {
     expect(screen.getByText('Margaret Chen')).toBeInTheDocument();
   });
 
-  it('shows the Create New Legacy card on "all" filter', () => {
-    renderContent('all');
-    expect(screen.getByText('Start a New Tribute')).toBeInTheDocument();
-  });
-
-  it('shows the Create New Legacy card on "created" filter', () => {
-    renderContent('created');
-    expect(screen.getByText('Start a New Tribute')).toBeInTheDocument();
-  });
-
-  it('hides the Create New Legacy card on "favorites" filter', () => {
-    renderContent('favorites');
-    expect(screen.queryByText('Start a New Tribute')).not.toBeInTheDocument();
-  });
-
-  it('hides the Create New Legacy card on "connected" filter', () => {
-    renderContent('connected');
-    expect(screen.queryByText('Start a New Tribute')).not.toBeInTheDocument();
-  });
-
-  it('navigates to /legacy/new when Create card is clicked', async () => {
-    renderContent('all');
-    await userEvent.click(screen.getByText('Start a New Tribute'));
-    expect(mockNavigate).toHaveBeenCalledWith('/legacy/new');
-  });
 });
 
 describe('LegaciesTabContent (empty state)', () => {

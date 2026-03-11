@@ -69,7 +69,7 @@ function renderPage() {
 describe('LegaciesPage', () => {
   it('renders the page title', () => {
     renderPage();
-    expect(screen.getByRole('heading', { level: 1, name: 'Legacies' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Your Legacies' })).toBeInTheDocument();
   });
 
   it('renders the New Legacy button', () => {
@@ -85,8 +85,11 @@ describe('LegaciesPage', () => {
 
   it('renders tab triggers', () => {
     renderPage();
-    expect(screen.getByRole('tab', { name: /legacies/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /stories/i })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /activity/i })).toBeInTheDocument();
+    // Tabs are now custom buttons, not role="tab"
+    const buttons = screen.getAllByRole('button');
+    const labels = buttons.map((b) => b.textContent);
+    expect(labels.some((t) => t?.includes('Legacies'))).toBe(true);
+    expect(labels.some((t) => t?.includes('Stories'))).toBe(true);
+    expect(labels.some((t) => t?.includes('Activity'))).toBe(true);
   });
 });
