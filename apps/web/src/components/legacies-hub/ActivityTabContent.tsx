@@ -1,4 +1,4 @@
-import { Loader2, Activity } from 'lucide-react';
+import { Loader2, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import ActivityFeedItem from '@/features/activity/components/ActivityFeedItem';
 import { useSocialFeed } from '@/features/activity/hooks/useActivity';
@@ -68,9 +68,10 @@ export default function ActivityTabContent({ activeFilter, onFilterChange }: Act
       )}
 
       {!isLoading && items.length === 0 && (
-        <div className="text-center py-12">
-          <Activity className="size-12 mx-auto text-neutral-300 mb-4" />
-          <p className="text-neutral-600">No activity to show yet.</p>
+        <div className="text-center py-20">
+          <Clock className="size-12 mx-auto text-neutral-300 opacity-50 mb-4" />
+          <h3 className="font-serif text-lg font-semibold text-neutral-600">Activity Feed</h3>
+          <p className="text-sm text-neutral-400 mt-1">A timeline of all updates across your legacies — coming soon.</p>
         </div>
       )}
     </div>
