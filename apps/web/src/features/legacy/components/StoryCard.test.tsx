@@ -9,8 +9,8 @@ vi.mock('@/features/favorites/components/FavoriteButton', () => ({
 
 const story: StorySummary = {
   id: 'story-1',
-  title: 'A very long story title that should never force its parent hub card wider than the available grid track in production layouts',
-  content_preview: 'Long content preview that should remain inside the card body and not cause unexpected horizontal growth in any stories hub layout.',
+  title: 'A very long story title that should never force its parent hub card wider than the available grid track',
+  content_preview: 'Long content preview that should remain inside the card body.',
   status: 'published',
   visibility: 'public',
   created_at: '2025-01-01T00:00:00Z',
@@ -18,21 +18,38 @@ const story: StorySummary = {
   author_id: 'user-1',
   author_name: 'Jordan Example',
   legacies: [
-    { legacy_id: 'legacy-1', legacy_name: 'An exceptionally long associated legacy name used to verify truncation in card metadata', role: 'primary', position: 0 },
+    { legacy_id: 'legacy-1', legacy_name: 'Test Legacy', role: 'primary', position: 0 },
   ],
   favorite_count: 0,
   shared_from: null,
 };
 
 describe('StoryCard', () => {
-  it('uses truncation-safe layout classes for long content', () => {
+  it('renders title and content preview', () => {
     render(<StoryCard story={story} />);
 
-    const title = screen.getByRole('heading', {
-      level: 3,
-      name: /a very long story title/i,
-    });
-    // Title should have truncation via truncate or line-clamp
-    expect(title.className).toMatch(/truncate|line-clamp/);
+    expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(/a very long story title/i);
+    expect(screen.getByText(/Long content preview/)).toBeInTheDocument();
+  });
+
+  it('uses truncation classes for long titles', () => {
+    render(<StoryCard story={story} />);
+
+    const title = screen.getByRole('heading', { level: 3 });
+    expect(title.className).toMatch(/line-clamp/);
+  });
+
+  it('shows visibility label and author name', () => {
+    render(<StoryCard story={story} />);
+
+    expect(screen.getByText('Public')).toBeInTheDocument();
+    expect(screen.getByText('Jordan Example')).toBeInTheDocument();
+  });
+
+  it('shows Members only for private visibility', () => {
+    const privateStory = { ...story, visibility: 'private' as const };
+    render(<StoryCard story={privateStory} />);
+
+    expect(screen.getByText('Members only')).toBeInTheDocument();
   });
 });

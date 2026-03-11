@@ -100,6 +100,17 @@ export const themeColors = {
     background: '250 250 249',    // stone-50
     surface: '255 250 245',       // warm white
   },
+  'warm-earth': {
+    primary: '92 75 58',         // #5C4B3A
+    primaryLight: '212 197 176', // #D4C5B0
+    primaryDark: '61 50 37',     // #3D3225
+    accent: '139 125 107',       // #8B7D6B
+    accentLight: '245 241 235',  // #F5F1EB
+    gradientFrom: '92 75 58',   // #5C4B3A
+    gradientTo: '122 107 90',   // #7A6B5A
+    background: '250 248 245',  // #FAF8F5
+    surface: '255 255 255',     // white
+  },
   // Vibrant themes with bold gradients
   'vibrant-coral': {
     primary: '244 63 94',         // rose-500
