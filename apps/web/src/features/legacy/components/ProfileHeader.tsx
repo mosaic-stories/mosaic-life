@@ -27,7 +27,7 @@ export interface ProfileHeaderProps {
 export default function ProfileHeader({
   legacy,
   dates,
-  legacyId,
+  legacyId: _legacyId,
   isAuthenticated,
   onAddStory,
   isCreatingStory,

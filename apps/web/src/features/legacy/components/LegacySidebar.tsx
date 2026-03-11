@@ -115,7 +115,7 @@ function MemberRow({ member }: { member: LegacyMember }) {
 }
 
 function StoryPromptWidget({
-  legacyId,
+  legacyId: _legacyId,
   onSectionChange,
 }: {
   legacyId: string;
