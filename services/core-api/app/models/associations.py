@@ -113,3 +113,56 @@ class ConversationLegacy(Base):
 
     def __repr__(self) -> str:
         return f"<ConversationLegacy(conversation_id={self.conversation_id}, legacy_id={self.legacy_id}, role={self.role})>"
+
+
+class MediaTag(Base):
+    """Association between media and tags."""
+
+    __tablename__ = "media_tags"
+
+    media_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("media.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    tag_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("tags.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("media_id", "tag_id", name="uq_media_tag"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<MediaTag(media_id={self.media_id}, tag_id={self.tag_id})>"
+
+
+class MediaPerson(Base):
+    """Association between media and persons."""
+
+    __tablename__ = "media_persons"
+
+    media_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("media.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    person_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("persons.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    role: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        server_default="subject",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("media_id", "person_id", name="uq_media_person"),
+    )
+
+    def __repr__(self) -> str:
+        return f"<MediaPerson(media_id={self.media_id}, person_id={self.person_id}, role={self.role})>"

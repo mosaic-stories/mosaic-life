@@ -4,15 +4,16 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
+from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSON, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
 from ..database import Base
 
 if TYPE_CHECKING:
-    from .associations import MediaLegacy
+    from .associations import MediaLegacy, MediaPerson, MediaTag
+    from .tag import Tag
     from .user import User
 
 
@@ -46,6 +47,13 @@ class Media(Base):
         index=False,
     )
 
+    caption: Mapped[str | None] = mapped_column(Text, nullable=True)
+    date_taken: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    era: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    ai_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ai_insights: Mapped[list | None] = mapped_column(JSON, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.current_timestamp(),
@@ -60,6 +68,8 @@ class Media(Base):
         cascade="all, delete-orphan",
         order_by="MediaLegacy.position",
     )
+    tag_associations: Mapped[list["MediaTag"]] = relationship("MediaTag", cascade="all, delete-orphan")
+    person_associations: Mapped[list["MediaPerson"]] = relationship("MediaPerson", cascade="all, delete-orphan")
 
     def __repr__(self) -> str:
         return f"<Media(id={self.id}, filename={self.filename})>"
