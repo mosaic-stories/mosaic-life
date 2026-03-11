@@ -25,7 +25,7 @@ export default function StoryCard({ story, onClick, isFavorited = false }: Story
     >
       <div className="p-5">
         <div className="flex items-center gap-2 mb-3">
-          <div className="size-5.5 rounded-full bg-stone-200 shrink-0" />
+          <div className="size-5 rounded-full bg-stone-200 shrink-0" />
           <span className="text-xs font-medium text-neutral-500 truncate">
             {story.legacies[0]?.legacy_name ?? 'Unknown Legacy'}
           </span>

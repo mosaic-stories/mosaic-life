@@ -6,11 +6,11 @@ import { rewriteBackendUrlForDev } from '@/lib/url';
 
 export interface LegacyCardProps {
   legacy: Legacy;
-  /** Optional trailing element rendered next to the context badge (e.g. FavoriteButton) */
+  /** Optional trailing element rendered next to the stats row (e.g. FavoriteButton) */
   trailingAction?: React.ReactNode;
-  /** When true, show public/private visibility indicator in the footer */
+  /** @deprecated No longer rendered in the redesigned card. Accepted for call-site compatibility. */
   showVisibility?: boolean;
-  /** When true, suppress the context badge in the text area */
+  /** @deprecated No longer rendered in the redesigned card. Accepted for call-site compatibility. */
   hideContextBadge?: boolean;
 }
 

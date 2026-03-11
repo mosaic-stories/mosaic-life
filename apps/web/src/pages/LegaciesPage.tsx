@@ -80,10 +80,12 @@ export default function LegaciesPage() {
             <StatsBar />
 
             {/* Tab bar */}
-            <div className="flex items-end gap-1 mt-6">
+            <div role="tablist" className="flex items-end gap-1 mt-6">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
+                  role="tab"
+                  aria-selected={activeTab === tab.id}
                   onClick={() => handleTabChange(tab.id)}
                   className={cn(
                     'px-5 pb-3 text-sm transition-colors flex items-center gap-2',

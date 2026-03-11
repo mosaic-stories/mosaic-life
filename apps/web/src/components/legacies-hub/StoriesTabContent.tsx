@@ -54,8 +54,14 @@ export default function StoriesTabContent({ activeFilter, onFilterChange }: Stor
 
   const { data: recentlyViewedData } = useRecentlyViewed('story', 6);
 
+  const recentStoryLegacyMap = new Map<string, string>(
+    (recentlyViewedData?.items ?? [])
+      .filter((item) => item.entity?.legacy_id)
+      .map((item) => [item.entity_id, item.entity!.legacy_id!]),
+  );
+
   const recentChips: ChipItem[] = (recentlyViewedData?.items ?? [])
-    .filter((item) => item.entity)
+    .filter((item) => item.entity?.legacy_id)
     .map((item) => ({
       id: item.entity_id,
       name: item.entity?.title || 'Untitled',
@@ -124,7 +130,10 @@ export default function StoriesTabContent({ activeFilter, onFilterChange }: Stor
           title="Recently Viewed"
           icon={PenLine}
           items={recentChips}
-          onItemClick={() => {}}
+          onItemClick={(id) => {
+            const legacyId = recentStoryLegacyMap.get(id);
+            if (legacyId) navigate(`/legacy/${legacyId}/story/${id}`);
+          }}
         />
       )}
 
@@ -171,9 +180,7 @@ export default function StoriesTabContent({ activeFilter, onFilterChange }: Stor
               ? 'No stories match your search.'
               : activeFilter === 'favorites'
                 ? "You haven't favorited any stories yet."
-                : activeFilter === 'shared'
-                  ? 'No shared stories from your connected legacies.'
-                  : 'No stories found.'}
+                : 'No stories found.'}
           </p>
         </div>
       )}

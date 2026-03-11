@@ -85,11 +85,11 @@ describe('LegaciesPage', () => {
 
   it('renders tab triggers', () => {
     renderPage();
-    // Tabs are now custom buttons, not role="tab"
-    const buttons = screen.getAllByRole('button');
-    const labels = buttons.map((b) => b.textContent);
-    expect(labels.some((t) => t?.includes('Legacies'))).toBe(true);
-    expect(labels.some((t) => t?.includes('Stories'))).toBe(true);
-    expect(labels.some((t) => t?.includes('Activity'))).toBe(true);
+    // Tabs are custom buttons with role="tab" for proper accessibility
+    expect(screen.getByRole('tab', { name: /legacies/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /stories/i })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /activity/i })).toBeInTheDocument();
+    // Active tab has aria-selected=true
+    expect(screen.getByRole('tab', { name: /legacies/i })).toHaveAttribute('aria-selected', 'true');
   });
 });
