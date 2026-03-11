@@ -13,7 +13,6 @@ from ..database import Base
 
 if TYPE_CHECKING:
     from .associations import MediaLegacy, MediaPerson, MediaTag
-    from .tag import Tag
     from .user import User
 
 
@@ -52,7 +51,7 @@ class Media(Base):
     location: Mapped[str | None] = mapped_column(String(255), nullable=True)
     era: Mapped[str | None] = mapped_column(String(50), nullable=True)
     ai_description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    ai_insights: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    ai_insights: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -68,8 +67,12 @@ class Media(Base):
         cascade="all, delete-orphan",
         order_by="MediaLegacy.position",
     )
-    tag_associations: Mapped[list["MediaTag"]] = relationship("MediaTag", cascade="all, delete-orphan")
-    person_associations: Mapped[list["MediaPerson"]] = relationship("MediaPerson", cascade="all, delete-orphan")
+    tag_associations: Mapped[list["MediaTag"]] = relationship(
+        "MediaTag", cascade="all, delete-orphan"
+    )
+    person_associations: Mapped[list["MediaPerson"]] = relationship(
+        "MediaPerson", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Media(id={self.id}, filename={self.filename})>"

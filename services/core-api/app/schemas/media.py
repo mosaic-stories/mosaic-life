@@ -65,7 +65,9 @@ class MediaPersonCreate(BaseModel):
     """Request to tag a person in media."""
 
     person_id: UUID | None = Field(None, description="Existing person ID")
-    name: str | None = Field(None, min_length=1, max_length=200, description="Name for new person")
+    name: str | None = Field(
+        None, min_length=1, max_length=200, description="Name for new person"
+    )
     role: Literal["subject", "family", "friend", "other"] = Field(default="subject")
 
 

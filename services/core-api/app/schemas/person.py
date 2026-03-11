@@ -67,3 +67,12 @@ class PersonMatchResponse(BaseModel):
     """Response for match candidates endpoint."""
 
     candidates: list[PersonMatchCandidate]
+
+
+class PersonSearchResult(BaseModel):
+    """Person search result for tagging."""
+
+    id: UUID
+    canonical_name: str
+
+    model_config = {"from_attributes": True}

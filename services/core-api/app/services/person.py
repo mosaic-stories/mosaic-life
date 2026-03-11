@@ -7,9 +7,10 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..models.associations import MediaLegacy, MediaPerson
 from ..models.legacy import Legacy
 from ..models.person import Person
-from ..schemas.person import PersonMatchCandidate
+from ..schemas.person import PersonMatchCandidate, PersonSearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -190,3 +191,39 @@ async def find_match_candidates(
 
     candidates.sort(key=lambda c: c.confidence, reverse=True)
     return candidates[:limit]
+
+
+async def search_persons(
+    db: AsyncSession,
+    query: str,
+    legacy_id: UUID | None = None,
+    limit: int = 10,
+) -> list[PersonSearchResult]:
+    """Search persons by name, optionally scoped to a legacy."""
+    stmt = select(Person).where(Person.canonical_name.ilike(f"%{query}%"))
+
+    if legacy_id:
+        legacy_persons = (
+            select(Legacy.person_id)
+            .where(Legacy.id == legacy_id, Legacy.person_id.is_not(None))
+            .scalar_subquery()
+        )
+
+        media_persons = (
+            select(MediaPerson.person_id)
+            .join(MediaLegacy, MediaPerson.media_id == MediaLegacy.media_id)
+            .where(MediaLegacy.legacy_id == legacy_id)
+        ).scalar_subquery()
+
+        stmt = stmt.where(
+            (Person.id == legacy_persons) | (Person.id.in_(media_persons))
+        )
+
+    stmt = stmt.order_by(Person.canonical_name).limit(limit)
+
+    result = await db.execute(stmt)
+    persons = result.scalars().all()
+
+    return [
+        PersonSearchResult(id=p.id, canonical_name=p.canonical_name) for p in persons
+    ]

@@ -131,9 +131,7 @@ class MediaTag(Base):
         primary_key=True,
     )
 
-    __table_args__ = (
-        UniqueConstraint("media_id", "tag_id", name="uq_media_tag"),
-    )
+    __table_args__ = (UniqueConstraint("media_id", "tag_id", name="uq_media_tag"),)
 
     def __repr__(self) -> str:
         return f"<MediaTag(media_id={self.media_id}, tag_id={self.tag_id})>"

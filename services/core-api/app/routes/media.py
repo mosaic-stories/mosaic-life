@@ -16,10 +16,14 @@ from ..database import get_db
 from ..schemas.media import (
     MediaConfirmResponse,
     MediaDetail,
+    MediaPersonCreate,
+    MediaPersonResponse,
     MediaSummary,
+    MediaUpdate,
     UploadUrlRequest,
     UploadUrlResponse,
 )
+from ..schemas.tag import TagCreate, TagResponse
 from ..services import activity as activity_service
 from ..services import media as media_service
 
@@ -195,6 +199,162 @@ async def delete_media(
         entity_type="media",
         entity_id=media_id,
         metadata={"filename": result["filename"] if result else None},
+    )
+
+
+@router.put(
+    "/{media_id}",
+    response_model=MediaDetail,
+    summary="Update media metadata",
+)
+async def update_media(
+    media_id: UUID,
+    data: MediaUpdate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> MediaDetail:
+    """Update media metadata (caption, date_taken, location, era)."""
+    session = require_auth(request)
+    result = await media_service.update_media(
+        db=db,
+        user_id=session.user_id,
+        media_id=media_id,
+        data=data,
+    )
+    await activity_service.record_activity(
+        db=db,
+        user_id=session.user_id,
+        action="updated",
+        entity_type="media",
+        entity_id=media_id,
+        metadata={"fields": list(data.model_dump(exclude_unset=True).keys())},
+    )
+    return result
+
+
+@router.get(
+    "/{media_id}/people",
+    response_model=list[MediaPersonResponse],
+    summary="List people tagged in media",
+)
+async def list_media_people(
+    media_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> list[MediaPersonResponse]:
+    """List all people tagged in a media item."""
+    session = require_auth(request)
+    return await media_service.list_media_people(
+        db=db,
+        user_id=session.user_id,
+        media_id=media_id,
+    )
+
+
+@router.post(
+    "/{media_id}/people",
+    response_model=MediaPersonResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Tag a person in media",
+)
+async def tag_person(
+    media_id: UUID,
+    data: MediaPersonCreate,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> MediaPersonResponse:
+    """Tag a person in a media item."""
+    session = require_auth(request)
+    return await media_service.tag_person(
+        db=db,
+        user_id=session.user_id,
+        media_id=media_id,
+        data=data,
+    )
+
+
+@router.delete(
+    "/{media_id}/people/{person_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove a person tag from media",
+)
+async def untag_person(
+    media_id: UUID,
+    person_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Remove a person tag from a media item."""
+    session = require_auth(request)
+    await media_service.untag_person(
+        db=db,
+        user_id=session.user_id,
+        media_id=media_id,
+        person_id=person_id,
+    )
+
+
+@router.get(
+    "/{media_id}/tags",
+    response_model=list[TagResponse],
+    summary="List tags on media",
+)
+async def list_media_tags(
+    media_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> list[TagResponse]:
+    """List all tags on a media item."""
+    session = require_auth(request)
+    return await media_service.list_media_tags(
+        db=db,
+        user_id=session.user_id,
+        media_id=media_id,
+    )
+
+
+@router.post(
+    "/{media_id}/tags",
+    response_model=TagResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a tag to media",
+)
+async def add_media_tag(
+    media_id: UUID,
+    data: TagCreate,
+    request: Request,
+    legacy_id: UUID = Query(..., description="Legacy the tag belongs to"),
+    db: AsyncSession = Depends(get_db),
+) -> TagResponse:
+    """Add a tag to a media item."""
+    session = require_auth(request)
+    return await media_service.add_media_tag(
+        db=db,
+        user_id=session.user_id,
+        media_id=media_id,
+        legacy_id=legacy_id,
+        tag_name=data.name,
+    )
+
+
+@router.delete(
+    "/{media_id}/tags/{tag_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Remove a tag from media",
+)
+async def remove_media_tag(
+    media_id: UUID,
+    tag_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Remove a tag from a media item."""
+    session = require_auth(request)
+    await media_service.remove_media_tag(
+        db=db,
+        user_id=session.user_id,
+        media_id=media_id,
+        tag_id=tag_id,
     )
 
 

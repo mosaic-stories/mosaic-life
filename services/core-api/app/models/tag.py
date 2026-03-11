@@ -52,9 +52,7 @@ class Tag(Base):
     legacy: Mapped["Legacy"] = relationship("Legacy", foreign_keys=[legacy_id])
     creator: Mapped["User | None"] = relationship("User", foreign_keys=[created_by])
 
-    __table_args__ = (
-        UniqueConstraint("name", "legacy_id", name="uq_tag_name_legacy"),
-    )
+    __table_args__ = (UniqueConstraint("name", "legacy_id", name="uq_tag_name_legacy"),)
 
     def __repr__(self) -> str:
         return f"<Tag(id={self.id}, name={self.name}, legacy_id={self.legacy_id})>"

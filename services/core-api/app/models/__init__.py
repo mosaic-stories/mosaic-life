@@ -2,7 +2,13 @@
 
 from .activity import UserActivity
 from .ai import AIConversation, AIMessage
-from .associations import ConversationLegacy, MediaLegacy, MediaPerson, MediaTag, StoryLegacy
+from .associations import (
+    ConversationLegacy,
+    MediaLegacy,
+    MediaPerson,
+    MediaTag,
+    StoryLegacy,
+)
 from .favorite import UserFavorite
 from .invitation import Invitation
 from .knowledge import KnowledgeAuditLog, StoryChunk
