@@ -1,6 +1,6 @@
 # Media Gallery Redesign — Implementation Plan
 
-> **Status:** IN PROGRESS — Backend complete (Tasks 1-5), Frontend pending (Tasks 6-13)
+> **Status:** COMPLETE — All tasks implemented (Tasks 1-13)
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Replace the basic photo grid + modal in the Media Gallery tab with a persistent side detail panel, rich metadata editing, people tagging, tags, and AI insight stubs. Full backend support for new fields, person tagging, and tag management.
