@@ -1,9 +1,12 @@
-import { AlertCircle, Loader2, MessageSquare, Plus } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { AlertCircle, Loader2, MessageSquare, PenLine } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import StoryCard from './StoryCard';
 import type { StorySummary } from '@/features/story/api/stories';
 import { useFavoriteCheck } from '@/features/favorites/hooks/useFavorites';
 import { useAuth } from '@/contexts/AuthContext';
+
+type SortOption = 'recent' | 'oldest';
 
 export interface StoriesSectionProps {
   stories: StorySummary[] | undefined;
@@ -23,11 +26,41 @@ export default function StoriesSection({
   isCreatingStory = false,
 }: StoriesSectionProps) {
   const { user } = useAuth();
+  const [sortBy, setSortBy] = useState<SortOption>('recent');
   const storyIds = stories?.map(s => s.id) ?? [];
   const { data: favoriteData } = useFavoriteCheck('story', user ? storyIds : []);
 
+  const sortedStories = useMemo(() => {
+    if (!stories) return [];
+    const sorted = [...stories];
+    if (sortBy === 'oldest') {
+      sorted.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+    } else {
+      sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }
+    return sorted;
+  }, [stories, sortBy]);
+
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-5">
+      {/* Header with sort */}
+      <div className="flex items-center justify-between">
+        <h2 className="font-serif text-xl sm:text-[22px] font-semibold text-neutral-900">
+          Stories
+        </h2>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-neutral-400">Sort by:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as SortOption)}
+            className="border border-stone-200 rounded-lg px-3 py-1.5 text-[13px] text-neutral-700 bg-white cursor-pointer focus:outline-none focus:ring-1 focus:ring-theme-primary"
+          >
+            <option value="recent">Most Recent</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </div>
+      </div>
+
       {storiesLoading && (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="size-6 animate-spin text-theme-primary" />
@@ -43,7 +76,7 @@ export default function StoriesSection({
         </Card>
       )}
 
-      {!storiesLoading && !storiesError && stories?.map((story) => (
+      {!storiesLoading && !storiesError && sortedStories.map((story) => (
         <StoryCard
           key={story.id}
           story={story}
@@ -60,24 +93,21 @@ export default function StoriesSection({
         </Card>
       )}
 
-      <Card
-        className="p-8 border-dashed hover:border-theme-accent hover:bg-theme-accent-light/30 transition-colors cursor-pointer"
+      {/* Share a Memory CTA */}
+      <div
+        className="border-2 border-dashed border-stone-300 rounded-xl p-8 text-center cursor-pointer hover:border-theme-accent transition-colors"
         onClick={isCreatingStory ? undefined : onAddStory}
       >
-        <div className="text-center space-y-3">
-          <div className="size-12 rounded-full bg-theme-accent-light flex items-center justify-center mx-auto">
-            {isCreatingStory ? (
-              <Loader2 className="size-6 text-theme-primary animate-spin" />
-            ) : (
-              <Plus className="size-6 text-theme-primary" />
-            )}
-          </div>
-          <div>
-            <p className="text-neutral-900">Add a new story</p>
-            <p className="text-sm text-neutral-500">Share a memory or moment</p>
-          </div>
+        <div className="size-11 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-3">
+          {isCreatingStory ? (
+            <Loader2 className="size-5 text-theme-primary animate-spin" />
+          ) : (
+            <PenLine className="size-5 text-neutral-500" />
+          )}
         </div>
-      </Card>
+        <p className="font-serif text-base font-semibold text-neutral-900">Share a Memory</p>
+        <p className="text-[13px] text-neutral-400 mt-1">Write a story or start a conversation with AI</p>
+      </div>
     </div>
   );
 }

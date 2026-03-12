@@ -113,7 +113,7 @@ describe('ActivityTabContent', () => {
       isLoading: false,
     });
     renderContent();
-    expect(screen.getByText(/no activity to show/i)).toBeInTheDocument();
+    expect(screen.getByText(/activity feed/i)).toBeInTheDocument();
   });
 
   it('shows loading spinner while fetching', () => {

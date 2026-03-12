@@ -167,6 +167,21 @@ export const themes: Theme[] = [
       surfaceHover: 'hover:border-orange-300'
     }
   },
+  {
+    id: 'warm-earth',
+    name: 'Warm Earth',
+    description: 'Rich and timeless',
+    category: 'muted',
+    colors: {
+      primary: 'bg-stone-700',
+      primaryLight: 'bg-stone-50',
+      primaryDark: 'bg-stone-800',
+      accent: 'border-stone-300',
+      accentLight: 'bg-stone-100',
+      surface: 'bg-stone-50',
+      surfaceHover: 'hover:border-stone-400'
+    }
+  },
   // Vibrant themes
   {
     id: 'vibrant-coral',

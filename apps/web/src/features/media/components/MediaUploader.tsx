@@ -70,7 +70,7 @@ export default function MediaUploader({ legacyId, onSuccess }: MediaUploaderProp
       <div
         className={`
           border-2 border-dashed rounded-lg p-8 text-center transition-colors
-          ${dragActive ? 'border-blue-500 bg-blue-50' : 'border-neutral-300 hover:border-neutral-400'}
+          ${dragActive ? 'border-stone-500 bg-stone-50' : 'border-stone-300 hover:border-stone-400'}
           ${upload.isPending ? 'opacity-50 pointer-events-none' : 'cursor-pointer'}
         `}
         onDragEnter={handleDrag}
@@ -90,7 +90,7 @@ export default function MediaUploader({ legacyId, onSuccess }: MediaUploaderProp
 
         {upload.isPending ? (
           <div className="flex flex-col items-center gap-2">
-            <Loader2 className="size-8 animate-spin text-blue-500" />
+            <Loader2 className="size-8 animate-spin text-stone-600" />
             <p className="text-neutral-600">Uploading...</p>
           </div>
         ) : (

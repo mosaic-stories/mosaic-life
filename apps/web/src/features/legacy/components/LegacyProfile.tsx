@@ -1,16 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Lock, Loader2, Share2, MoreVertical, Pencil, Trash2, Plus } from 'lucide-react';
+import { Loader2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import PageActionBar from '@/components/PageActionBar';
 import { useLegacyWithFallback, useDeleteLegacy } from '@/features/legacy/hooks/useLegacies';
 import { useStoriesWithFallback, useCreateStory } from '@/features/story/hooks/useStories';
 import { formatLegacyDates } from '@/features/legacy/api/legacies';
@@ -28,6 +20,7 @@ import MediaSection from './MediaSection';
 import AISection from './AISection';
 import DeleteLegacyDialog from './DeleteLegacyDialog';
 import LegacyLinkPanel from '@/features/legacy-link/components/LegacyLinkPanel';
+import LegacySidebar from './LegacySidebar';
 
 type PromptSeedMode = 'story_prompt' | undefined;
 
@@ -77,10 +70,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
 
   const currentUserRole = currentUserMember?.role || 'admirer';
   const isMember = !!currentUserMember;
-  const memberProfileQuery = useMemberProfile(legacyId, { enabled: isMember });
-
-  // Check if current user is the creator of the legacy
-  const _isCreator = currentUserRole === 'creator';
+  const _memberProfileQuery = useMemberProfile(legacyId, { enabled: isMember });
 
   const handleAddStory = useCallback(async () => {
     try {
@@ -136,7 +126,6 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   }
 
   if (legacyError || !legacy) {
-    // Check if this is a 404 error (not found or private)
     const is404 = legacyError && 'status' in legacyError && (legacyError as unknown as { status: number }).status === 404;
 
     return (
@@ -187,97 +176,76 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         />
       )}
 
-      <PageActionBar backLabel="Legacies" backTo="/legacies">
-        <Button variant="ghost" size="sm" onClick={() => setShowMemberDrawer(true)} aria-label="Share">
-          <Share2 className="size-4" />
-        </Button>
-        {authUser && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" aria-label="Legacy options">
-                <MoreVertical className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/legacy/${legacyId}/edit`)}>
-                <Pencil className="size-4" />
-                Edit Legacy
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => setShowDeleteDialog(true)}
-              >
-                <Trash2 className="size-4" />
-                Delete Legacy
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-        {authUser && (
-          <Button size="sm" onClick={handleAddStory} disabled={createStory.isPending} className="bg-theme-primary hover:bg-theme-primary-dark">
-            {createStory.isPending ? (
-              <Loader2 className="size-4 mr-2 animate-spin" />
-            ) : (
-              <Plus className="size-4 mr-2" />
-            )}
-            <span className="hidden sm:inline">Add Story</span>
-          </Button>
-        )}
-      </PageActionBar>
-
       <ProfileHeader
         legacy={legacy}
         dates={dates}
-        storyCount={storyCount}
-        memberCount={memberCount}
-        onMembersClick={() => setShowMemberDrawer(true)}
-        memberProfile={memberProfileQuery.data}
-        isMember={isMember}
         legacyId={legacyId}
+        isAuthenticated={!!authUser}
+        onAddStory={handleAddStory}
+        isCreatingStory={createStory.isPending}
+        onShare={() => setShowMemberDrawer(true)}
+        onEdit={() => navigate(`/legacy/${legacyId}/edit`)}
+        onDelete={() => setShowDeleteDialog(true)}
       />
 
       <SectionNav
         activeSection={activeSection}
         onSectionChange={setActiveSection}
+        storyCount={storyCount}
+        memberCount={memberCount}
+        creatorName={legacy.creator_name}
+        onMembersClick={() => setShowMemberDrawer(true)}
       />
 
-      <main className="max-w-7xl mx-auto px-6 py-12">
-        {activeSection === 'stories' && (
-          <StoriesSection
-            stories={stories}
-            storiesLoading={storiesLoading}
-            storiesError={storiesError}
-            onStoryClick={(storyId) => navigate(`/legacy/${legacyId}/story/${storyId}`)}
-            onAddStory={handleAddStory}
-            isCreatingStory={createStory.isPending}
-          />
-        )}
+      <div className={`max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 gap-9 ${activeSection !== 'media' ? 'lg:grid-cols-[1fr_320px]' : ''}`}>
+        {/* Main content */}
+        <main>
+          {activeSection === 'stories' && (
+            <StoriesSection
+              stories={stories}
+              storiesLoading={storiesLoading}
+              storiesError={storiesError}
+              onStoryClick={(storyId) => navigate(`/legacy/${legacyId}/story/${storyId}`)}
+              onAddStory={handleAddStory}
+              isCreatingStory={createStory.isPending}
+            />
+          )}
 
-        {activeSection === 'links' && (
-          <LegacyLinkPanel
-            legacyId={legacyId}
-            personId={legacy.person_id}
-            legacyName={legacy.name}
-          />
-        )}
+          {activeSection === 'links' && (
+            <LegacyLinkPanel
+              legacyId={legacyId}
+              personId={legacy.person_id}
+              legacyName={legacy.name}
+            />
+          )}
 
-        {activeSection === 'media' && (
-          <MediaSection
-            legacyId={legacyId}
-            profileImageId={legacy.profile_image_id}
-            isAuthenticated={!!user}
-          />
-        )}
+          {activeSection === 'media' && (
+            <MediaSection
+              legacyId={legacyId}
+              profileImageId={legacy.profile_image_id}
+              isAuthenticated={!!user}
+            />
+          )}
 
-        {activeSection === 'ai' && (
-          <AISection
+          {activeSection === 'ai' && (
+            <AISection
+              legacyId={legacyId}
+              initialConversationId={conversationParam}
+              initialSeedMode={promptSeedMode}
+            />
+          )}
+        </main>
+
+        {/* Sidebar */}
+        {activeSection !== 'media' && (
+          <LegacySidebar
+            legacy={legacy}
             legacyId={legacyId}
-            initialConversationId={conversationParam}
-            initialSeedMode={promptSeedMode}
+            onMembersClick={() => setShowMemberDrawer(true)}
+            onSectionChange={setActiveSection}
           />
         )}
-      </main>
+      </div>
 
       <DeleteLegacyDialog
         open={showDeleteDialog}

@@ -2,13 +2,14 @@
 
 import logging
 from datetime import date
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import require_auth
 from ..database import get_db
-from ..schemas.person import PersonMatchResponse
+from ..schemas.person import PersonMatchResponse, PersonSearchResult
 from ..services.person import find_match_candidates
 
 router = APIRouter(prefix="/api/persons", tags=["persons"])
@@ -45,3 +46,34 @@ async def get_match_candidates(
     )
 
     return PersonMatchResponse(candidates=candidates)
+
+
+@router.get(
+    "/search",
+    response_model=list[PersonSearchResult],
+    summary="Search persons by name",
+)
+async def search_persons(
+    request: Request,
+    q: str = Query(..., min_length=1, max_length=200, description="Search query"),
+    legacy_id: UUID = Query(..., description="Scope to persons linked to this legacy"),
+    db: AsyncSession = Depends(get_db),
+) -> list[PersonSearchResult]:
+    """Search persons by name."""
+    session = require_auth(request)
+    logger.info(
+        "person.search",
+        extra={
+            "user_id": str(session.user_id),
+            "query": q,
+            "legacy_id": str(legacy_id),
+        },
+    )
+    from ..services.person import search_persons as search_persons_svc
+
+    return await search_persons_svc(
+        db=db,
+        user_id=session.user_id,
+        query=q,
+        legacy_id=legacy_id,
+    )

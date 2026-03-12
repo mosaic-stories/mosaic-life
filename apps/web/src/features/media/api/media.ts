@@ -1,5 +1,5 @@
 // Media API client
-import { apiGet, apiPost, apiDelete, apiPatch } from '@/lib/api/client';
+import { apiGet, apiPost, apiDelete, apiPatch, apiPut } from '@/lib/api/client';
 
 export interface LegacyAssociation {
   legacy_id: string;
@@ -20,6 +20,29 @@ export interface UploadUrlResponse {
   storage_path: string;
 }
 
+export interface TagItem {
+  id: string;
+  name: string;
+}
+
+export interface MediaPersonItem {
+  person_id: string;
+  person_name: string;
+  role: string;
+}
+
+export interface PersonSearchResult {
+  id: string;
+  canonical_name: string;
+}
+
+export interface MediaUpdateData {
+  caption?: string | null;
+  date_taken?: string | null;
+  location?: string | null;
+  era?: string | null;
+}
+
 export interface MediaItem {
   id: string;
   filename: string;
@@ -31,6 +54,12 @@ export interface MediaItem {
   legacies: LegacyAssociation[];
   created_at: string;
   favorite_count?: number;
+  caption?: string | null;
+  date_taken?: string | null;
+  location?: string | null;
+  era?: string | null;
+  tags: TagItem[];
+  people: MediaPersonItem[];
 }
 
 export interface MediaDetail extends MediaItem {
@@ -118,4 +147,42 @@ export async function setProfileImage(
   return apiPatch(`/api/legacies/${legacyId}/profile-image`, {
     media_id: mediaId,
   });
+}
+
+export async function updateMedia(mediaId: string, data: MediaUpdateData): Promise<MediaDetail> {
+  return apiPut<MediaDetail>(`/api/media/${mediaId}`, data);
+}
+
+export async function listMediaPeople(mediaId: string): Promise<MediaPersonItem[]> {
+  return apiGet<MediaPersonItem[]>(`/api/media/${mediaId}/people`);
+}
+
+export async function tagPerson(mediaId: string, data: { person_id?: string; name?: string; role: string }): Promise<MediaPersonItem> {
+  return apiPost<MediaPersonItem>(`/api/media/${mediaId}/people`, data);
+}
+
+export async function untagPerson(mediaId: string, personId: string): Promise<void> {
+  return apiDelete(`/api/media/${mediaId}/people/${personId}`);
+}
+
+export async function listMediaTags(mediaId: string): Promise<TagItem[]> {
+  return apiGet<TagItem[]>(`/api/media/${mediaId}/tags`);
+}
+
+export async function addMediaTag(mediaId: string, name: string, legacyId: string): Promise<TagItem> {
+  return apiPost<TagItem>(`/api/media/${mediaId}/tags?legacy_id=${legacyId}`, { name });
+}
+
+export async function removeMediaTag(mediaId: string, tagId: string): Promise<void> {
+  return apiDelete(`/api/media/${mediaId}/tags/${tagId}`);
+}
+
+export async function listLegacyTags(legacyId: string): Promise<TagItem[]> {
+  return apiGet<TagItem[]>(`/api/tags/?legacy_id=${legacyId}`);
+}
+
+export async function searchPersons(query: string, legacyId?: string): Promise<PersonSearchResult[]> {
+  const params = new URLSearchParams({ q: query });
+  if (legacyId) params.append('legacy_id', legacyId);
+  return apiGet<PersonSearchResult[]>(`/api/persons/search?${params}`);
 }

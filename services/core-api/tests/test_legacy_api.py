@@ -91,6 +91,27 @@ class TestListLegacies:
         assert any(legacy["id"] == str(test_legacy.id) for legacy in result["items"])
 
     @pytest.mark.asyncio
+    async def test_list_legacies_returns_correct_role(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+        test_user: User,
+    ):
+        """Regression: list response must return actual current_user_role.
+
+        Previously hardcoded 'admirer' for all legacies in the list.
+        """
+        response = await client.get("/api/legacies/", headers=auth_headers)
+
+        assert response.status_code == 200
+        result = response.json()
+        my_legacy = next(
+            item for item in result["items"] if item["id"] == str(test_legacy.id)
+        )
+        assert my_legacy["current_user_role"] == "creator"
+
+    @pytest.mark.asyncio
     async def test_list_legacies_requires_auth(
         self,
         client: AsyncClient,
@@ -222,6 +243,30 @@ class TestUpdateLegacy:
         result = response.json()
         assert result["name"] == "Updated Name"
         assert result["biography"] == "Updated bio"
+
+    @pytest.mark.asyncio
+    async def test_update_legacy_returns_creator_role(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+    ):
+        """Regression: update response must return current_user_role='creator'.
+
+        Previously hardcoded 'admirer', which poisoned the TanStack Query
+        cache and hid the edit form fields on subsequent visits.
+        """
+        data = {"biography": "Updated bio for role check"}
+
+        response = await client.put(
+            f"/api/legacies/{test_legacy.id}",
+            json=data,
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        result = response.json()
+        assert result["current_user_role"] == "creator"
 
 
 class TestDeleteLegacy:

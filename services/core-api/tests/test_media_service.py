@@ -6,9 +6,11 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.associations import MediaLegacy
+from app.models.associations import MediaLegacy, MediaPerson, MediaTag
 from app.models.legacy import Legacy
 from app.models.media import Media
+from app.models.person import Person
+from app.models.tag import Tag
 from app.models.user import User
 from app.schemas.associations import LegacyAssociationCreate
 from app.schemas.media import UploadUrlRequest
@@ -162,3 +164,84 @@ class TestRequestUploadUrlAssociations:
         assert len(associations) == 1
         assert associations[0].legacy_id == test_legacy.id
         assert associations[0].role == "primary"
+
+
+class TestGetMediaDetail:
+    """Tests for full media detail assembly."""
+
+    @pytest.mark.asyncio
+    async def test_includes_metadata_tags_and_people(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+        test_media: Media,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        class DummyStorage:
+            def generate_download_url(self, storage_path: str) -> str:
+                return f"https://example.test/download/{storage_path}"
+
+        monkeypatch.setattr(
+            media_service, "get_storage_adapter", lambda: DummyStorage()
+        )
+
+        person = Person(canonical_name="Service Tagged Person")
+        tag = Tag(name="service-tag", legacy_id=test_legacy.id, created_by=test_user.id)
+        db_session.add_all([person, tag])
+        await db_session.flush()
+
+        test_media.caption = "Service caption"
+        test_media.date_taken = "1958"
+        test_media.location = "Detroit"
+        test_media.era = "1950s"
+        db_session.add(MediaTag(media_id=test_media.id, tag_id=tag.id))
+        db_session.add(
+            MediaPerson(
+                media_id=test_media.id,
+                person_id=person.id,
+                role="family",
+            )
+        )
+        await db_session.commit()
+
+        detail = await media_service.get_media_detail(
+            db=db_session,
+            user_id=test_user.id,
+            media_id=test_media.id,
+        )
+
+        assert detail.caption == "Service caption"
+        assert detail.date_taken == "1958"
+        assert detail.location == "Detroit"
+        assert detail.era == "1950s"
+        assert len(detail.tags) == 1
+        assert detail.tags[0].id == tag.id
+        assert detail.tags[0].name == "service-tag"
+        assert detail.people[0].person_id == person.id
+        assert detail.people[0].person_name == "Service Tagged Person"
+        assert detail.people[0].role == "family"
+
+
+class TestAddMediaTag:
+    """Tests for add_media_tag legacy enforcement."""
+
+    @pytest.mark.asyncio
+    async def test_rejects_legacy_not_associated_with_media(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy_2: Legacy,
+        test_media: Media,
+    ):
+        with pytest.raises(HTTPException) as exc:
+            await media_service.add_media_tag(
+                db=db_session,
+                user_id=test_user.id,
+                media_id=test_media.id,
+                legacy_id=test_legacy_2.id,
+                tag_name="invalid-scope",
+            )
+
+        assert exc.value.status_code == 400
+        assert "associated with this media" in exc.value.detail

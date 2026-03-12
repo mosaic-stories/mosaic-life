@@ -50,7 +50,7 @@ describe('RecentlyViewedChips', () => {
 
   it('renders chips for each item', () => {
     renderChips();
-    expect(screen.getByText('Margaret')).toBeInTheDocument();
-    expect(screen.getByText('Captain')).toBeInTheDocument();
+    expect(screen.getByText('Margaret Chen')).toBeInTheDocument();
+    expect(screen.getByText('Captain Torres')).toBeInTheDocument();
   });
 });

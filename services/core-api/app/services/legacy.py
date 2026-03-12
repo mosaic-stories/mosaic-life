@@ -302,7 +302,7 @@ async def list_user_legacies(
         List of legacies where user has membership (not pending)
     """
     result = await db.execute(
-        select(Legacy)
+        select(Legacy, LegacyMember.role)
         .join(LegacyMember)
         .options(
             selectinload(Legacy.creator),
@@ -314,7 +314,9 @@ async def list_user_legacies(
         )
         .order_by(Legacy.created_at.desc())
     )
-    legacies = result.scalars().all()
+    rows = result.all()
+
+    legacies = [(row[0], row[1]) for row in rows]
 
     logger.info(
         "legacy.list",
@@ -325,7 +327,7 @@ async def list_user_legacies(
     )
 
     # Batch-fetch story counts
-    legacy_ids = [legacy.id for legacy in legacies]
+    legacy_ids = [legacy.id for legacy, _ in legacies]
     story_counts = await get_story_counts(db, legacy_ids)
 
     return [
@@ -342,14 +344,14 @@ async def list_user_legacies(
             updated_at=legacy.updated_at,
             creator_email=legacy.creator.email,
             creator_name=legacy.creator.name,
-            current_user_role="admirer",
+            current_user_role=member_role,
             person_id=legacy.person_id,
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
             favorite_count=legacy.favorite_count or 0,
             story_count=story_counts.get(legacy.id, 0),
         )
-        for legacy in legacies
+        for legacy, member_role in legacies
     ]
 
 
@@ -1041,7 +1043,7 @@ async def update_legacy(
         updated_at=legacy.updated_at,
         creator_email=legacy.creator.email,
         creator_name=legacy.creator.name,
-        current_user_role="admirer",
+        current_user_role="creator",
         person_id=legacy.person_id,
         favorite_count=legacy.favorite_count or 0,
         story_count=story_count,

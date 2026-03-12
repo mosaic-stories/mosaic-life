@@ -2,7 +2,13 @@
 
 from .activity import UserActivity
 from .ai import AIConversation, AIMessage
-from .associations import ConversationLegacy, MediaLegacy, StoryLegacy
+from .associations import (
+    ConversationLegacy,
+    MediaLegacy,
+    MediaPerson,
+    MediaTag,
+    StoryLegacy,
+)
 from .favorite import UserFavorite
 from .invitation import Invitation
 from .knowledge import KnowledgeAuditLog, StoryChunk
@@ -10,6 +16,7 @@ from .legacy import Legacy, LegacyMember
 from .legacy_link import LegacyLink, LegacyLinkShare
 from .memory import ConversationChunk, LegacyFact
 from .media import Media
+from .tag import Tag
 from .notification import Notification
 from .person import Person
 from .story import Story
@@ -36,6 +43,8 @@ __all__ = [
     "LegacyMember",
     "Media",
     "MediaLegacy",
+    "MediaPerson",
+    "MediaTag",
     "Notification",
     "Person",
     "Story",
@@ -46,6 +55,7 @@ __all__ = [
     "StoryPrompt",
     "StoryVersion",
     "SupportRequest",
+    "Tag",
     "User",
     "UserActivity",
     "UserFavorite",

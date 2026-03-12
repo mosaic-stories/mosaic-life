@@ -4,12 +4,15 @@ import logging
 from datetime import date
 from uuid import UUID
 
+from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy import union
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models.legacy import Legacy
+from ..models.associations import MediaLegacy, MediaPerson
+from ..models.legacy import Legacy, LegacyMember
 from ..models.person import Person
-from ..schemas.person import PersonMatchCandidate
+from ..schemas.person import PersonMatchCandidate, PersonSearchResult
 
 logger = logging.getLogger(__name__)
 
@@ -190,3 +193,50 @@ async def find_match_candidates(
 
     candidates.sort(key=lambda c: c.confidence, reverse=True)
     return candidates[:limit]
+
+
+async def search_persons(
+    db: AsyncSession,
+    user_id: UUID,
+    query: str,
+    legacy_id: UUID,
+    limit: int = 10,
+) -> list[PersonSearchResult]:
+    """Search persons by name within an authorized legacy scope."""
+    member_result = await db.execute(
+        select(LegacyMember).where(
+            LegacyMember.legacy_id == legacy_id,
+            LegacyMember.user_id == user_id,
+            LegacyMember.role != "pending",
+        )
+    )
+    if member_result.scalar_one_or_none() is None:
+        raise HTTPException(
+            status_code=403,
+            detail="Must be a member of the legacy to search persons",
+        )
+
+    scoped_person_ids = union(
+        select(Legacy.person_id.label("person_id")).where(
+            Legacy.id == legacy_id,
+            Legacy.person_id.is_not(None),
+        ),
+        select(MediaPerson.person_id.label("person_id"))
+        .join(MediaLegacy, MediaPerson.media_id == MediaLegacy.media_id)
+        .where(MediaLegacy.legacy_id == legacy_id),
+    ).subquery()
+
+    stmt = (
+        select(Person)
+        .join(scoped_person_ids, scoped_person_ids.c.person_id == Person.id)
+        .where(Person.canonical_name.ilike(f"%{query}%"))
+    )
+
+    stmt = stmt.order_by(Person.canonical_name).limit(limit)
+
+    result = await db.execute(stmt)
+    persons = result.scalars().all()
+
+    return [
+        PersonSearchResult(id=p.id, canonical_name=p.canonical_name) for p in persons
+    ]
