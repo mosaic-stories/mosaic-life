@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Loader2, Image as ImageIcon } from 'lucide-react';
 import { useMedia, useDeleteMedia } from '@/features/media/hooks/useMedia';
 import { type MediaItem } from '@/features/media/api/media';
@@ -34,6 +34,16 @@ export default function MediaSection({
 
   const mediaIds = media?.map(m => m.id) ?? [];
   const { data: favoriteData } = useFavoriteCheck('media', isAuthenticated ? mediaIds : []);
+
+  // Track if we're at lg breakpoint (1024px+) to avoid rendering Sheet overlay on desktop
+  const [isDesktop, setIsDesktop] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 1024px)');
+    const onChange = () => setIsDesktop(mql.matches);
+    mql.addEventListener('change', onChange);
+    setIsDesktop(mql.matches);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
 
   const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);
   const [showUploader, setShowUploader] = useState(false);
@@ -171,9 +181,9 @@ export default function MediaSection({
         )}
       </div>
 
-      {/* Mobile detail panel (Sheet) */}
-      <Sheet open={!!selectedMedia} onOpenChange={(open) => { if (!open) setSelectedMediaId(null); }}>
-        <SheetContent side="bottom" className="lg:hidden h-[85vh] overflow-y-auto p-0">
+      {/* Mobile detail panel (Sheet) — only open below lg breakpoint */}
+      <Sheet open={!isDesktop && !!selectedMedia} onOpenChange={(open) => { if (!open) setSelectedMediaId(null); }}>
+        <SheetContent side="bottom" className="h-[85vh] overflow-y-auto p-0">
           {selectedMedia && (
             <MediaDetailPanel
               media={selectedMedia}
