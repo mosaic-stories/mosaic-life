@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "Mosaic Life Documentation",
+  "engines": {
+    "node": ">=20.20.1 <21"
+  },
   "scripts": {
     "generate:typedoc": "typedoc",
     "generate:typedoc:web": "typedoc --options typedoc-web.json",

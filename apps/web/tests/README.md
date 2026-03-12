@@ -4,7 +4,7 @@ End-to-end tests for Mosaic Life using Playwright.
 
 ## Prerequisites
 
-- Node.js 20+
+- nvm with Node.js 20.20.1 active (`cd /apps/mosaic-life && nvm install && nvm use`)
 - pnpm 9+
 - Docker and Docker Compose (for running backend services)
 

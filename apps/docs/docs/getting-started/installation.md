@@ -5,7 +5,8 @@ This guide covers setting up Mosaic Life for local development.
 ## Prerequisites
 
 - Docker and Docker Compose
-- Node.js 20+
+- nvm
+- Node.js 20.20.1 (`nvm install && nvm use` from the repo root)
 - Python 3.12+
 - uv (Python package manager)
 
@@ -16,6 +17,8 @@ This guide covers setting up Mosaic Life for local development.
     ```bash
     git clone https://github.com/mosaic-stories/mosaic-life.git
     cd mosaic-life
+    nvm install
+    nvm use
     ```
 
 2. Start all services:

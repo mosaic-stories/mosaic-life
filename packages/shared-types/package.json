@@ -5,6 +5,9 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=20.20.1 <21"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json"
   },

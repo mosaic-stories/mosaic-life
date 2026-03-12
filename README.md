@@ -37,7 +37,8 @@ When someone passes away, the memories scattered across family and friends begin
 ### Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- [Node.js](https://nodejs.org/) (v18+)
+- [nvm](https://github.com/nvm-sh/nvm) for managing Node.js versions locally
+- [Node.js](https://nodejs.org/) 20.20.1 (installed via `nvm`)
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - [just](https://github.com/casey/just) (command runner — optional but recommended)
 
@@ -47,6 +48,10 @@ When someone passes away, the memories scattered across family and friends begin
 # Clone the repository
 git clone https://github.com/mosaic-stories/mosaic-life.git
 cd mosaic-life
+
+# Install and activate the repo's pinned Node.js version
+nvm install
+nvm use
 
 # Start all services (PostgreSQL, API, frontend, Jaeger, etc.)
 docker compose -f infra/compose/docker-compose.yml up -d
@@ -98,6 +103,8 @@ This starts the full stack including the frontend, backend, database, and suppor
 ### Frontend
 
 ```bash
+nvm install
+nvm use
 cd apps/web
 npm install
 npm run dev           # Dev server with HMR (localhost:5173)
@@ -154,6 +161,19 @@ just lint-fix-backend
 just build-web           # Build frontend image
 just build-core-api      # Build backend image
 ```
+
+### Node Version Management
+
+This repository pins Node.js in `.nvmrc` and expects local frontend and docs work to use `nvm` instead of a system-wide Node install.
+
+```bash
+cd /apps/mosaic-life
+nvm install
+nvm use
+node --version
+```
+
+Expected output: `v20.20.1`
 
 ## Project Structure
 
