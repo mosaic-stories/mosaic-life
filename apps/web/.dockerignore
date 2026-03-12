@@ -1,0 +1,45 @@
+# Dependencies
+node_modules
+pnpm-lock.yaml
+package-lock.json
+
+# Build outputs
+dist
+build
+.vite
+
+# Testing
+coverage
+test-results
+playwright-report
+.playwright
+
+# Cache
+.cache
+.ruff_cache
+.eslintcache
+
+# Development
+.env.local
+.env.*.local
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Storybook (dev-only tooling)
+.storybook/
+storybook-static/
+**/*.stories.tsx
+**/*.stories.ts
