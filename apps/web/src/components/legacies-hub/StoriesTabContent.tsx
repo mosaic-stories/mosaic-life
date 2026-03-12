@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, BookOpen, PenLine } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -10,6 +10,7 @@ import { useRecentlyViewed } from '@/features/activity/hooks/useActivity';
 import type { StoryScope } from '@/features/story/api/stories';
 import Toolbar from './Toolbar';
 import type { SortOption } from './Toolbar';
+import type { ViewMode } from './Toolbar';
 import type { FilterOption } from './QuickFilters';
 import { RecentChipRow } from './RecentlyViewedChips';
 import type { ChipItem } from './RecentlyViewedChips';
@@ -17,6 +18,12 @@ import type { ChipItem } from './RecentlyViewedChips';
 interface StoriesTabContentProps {
   activeFilter: string;
   onFilterChange: (key: string) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+  sortBy: string;
+  onSortChange: (value: string) => void;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
 }
 
 const filterOptions: FilterOption[] = [
@@ -35,11 +42,17 @@ const sortOptions: SortOption[] = [
   { value: 'alpha', label: 'Alphabetical' },
 ];
 
-export default function StoriesTabContent({ activeFilter, onFilterChange }: StoriesTabContentProps) {
+export default function StoriesTabContent({
+  activeFilter,
+  onFilterChange,
+  viewMode,
+  onViewModeChange,
+  sortBy,
+  onSortChange,
+  searchQuery,
+  onSearchChange,
+}: StoriesTabContentProps) {
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [sortBy, setSortBy] = useState('recent');
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Map filter to API scope
   const apiScope: StoryScope = (() => {
@@ -117,12 +130,12 @@ export default function StoriesTabContent({ activeFilter, onFilterChange }: Stor
         onFilterChange={onFilterChange}
         sortOptions={sortOptions}
         sortValue={sortBy}
-        onSortChange={setSortBy}
+        onSortChange={onSortChange}
         searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={onSearchChange}
         searchPlaceholder="Search stories..."
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={onViewModeChange}
       />
 
       {recentChips.length > 0 && (

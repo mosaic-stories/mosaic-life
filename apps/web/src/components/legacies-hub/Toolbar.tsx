@@ -8,6 +8,8 @@ export interface SortOption {
   label: string;
 }
 
+export type ViewMode = 'grid' | 'list';
+
 interface ToolbarProps {
   filterOptions: FilterOption[];
   activeFilter: string;
@@ -18,8 +20,8 @@ interface ToolbarProps {
   searchValue: string;
   onSearchChange: (value: string) => void;
   searchPlaceholder?: string;
-  viewMode: 'grid' | 'list';
-  onViewModeChange: (mode: 'grid' | 'list') => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
 }
 
 export default function Toolbar({

@@ -1,8 +1,19 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { MediaItem } from '@/features/media/api/media';
+
+type MatchMediaStub = {
+  matches: boolean;
+  media: string;
+  onchange: null;
+  addEventListener: ReturnType<typeof vi.fn>;
+  removeEventListener: ReturnType<typeof vi.fn>;
+  addListener: ReturnType<typeof vi.fn>;
+  removeListener: ReturnType<typeof vi.fn>;
+  dispatchEvent: ReturnType<typeof vi.fn>;
+};
 
 const mocks = vi.hoisted(() => ({
   useMedia: vi.fn(),
@@ -47,7 +58,9 @@ vi.mock('@/features/media/components/MediaDetailPanel', () => ({
 }));
 
 vi.mock('@/components/ui/sheet', () => ({
-  Sheet: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  Sheet: ({ open, children }: { open: boolean; children: ReactNode }) => (
+    open ? <div data-testid="mobile-sheet">{children}</div> : null
+  ),
   SheetContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
@@ -87,11 +100,40 @@ const mediaItem: MediaItem = {
   people: [],
 };
 
+const originalMatchMedia = window.matchMedia;
+
+function stubMatchMedia(matches: boolean): MatchMediaStub {
+  const mql: MatchMediaStub = {
+    matches,
+    media: '(min-width: 1024px)',
+    onchange: null,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  };
+
+  vi.stubGlobal('matchMedia', vi.fn(() => mql));
+
+  return mql;
+}
+
 describe('MediaSection', () => {
   beforeEach(() => {
     mocks.useMedia.mockReturnValue({ data: [mediaItem], isLoading: false, error: null });
     mocks.deleteMutateAsync.mockReset();
     mocks.favoriteCheck.mockReturnValue({ data: { favorites: {} } });
+    stubMatchMedia(false);
+  });
+
+  afterEach(() => {
+    if (originalMatchMedia) {
+      vi.stubGlobal('matchMedia', originalMatchMedia);
+      return;
+    }
+
+    vi.unstubAllGlobals();
   });
 
   it('opens the existing delete confirmation dialog from the detail panel delete affordance', async () => {
@@ -120,5 +162,29 @@ describe('MediaSection', () => {
     await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
     expect(mocks.deleteMutateAsync).toHaveBeenCalledWith('media-1');
+  });
+
+  it('does not throw when matchMedia is unavailable', () => {
+    vi.unstubAllGlobals();
+
+    expect(() => {
+      render(
+        <MediaSection legacyId="legacy-1" profileImageId={null} isAuthenticated />
+      );
+    }).not.toThrow();
+  });
+
+  it('does not render the mobile sheet content on desktop', async () => {
+    const user = userEvent.setup();
+    stubMatchMedia(true);
+
+    render(
+      <MediaSection legacyId="legacy-1" profileImageId={null} isAuthenticated />
+    );
+
+    await user.click(screen.getByRole('button', { name: /family-photo.jpg/i }));
+
+    expect(screen.queryByTestId('mobile-sheet')).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /delete photo/i })).toHaveLength(1);
   });
 });

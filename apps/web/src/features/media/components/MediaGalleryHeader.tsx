@@ -31,13 +31,18 @@ export default function MediaGalleryHeader({
       <div className="flex items-center gap-2.5">
         {/* View toggle */}
         <div className="flex bg-white border border-stone-200 rounded-lg overflow-hidden">
-          <button className="px-2.5 py-1.5 bg-stone-100">
+          <button type="button" className="px-2.5 py-1.5 bg-stone-100">
             <Grid size={15} className="text-stone-700" />
           </button>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <button className="px-2.5 py-1.5" disabled>
+                <button
+                  type="button"
+                  aria-disabled="true"
+                  aria-label="Timeline view unavailable"
+                  className="px-2.5 py-1.5 cursor-not-allowed"
+                >
                   <Clock size={15} className="text-neutral-300" />
                 </button>
               </TooltipTrigger>
@@ -49,6 +54,7 @@ export default function MediaGalleryHeader({
         </div>
         {/* Upload button */}
         <button
+          type="button"
           onClick={onUploadClick}
           className="flex items-center gap-1.5 px-4 py-2 bg-stone-700 text-white rounded-lg text-[13px] font-semibold hover:bg-stone-800 transition-colors"
         >

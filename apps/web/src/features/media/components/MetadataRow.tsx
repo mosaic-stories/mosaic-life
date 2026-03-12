@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PenLine, type LucideIcon } from 'lucide-react';
 
 interface MetadataRowProps {
@@ -21,6 +21,12 @@ export default function MetadataRow({
   const [editing, setEditing] = useState(false);
   const [localValue, setLocalValue] = useState(value || '');
   const isEmpty = !value;
+
+  useEffect(() => {
+    if (!editing) {
+      setLocalValue(value || '');
+    }
+  }, [editing, value]);
 
   const handleBlur = () => {
     setEditing(false);

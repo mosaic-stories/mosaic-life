@@ -65,7 +65,16 @@ function renderContent(activeFilter = 'all', onFilterChange = vi.fn()) {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <LegaciesTabContent activeFilter={activeFilter} onFilterChange={onFilterChange} />
+        <LegaciesTabContent
+          activeFilter={activeFilter}
+          onFilterChange={onFilterChange}
+          viewMode="grid"
+          onViewModeChange={vi.fn()}
+          sortBy="recent"
+          onSortChange={vi.fn()}
+          searchQuery=""
+          onSearchChange={vi.fn()}
+        />
       </MemoryRouter>
     </QueryClientProvider>,
   );

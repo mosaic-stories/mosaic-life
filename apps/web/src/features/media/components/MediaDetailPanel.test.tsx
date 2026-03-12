@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { ComponentProps } from 'react';
@@ -98,6 +98,13 @@ const mediaItem: MediaItem = {
   people: [],
 };
 
+const mediaItemTwo: MediaItem = {
+  ...mediaItem,
+  id: 'media-2',
+  filename: 'vacation-photo.jpg',
+  caption: 'Vacation photo',
+};
+
 function renderPanel(overrides?: Partial<ComponentProps<typeof MediaDetailPanel>>) {
   return render(
     <MediaDetailPanel
@@ -180,5 +187,79 @@ describe('MediaDetailPanel', () => {
       { mediaId: 'media-1', name: 'Family', legacyId: 'legacy-1' },
       expect.any(Object)
     );
+  });
+
+  it('does not navigate with arrow keys while focus is in a text input', async () => {
+    const user = userEvent.setup();
+
+    renderPanel({ allMedia: [mediaItem, mediaItemTwo] });
+
+    const input = screen.getByPlaceholderText(/add a tag and press enter/i);
+    await user.click(input);
+    fireEvent.keyDown(input, { key: 'ArrowRight', bubbles: true });
+
+    expect(mocks.onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate with arrow keys while focus is in the caption textarea', async () => {
+    const user = userEvent.setup();
+
+    renderPanel({ allMedia: [mediaItem, mediaItemTwo] });
+
+    await user.click(screen.getByText('Family photo'));
+    const textarea = screen.getByPlaceholderText(/add a caption/i);
+    fireEvent.keyDown(textarea, { key: 'ArrowRight', bubbles: true });
+
+    expect(mocks.onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate with arrow keys while focus is on a local action button', async () => {
+    const user = userEvent.setup();
+
+    renderPanel({ allMedia: [mediaItem, mediaItemTwo] });
+
+    const button = screen.getByRole('button', { name: /tag someone/i });
+    await user.click(button);
+    fireEvent.keyDown(button, { key: 'ArrowRight', bubbles: true });
+
+    expect(mocks.onNavigate).not.toHaveBeenCalled();
+  });
+
+  it('does not navigate with arrow keys while focus is in a contenteditable region', () => {
+    renderPanel({ allMedia: [mediaItem, mediaItemTwo] });
+
+    const editable = document.createElement('div');
+    editable.setAttribute('contenteditable', 'true');
+    editable.tabIndex = 0;
+    document.body.appendChild(editable);
+    editable.focus();
+
+    fireEvent.keyDown(editable, { key: 'ArrowRight', bubbles: true });
+
+    expect(mocks.onNavigate).not.toHaveBeenCalled();
+
+    editable.remove();
+  });
+
+  it('keeps Escape local while editing caption text', async () => {
+    const user = userEvent.setup();
+
+    renderPanel();
+
+    await user.click(screen.getByText('Family photo'));
+    const textarea = screen.getByPlaceholderText(/add a caption/i);
+    fireEvent.keyDown(textarea, { key: 'Escape', bubbles: true });
+
+    expect(mocks.onClose).not.toHaveBeenCalled();
+  });
+
+  it('still closes on Escape when focus is on a non-text control', async () => {
+    renderPanel();
+
+    const button = screen.getByRole('button', { name: /tag someone/i });
+    button.focus();
+    fireEvent.keyDown(button, { key: 'Escape', bubbles: true });
+
+    expect(mocks.onClose).toHaveBeenCalledTimes(1);
   });
 });

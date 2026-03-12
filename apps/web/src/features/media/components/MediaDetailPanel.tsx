@@ -23,6 +23,53 @@ import DetailSection from './DetailSection';
 import MetadataRow from './MetadataRow';
 import TagPill from './TagPill';
 
+const NON_TEXT_INPUT_TYPES = new Set([
+  'button',
+  'checkbox',
+  'color',
+  'file',
+  'hidden',
+  'image',
+  'radio',
+  'range',
+  'reset',
+  'submit',
+]);
+
+function getKeyboardContextTarget(target: EventTarget | null): HTMLElement | null {
+  if (!(target instanceof HTMLElement)) {
+    return null;
+  }
+
+  return target.closest('input, textarea, select, button, [contenteditable="true"], [role="textbox"]');
+}
+
+function shouldBlockArrowNavigation(target: EventTarget | null): boolean {
+  return getKeyboardContextTarget(target) !== null;
+}
+
+function shouldKeepEscapeLocal(target: EventTarget | null): boolean {
+  const contextTarget = getKeyboardContextTarget(target);
+
+  if (!contextTarget) {
+    return false;
+  }
+
+  if (contextTarget instanceof HTMLTextAreaElement) {
+    return true;
+  }
+
+  if (contextTarget instanceof HTMLInputElement) {
+    return !NON_TEXT_INPUT_TYPES.has(contextTarget.type);
+  }
+
+  if (contextTarget.getAttribute('role') === 'textbox') {
+    return true;
+  }
+
+  return contextTarget.isContentEditable || contextTarget.getAttribute('contenteditable') === 'true';
+}
+
 interface MediaDetailPanelProps {
   media: MediaItem;
   allMedia: MediaItem[];
@@ -76,13 +123,27 @@ export default function MediaDetailPanel({
   // Keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (editingCaption) return;
+      if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && shouldBlockArrowNavigation(e.target)) {
+        return;
+      }
+
+      if (e.key === 'Escape') {
+        if (shouldKeepEscapeLocal(e.target)) {
+          return;
+        }
+
+        onClose();
+        return;
+      }
+
+      if (editingCaption) {
+        return;
+      }
+
       if (e.key === 'ArrowLeft' && prevMedia) {
         onNavigate(prevMedia.id);
       } else if (e.key === 'ArrowRight' && nextMedia) {
         onNavigate(nextMedia.id);
-      } else if (e.key === 'Escape') {
-        onClose();
       }
     };
 

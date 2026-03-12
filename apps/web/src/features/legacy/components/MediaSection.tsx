@@ -35,14 +35,26 @@ export default function MediaSection({
   const mediaIds = media?.map(m => m.id) ?? [];
   const { data: favoriteData } = useFavoriteCheck('media', isAuthenticated ? mediaIds : []);
 
-  // Track if we're at lg breakpoint (1024px+) to avoid rendering Sheet overlay on desktop
-  const [isDesktop, setIsDesktop] = useState(false);
+  // Default to desktop until the media query can be evaluated so we don't open the mobile sheet unnecessarily.
+  const [isDesktop, setIsDesktop] = useState(true);
   useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+      return;
+    }
+
     const mql = window.matchMedia('(min-width: 1024px)');
     const onChange = () => setIsDesktop(mql.matches);
-    mql.addEventListener('change', onChange);
     setIsDesktop(mql.matches);
-    return () => mql.removeEventListener('change', onChange);
+
+    if (typeof mql.addEventListener === 'function') {
+      mql.addEventListener('change', onChange);
+
+      return () => mql.removeEventListener('change', onChange);
+    }
+
+    mql.addListener(onChange);
+
+    return () => mql.removeListener(onChange);
   }, []);
 
   const [selectedMediaId, setSelectedMediaId] = useState<string | null>(null);

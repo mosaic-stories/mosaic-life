@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, BookHeart, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -12,6 +12,7 @@ import { rewriteBackendUrlForDev } from '@/lib/url';
 import type { LegacyScope } from '@/features/legacy/api/legacies';
 import Toolbar from './Toolbar';
 import type { SortOption } from './Toolbar';
+import type { ViewMode } from './Toolbar';
 import type { FilterOption } from './QuickFilters';
 import { RecentChipRow } from './RecentlyViewedChips';
 import type { ChipItem } from './RecentlyViewedChips';
@@ -19,15 +20,26 @@ import type { ChipItem } from './RecentlyViewedChips';
 interface LegaciesTabContentProps {
   activeFilter: string;
   onFilterChange: (key: string) => void;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+  sortBy: string;
+  onSortChange: (value: string) => void;
+  searchQuery: string;
+  onSearchChange: (value: string) => void;
 }
 
-export default function LegaciesTabContent({ activeFilter, onFilterChange }: LegaciesTabContentProps) {
+export default function LegaciesTabContent({
+  activeFilter,
+  onFilterChange,
+  viewMode,
+  onViewModeChange,
+  sortBy,
+  onSortChange,
+  searchQuery,
+  onSearchChange,
+}: LegaciesTabContentProps) {
   const navigate = useNavigate();
   const { data, isLoading } = useLegacies(activeFilter as LegacyScope);
-
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [sortBy, setSortBy] = useState('recent');
-  const [searchQuery, setSearchQuery] = useState('');
 
   const legacyIds = data?.items?.map((l) => l.id) ?? [];
   const { data: favoriteData } = useFavoriteCheck('legacy', legacyIds);
@@ -89,12 +101,12 @@ export default function LegaciesTabContent({ activeFilter, onFilterChange }: Leg
         onFilterChange={onFilterChange}
         sortOptions={sortOptions}
         sortValue={sortBy}
-        onSortChange={setSortBy}
+        onSortChange={onSortChange}
         searchValue={searchQuery}
-        onSearchChange={setSearchQuery}
+        onSearchChange={onSearchChange}
         searchPlaceholder="Search legacies..."
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={onViewModeChange}
       />
 
       <RecentChipRow

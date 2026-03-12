@@ -18,9 +18,11 @@ export default function MediaThumbnail({
   onClick,
 }: MediaThumbnailProps) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
-      className={`relative rounded-xl overflow-hidden cursor-pointer aspect-square transition-all duration-200 ${
+      aria-pressed={isSelected}
+      className={`relative block w-full rounded-xl overflow-hidden cursor-pointer aspect-square transition-all duration-200 text-left bg-transparent border-0 p-0 ${
         isSelected
           ? 'ring-[3px] ring-stone-700 shadow-lg shadow-stone-300/40'
           : 'ring-[3px] ring-transparent shadow-sm hover:shadow-md'
@@ -54,6 +56,6 @@ export default function MediaThumbnail({
           </div>
         )}
       </div>
-    </div>
+    </button>
   );
 }

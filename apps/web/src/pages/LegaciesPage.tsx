@@ -8,8 +8,11 @@ import LegaciesTabContent from '@/components/legacies-hub/LegaciesTabContent';
 import StoriesTabContent from '@/components/legacies-hub/StoriesTabContent';
 import ActivityTabContent from '@/components/legacies-hub/ActivityTabContent';
 import { useStats } from '@/features/settings/hooks/useSettings';
+import type { ViewMode } from '@/components/legacies-hub/Toolbar';
 
 const DEFAULT_TAB = 'legacies';
+const DEFAULT_VIEW_MODE: ViewMode = 'grid';
+const VALID_VIEW_MODES: ViewMode[] = ['grid', 'list'];
 const DEFAULT_FILTERS: Record<string, string> = {
   legacies: 'all',
   stories: 'all',
@@ -19,6 +22,16 @@ const VALID_FILTERS: Record<string, string[]> = {
   legacies: ['all', 'created', 'connected', 'favorites'],
   stories: ['all', 'mine', 'favorites', 'public', 'private'],
   activity: ['all', 'mine'],
+};
+const DEFAULT_SORTS: Record<string, string> = {
+  legacies: 'recent',
+  stories: 'recent',
+  activity: 'recent',
+};
+const VALID_SORTS: Record<string, string[]> = {
+  legacies: ['recent', 'stories', 'members', 'alpha'],
+  stories: ['recent', 'edited', 'loved', 'longest', 'alpha'],
+  activity: ['recent'],
 };
 
 export default function LegaciesPage() {
@@ -31,13 +44,53 @@ export default function LegaciesPage() {
   const defaultFilter = DEFAULT_FILTERS[activeTab] || 'all';
   const validFilters = VALID_FILTERS[activeTab] ?? [];
   const activeFilter = rawFilter && validFilters.includes(rawFilter) ? rawFilter : defaultFilter;
+  const rawViewMode = searchParams.get('view');
+  const viewMode = rawViewMode && VALID_VIEW_MODES.includes(rawViewMode as ViewMode)
+    ? (rawViewMode as ViewMode)
+    : DEFAULT_VIEW_MODE;
+  const rawSort = searchParams.get('sort');
+  const defaultSort = DEFAULT_SORTS[activeTab] || 'recent';
+  const validSorts = VALID_SORTS[activeTab] ?? [];
+  const sortBy = rawSort && validSorts.includes(rawSort) ? rawSort : defaultSort;
+  const searchQuery = searchParams.get('search') || '';
+
+  const updateSearchParams = (updates: Record<string, string | null>) => {
+    const nextParams = new URLSearchParams(searchParams);
+
+    Object.entries(updates).forEach(([key, value]) => {
+      if (!value) {
+        nextParams.delete(key);
+        return;
+      }
+
+      nextParams.set(key, value);
+    });
+
+    setSearchParams(nextParams);
+  };
 
   const handleTabChange = (tab: string) => {
-    setSearchParams({ tab, filter: DEFAULT_FILTERS[tab] || 'all' });
+    updateSearchParams({
+      tab,
+      filter: DEFAULT_FILTERS[tab] || 'all',
+      sort: DEFAULT_SORTS[tab] || 'recent',
+    });
   };
 
   const handleFilterChange = (filter: string) => {
-    setSearchParams({ tab: activeTab, filter });
+    updateSearchParams({ tab: activeTab, filter });
+  };
+
+  const handleViewModeChange = (nextViewMode: ViewMode) => {
+    updateSearchParams({ view: nextViewMode === DEFAULT_VIEW_MODE ? null : nextViewMode });
+  };
+
+  const handleSortChange = (nextSort: string) => {
+    updateSearchParams({ sort: nextSort === defaultSort ? null : nextSort });
+  };
+
+  const handleSearchChange = (nextSearch: string) => {
+    updateSearchParams({ search: nextSearch.trim() ? nextSearch : null });
   };
 
   const tabs = [
@@ -119,12 +172,24 @@ export default function LegaciesPage() {
             <LegaciesTabContent
               activeFilter={activeFilter}
               onFilterChange={handleFilterChange}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+              sortBy={sortBy}
+              onSortChange={handleSortChange}
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
             />
           )}
           {activeTab === 'stories' && (
             <StoriesTabContent
               activeFilter={activeFilter}
               onFilterChange={handleFilterChange}
+              viewMode={viewMode}
+              onViewModeChange={handleViewModeChange}
+              sortBy={sortBy}
+              onSortChange={handleSortChange}
+              searchQuery={searchQuery}
+              onSearchChange={handleSearchChange}
             />
           )}
           {activeTab === 'activity' && (
