@@ -55,6 +55,10 @@ async def backfill_entities(
         logger.error(f"Unsupported DB_URL format: {db_url}")
         sys.exit(1)
 
+    # asyncpg uses "ssl" param instead of psycopg's "sslmode"
+    db_url = db_url.replace("?sslmode=require", "?ssl=require")
+    db_url = db_url.replace("&sslmode=require", "&ssl=require")
+
     engine = create_async_engine(db_url, echo=False)
     async_session = async_sessionmaker(engine, expire_on_commit=False)
 
