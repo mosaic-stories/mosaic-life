@@ -201,6 +201,13 @@ async def _sync_entities_to_graph(
         span.set_attribute("story_id", str(story_id))
         sid = str(story_id)
 
+        # Upsert the Story node itself — must exist before creating edges
+        await graph_adapter.upsert_node(
+            "Story",
+            sid,
+            {"legacy_id": str(legacy_id)},
+        )
+
         for place in entities.places:
             place_id = f"place-{place.name.lower().replace(' ', '-')}-{legacy_id}"
             await graph_adapter.upsert_node(
