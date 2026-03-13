@@ -591,4 +591,4 @@ The following must happen after merging to `main`:
 1. CDK deploy runs automatically via GitHub Actions (`cdk-deploy.yml`) — creates the IRSA role
 2. ArgoCD Application for `graph-explorer` must be added to the GitOps repo (manual step, external to this repo)
 3. Verify `ClusterSecretStore` named `aws-secretsmanager` is accessible from the `observability` namespace
-4. Test with: `kubectl port-forward svc/graph-explorer 18080:80 -n observability` then open `http://localhost:18080/explorer`
+4. Test with: `kubectl port-forward svc/graph-explorer-prod 18080:80 -n observability` then open `http://localhost:18080/explorer`

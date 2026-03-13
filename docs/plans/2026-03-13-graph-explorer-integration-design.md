@@ -37,7 +37,7 @@ docker compose --profile tools up graph-explorer
 
 ```
 observability namespace:
-  graph-explorer (Deployment, 1 replica)
+  graph-explorer-prod (Deployment/Service release, 1 replica)
     → public.ecr.aws/neptune/graph-explorer:3.0.0
     → ServiceAccount: graph-explorer (IRSA → mosaic-shared-graph-explorer-role)
     → Built-in proxy handles SigV4 signing to Neptune
@@ -45,7 +45,7 @@ observability namespace:
     → ClusterIP service (port 80), no Ingress
 
 Access:
-  kubectl port-forward svc/graph-explorer 18080:80 -n observability
+  kubectl port-forward svc/graph-explorer-prod 18080:80 -n observability
   → http://localhost:18080/explorer
 ```
 
