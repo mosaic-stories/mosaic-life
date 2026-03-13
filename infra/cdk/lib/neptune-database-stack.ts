@@ -191,6 +191,40 @@ export class NeptuneDatabaseStack extends cdk.Stack {
     }
 
     // ============================================================
+    // Graph Explorer IRSA Role (observability namespace)
+    // ============================================================
+    const graphExplorerRole = new iam.Role(this, 'GraphExplorerAccessRole', {
+      roleName: 'mosaic-shared-graph-explorer-role',
+      description: 'IAM role for Graph Explorer to access Neptune via IRSA',
+      assumedBy: new iam.FederatedPrincipal(
+        `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`,
+        {
+          StringEquals: {
+            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]:
+              'system:serviceaccount:observability:graph-explorer',
+            [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]:
+              'sts.amazonaws.com',
+          },
+        },
+        'sts:AssumeRoleWithWebIdentity'
+      ),
+    });
+
+    graphExplorerRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['neptune-db:connect'],
+      resources: [
+        `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`,
+      ],
+    }));
+
+    new cdk.CfnOutput(this, 'GraphExplorerRoleArn', {
+      value: graphExplorerRole.roleArn,
+      description: 'IAM role ARN for Graph Explorer Neptune access',
+      exportName: 'mosaic-shared-graph-explorer-role-arn',
+    });
+
+    // ============================================================
     // Shared Outputs
     // ============================================================
     new cdk.CfnOutput(this, 'NeptuneClusterEndpoint', {
