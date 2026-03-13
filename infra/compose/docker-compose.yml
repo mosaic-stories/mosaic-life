@@ -124,9 +124,10 @@ services:
       - "18182:8182"
     volumes:
       - neptune-data:/opt/gremlin-server/data
-      - ./neptune-local/gremlin-server.yaml:/opt/gremlin-server/conf/gremlin-server.yaml:ro
+      - ./neptune-local:/opt/gremlin-server/conf/neptune-local:ro
+    entrypoint: ["/bin/bash", "-c", "cp /opt/gremlin-server/conf/neptune-local/gremlin-server.yaml /opt/gremlin-server/conf/gremlin-server.yaml && exec /docker-entrypoint.sh conf/gremlin-server.yaml"]
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 8182 || exit 1"]
+      test: ["CMD-SHELL", "nc -z $(hostname -i) 8182 || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -187,6 +188,25 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+
+  # Graph Explorer - Visual Neptune/Gremlin graph exploration UI
+  graph-explorer:
+    image: public.ecr.aws/neptune/graph-explorer:latest
+    profiles: [tools]
+    ports:
+      - "18080:80"
+    environment:
+      HOST: localhost
+      PROXY_SERVER_HTTPS_CONNECTION: "false"
+      GRAPH_EXP_HTTPS_CONNECTION: "false"
+      GRAPH_TYPE: gremlin
+      PUBLIC_OR_PROXY_ENDPOINT: "http://localhost:18080"
+      USING_PROXY_SERVER: "false"
+      GRAPH_CONNECTION_URL: "http://neptune-local:8182"
+    depends_on:
+      neptune-local:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   postgres-data:

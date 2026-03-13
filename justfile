@@ -923,6 +923,7 @@ argocd-apply:
     kubectl apply -f infra/argocd/projects/mosaic-life.yaml
     kubectl apply -f infra/argocd/applications/mosaic-life-prod.yaml
     kubectl apply -f infra/argocd/applications/mosaic-life-staging.yaml
+    kubectl apply -f infra/argocd/applications/graph-explorer-prod.yaml
     echo "✓ ArgoCD project and applications configured"
     echo ""
     echo "Note: Preview applications are created dynamically by CI/CD"
@@ -936,6 +937,11 @@ argocd-apply-prod:
 argocd-apply-staging:
     kubectl apply -f infra/argocd/applications/mosaic-life-staging.yaml
     @echo "✓ Staging application configured"
+
+# Apply Graph Explorer production ArgoCD application
+argocd-apply-graph-explorer-prod:
+    kubectl apply -f infra/argocd/applications/graph-explorer-prod.yaml
+    @echo "✓ Graph Explorer production application configured"
 
 # Get ArgoCD application status
 argocd-status app="mosaic-life-prod":
