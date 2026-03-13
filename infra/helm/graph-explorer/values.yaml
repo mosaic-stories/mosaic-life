@@ -12,8 +12,7 @@ service:
 serviceAccount:
   create: true
   name: graph-explorer
-  annotations:
-    eks.amazonaws.com/role-arn: "arn:aws:iam::033691785857:role/mosaic-shared-graph-explorer-role"
+  annotations: {}
 
 # Graph Explorer environment configuration
 # See: https://github.com/aws/graph-explorer/blob/main/docs/references/default-connection.md
@@ -27,11 +26,11 @@ env:
   GRAPH_TYPE: "gremlin"
   USING_PROXY_SERVER: "true"
   IAM: "true"
-  AWS_REGION: "us-east-1"
+  AWS_REGION: ""
   SERVICE_TYPE: "neptune-db"
 
-  # PUBLIC_OR_PROXY_ENDPOINT is the URL users hit (via port-forward)
-  PUBLIC_OR_PROXY_ENDPOINT: "http://localhost:18080"
+  # PUBLIC_OR_PROXY_ENDPOINT is the URL users hit for Graph Explorer access.
+  PUBLIC_OR_PROXY_ENDPOINT: ""
 
   # Timeouts and limits
   GRAPH_EXP_FETCH_REQUEST_TIMEOUT: "240000"
@@ -40,7 +39,7 @@ env:
 # Neptune connection — GRAPH_CONNECTION_URL is built from the external secret
 neptune:
   # Secrets Manager key containing Neptune connection metadata
-  secretKey: "mosaic/prod/neptune/connection"
+  secretKey: ""
 
 # External Secrets configuration
 externalSecrets:

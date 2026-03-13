@@ -2,25 +2,25 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Integrate AWS Graph Explorer into the Mosaic Life platform for visual Neptune graph exploration, running locally in Docker Compose and in production on EKS via kubectl port-forward.
+**Goal:** Integrate AWS Graph Explorer into the Mosaic Life platform for visual Neptune graph exploration, running locally in Docker Compose and in cluster as a single standalone production ArgoCD-managed deployment via kubectl port-forward.
 
-**Architecture:** Graph Explorer (public ECR image) connects directly to local Gremlin Server in development, and uses its built-in SigV4 proxy for IAM-authenticated Neptune access in production. A dedicated IRSA role in the observability namespace provides credentials. No Ingress — access via kubectl port-forward only.
+**Architecture:** Graph Explorer (public ECR image) connects directly to local Gremlin Server in development, and uses its built-in SigV4 proxy for IAM-authenticated Neptune access in cluster. A dedicated IRSA role in the observability namespace provides credentials. ArgoCD renders a standalone production chart from this repo with prod values from the GitOps repo. No Ingress — access via kubectl port-forward only.
 
 **Tech Stack:** Docker Compose, Helm, AWS CDK (IAM/IRSA), External Secrets, ArgoCD
 
 **Design doc:** `docs/plans/2026-03-13-graph-explorer-integration-design.md`
 
-**Status:** All implementation tasks complete (2026-03-13). Local smoke test blocked by pre-existing neptune-local container issue (sed config file busy). Pending: production deployment steps after merge.
+**Status:** In progress (2026-03-13). Local smoke test blocked by pre-existing neptune-local container issue (sed config file busy).
 
 | Task | Status | Commit |
 |------|--------|--------|
 | 1. Docker Compose | Done | `d755099` |
-| 2-7. Helm Chart | Done | `76e6730` |
-| 8. Helm Validation | Done | lint + template passed |
-| 9. CDK IRSA Role | Done | `9a5e7e3` |
-| 10. CLAUDE.md Update | Done | `8b047b4` |
-| 11. Local Smoke Test | Blocked | neptune-local unhealthy (pre-existing) |
-| 12. Final Validation | Done | clean working tree |
+| 2-7. Helm Chart | In progress | |
+| 8. ArgoCD standalone app | In progress | |
+| 9. GitOps values | In progress | |
+| 10. CDK IRSA Role | Done | `9a5e7e3` |
+| 11. Docs and helper commands | In progress | |
+| 12. Final Validation | Pending | |
 
 ---
 

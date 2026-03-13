@@ -2,11 +2,11 @@
 
 **Date:** 2026-03-13
 **Status:** Approved
-**Approach:** Minimal — Helm + Docker Compose + IRSA in existing Neptune CDK stack
+**Approach:** Standalone ArgoCD application + Helm + Docker Compose + IRSA in existing Neptune CDK stack
 
 ## Overview
 
-Integrate [AWS Graph Explorer](https://github.com/aws/graph-explorer) (v3.0.0) into the Mosaic Life platform to provide a visual interface for exploring data in the Neptune graph database. Locally it runs in the Docker Compose stack; in production it deploys to the `observability` namespace in EKS, accessed only via `kubectl port-forward`.
+Integrate [AWS Graph Explorer](https://github.com/aws/graph-explorer) (v3.0.0) into the Mosaic Life platform to provide a visual interface for exploring data in the Neptune graph database. Locally it runs in the Docker Compose stack; in cluster it deploys as a single standalone ArgoCD-managed production application in the `observability` namespace, with prod values supplied from the GitOps repo and accessed via `kubectl port-forward`.
 
 ## Decisions
 
@@ -17,7 +17,7 @@ Integrate [AWS Graph Explorer](https://github.com/aws/graph-explorer) (v3.0.0) i
 | Query language | Gremlin everywhere | TinkerPop only speaks Gremlin; Neptune supports it too |
 | Local port | 18080 | Follows `1xxxx` local port convention |
 | Docker Compose | Profile-gated (`tools`) | Not needed for day-to-day development |
-| Helm chart | Standalone under `infra/helm/graph-explorer/` | Deploys to `observability`, follows `litellm` pattern |
+| Helm chart | Standalone under `infra/helm/graph-explorer/` | Deploys to `observability`, follows standalone shared-service pattern |
 | CDK approach | Add IRSA role to existing `neptune-database-stack.ts` | Avoids new stack, no cross-stack deps, role is Neptune-scoped |
 | Production access | `kubectl port-forward` only | No authentication built into Graph Explorer; no public exposure |
 
@@ -91,13 +91,17 @@ Add after the per-environment loop (not inside it — this is a shared role):
 - **Policy:** `neptune-db:connect` on the shared cluster
 - **Output:** `mosaic-shared-graph-explorer-role-arn`
 
-### 4. ArgoCD (GitOps repo)
+### 4. ArgoCD + GitOps
 
-Add Application resource for `graph-explorer`:
+Add a standalone ArgoCD Application in this repo:
+- `graph-explorer-prod` → branch `main` + prod GitOps values
 - **Source:** `infra/helm/graph-explorer/`
 - **Destination namespace:** `observability`
 - **Sync:** Automatic
-- **Branch:** `main` only
+
+Add a production Graph Explorer values file in the GitOps repo:
+- prod → `mosaic/prod/neptune/connection`
+- shared IRSA role annotation → `mosaic-shared-graph-explorer-role`
 
 ### 5. CI/CD
 
@@ -110,7 +114,8 @@ No new GitHub Actions workflows. Existing `cdk-deploy.yml` triggers on `infra/cd
 | Docker Compose | `infra/compose/docker-compose.yml` | Modify — add service |
 | Helm Chart | `infra/helm/graph-explorer/` (6 files) | Create |
 | CDK | `infra/cdk/lib/neptune-database-stack.ts` | Modify — add IRSA role |
-| ArgoCD | GitOps repo (external) | Add Application |
+| ArgoCD | `infra/argocd/applications/graph-explorer-prod.yaml` | Create |
+| GitOps values | `/apps/mosaic-life-gitops/environments/prod/graph-explorer-values.yaml` | Create |
 | Docs | `CLAUDE.md` | Update — add port 18080 |
 
 ## What's NOT Included
@@ -120,4 +125,4 @@ No new GitHub Actions workflows. Existing `cdk-deploy.yml` triggers on `infra/cd
 - No custom Docker image builds
 - No Ingress/ALB/public exposure
 - No NetworkPolicy (can add later)
-- No staging instance (shared observability tool)
+- No public Ingress/ALB exposure

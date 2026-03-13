@@ -9,6 +9,7 @@ argocd/
 ├── projects/
 │   └── mosaic-life.yaml              # AppProject definition
 ├── applications/
+│   ├── graph-explorer-prod.yaml      # Graph Explorer production application
 │   ├── mosaic-life-prod.yaml         # Production application
 │   ├── mosaic-life-staging.yaml      # Staging application
 │   └── mosaic-life-preview-template.yaml  # Template for PR previews
@@ -70,7 +71,10 @@ kubectl apply -f infra/argocd/projects/mosaic-life.yaml
 # Apply environment applications
 kubectl apply -f infra/argocd/applications/mosaic-life-prod.yaml
 kubectl apply -f infra/argocd/applications/mosaic-life-staging.yaml
+kubectl apply -f infra/argocd/applications/graph-explorer-prod.yaml
 ```
+
+New ArgoCD `Application` manifests are not auto-created by merge alone unless your cluster already has an app-of-apps or ApplicationSet watching this directory. In the current repo workflow, adding a brand new application still requires a one-time `kubectl apply` of the new manifest(s).
 
 ### 2. Configure Repository Access
 
