@@ -1,0 +1,69 @@
+image:
+  repository: public.ecr.aws/neptune/graph-explorer
+  tag: "3.0.0"
+  pullPolicy: IfNotPresent
+
+replicaCount: 1
+
+service:
+  type: ClusterIP
+  port: 80
+
+serviceAccount:
+  create: true
+  name: graph-explorer
+  annotations:
+    eks.amazonaws.com/role-arn: "arn:aws:iam::033691785857:role/mosaic-shared-graph-explorer-role"
+
+# Graph Explorer environment configuration
+# See: https://github.com/aws/graph-explorer/blob/main/docs/references/default-connection.md
+env:
+  # Disable HTTPS — traffic stays inside the cluster, accessed via kubectl port-forward
+  HOST: "localhost"
+  PROXY_SERVER_HTTPS_CONNECTION: "false"
+  GRAPH_EXP_HTTPS_CONNECTION: "false"
+
+  # Graph connection settings
+  GRAPH_TYPE: "gremlin"
+  USING_PROXY_SERVER: "true"
+  IAM: "true"
+  AWS_REGION: "us-east-1"
+  SERVICE_TYPE: "neptune-db"
+
+  # PUBLIC_OR_PROXY_ENDPOINT is the URL users hit (via port-forward)
+  PUBLIC_OR_PROXY_ENDPOINT: "http://localhost:18080"
+
+  # Timeouts and limits
+  GRAPH_EXP_FETCH_REQUEST_TIMEOUT: "240000"
+  GRAPH_EXP_NODE_EXPANSION_LIMIT: "500"
+
+# Neptune connection — GRAPH_CONNECTION_URL is built from the external secret
+neptune:
+  # Secrets Manager key containing Neptune connection metadata
+  secretKey: "mosaic/prod/neptune/connection"
+
+# External Secrets configuration
+externalSecrets:
+  enabled: true
+  refreshInterval: "1h"
+  secretStoreName: aws-secretsmanager
+  secretStoreKind: ClusterSecretStore
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: false
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL

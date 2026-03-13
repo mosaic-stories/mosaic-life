@@ -1,0 +1,18 @@
+apiVersion: v2
+name: graph-explorer
+description: AWS Graph Explorer - Visual graph database exploration UI for Neptune
+type: application
+version: 1.0.0
+appVersion: "3.0.0"
+keywords:
+  - graph-explorer
+  - neptune
+  - gremlin
+  - observability
+home: https://github.com/mosaic-stories/mosaic-life
+sources:
+  - https://github.com/mosaic-stories/mosaic-life
+  - https://github.com/aws/graph-explorer
+maintainers:
+  - name: Mosaic Life Team
+    email: team@mosaiclife.me
