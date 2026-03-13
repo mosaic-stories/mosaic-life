@@ -210,12 +210,40 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       ),
     });
 
+    const graphExplorerResourceArn =
+      `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`;
+
     graphExplorerRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['neptune-db:connect'],
-      resources: [
-        `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`,
+      resources: [graphExplorerResourceArn],
+    }));
+
+    // Neptune data-plane IAM now authorizes Gremlin queries via granular actions
+    // rather than relying on connect alone.
+    graphExplorerRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'neptune-db:ReadDataViaQuery',
+        'neptune-db:WriteDataViaQuery',
+        'neptune-db:DeleteDataViaQuery',
+        'neptune-db:GetQueryStatus',
       ],
+      resources: [graphExplorerResourceArn],
+      conditions: {
+        StringEquals: {
+          'neptune-db:QueryLanguage': 'Gremlin',
+        },
+      },
+    }));
+
+    graphExplorerRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'neptune-db:GetGraphSummary',
+        'neptune-db:GetStatisticsStatus',
+      ],
+      resources: [graphExplorerResourceArn],
     }));
 
     new cdk.CfnOutput(this, 'GraphExplorerRoleArn', {
