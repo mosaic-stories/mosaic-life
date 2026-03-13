@@ -441,6 +441,7 @@ OpenSearch indexes with tenant isolation:
 - Localstack (AWS): http://localhost:4566
 - Jaeger UI: http://localhost:16686
 - Neptune (TinkerPop): http://localhost:18182
+- Graph Explorer: http://localhost:18080 (via docker compose --profile tools)
 
 **Default Credentials:**
 - PostgreSQL: postgres/postgres (database: core)
