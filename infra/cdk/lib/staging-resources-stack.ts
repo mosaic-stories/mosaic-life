@@ -301,6 +301,34 @@ export class StagingResourcesStack extends cdk.Stack {
     const guardrailId = aiGuardrail.guardrailId;
     const guardrailVersion = aiGuardrail.guardrailVersion;
 
+    // Grant Neptune graph database access for graph-augmented RAG
+    this.coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowNeptuneConnect',
+        effect: iam.Effect.ALLOW,
+        actions: ['neptune-db:connect'],
+        resources: [`arn:aws:neptune-db:${this.region}:${this.account}:*/*`],
+      })
+    );
+    this.coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowNeptuneOpenCypherQueries',
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'neptune-db:ReadDataViaQuery',
+          'neptune-db:WriteDataViaQuery',
+          'neptune-db:DeleteDataViaQuery',
+          'neptune-db:GetQueryStatus',
+        ],
+        resources: [`arn:aws:neptune-db:${this.region}:${this.account}:*/*`],
+        conditions: {
+          StringEquals: {
+            'neptune-db:QueryLanguage': 'OpenCypher',
+          },
+        },
+      })
+    );
+
     cdk.Tags.of(this.coreApiRole).add('Environment', environment);
     cdk.Tags.of(this.coreApiRole).add('Component', 'IAM');
 

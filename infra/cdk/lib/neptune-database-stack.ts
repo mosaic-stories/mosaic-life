@@ -147,6 +147,7 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       });
 
       // IRSA Role (scoped to this environment's K8s namespace)
+      // Trust the "core-api" service account created by the Helm chart
       const neptuneAccessRole = new iam.Role(this, `NeptuneAccessRole${envTitle}`, {
         roleName: `mosaic-${environment}-neptune-access-role`,
         description: `IAM role for ${environment} core-api to access Neptune via IRSA`,
@@ -155,7 +156,7 @@ export class NeptuneDatabaseStack extends cdk.Stack {
           {
             StringEquals: {
               [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]:
-                `system:serviceaccount:mosaic-${environment}:core-api-secrets-sa`,
+                `system:serviceaccount:mosaic-${environment}:core-api`,
               [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]:
                 'sts.amazonaws.com',
             },
@@ -167,13 +168,31 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       // Grant read access to this environment's connection secret only
       connectionSecret.grantRead(neptuneAccessRole);
 
+      const neptuneResourceArn =
+        `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`;
+
       // Grant Neptune IAM DB connect access (same cluster for all envs)
       neptuneAccessRole.addToPolicy(new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ['neptune-db:connect'],
-        resources: [
-          `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`,
+        resources: [neptuneResourceArn],
+      }));
+
+      // Grant Neptune data-plane permissions for openCypher queries
+      neptuneAccessRole.addToPolicy(new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'neptune-db:ReadDataViaQuery',
+          'neptune-db:WriteDataViaQuery',
+          'neptune-db:DeleteDataViaQuery',
+          'neptune-db:GetQueryStatus',
         ],
+        resources: [neptuneResourceArn],
+        conditions: {
+          StringEquals: {
+            'neptune-db:QueryLanguage': 'OpenCypher',
+          },
+        },
       }));
 
       // Per-environment outputs

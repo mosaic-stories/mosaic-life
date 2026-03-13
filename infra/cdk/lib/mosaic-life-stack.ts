@@ -595,6 +595,34 @@ export class MosaicLifeStack extends cdk.Stack {
       })
     );
 
+    // Grant Neptune graph database access for graph-augmented RAG
+    coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowNeptuneConnect',
+        effect: iam.Effect.ALLOW,
+        actions: ['neptune-db:connect'],
+        resources: [`arn:aws:neptune-db:${this.region}:${this.account}:*/*`],
+      })
+    );
+    coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowNeptuneOpenCypherQueries',
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'neptune-db:ReadDataViaQuery',
+          'neptune-db:WriteDataViaQuery',
+          'neptune-db:DeleteDataViaQuery',
+          'neptune-db:GetQueryStatus',
+        ],
+        resources: [`arn:aws:neptune-db:${this.region}:${this.account}:*/*`],
+        conditions: {
+          StringEquals: {
+            'neptune-db:QueryLanguage': 'OpenCypher',
+          },
+        },
+      })
+    );
+
     // ============================================================
     // Outputs
     // ============================================================
