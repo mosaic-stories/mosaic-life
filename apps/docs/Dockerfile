@@ -54,7 +54,7 @@ RUN bash scripts/build.sh
 # ==============================================================================
 # Stage 2: Runtime (nginx)
 # ==============================================================================
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.28-alpine AS runtime
 
 # Copy built documentation
 COPY --from=builder /build/docs/site /usr/share/nginx/html
