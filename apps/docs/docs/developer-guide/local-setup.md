@@ -10,7 +10,8 @@ This guide provides detailed instructions for setting up a development environme
 |------|---------|---------|
 | Docker | 24+ | Container runtime |
 | Docker Compose | 2.20+ | Local orchestration |
-| Node.js | 20+ | Frontend development |
+| nvm | Latest | Local Node.js version management |
+| Node.js | 22.22.1 | Frontend and docs development |
 | Python | 3.12+ | Backend development |
 | uv | Latest | Python package manager |
 
@@ -22,6 +23,10 @@ This guide provides detailed instructions for setting up a development environme
 ## Full Stack Setup
 
 ```bash
+cd /apps/mosaic-life
+nvm install
+nvm use
+
 # Start all services
 docker compose -f infra/compose/docker-compose.yml up -d
 
@@ -32,6 +37,9 @@ docker compose -f infra/compose/docker-compose.yml logs -f
 ## Frontend Only
 
 ```bash
+cd /apps/mosaic-life
+nvm install
+nvm use
 cd apps/web
 npm install
 npm run dev

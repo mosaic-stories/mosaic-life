@@ -1,15 +1,15 @@
 # syntax=docker/dockerfile:1
 
 # Build stage
-FROM node:20-alpine AS build
+FROM node:22.22.1-alpine AS build
 WORKDIR /app
 COPY package*.json ./
-RUN npm install --no-audit --no-fund || npm install --no-audit --no-fund
+RUN npm ci --no-audit --no-fund
 COPY . .
 RUN npm run build
 
 # Runtime stage (nginx)
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.28-alpine AS runtime
 COPY --from=build /app/dist /usr/share/nginx/html
 # nginx:alpine automatically processes .template files in /etc/nginx/templates/ with envsubst at startup,
 # substituting environment variables into the nginx config. See https://hub.docker.com/_/nginx

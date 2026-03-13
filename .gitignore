@@ -122,3 +122,6 @@ infra/cdk/cdk.out/
 
 # Git worktrees
 .worktrees/
+
+# Storybook build output
+storybook-static/

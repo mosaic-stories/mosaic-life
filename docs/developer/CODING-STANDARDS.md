@@ -56,7 +56,7 @@
 
 ### 2.2 Language & runtimes
 
-* **Node:** 20.x LTS; **package manager:** **pnpm**.
+* **Node:** 22.22.1 via the repo root `.nvmrc`; **package manager:** **pnpm**.
 * **Python:** 3.12; **env:** **uv** (preferred) or `venv` fallback.
 
 ### 2.3 Package management

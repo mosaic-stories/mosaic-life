@@ -5,7 +5,8 @@ This document provides step-by-step instructions for setting up Mosaic Life for 
 ## Prerequisites
 
 - **Docker** and **Docker Compose** (recommended: Docker Desktop)
-- **Node.js** 18+ with **pnpm** (for frontend development)
+- **nvm** for managing local Node.js versions
+- **Node.js** 22.22.1 with **pnpm** (for frontend and docs development)
 - **Python** 3.12+ (for backend development)
 - **Git**
 
@@ -14,7 +15,9 @@ This document provides step-by-step instructions for setting up Mosaic Life for 
 1. **Clone and start services:**
    ```bash
    git clone <repository-url>
-   cd mosaic-life-poc1
+   cd mosaic-life
+   nvm install
+   nvm use
    docker compose -f infra/compose/docker-compose.yml up -d
    ```
 
@@ -42,6 +45,9 @@ The local development setup includes:
 
 1. **Navigate to web app:**
    ```bash
+   cd /apps/mosaic-life
+   nvm install
+   nvm use
    cd apps/web
    ```
 
@@ -63,6 +69,11 @@ The local development setup includes:
 - React Router (routing)
 - TanStack Query (server state)
 - Zustand (client state)
+
+**Node version policy:**
+- Use the repo root `.nvmrc`.
+- Run `nvm install` once and `nvm use` in each new shell before running frontend or docs commands.
+- Do not rely on a system-wide Node installation.
 
 ### Backend Development
 
@@ -214,6 +225,8 @@ docker compose -f infra/compose/docker-compose.plugin.yml up
 
 ### Frontend Tests
 ```bash
+cd /apps/mosaic-life
+nvm use
 cd apps/web
 npm run test          # Unit tests
 npm run test:e2e      # Playwright E2E tests

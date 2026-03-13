@@ -33,7 +33,7 @@ The implementation follows the architecture defined in:
 ## Prerequisites
 
 - AWS CLI configured with appropriate credentials
-- Node.js 20+ and pnpm (for CDK)
+- nvm with Node.js 22.22.1 active (`nvm install && nvm use` from repo root) and pnpm (for CDK)
 - Access to Mosaic Life AWS account
 - Domain name configured (mosaiclife.me)
 
