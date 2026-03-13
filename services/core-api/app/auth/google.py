@@ -35,7 +35,7 @@ class GoogleOAuthClient:
 
         # Initialize OAuth client
         # Note: authlib's OAuth is not fully typed, even with types-Authlib stubs
-        self.oauth = OAuth()  # type: ignore[no-untyped-call]
+        self.oauth = OAuth()
         self.oauth.register(
             name="google",
             client_id=self.client_id,
