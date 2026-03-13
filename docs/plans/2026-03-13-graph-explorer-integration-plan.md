@@ -10,6 +10,18 @@
 
 **Design doc:** `docs/plans/2026-03-13-graph-explorer-integration-design.md`
 
+**Status:** All implementation tasks complete (2026-03-13). Local smoke test blocked by pre-existing neptune-local container issue (sed config file busy). Pending: production deployment steps after merge.
+
+| Task | Status | Commit |
+|------|--------|--------|
+| 1. Docker Compose | Done | `d755099` |
+| 2-7. Helm Chart | Done | `76e6730` |
+| 8. Helm Validation | Done | lint + template passed |
+| 9. CDK IRSA Role | Done | `9a5e7e3` |
+| 10. CLAUDE.md Update | Done | `8b047b4` |
+| 11. Local Smoke Test | Blocked | neptune-local unhealthy (pre-existing) |
+| 12. Final Validation | Done | clean working tree |
+
 ---
 
 ### Task 1: Docker Compose — Add Graph Explorer Service
