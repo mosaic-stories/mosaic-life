@@ -38,7 +38,7 @@ When someone passes away, the memories scattered across family and friends begin
 
 - [Docker](https://docs.docker.com/get-docker/) and Docker Compose
 - [nvm](https://github.com/nvm-sh/nvm) for managing Node.js versions locally
-- [Node.js](https://nodejs.org/) 20.20.1 (installed via `nvm`)
+- [Node.js](https://nodejs.org/) 22.22.1 (installed via `nvm`)
 - [uv](https://docs.astral.sh/uv/) (Python package manager)
 - [just](https://github.com/casey/just) (command runner — optional but recommended)
 
@@ -173,7 +173,7 @@ nvm use
 node --version
 ```
 
-Expected output: `v20.20.1`
+Expected output: `v22.22.1`
 
 ## Project Structure
 

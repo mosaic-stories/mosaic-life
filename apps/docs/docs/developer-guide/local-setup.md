@@ -11,7 +11,7 @@ This guide provides detailed instructions for setting up a development environme
 | Docker | 24+ | Container runtime |
 | Docker Compose | 2.20+ | Local orchestration |
 | nvm | Latest | Local Node.js version management |
-| Node.js | 20.20.1 | Frontend and docs development |
+| Node.js | 22.22.1 | Frontend and docs development |
 | Python | 3.12+ | Backend development |
 | uv | Latest | Python package manager |
 

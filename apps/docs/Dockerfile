@@ -3,7 +3,7 @@
 # ==============================================================================
 # Stage 0: Exact Node.js runtime for TypeDoc
 # ==============================================================================
-FROM node:20.20.1-bookworm-slim AS node-runtime
+FROM node:22.22.1-bookworm-slim AS node-runtime
 
 # ==============================================================================
 # Stage 1: Build environment
@@ -12,7 +12,7 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
-# Copy an exact Node.js 20.20.1 runtime into the Python builder image.
+# Copy an exact Node.js 22.22.1 runtime into the Python builder image.
 COPY --from=node-runtime /usr/local/bin/node /usr/local/bin/node
 COPY --from=node-runtime /usr/local/lib/node_modules /usr/local/lib/node_modules
 RUN printf '%s\n' '#!/bin/sh' 'exec node /usr/local/lib/node_modules/npm/bin/npm-cli.js "$@"' > /usr/local/bin/npm \

@@ -89,7 +89,7 @@ env:
   AWS_REGION: us-east-1
   ECR_REGISTRY: 033691785857.dkr.ecr.us-east-1.amazonaws.com
   EKS_CLUSTER: mosaiclife-eks
-  NODE_VERSION: '20.20.1'
+  NODE_VERSION: '22.22.1'
   PYTHON_VERSION: '3.12'
 ```
 

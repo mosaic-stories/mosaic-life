@@ -6,7 +6,7 @@ This document provides step-by-step instructions for setting up Mosaic Life for 
 
 - **Docker** and **Docker Compose** (recommended: Docker Desktop)
 - **nvm** for managing local Node.js versions
-- **Node.js** 20.20.1 with **pnpm** (for frontend and docs development)
+- **Node.js** 22.22.1 with **pnpm** (for frontend and docs development)
 - **Python** 3.12+ (for backend development)
 - **Git**
 

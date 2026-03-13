@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "node": ">=20.20.1 <21"
+    "node": ">=22.22.1 <23"
   },
   "scripts": {
     "dev": "vite",
@@ -92,7 +92,7 @@
     "@testing-library/react": "^14.3.1",
     "@testing-library/user-event": "^14.6.1",
     "@types/diff-match-patch": "^1.0.36",
-    "@types/node": "^20.19.25",
+    "@types/node": "^22",
     "@types/react": "^18.3.27",
     "@types/react-dom": "^18.3.7",
     "@typescript-eslint/eslint-plugin": "^7.18.0",

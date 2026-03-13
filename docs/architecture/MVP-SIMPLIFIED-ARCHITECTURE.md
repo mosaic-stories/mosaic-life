@@ -1228,7 +1228,7 @@ test('create legacy and write story', async ({ page }) => {
 **Prerequisites**:
 - Docker Desktop
 - Python 3.12+
-- nvm with Node.js 20.20.1 active from the repo root
+- nvm with Node.js 22.22.1 active from the repo root
 - pnpm 9+
 
 **Start Services**:

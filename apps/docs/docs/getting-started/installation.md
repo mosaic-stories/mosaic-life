@@ -6,7 +6,7 @@ This guide covers setting up Mosaic Life for local development.
 
 - Docker and Docker Compose
 - nvm
-- Node.js 20.20.1 (`nvm install && nvm use` from the repo root)
+- Node.js 22.22.1 (`nvm install && nvm use` from the repo root)
 - Python 3.12+
 - uv (Python package manager)
 

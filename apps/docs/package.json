@@ -4,7 +4,7 @@
   "private": true,
   "description": "Mosaic Life Documentation",
   "engines": {
-    "node": ">=20.20.1 <21"
+    "node": ">=22.22.1 <23"
   },
   "scripts": {
     "generate:typedoc": "typedoc",

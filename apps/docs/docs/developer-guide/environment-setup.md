@@ -78,7 +78,7 @@ This is your primary development environment, accessed via VS Code SSH Remote.
 | Git | `sudo apt install git` | Version control |
 | just | `cargo install just` or [Pre-built binaries](https://github.com/casey/just/releases) | Task runner |
 | nvm | [nvm-sh/nvm](https://github.com/nvm-sh/nvm) | Local Node.js version management |
-| Node.js 20.20.1 | Installed via `nvm install` in repo root | Frontend and docs development |
+| Node.js 22.22.1 | Installed via `nvm install` in repo root | Frontend and docs development |
 | Python 3.12+ | `sudo apt install python3.12` | Backend development |
 | uv | `curl -LsSf https://astral.sh/uv/install.sh \| sh` | Python package manager |
 | jq | `sudo apt install jq` | JSON processing |
