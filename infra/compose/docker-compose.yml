@@ -188,6 +188,25 @@ services:
       retries: 3
       start_period: 30s
 
+  # Graph Explorer - Visual Neptune/Gremlin graph exploration UI
+  graph-explorer:
+    image: public.ecr.aws/neptune/graph-explorer:latest
+    profiles: [tools]
+    ports:
+      - "18080:80"
+    environment:
+      HOST: localhost
+      PROXY_SERVER_HTTPS_CONNECTION: "false"
+      GRAPH_EXP_HTTPS_CONNECTION: "false"
+      GRAPH_TYPE: gremlin
+      PUBLIC_OR_PROXY_ENDPOINT: "http://localhost:18080"
+      USING_PROXY_SERVER: "false"
+      GRAPH_CONNECTION_URL: "http://neptune-local:8182"
+    depends_on:
+      neptune-local:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres-data:
     driver: local
