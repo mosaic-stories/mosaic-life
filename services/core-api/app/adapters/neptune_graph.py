@@ -56,15 +56,15 @@ class NeptuneGraphAdapter(GraphAdapter):
                 "Content-Type": "application/x-www-form-urlencoded"
             }
 
-            if self.iam_auth:
-                # SigV4 signing for IAM auth
-                headers = await self._sign_request(headers)
-
             body = f"query={cypher}"
             if params:
                 import json
 
                 body += f"&parameters={json.dumps(params)}"
+
+            if self.iam_auth:
+                # SigV4 signing for IAM auth
+                headers = await self._sign_request(headers, body)
 
             async with httpx.AsyncClient(timeout=10.0, verify=True) as client:
                 response = await client.post(
@@ -81,7 +81,7 @@ class NeptuneGraphAdapter(GraphAdapter):
                 )
                 return results
 
-    async def _sign_request(self, headers: dict[str, str]) -> dict[str, str]:
+    async def _sign_request(self, headers: dict[str, str], body: str) -> dict[str, str]:
         """Sign request with SigV4 for IAM authentication."""
         from botocore.auth import SigV4Auth  # type: ignore[import-untyped]
         from botocore.awsrequest import AWSRequest  # type: ignore[import-untyped]
@@ -92,6 +92,7 @@ class NeptuneGraphAdapter(GraphAdapter):
         request = AWSRequest(
             method="POST",
             url=f"{self._base_url}/openCypher",
+            data=body,
             headers=headers,
         )
         SigV4Auth(credentials, "neptune-db", self.region).add_auth(request)
