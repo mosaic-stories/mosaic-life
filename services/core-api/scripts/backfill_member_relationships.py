@@ -110,15 +110,29 @@ async def backfill_member_relationships(
                 )
 
                 await graph_adapter.upsert_node(
-                    "Person", user_node_id,
-                    {"user_id": str(member.user_id), "is_user": "true", "source": "declared"},
+                    "Person",
+                    user_node_id,
+                    {
+                        "user_id": str(member.user_id),
+                        "is_user": "true",
+                        "source": "declared",
+                    },
                 )
                 await graph_adapter.upsert_node(
-                    "Person", legacy_node_id,
-                    {"legacy_id": str(member.legacy_id), "is_legacy": "true", "source": "declared"},
+                    "Person",
+                    legacy_node_id,
+                    {
+                        "legacy_id": str(member.legacy_id),
+                        "is_legacy": "true",
+                        "source": "declared",
+                    },
                 )
                 await graph_adapter.create_relationship(
-                    "Person", user_node_id, edge_label, "Person", legacy_node_id,
+                    "Person",
+                    user_node_id,
+                    edge_label,
+                    "Person",
+                    legacy_node_id,
                     properties={
                         "relationship_type": relationship_type,
                         "source": "declared",
@@ -139,7 +153,9 @@ async def backfill_member_relationships(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Backfill member relationships to graph")
+    parser = argparse.ArgumentParser(
+        description="Backfill member relationships to graph"
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--limit", type=int)
     args = parser.parse_args()

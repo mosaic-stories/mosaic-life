@@ -6,11 +6,22 @@ Shared by entity extraction ingestion and member profile sync.
 from __future__ import annotations
 
 # Family relationship types
-_FAMILY_TYPES = frozenset({
-    "parent", "child", "spouse", "sibling",
-    "grandparent", "grandchild", "aunt", "uncle",
-    "cousin", "niece", "nephew", "in_law",
-})
+_FAMILY_TYPES = frozenset(
+    {
+        "parent",
+        "child",
+        "spouse",
+        "sibling",
+        "grandparent",
+        "grandchild",
+        "aunt",
+        "uncle",
+        "cousin",
+        "niece",
+        "nephew",
+        "in_law",
+    }
+)
 
 # Work relationship types
 _WORK_TYPES = frozenset({"colleague", "mentor", "mentee"})

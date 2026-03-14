@@ -60,13 +60,24 @@ class TestClassifyStoryPersonEdge:
     """Determine WRITTEN_ABOUT vs MENTIONS."""
 
     def test_name_in_title_returns_written_about(self) -> None:
-        assert classify_story_person_edge("Grandma Rose", "Remembering Grandma Rose", 0.8) == "WRITTEN_ABOUT"
+        assert (
+            classify_story_person_edge("Grandma Rose", "Remembering Grandma Rose", 0.8)
+            == "WRITTEN_ABOUT"
+        )
 
     def test_high_confidence_returns_written_about(self) -> None:
-        assert classify_story_person_edge("Jim", "A day at the park", 0.95) == "WRITTEN_ABOUT"
+        assert (
+            classify_story_person_edge("Jim", "A day at the park", 0.95)
+            == "WRITTEN_ABOUT"
+        )
 
     def test_low_confidence_returns_mentions(self) -> None:
-        assert classify_story_person_edge("Jim", "A day at the park", 0.75) == "MENTIONS"
+        assert (
+            classify_story_person_edge("Jim", "A day at the park", 0.75) == "MENTIONS"
+        )
 
     def test_partial_name_match_in_title(self) -> None:
-        assert classify_story_person_edge("Rose", "Remembering Grandma Rose", 0.7) == "WRITTEN_ABOUT"
+        assert (
+            classify_story_person_edge("Rose", "Remembering Grandma Rose", 0.7)
+            == "WRITTEN_ABOUT"
+        )

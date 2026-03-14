@@ -325,7 +325,10 @@ class TestSyncEntitiesToGraphPersons:
         )
 
         await _sync_entities_to_graph(
-            graph, story_id, legacy_id, entities,
+            graph,
+            story_id,
+            legacy_id,
+            entities,
             story_title="Remembering Sarah",
             author_id=author_id,
             legacy_person_id=str(legacy_id),
@@ -333,14 +336,14 @@ class TestSyncEntitiesToGraphPersons:
 
         # Should upsert Person nodes for both extracted people
         person_calls = [
-            c for c in graph.upsert_node.call_args_list
-            if c.args[0] == "Person"
+            c for c in graph.upsert_node.call_args_list if c.args[0] == "Person"
         ]
         assert len(person_calls) == 3  # 2 extracted + 1 author
 
         # Should create edges
         rel_calls = [
-            c for c in graph.create_relationship.call_args_list
+            c
+            for c in graph.create_relationship.call_args_list
             if c.args[0] == "Story" and c.args[3] == "Person"
         ]
         rel_types = [c.args[2] for c in rel_calls]
@@ -362,7 +365,10 @@ class TestSyncEntitiesToGraphPersons:
         )
 
         await _sync_entities_to_graph(
-            graph, story_id, legacy_id, entities,
+            graph,
+            story_id,
+            legacy_id,
+            entities,
             story_title="A story",
             author_id=uuid4(),
             legacy_person_id=str(legacy_id),
@@ -370,7 +376,8 @@ class TestSyncEntitiesToGraphPersons:
 
         # Should create FAMILY_OF edge between Uncle Jim and legacy person
         p2p_calls = [
-            c for c in graph.create_relationship.call_args_list
+            c
+            for c in graph.create_relationship.call_args_list
             if c.args[0] == "Person" and c.args[3] == "Person"
         ]
         assert len(p2p_calls) == 1
