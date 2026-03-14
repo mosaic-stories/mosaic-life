@@ -1,6 +1,7 @@
 """Database setup and session management."""
 
 from collections.abc import AsyncGenerator
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.ext.asyncio import (
@@ -24,6 +25,34 @@ class Base(DeclarativeBase):
 _async_session_maker: async_sessionmaker[AsyncSession] | None = None
 
 
+def normalize_async_db_url(db_url: str) -> str:
+    """Normalize a database URL for SQLAlchemy asyncpg usage."""
+    if db_url.startswith("postgresql+psycopg://"):
+        async_url = db_url.replace("postgresql+psycopg://", "postgresql+asyncpg://", 1)
+    elif db_url.startswith("postgresql://"):
+        async_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
+    elif db_url.startswith("postgresql+asyncpg://"):
+        async_url = db_url
+    else:
+        raise ValueError(f"Unsupported DB_URL format: {db_url}")
+
+    parts = urlsplit(async_url)
+    filtered_query = [
+        (key, value)
+        for key, value in parse_qsl(parts.query, keep_blank_values=True)
+        if key != "sslmode"
+    ]
+    return urlunsplit(
+        (
+            parts.scheme,
+            parts.netloc,
+            parts.path,
+            urlencode(filtered_query),
+            parts.fragment,
+        )
+    )
+
+
 # Create sync engine for migrations (Alembic)
 def get_sync_engine() -> Engine:
     """Get synchronous SQLAlchemy engine for migrations."""
@@ -43,15 +72,7 @@ def get_async_engine() -> AsyncEngine:
     if not settings.db_url:
         raise ValueError("DB_URL not configured")
 
-    # Convert to async driver and handle SSL mode
-    db_url = settings.db_url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
-
-    # asyncpg doesn't support 'sslmode' parameter in URL
-    # Remove sslmode from query string - asyncpg will use SSL by default for RDS
-    if "?sslmode=require" in db_url:
-        db_url = db_url.replace("?sslmode=require", "")
-    elif "&sslmode=require" in db_url:
-        db_url = db_url.replace("&sslmode=require", "")
+    db_url = normalize_async_db_url(settings.db_url)
 
     return create_async_engine(db_url, echo=settings.env == "dev")
 

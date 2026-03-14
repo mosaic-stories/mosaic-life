@@ -22,6 +22,14 @@ spec:
         - name: graph-explorer
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -lc
+          args:
+            - >-
+              ./process-environment.sh &&
+              cd /graph-explorer/packages/graph-explorer-proxy-server &&
+              exec env NODE_ENV=production node dist/node-server.js
           ports:
             - name: http
               containerPort: 80

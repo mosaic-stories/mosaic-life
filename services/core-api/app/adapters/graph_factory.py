@@ -44,10 +44,13 @@ def create_graph_adapter(settings: Settings) -> GraphAdapter | None:
 
     logger.info(
         "graph_adapter.local",
-        extra={"host": "localhost", "port": 18182},
+        extra={
+            "host": settings.local_graph_host,
+            "port": settings.local_graph_port,
+        },
     )
     return LocalGraphAdapter(
-        host="localhost",
-        port=18182,
+        host=settings.local_graph_host,
+        port=settings.local_graph_port,
         env_prefix=settings.neptune_env_prefix,
     )

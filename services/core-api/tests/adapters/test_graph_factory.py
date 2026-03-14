@@ -20,6 +20,19 @@ class TestCreateGraphAdapter:
         assert isinstance(adapter, LocalGraphAdapter)
         get_settings.cache_clear()
 
+    def test_local_adapter_uses_settings_host_port(self) -> None:
+        get_settings.cache_clear()
+        settings = get_settings()
+        settings.neptune_host = None
+        settings.graph_augmentation_enabled = True
+        settings.local_graph_host = "neptune-local"
+        settings.local_graph_port = 8182
+        adapter = create_graph_adapter(settings)
+        assert isinstance(adapter, LocalGraphAdapter)
+        assert adapter.host == "neptune-local"
+        assert adapter.port == 8182
+        get_settings.cache_clear()
+
     def test_creates_neptune_adapter_when_host_set(self) -> None:
         get_settings.cache_clear()
         settings = get_settings()

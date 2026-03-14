@@ -125,6 +125,12 @@ class Settings(BaseModel):
         os.getenv("GRAPH_AUGMENTATION_ENABLED"), True
     )
 
+    # Local graph database (TinkerPop Gremlin Server) — used when NEPTUNE_HOST
+    # is not set.  Inside Docker Compose the service name is "neptune-local"
+    # on port 8182; on the host machine use "localhost:18182".
+    local_graph_host: str = os.getenv("LOCAL_GRAPH_HOST", "localhost")
+    local_graph_port: int = int(os.getenv("LOCAL_GRAPH_PORT", "18182"))
+
     # Intent analysis model (lightweight, fast)
     intent_analysis_model_id: str = os.getenv(
         "INTENT_ANALYSIS_MODEL_ID",

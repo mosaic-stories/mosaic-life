@@ -32,6 +32,7 @@ export interface NeptuneDatabaseStackProps extends cdk.StackProps {
 export class NeptuneDatabaseStack extends cdk.Stack {
   public readonly dbCluster: neptune.DatabaseCluster;
   public readonly dbSecurityGroup: ec2.SecurityGroup;
+  public readonly dataPlaneResourceArn: string;
 
   constructor(scope: Construct, id: string, props: NeptuneDatabaseStackProps) {
     super(scope, id, props);
@@ -122,6 +123,9 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       cloudwatchLogsRetention: cdk.aws_logs.RetentionDays.ONE_WEEK,
     });
 
+    this.dataPlaneResourceArn =
+      `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`;
+
     // ============================================================
     // Per-Environment: Connection Secrets + IRSA Roles
     // ============================================================
@@ -147,6 +151,7 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       });
 
       // IRSA Role (scoped to this environment's K8s namespace)
+      // Trust the "core-api" service account created by the Helm chart
       const neptuneAccessRole = new iam.Role(this, `NeptuneAccessRole${envTitle}`, {
         roleName: `mosaic-${environment}-neptune-access-role`,
         description: `IAM role for ${environment} core-api to access Neptune via IRSA`,
@@ -155,7 +160,7 @@ export class NeptuneDatabaseStack extends cdk.Stack {
           {
             StringEquals: {
               [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]:
-                `system:serviceaccount:mosaic-${environment}:core-api-secrets-sa`,
+                `system:serviceaccount:mosaic-${environment}:core-api`,
               [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]:
                 'sts.amazonaws.com',
             },
@@ -171,9 +176,24 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       neptuneAccessRole.addToPolicy(new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ['neptune-db:connect'],
-        resources: [
-          `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`,
+        resources: [this.dataPlaneResourceArn],
+      }));
+
+      // Grant Neptune data-plane permissions for openCypher queries
+      neptuneAccessRole.addToPolicy(new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'neptune-db:ReadDataViaQuery',
+          'neptune-db:WriteDataViaQuery',
+          'neptune-db:DeleteDataViaQuery',
+          'neptune-db:GetQueryStatus',
         ],
+        resources: [this.dataPlaneResourceArn],
+        conditions: {
+          StringEquals: {
+            'neptune-db:QueryLanguage': 'OpenCypher',
+          },
+        },
       }));
 
       // Per-environment outputs
@@ -210,13 +230,10 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       ),
     });
 
-    const graphExplorerResourceArn =
-      `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`;
-
     graphExplorerRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['neptune-db:connect'],
-      resources: [graphExplorerResourceArn],
+      resources: [this.dataPlaneResourceArn],
     }));
 
     // Neptune data-plane IAM now authorizes Gremlin queries via granular actions
@@ -229,7 +246,7 @@ export class NeptuneDatabaseStack extends cdk.Stack {
         'neptune-db:DeleteDataViaQuery',
         'neptune-db:GetQueryStatus',
       ],
-      resources: [graphExplorerResourceArn],
+      resources: [this.dataPlaneResourceArn],
       conditions: {
         StringEquals: {
           'neptune-db:QueryLanguage': 'Gremlin',
@@ -243,7 +260,7 @@ export class NeptuneDatabaseStack extends cdk.Stack {
         'neptune-db:GetGraphSummary',
         'neptune-db:GetStatisticsStatus',
       ],
-      resources: [graphExplorerResourceArn],
+      resources: [this.dataPlaneResourceArn],
     }));
 
     new cdk.CfnOutput(this, 'GraphExplorerRoleArn', {
@@ -259,6 +276,12 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       value: this.dbCluster.clusterEndpoint.hostname,
       description: 'Neptune cluster writer endpoint (shared)',
       exportName: 'mosaic-neptune-endpoint',
+    });
+
+    new cdk.CfnOutput(this, 'NeptuneDataPlaneResourceArn', {
+      value: this.dataPlaneResourceArn,
+      description: 'Neptune data-plane resource ARN for least-privilege IAM policies',
+      exportName: 'mosaic-neptune-data-plane-resource-arn',
     });
 
     new cdk.CfnOutput(this, 'NeptuneClusterPort', {

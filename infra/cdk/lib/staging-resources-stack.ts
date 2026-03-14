@@ -37,6 +37,7 @@ export class StagingResourcesStack extends cdk.Stack {
 
     const { domainName } = props;
     const environment = 'staging';
+    const neptuneDataPlaneResourceArn = cdk.Fn.importValue('mosaic-neptune-data-plane-resource-arn');
 
     // ============================================================
     // S3 Buckets for Staging
@@ -300,6 +301,34 @@ export class StagingResourcesStack extends cdk.Stack {
     // Store guardrail info for outputs
     const guardrailId = aiGuardrail.guardrailId;
     const guardrailVersion = aiGuardrail.guardrailVersion;
+
+    // Grant Neptune graph database access for graph-augmented RAG
+    this.coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowNeptuneConnect',
+        effect: iam.Effect.ALLOW,
+        actions: ['neptune-db:connect'],
+        resources: [neptuneDataPlaneResourceArn],
+      })
+    );
+    this.coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowNeptuneOpenCypherQueries',
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'neptune-db:ReadDataViaQuery',
+          'neptune-db:WriteDataViaQuery',
+          'neptune-db:DeleteDataViaQuery',
+          'neptune-db:GetQueryStatus',
+        ],
+        resources: [neptuneDataPlaneResourceArn],
+        conditions: {
+          StringEquals: {
+            'neptune-db:QueryLanguage': 'OpenCypher',
+          },
+        },
+      })
+    );
 
     cdk.Tags.of(this.coreApiRole).add('Environment', environment);
     cdk.Tags.of(this.coreApiRole).add('Component', 'IAM');

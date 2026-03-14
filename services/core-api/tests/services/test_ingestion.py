@@ -1,6 +1,7 @@
 """Tests for ingestion service."""
 
-from unittest.mock import AsyncMock, patch
+from contextlib import contextmanager
+from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
@@ -10,7 +11,12 @@ from app.adapters.storytelling import PostgresVectorStoreAdapter
 from app.models.legacy import Legacy
 from app.models.story import Story
 from app.models.user import User
-from app.services.ingestion import index_story_chunks, log_deletion_audit
+from app.services.entity_extraction import ExtractedEntities, ExtractedEntity
+from app.services.ingestion import (
+    _sync_entities_to_graph,
+    index_story_chunks,
+    log_deletion_audit,
+)
 from app.services.retrieval import count_chunks_for_story
 
 
@@ -226,3 +232,48 @@ class TestLogDeletionAudit:
         assert audit_log.user_id == test_user.id
         assert audit_log.chunk_count == 5
         assert audit_log.details.get("deletion_source") == "user_request"
+
+
+class TestSyncEntitiesToGraph:
+    """Tests for graph entity syncing."""
+
+    @pytest.mark.asyncio
+    async def test_sync_entities_to_graph_counts_story_node_in_span_attributes(
+        self,
+    ) -> None:
+        """Telemetry should include the upserted Story node in node counts."""
+        graph_adapter = AsyncMock()
+        span = Mock()
+
+        @contextmanager
+        def _span_context():
+            yield span
+
+        entities = ExtractedEntities(
+            people=[],
+            places=[
+                ExtractedEntity(name="Chicago", type="city", location="Illinois"),
+            ],
+            events=[
+                ExtractedEntity(name="Graduation", type="milestone", date="1999"),
+            ],
+            objects=[
+                ExtractedEntity(
+                    name="Watch", type="artifact", context="Gifted on retirement"
+                ),
+            ],
+        )
+
+        with patch(
+            "app.services.ingestion.tracer.start_as_current_span",
+            return_value=_span_context(),
+        ):
+            await _sync_entities_to_graph(
+                graph_adapter=graph_adapter,
+                story_id=uuid4(),
+                legacy_id=uuid4(),
+                entities=entities,
+            )
+
+        span.set_attribute.assert_any_call("nodes_upserted", 4)
+        span.set_attribute.assert_any_call("edges_created", 3)

@@ -39,6 +39,7 @@ export class MosaicLifeStack extends cdk.Stack {
     super(scope, id, props);
 
     const { domainName, hostedZoneId, environment, vpcId, existingUserPoolId, existingEcrRepos, existingS3Buckets } = props.config;
+    const neptuneDataPlaneResourceArn = cdk.Fn.importValue('mosaic-neptune-data-plane-resource-arn');
 
     // ============================================================
     // VPC for EKS
@@ -592,6 +593,34 @@ export class MosaicLifeStack extends cdk.Stack {
         effect: iam.Effect.ALLOW,
         actions: ['bedrock:ApplyGuardrail'],
         resources: [aiGuardrail.guardrailArn],
+      })
+    );
+
+    // Grant Neptune graph database access for graph-augmented RAG
+    coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowNeptuneConnect',
+        effect: iam.Effect.ALLOW,
+        actions: ['neptune-db:connect'],
+        resources: [neptuneDataPlaneResourceArn],
+      })
+    );
+    coreApiRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AllowNeptuneOpenCypherQueries',
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'neptune-db:ReadDataViaQuery',
+          'neptune-db:WriteDataViaQuery',
+          'neptune-db:DeleteDataViaQuery',
+          'neptune-db:GetQueryStatus',
+        ],
+        resources: [neptuneDataPlaneResourceArn],
+        conditions: {
+          StringEquals: {
+            'neptune-db:QueryLanguage': 'OpenCypher',
+          },
+        },
       })
     );
 
