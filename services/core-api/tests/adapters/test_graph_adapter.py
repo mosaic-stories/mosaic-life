@@ -21,6 +21,8 @@ class TestGraphAdapterABC:
             "upsert_node",
             "delete_node",
             "create_relationship",
+            "upsert_relationship",
+            "replace_relationship",
             "delete_relationship",
             "get_connections",
             "find_path",
