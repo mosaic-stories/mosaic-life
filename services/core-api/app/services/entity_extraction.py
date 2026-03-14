@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any
 
 from opentelemetry import trace
 
+from ..adapters.ai import AIProviderError
 from ..observability.metrics import ENTITY_EXTRACTION_ENTITIES
 
 if TYPE_CHECKING:
@@ -109,12 +110,18 @@ class EntityExtractionService:
         Returns empty ExtractedEntities on failure (best-effort).
         """
         with tracer.start_as_current_span("entity_extraction.extract") as span:
+            normalized_content = story_content.strip()
             span.set_attribute("content_length", len(story_content))
+
+            if not normalized_content:
+                span.set_attribute("skipped", True)
+                logger.info("entity_extraction.skipped_blank_content")
+                return ExtractedEntities()
 
             try:
                 chunks: list[str] = []
                 async for chunk in self._llm_provider.stream_generate(
-                    messages=[{"role": "user", "content": story_content}],
+                    messages=[{"role": "user", "content": normalized_content}],
                     system_prompt=_EXTRACTION_PROMPT,
                     model_id=self._model_id,
                     max_tokens=2048,
@@ -171,9 +178,22 @@ class EntityExtractionService:
                     extra={"error": str(exc)},
                 )
                 return ExtractedEntities()
+            except AIProviderError as exc:
+                logger.warning(
+                    "entity_extraction.failed",
+                    extra={
+                        "error": exc.message,
+                        "error_code": exc.code,
+                        "provider": exc.provider,
+                        "operation": exc.operation,
+                        "retryable": exc.retryable,
+                        "model_id": self._model_id,
+                    },
+                )
+                return ExtractedEntities()
             except Exception as exc:
                 logger.warning(
                     "entity_extraction.failed",
-                    extra={"error": str(exc)},
+                    extra={"error": str(exc), "model_id": self._model_id},
                 )
                 return ExtractedEntities()

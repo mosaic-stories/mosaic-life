@@ -238,6 +238,30 @@ class TestSyncEntitiesToGraph:
     """Tests for graph entity syncing."""
 
     @pytest.mark.asyncio
+    async def test_sync_entities_to_graph_clears_existing_story_relationships(
+        self,
+    ) -> None:
+        graph_adapter = AsyncMock()
+        story_id = uuid4()
+        entities = ExtractedEntities(
+            people=[],
+            places=[ExtractedEntity(name="Chicago", type="city", location="Illinois")],
+            events=[],
+            objects=[],
+        )
+
+        await _sync_entities_to_graph(
+            graph_adapter=graph_adapter,
+            story_id=story_id,
+            legacy_id=uuid4(),
+            entities=entities,
+        )
+
+        graph_adapter.clear_story_entity_relationships.assert_awaited_once_with(
+            str(story_id)
+        )
+
+    @pytest.mark.asyncio
     async def test_sync_entities_to_graph_counts_story_node_in_span_attributes(
         self,
     ) -> None:
@@ -274,6 +298,9 @@ class TestSyncEntitiesToGraph:
                 legacy_id=uuid4(),
                 entities=entities,
             )
+
+        span.set_attribute.assert_any_call("nodes_upserted", 4)
+        span.set_attribute.assert_any_call("edges_created", 3)
 
         span.set_attribute.assert_any_call("nodes_upserted", 4)
         span.set_attribute.assert_any_call("edges_created", 3)

@@ -32,6 +32,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _should_skip_story(story: Story) -> str | None:
+    if story.status != "published":
+        return "draft"
+    if not story.content.strip():
+        return "blank_content"
+    return None
+
+
 async def backfill_entities(
     dry_run: bool = False,
     limit: int | None = None,
@@ -108,6 +116,14 @@ async def backfill_entities(
                     story.title[:50] + "..." if len(story.title) > 50 else story.title
                 )
                 logger.info(f"[{i}/{total}] Extracting: {story.id} - {title}")
+
+                skip_reason = _should_skip_story(story)
+                if skip_reason == "draft":
+                    logger.info("  Skipping draft story")
+                    continue
+                if skip_reason == "blank_content":
+                    logger.info("  Skipping blank-content story")
+                    continue
 
                 entities = await extraction_service.extract_entities(story.content)
                 filtered = entities.filter_by_confidence(0.7)

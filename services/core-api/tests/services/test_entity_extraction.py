@@ -37,6 +37,20 @@ class TestEntityExtractionService:
     """Test the extraction pipeline."""
 
     @pytest.mark.asyncio
+    async def test_extract_entities_skips_blank_content(self) -> None:
+        mock_provider = AsyncMock()
+
+        service = EntityExtractionService(
+            llm_provider=mock_provider,
+            model_id="test-model",
+        )
+
+        result = await service.extract_entities("   ")
+
+        assert result == ExtractedEntities()
+        mock_provider.stream_generate.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_extract_entities_parses_llm_response(self) -> None:
         mock_provider = AsyncMock()
         llm_response = json.dumps(

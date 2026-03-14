@@ -27,6 +27,7 @@ class TestGraphAdapterABC:
             "get_related_stories",
             "query",
             "health_check",
+            "clear_story_entity_relationships",
         }
         assert abstract_methods == expected
 
