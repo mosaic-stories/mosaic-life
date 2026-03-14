@@ -22,6 +22,7 @@ from sqlalchemy.orm import selectinload
 sys.path.insert(0, ".")
 
 from app.config import get_settings
+from app.database import normalize_async_db_url
 from app.models.story import Story
 
 logging.basicConfig(
@@ -46,18 +47,11 @@ async def backfill_entities(
         logger.error("GRAPH_AUGMENTATION_ENABLED is false")
         sys.exit(1)
 
-    db_url = settings.db_url
-    if "postgresql+psycopg://" in db_url:
-        db_url = db_url.replace("postgresql+psycopg://", "postgresql+asyncpg://")
-    elif db_url.startswith("postgresql://"):
-        db_url = db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
-    elif "postgresql+asyncpg://" not in db_url:
-        logger.error(f"Unsupported DB_URL format: {db_url}")
+    try:
+        db_url = normalize_async_db_url(settings.db_url)
+    except ValueError:
+        logger.error(f"Unsupported DB_URL format: {settings.db_url}")
         sys.exit(1)
-
-    # asyncpg uses "ssl" param instead of psycopg's "sslmode"
-    db_url = db_url.replace("?sslmode=require", "?ssl=require")
-    db_url = db_url.replace("&sslmode=require", "&ssl=require")
 
     engine = create_async_engine(db_url, echo=False)
     async_session = async_sessionmaker(engine, expire_on_commit=False)

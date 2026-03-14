@@ -37,6 +37,7 @@ export class StagingResourcesStack extends cdk.Stack {
 
     const { domainName } = props;
     const environment = 'staging';
+    const neptuneDataPlaneResourceArn = cdk.Fn.importValue('mosaic-neptune-data-plane-resource-arn');
 
     // ============================================================
     // S3 Buckets for Staging
@@ -307,7 +308,7 @@ export class StagingResourcesStack extends cdk.Stack {
         sid: 'AllowNeptuneConnect',
         effect: iam.Effect.ALLOW,
         actions: ['neptune-db:connect'],
-        resources: [`arn:aws:neptune-db:${this.region}:${this.account}:*/*`],
+        resources: [neptuneDataPlaneResourceArn],
       })
     );
     this.coreApiRole.addToPolicy(
@@ -320,7 +321,7 @@ export class StagingResourcesStack extends cdk.Stack {
           'neptune-db:DeleteDataViaQuery',
           'neptune-db:GetQueryStatus',
         ],
-        resources: [`arn:aws:neptune-db:${this.region}:${this.account}:*/*`],
+        resources: [neptuneDataPlaneResourceArn],
         conditions: {
           StringEquals: {
             'neptune-db:QueryLanguage': 'OpenCypher',

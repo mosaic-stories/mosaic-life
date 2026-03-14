@@ -39,6 +39,7 @@ export class MosaicLifeStack extends cdk.Stack {
     super(scope, id, props);
 
     const { domainName, hostedZoneId, environment, vpcId, existingUserPoolId, existingEcrRepos, existingS3Buckets } = props.config;
+    const neptuneDataPlaneResourceArn = cdk.Fn.importValue('mosaic-neptune-data-plane-resource-arn');
 
     // ============================================================
     // VPC for EKS
@@ -601,7 +602,7 @@ export class MosaicLifeStack extends cdk.Stack {
         sid: 'AllowNeptuneConnect',
         effect: iam.Effect.ALLOW,
         actions: ['neptune-db:connect'],
-        resources: [`arn:aws:neptune-db:${this.region}:${this.account}:*/*`],
+        resources: [neptuneDataPlaneResourceArn],
       })
     );
     coreApiRole.addToPolicy(
@@ -614,7 +615,7 @@ export class MosaicLifeStack extends cdk.Stack {
           'neptune-db:DeleteDataViaQuery',
           'neptune-db:GetQueryStatus',
         ],
-        resources: [`arn:aws:neptune-db:${this.region}:${this.account}:*/*`],
+        resources: [neptuneDataPlaneResourceArn],
         conditions: {
           StringEquals: {
             'neptune-db:QueryLanguage': 'OpenCypher',

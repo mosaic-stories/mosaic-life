@@ -32,6 +32,7 @@ export interface NeptuneDatabaseStackProps extends cdk.StackProps {
 export class NeptuneDatabaseStack extends cdk.Stack {
   public readonly dbCluster: neptune.DatabaseCluster;
   public readonly dbSecurityGroup: ec2.SecurityGroup;
+  public readonly dataPlaneResourceArn: string;
 
   constructor(scope: Construct, id: string, props: NeptuneDatabaseStackProps) {
     super(scope, id, props);
@@ -122,6 +123,9 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       cloudwatchLogsRetention: cdk.aws_logs.RetentionDays.ONE_WEEK,
     });
 
+    this.dataPlaneResourceArn =
+      `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`;
+
     // ============================================================
     // Per-Environment: Connection Secrets + IRSA Roles
     // ============================================================
@@ -168,14 +172,11 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       // Grant read access to this environment's connection secret only
       connectionSecret.grantRead(neptuneAccessRole);
 
-      const neptuneResourceArn =
-        `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`;
-
       // Grant Neptune IAM DB connect access (same cluster for all envs)
       neptuneAccessRole.addToPolicy(new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: ['neptune-db:connect'],
-        resources: [neptuneResourceArn],
+        resources: [this.dataPlaneResourceArn],
       }));
 
       // Grant Neptune data-plane permissions for openCypher queries
@@ -187,7 +188,7 @@ export class NeptuneDatabaseStack extends cdk.Stack {
           'neptune-db:DeleteDataViaQuery',
           'neptune-db:GetQueryStatus',
         ],
-        resources: [neptuneResourceArn],
+        resources: [this.dataPlaneResourceArn],
         conditions: {
           StringEquals: {
             'neptune-db:QueryLanguage': 'OpenCypher',
@@ -229,13 +230,10 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       ),
     });
 
-    const graphExplorerResourceArn =
-      `arn:aws:neptune-db:${this.region}:${this.account}:${this.dbCluster.clusterResourceIdentifier}/*`;
-
     graphExplorerRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['neptune-db:connect'],
-      resources: [graphExplorerResourceArn],
+      resources: [this.dataPlaneResourceArn],
     }));
 
     // Neptune data-plane IAM now authorizes Gremlin queries via granular actions
@@ -248,7 +246,7 @@ export class NeptuneDatabaseStack extends cdk.Stack {
         'neptune-db:DeleteDataViaQuery',
         'neptune-db:GetQueryStatus',
       ],
-      resources: [graphExplorerResourceArn],
+      resources: [this.dataPlaneResourceArn],
       conditions: {
         StringEquals: {
           'neptune-db:QueryLanguage': 'Gremlin',
@@ -262,7 +260,7 @@ export class NeptuneDatabaseStack extends cdk.Stack {
         'neptune-db:GetGraphSummary',
         'neptune-db:GetStatisticsStatus',
       ],
-      resources: [graphExplorerResourceArn],
+      resources: [this.dataPlaneResourceArn],
     }));
 
     new cdk.CfnOutput(this, 'GraphExplorerRoleArn', {
@@ -278,6 +276,12 @@ export class NeptuneDatabaseStack extends cdk.Stack {
       value: this.dbCluster.clusterEndpoint.hostname,
       description: 'Neptune cluster writer endpoint (shared)',
       exportName: 'mosaic-neptune-endpoint',
+    });
+
+    new cdk.CfnOutput(this, 'NeptuneDataPlaneResourceArn', {
+      value: this.dataPlaneResourceArn,
+      description: 'Neptune data-plane resource ARN for least-privilege IAM policies',
+      exportName: 'mosaic-neptune-data-plane-resource-arn',
     });
 
     new cdk.CfnOutput(this, 'NeptuneClusterPort', {

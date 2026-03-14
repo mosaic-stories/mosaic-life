@@ -254,9 +254,11 @@ async def _sync_entities_to_graph(
             )
 
         nodes_upserted = (
+            1 + len(entities.places) + len(entities.events) + len(entities.objects)
+        )
+        edges_created = (
             len(entities.places) + len(entities.events) + len(entities.objects)
         )
-        edges_created = nodes_upserted  # one edge per node
         span.set_attribute("nodes_upserted", nodes_upserted)
         span.set_attribute("edges_created", edges_created)
 
