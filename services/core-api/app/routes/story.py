@@ -83,6 +83,7 @@ async def create_story(
                         visibility=data.visibility,
                         author_id=session.user_id,
                         user_id=session.user_id,
+                        story_title=story.title,
                     )
             except Exception as e:
                 logger.error(
@@ -284,6 +285,7 @@ async def update_story(
                         visibility=story.visibility,
                         author_id=session.user_id,
                         user_id=session.user_id,
+                        story_title=story.title,
                     )
             except Exception as e:
                 logger.error(

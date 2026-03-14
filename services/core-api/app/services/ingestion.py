@@ -32,6 +32,7 @@ async def index_story_chunks(
     visibility: str,
     author_id: UUID,
     user_id: UUID | None = None,
+    story_title: str = "",
 ) -> int:
     """Index story content by chunking, embedding, and storing.
 
@@ -143,7 +144,10 @@ async def index_story_chunks(
 
                     # Sync extracted entities to graph
                     await _sync_entities_to_graph(
-                        graph_adapter, story_id, legacy_id, filtered
+                        graph_adapter, story_id, legacy_id, filtered,
+                        story_title=story_title,
+                        author_id=author_id,
+                        legacy_person_id=str(legacy_id),
                     )
         except Exception as exc:
             # Entity extraction is best-effort — never block ingestion

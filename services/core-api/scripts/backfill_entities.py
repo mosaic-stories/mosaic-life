@@ -143,7 +143,10 @@ async def backfill_entities(
                 from app.services.ingestion import _sync_entities_to_graph
 
                 await _sync_entities_to_graph(
-                    graph_adapter, story.id, primary.legacy_id, filtered
+                    graph_adapter, story.id, primary.legacy_id, filtered,
+                    story_title=story.title,
+                    author_id=story.author_id,
+                    legacy_person_id=str(primary.legacy_id),
                 )
 
                 entity_count = (
