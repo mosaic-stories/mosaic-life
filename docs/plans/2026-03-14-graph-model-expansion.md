@@ -1,5 +1,7 @@
 # Graph Model Expansion Implementation Plan
 
+> **Status: COMPLETED** — All 8 tasks implemented and validated on 2026-03-14.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Add Person nodes, Story-to-Person edges (WRITTEN_ABOUT, MENTIONS, AUTHORED_BY), and Person-to-Person relationship edges (FAMILY_OF, WORKED_WITH, FRIENDS_WITH, KNEW) to the Neptune graph database.
@@ -12,7 +14,7 @@
 
 ---
 
-## Task 1: Add relationship type categorization utility
+## Task 1: Add relationship type categorization utility ✅
 
 **Files:**
 - Create: `services/core-api/app/services/graph_sync.py`
@@ -185,7 +187,7 @@ git commit -m "feat: add graph sync utility module for relationship categorizati
 
 ---
 
-## Task 2: Update `clear_story_entity_relationships` to include person edges
+## Task 2: Update `clear_story_entity_relationships` to include person edges ✅
 
 **Files:**
 - Modify: `services/core-api/app/adapters/neptune_graph.py:167-177`
@@ -267,7 +269,7 @@ git commit -m "feat: clear person edges in clear_story_entity_relationships"
 
 ---
 
-## Task 3: Add Person nodes and Story→Person edges to `_sync_entities_to_graph`
+## Task 3: Add Person nodes and Story→Person edges to `_sync_entities_to_graph` ✅
 
 **Files:**
 - Modify: `services/core-api/app/services/ingestion.py:193-276`
@@ -469,7 +471,7 @@ git commit -m "feat: sync extracted Person nodes and Story→Person edges to gra
 
 ---
 
-## Task 4: Add graph sync to member profile updates
+## Task 4: Add graph sync to member profile updates ✅
 
 **Files:**
 - Modify: `services/core-api/app/services/member_profile.py:51-82`
@@ -634,7 +636,7 @@ git commit -m "feat: sync declared member relationships to graph on profile upda
 
 ---
 
-## Task 5: Update callers of `_sync_entities_to_graph` to pass new parameters
+## Task 5: Update callers of `_sync_entities_to_graph` to pass new parameters ✅
 
 **Files:**
 - Modify: `services/core-api/app/services/ingestion.py` (the `index_story_chunks` function and its callers)
@@ -664,7 +666,7 @@ git commit -m "feat: thread story_title, author_id, legacy_person_id through ing
 
 ---
 
-## Task 6: Update backfill script for person entities
+## Task 6: Update backfill script for person entities ✅
 
 **Files:**
 - Modify: `services/core-api/scripts/backfill_entities.py`
@@ -714,7 +716,7 @@ git commit -m "feat: update entity backfill to include person nodes and relation
 
 ---
 
-## Task 7: Create backfill script for declared member relationships
+## Task 7: Create backfill script for declared member relationships ✅
 
 **Files:**
 - Create: `services/core-api/scripts/backfill_member_relationships.py`
@@ -890,7 +892,7 @@ git commit -m "feat: add backfill script for declared member relationships to gr
 
 ---
 
-## Task 8: Run validation and final tests
+## Task 8: Run validation and final tests ✅
 
 **Files:** None (verification only)
 
