@@ -8,7 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.legacy import LegacyMember
+from ..providers.registry import get_provider_registry
 from ..schemas.member_profile import MemberProfileResponse, MemberProfileUpdate
+from .graph_sync import categorize_relationship
 
 logger = logging.getLogger(__name__)
 
@@ -79,4 +81,61 @@ async def update_profile(
         },
     )
 
+    # Best-effort graph sync for relationship edges
+    try:
+        registry = get_provider_registry()
+        graph_adapter = registry.get_graph_adapter()
+        if graph_adapter and existing.get("relationship_type"):
+            await _sync_relationship_to_graph(
+                graph_adapter, legacy_id, user_id, existing["relationship_type"]
+            )
+    except Exception:
+        logger.warning(
+            "member_profile.graph_sync_failed",
+            extra={"legacy_id": str(legacy_id), "user_id": str(user_id)},
+            exc_info=True,
+        )
+
     return MemberProfileResponse(**member.profile)
+
+
+async def _sync_relationship_to_graph(
+    graph_adapter: object,
+    legacy_id: UUID,
+    user_id: UUID,
+    relationship_type: str,
+) -> None:
+    """Sync a declared member relationship to the graph as a Person->Person edge."""
+    from ..adapters.graph_adapter import GraphAdapter
+
+    if not isinstance(graph_adapter, GraphAdapter):
+        return
+
+    user_node_id = f"user-{user_id}"
+    legacy_node_id = str(legacy_id)
+
+    # Upsert Person nodes
+    await graph_adapter.upsert_node(
+        "Person",
+        user_node_id,
+        {"user_id": str(user_id), "is_user": "true", "source": "declared"},
+    )
+    await graph_adapter.upsert_node(
+        "Person",
+        legacy_node_id,
+        {"legacy_id": str(legacy_id), "is_legacy": "true", "source": "declared"},
+    )
+
+    # Categorize and create edge
+    edge_label = categorize_relationship(relationship_type)
+    await graph_adapter.create_relationship(
+        "Person",
+        user_node_id,
+        edge_label,
+        "Person",
+        legacy_node_id,
+        properties={
+            "relationship_type": relationship_type,
+            "source": "declared",
+        },
+    )

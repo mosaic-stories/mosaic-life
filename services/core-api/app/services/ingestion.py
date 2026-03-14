@@ -14,6 +14,8 @@ from ..models.knowledge import KnowledgeAuditLog
 from ..providers.registry import get_provider_registry
 from .chunking import chunk_story
 
+from .graph_sync import categorize_relationship, classify_story_person_edge, normalize_person_id
+
 if TYPE_CHECKING:
     from ..adapters.graph_adapter import GraphAdapter
     from .entity_extraction import ExtractedEntities
@@ -195,6 +197,10 @@ async def _sync_entities_to_graph(
     story_id: UUID,
     legacy_id: UUID,
     entities: ExtractedEntities,
+    *,
+    story_title: str = "",
+    author_id: UUID | None = None,
+    legacy_person_id: str | None = None,
 ) -> None:
     """Sync extracted entities to the graph database."""
     with tracer.start_as_current_span("entity_extraction.sync_graph") as span:
@@ -255,11 +261,61 @@ async def _sync_entities_to_graph(
                 obj_id,
             )
 
+        # --- Person nodes and Story→Person edges ---
+        lid = str(legacy_id)
+
+        for person in entities.people:
+            person_id = normalize_person_id(person.name, lid)
+            await graph_adapter.upsert_node(
+                "Person",
+                person_id,
+                {
+                    "name": person.name,
+                    "legacy_id": lid,
+                    "source": "extracted",
+                },
+            )
+
+            edge_type = classify_story_person_edge(
+                person.name, story_title, person.confidence
+            )
+            await graph_adapter.create_relationship(
+                "Story", sid, edge_type, "Person", person_id,
+                properties={"confidence": person.confidence},
+            )
+
+            # Infer Person→Person relationship from extraction context
+            if legacy_person_id and person.context:
+                rel_label = categorize_relationship(person.context)
+                await graph_adapter.create_relationship(
+                    "Person", person_id, rel_label, "Person", legacy_person_id,
+                    properties={
+                        "relationship_type": person.context,
+                        "source": "extracted",
+                    },
+                )
+
+        # --- AUTHORED_BY edge ---
+        if author_id:
+            author_node_id = f"user-{author_id}"
+            await graph_adapter.upsert_node(
+                "Person",
+                author_node_id,
+                {"user_id": str(author_id), "is_user": "true", "source": "declared"},
+            )
+            await graph_adapter.create_relationship(
+                "Story", sid, "AUTHORED_BY", "Person", author_node_id,
+            )
+
         nodes_upserted = (
-            1 + len(entities.places) + len(entities.events) + len(entities.objects)
+            1 + len(entities.places) + len(entities.events)
+            + len(entities.objects) + len(entities.people)
+            + (1 if author_id else 0)
         )
         edges_created = (
-            len(entities.places) + len(entities.events) + len(entities.objects)
+            len(entities.places) + len(entities.events)
+            + len(entities.objects) + len(entities.people)
+            + (1 if author_id else 0)
         )
         span.set_attribute("nodes_upserted", nodes_upserted)
         span.set_attribute("edges_created", edges_created)
@@ -271,5 +327,6 @@ async def _sync_entities_to_graph(
                 "places": len(entities.places),
                 "events": len(entities.events),
                 "objects": len(entities.objects),
+                "people": len(entities.people),
             },
         )
