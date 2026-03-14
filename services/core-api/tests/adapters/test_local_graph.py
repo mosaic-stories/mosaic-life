@@ -59,3 +59,46 @@ class TestLocalGraphAdapterHealthCheck:
 
             result = await adapter.health_check()
             assert result is False
+
+
+class TestLocalGraphAdapterRelationships:
+    """Test relationship query building."""
+
+    @pytest.mark.asyncio
+    async def test_upsert_relationship_uses_coalesce(self) -> None:
+        adapter = LocalGraphAdapter(host="localhost", port=8182, env_prefix="test")
+        adapter._execute_gremlin = AsyncMock()  # type: ignore[method-assign]
+
+        await adapter.upsert_relationship(
+            "Person",
+            "from-1",
+            "FAMILY_OF",
+            "Person",
+            "to-1",
+            {"source": "declared"},
+        )
+
+        gremlin = adapter._execute_gremlin.await_args.args[0]
+        assert ".coalesce(" in gremlin
+        assert "test-FAMILY_OF" in gremlin
+        assert ".property('source', 'declared')" in gremlin
+
+    @pytest.mark.asyncio
+    async def test_replace_relationship_drops_old_edges_before_create(self) -> None:
+        adapter = LocalGraphAdapter(host="localhost", port=8182, env_prefix="test")
+        adapter._execute_gremlin = AsyncMock()  # type: ignore[method-assign]
+
+        await adapter.replace_relationship(
+            "Person",
+            "from-1",
+            ["FAMILY_OF", "FRIENDS_WITH"],
+            "Person",
+            "to-1",
+            new_rel_type="WORKED_WITH",
+            properties={"source": "declared"},
+        )
+
+        gremlin = adapter._execute_gremlin.await_args.args[0]
+        assert ".outE('test-FAMILY_OF', 'test-FRIENDS_WITH')" in gremlin
+        assert ".drop().V().has('test-Person', 'id', 'from-1')" in gremlin
+        assert "addE('test-WORKED_WITH')" in gremlin

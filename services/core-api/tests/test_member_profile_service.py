@@ -191,13 +191,18 @@ class TestUpdateProfileGraphSync:
             # Should upsert Person nodes for user and legacy subject
             assert mock_graph.upsert_node.call_count >= 2
 
-            # Should create FAMILY_OF edge (uncle -> FAMILY_OF)
-            rel_calls = [
-                c
-                for c in mock_graph.create_relationship.call_args_list
-                if c.args[2] == "FAMILY_OF"
-            ]
-            assert len(rel_calls) == 1
+            mock_graph.replace_relationship.assert_awaited_once_with(
+                "Person",
+                f"user-{test_user.id}",
+                ["FAMILY_OF", "WORKED_WITH", "FRIENDS_WITH", "KNEW"],
+                "Person",
+                str(test_legacy.person_id),
+                new_rel_type="FAMILY_OF",
+                properties={
+                    "relationship_type": "uncle",
+                    "source": "declared",
+                },
+            )
 
     @pytest.mark.asyncio
     async def test_graph_failure_does_not_block_profile_update(
@@ -217,3 +222,37 @@ class TestUpdateProfileGraphSync:
 
             # Profile still updated despite graph failure
             assert result.relationship_type == "friend"
+
+    @pytest.mark.asyncio
+    async def test_clearing_relationship_removes_existing_graph_edge(
+        self, db_session: AsyncSession, test_legacy: Legacy, test_user: User
+    ) -> None:
+        with patch("app.services.member_profile.get_provider_registry") as mock_reg:
+            mock_graph = AsyncMock(spec=GraphAdapter)
+            mock_reg.return_value.get_graph_adapter.return_value = mock_graph
+
+            await update_profile(
+                db_session,
+                test_legacy.id,
+                test_user.id,
+                MemberProfileUpdate(relationship_type="uncle"),
+            )
+            mock_graph.reset_mock()
+
+            result = await update_profile(
+                db_session,
+                test_legacy.id,
+                test_user.id,
+                MemberProfileUpdate(relationship_type=None),
+            )
+
+            assert result.relationship_type is None
+            mock_graph.replace_relationship.assert_awaited_once_with(
+                "Person",
+                f"user-{test_user.id}",
+                ["FAMILY_OF", "WORKED_WITH", "FRIENDS_WITH", "KNEW"],
+                "Person",
+                str(test_legacy.person_id),
+                new_rel_type=None,
+                properties=None,
+            )

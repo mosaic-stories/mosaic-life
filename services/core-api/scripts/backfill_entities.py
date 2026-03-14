@@ -23,6 +23,7 @@ sys.path.insert(0, ".")
 
 from app.config import get_settings
 from app.database import normalize_async_db_url
+from app.models.legacy import Legacy
 from app.models.story import Story
 
 logging.basicConfig(
@@ -140,6 +141,14 @@ async def backfill_entities(
                     logger.warning("  No legacy association, skipping")
                     continue
 
+                legacy_result = await db.execute(
+                    select(Legacy).where(Legacy.id == primary.legacy_id)
+                )
+                legacy = legacy_result.scalar_one_or_none()
+                if legacy is None:
+                    logger.warning("  Legacy missing, skipping")
+                    continue
+
                 from app.services.ingestion import _sync_entities_to_graph
 
                 await _sync_entities_to_graph(
@@ -149,7 +158,8 @@ async def backfill_entities(
                     filtered,
                     story_title=story.title,
                     author_id=story.author_id,
-                    legacy_person_id=str(primary.legacy_id),
+                    legacy_person_id=str(legacy.person_id),
+                    legacy_person_name=legacy.name,
                 )
 
                 entity_count = (

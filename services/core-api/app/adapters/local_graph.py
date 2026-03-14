@@ -99,6 +99,72 @@ class LocalGraphAdapter(GraphAdapter):
         )
         await self._execute_gremlin(gremlin)
 
+    async def upsert_relationship(
+        self,
+        from_label: str,
+        from_id: str,
+        rel_type: str,
+        to_label: str,
+        to_id: str,
+        properties: dict[str, object] | None = None,
+    ) -> None:
+        fl = self._label(from_label)
+        tl = self._label(to_label)
+        rt = self._rel_type(rel_type)
+        props = ""
+        if properties:
+            props = "".join(f".property('{k}', '{v}')" for k, v in properties.items())
+        gremlin = (
+            f"g.V().has('{fl}', 'id', '{from_id}')"
+            f".as('a')"
+            f".V().has('{tl}', 'id', '{to_id}')"
+            f".as('b')"
+            f".coalesce("
+            f"select('a').outE('{rt}').where(inV().has('{tl}', 'id', '{to_id}')),"
+            f"select('a').addE('{rt}').to(select('b'))"
+            f")"
+            f"{props}"
+        )
+        await self._execute_gremlin(gremlin)
+
+    async def replace_relationship(
+        self,
+        from_label: str,
+        from_id: str,
+        rel_types_to_replace: list[str],
+        to_label: str,
+        to_id: str,
+        new_rel_type: str | None = None,
+        properties: dict[str, object] | None = None,
+    ) -> None:
+        fl = self._label(from_label)
+        tl = self._label(to_label)
+        edge_filter = ", ".join(
+            f"'{self._rel_type(rel_type)}'" for rel_type in rel_types_to_replace
+        )
+        gremlin = (
+            f"g.V().has('{fl}', 'id', '{from_id}')"
+            f".as('a')"
+            f".outE({edge_filter})"
+            f".where(inV().has('{tl}', 'id', '{to_id}'))"
+            f".drop()"
+        )
+        if new_rel_type:
+            rt = self._rel_type(new_rel_type)
+            props = ""
+            if properties:
+                props = "".join(
+                    f".property('{key}', '{value}')"
+                    for key, value in properties.items()
+                )
+            gremlin += (
+                f".V().has('{fl}', 'id', '{from_id}')"
+                f".addE('{rt}')"
+                f".to(g.V().has('{tl}', 'id', '{to_id}'))"
+                f"{props}"
+            )
+        await self._execute_gremlin(gremlin)
+
     async def delete_relationship(
         self,
         from_label: str,

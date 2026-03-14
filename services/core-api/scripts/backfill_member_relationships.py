@@ -17,6 +17,7 @@ import sys
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.orm import selectinload
 
 sys.path.insert(0, ".")
 
@@ -67,6 +68,7 @@ async def backfill_member_relationships(
     async with async_session() as db:
         query = (
             select(LegacyMember)
+            .options(selectinload(LegacyMember.legacy))
             .where(LegacyMember.role != "pending")
             .where(LegacyMember.profile.isnot(None))
         )
@@ -95,18 +97,18 @@ async def backfill_member_relationships(
             try:
                 profile = member.profile or {}
                 relationship_type = profile.get("relationship_type")
-                if not relationship_type:
-                    logger.info(f"[{i}/{total}] Skipping — no relationship_type")
-                    continue
-
                 user_node_id = f"user-{member.user_id}"
-                legacy_node_id = str(member.legacy_id)
-                edge_label = categorize_relationship(relationship_type)
+                legacy_node_id = str(member.legacy.person_id)
+                edge_label = (
+                    categorize_relationship(relationship_type)
+                    if relationship_type
+                    else None
+                )
 
                 logger.info(
                     f"[{i}/{total}] user={member.user_id} "
                     f"legacy={member.legacy_id} "
-                    f"{relationship_type} -> {edge_label}"
+                    f"{relationship_type or 'cleared'} -> {edge_label or 'DELETE'}"
                 )
 
                 await graph_adapter.upsert_node(
@@ -127,16 +129,21 @@ async def backfill_member_relationships(
                         "source": "declared",
                     },
                 )
-                await graph_adapter.create_relationship(
+                await graph_adapter.replace_relationship(
                     "Person",
                     user_node_id,
-                    edge_label,
+                    ["FAMILY_OF", "WORKED_WITH", "FRIENDS_WITH", "KNEW"],
                     "Person",
                     legacy_node_id,
-                    properties={
-                        "relationship_type": relationship_type,
-                        "source": "declared",
-                    },
+                    new_rel_type=edge_label,
+                    properties=(
+                        {
+                            "relationship_type": relationship_type,
+                            "source": "declared",
+                        }
+                        if relationship_type
+                        else None
+                    ),
                 )
 
                 success += 1

@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..models.legacy import LegacyMember
 from ..providers.registry import get_provider_registry
@@ -18,7 +19,9 @@ logger = logging.getLogger(__name__)
 async def _get_member(db: AsyncSession, legacy_id: UUID, user_id: UUID) -> LegacyMember:
     """Get a legacy member, raising 403 if not found or pending."""
     result = await db.execute(
-        select(LegacyMember).where(
+        select(LegacyMember)
+        .options(selectinload(LegacyMember.legacy))
+        .where(
             LegacyMember.legacy_id == legacy_id,
             LegacyMember.user_id == user_id,
         )
@@ -85,9 +88,13 @@ async def update_profile(
     try:
         registry = get_provider_registry()
         graph_adapter = registry.get_graph_adapter()
-        if graph_adapter and existing.get("relationship_type"):
+        if graph_adapter:
             await _sync_relationship_to_graph(
-                graph_adapter, legacy_id, user_id, existing["relationship_type"]
+                graph_adapter,
+                user_id=user_id,
+                legacy_id=legacy_id,
+                legacy_person_id=member.legacy.person_id,
+                relationship_type=existing.get("relationship_type"),
             )
     except Exception:
         logger.warning(
@@ -101,9 +108,10 @@ async def update_profile(
 
 async def _sync_relationship_to_graph(
     graph_adapter: object,
-    legacy_id: UUID,
     user_id: UUID,
-    relationship_type: str,
+    legacy_id: UUID,
+    legacy_person_id: UUID,
+    relationship_type: str | None,
 ) -> None:
     """Sync a declared member relationship to the graph as a Person->Person edge."""
     from ..adapters.graph_adapter import GraphAdapter
@@ -112,7 +120,7 @@ async def _sync_relationship_to_graph(
         return
 
     user_node_id = f"user-{user_id}"
-    legacy_node_id = str(legacy_id)
+    legacy_node_id = str(legacy_person_id)
 
     # Upsert Person nodes
     await graph_adapter.upsert_node(
@@ -126,16 +134,21 @@ async def _sync_relationship_to_graph(
         {"legacy_id": str(legacy_id), "is_legacy": "true", "source": "declared"},
     )
 
-    # Categorize and create edge
-    edge_label = categorize_relationship(relationship_type)
-    await graph_adapter.create_relationship(
+    await graph_adapter.replace_relationship(
         "Person",
         user_node_id,
-        edge_label,
+        ["FAMILY_OF", "WORKED_WITH", "FRIENDS_WITH", "KNEW"],
         "Person",
         legacy_node_id,
-        properties={
-            "relationship_type": relationship_type,
-            "source": "declared",
-        },
+        new_rel_type=(
+            categorize_relationship(relationship_type) if relationship_type else None
+        ),
+        properties=(
+            {
+                "relationship_type": relationship_type,
+                "source": "declared",
+            }
+            if relationship_type
+            else None
+        ),
     )
