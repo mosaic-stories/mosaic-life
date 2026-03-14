@@ -69,6 +69,11 @@ class GraphAdapter(ABC):
         ...
 
     @abstractmethod
+    async def clear_story_entity_relationships(self, story_id: str) -> None:
+        """Delete extraction-derived outgoing relationships for a story."""
+        ...
+
+    @abstractmethod
     async def get_connections(
         self,
         label: str,

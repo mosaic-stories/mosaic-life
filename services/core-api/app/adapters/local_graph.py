@@ -118,6 +118,18 @@ class LocalGraphAdapter(GraphAdapter):
         )
         await self._execute_gremlin(gremlin)
 
+    async def clear_story_entity_relationships(self, story_id: str) -> None:
+        story_label = self._label("Story")
+        relationship_types = [
+            self._rel_type("TOOK_PLACE_AT"),
+            self._rel_type("REFERENCES"),
+        ]
+        edge_filter = ", ".join(f"'{rel_type}'" for rel_type in relationship_types)
+        gremlin = (
+            f"g.V().has('{story_label}', 'id', '{story_id}').outE({edge_filter}).drop()"
+        )
+        await self._execute_gremlin(gremlin)
+
     async def get_connections(
         self,
         label: str,

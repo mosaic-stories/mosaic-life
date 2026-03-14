@@ -164,6 +164,24 @@ class NeptuneGraphAdapter(GraphAdapter):
         )
         await self._execute_cypher(cypher, {"from_id": from_id, "to_id": to_id})
 
+    async def clear_story_entity_relationships(self, story_id: str) -> None:
+        relationship_types = [
+            self._rel_type("TOOK_PLACE_AT"),
+            self._rel_type("REFERENCES"),
+        ]
+        cypher = (
+            f"MATCH (s:`{self._label('Story')}` {{id: $story_id}})-[r]->() "
+            f"WHERE type(r) IN $relationship_types "
+            f"DELETE r"
+        )
+        await self._execute_cypher(
+            cypher,
+            {
+                "story_id": story_id,
+                "relationship_types": relationship_types,
+            },
+        )
+
     async def get_connections(
         self,
         label: str,

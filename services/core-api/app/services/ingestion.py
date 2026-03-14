@@ -201,6 +201,8 @@ async def _sync_entities_to_graph(
         span.set_attribute("story_id", str(story_id))
         sid = str(story_id)
 
+        await graph_adapter.clear_story_entity_relationships(sid)
+
         # Upsert the Story node itself — must exist before creating edges
         await graph_adapter.upsert_node(
             "Story",

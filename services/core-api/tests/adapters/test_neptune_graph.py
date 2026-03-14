@@ -53,6 +53,36 @@ class TestNeptuneOpenCypherQueryBuild:
         assert params["node_id"] == "abc-123"
         assert params["props"]["name"] == "Jane"
 
+    def test_clear_story_entity_relationships_deletes_extraction_edges(self) -> None:
+        adapter = NeptuneGraphAdapter(
+            host="h",
+            port=8182,
+            region="us-east-1",
+            iam_auth=False,
+            env_prefix="prod",
+        )
+
+        captured: dict[str, object] = {}
+
+        async def fake_execute(
+            cypher: str, params: dict[str, object]
+        ) -> list[dict[str, object]]:
+            captured["cypher"] = cypher
+            captured["params"] = params
+            return []
+
+        adapter._execute_cypher = fake_execute  # type: ignore[method-assign]
+
+        asyncio.run(adapter.clear_story_entity_relationships("story-123"))
+
+        cypher = str(captured["cypher"])
+        assert "MATCH (s:`prod-Story` {id: $story_id})-[r]->()" in cypher
+        assert "type(r) IN $relationship_types" in cypher
+        assert captured["params"] == {
+            "story_id": "story-123",
+            "relationship_types": ["prod-TOOK_PLACE_AT", "prod-REFERENCES"],
+        }
+
     def test_execute_cypher_signs_the_same_body_it_sends(self, monkeypatch) -> None:
         adapter = NeptuneGraphAdapter(
             host="h",
@@ -61,7 +91,6 @@ class TestNeptuneOpenCypherQueryBuild:
             iam_auth=True,
             env_prefix="prod",
         )
-
         captured: dict[str, str] = {}
 
         async def fake_sign_request(
