@@ -80,7 +80,13 @@ class TestNeptuneOpenCypherQueryBuild:
         assert "type(r) IN $relationship_types" in cypher
         assert captured["params"] == {
             "story_id": "story-123",
-            "relationship_types": ["prod-TOOK_PLACE_AT", "prod-REFERENCES"],
+            "relationship_types": [
+                "prod-TOOK_PLACE_AT",
+                "prod-REFERENCES",
+                "prod-WRITTEN_ABOUT",
+                "prod-MENTIONS",
+                "prod-AUTHORED_BY",
+            ],
         }
 
     def test_execute_cypher_signs_the_same_body_it_sends(self, monkeypatch) -> None:

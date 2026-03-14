@@ -123,6 +123,9 @@ class LocalGraphAdapter(GraphAdapter):
         relationship_types = [
             self._rel_type("TOOK_PLACE_AT"),
             self._rel_type("REFERENCES"),
+            self._rel_type("WRITTEN_ABOUT"),
+            self._rel_type("MENTIONS"),
+            self._rel_type("AUTHORED_BY"),
         ]
         edge_filter = ", ".join(f"'{rel_type}'" for rel_type in relationship_types)
         gremlin = (

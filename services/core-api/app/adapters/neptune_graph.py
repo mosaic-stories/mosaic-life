@@ -168,6 +168,9 @@ class NeptuneGraphAdapter(GraphAdapter):
         relationship_types = [
             self._rel_type("TOOK_PLACE_AT"),
             self._rel_type("REFERENCES"),
+            self._rel_type("WRITTEN_ABOUT"),
+            self._rel_type("MENTIONS"),
+            self._rel_type("AUTHORED_BY"),
         ]
         cypher = (
             f"MATCH (s:`{self._label('Story')}` {{id: $story_id}})-[r]->() "
