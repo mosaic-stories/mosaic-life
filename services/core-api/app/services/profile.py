@@ -59,8 +59,12 @@ async def get_profile_by_username(
 
     is_authenticated = viewer_user_id is not None
     is_self = viewer_user_id == user.id if viewer_user_id else False
-    # TODO: check actual connection status in Phase 2
-    is_connected = is_self
+    from .connection import is_connected as check_connected
+
+    is_connected = is_self or (
+        viewer_user_id is not None
+        and await check_connected(db, viewer_user_id, user.id)
+    )
 
     ctx = VisibilityContext(
         show_bio=is_self

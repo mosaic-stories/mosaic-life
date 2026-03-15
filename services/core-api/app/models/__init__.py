@@ -2,6 +2,7 @@
 
 from .activity import UserActivity
 from .ai import AIConversation, AIMessage
+from .connection import Connection, ConnectionRequest
 from .associations import (
     ConversationLegacy,
     MediaLegacy,
@@ -33,6 +34,8 @@ from .user_session import UserSession
 __all__ = [
     "AIConversation",
     "AIMessage",
+    "Connection",
+    "ConnectionRequest",
     "ContextFact",
     "ConversationChunk",
     "ConversationLegacy",
