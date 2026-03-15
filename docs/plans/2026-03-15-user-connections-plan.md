@@ -12,7 +12,22 @@
 
 ---
 
-## Phase 1: Foundation
+## Implementation Status
+
+| Phase | Status | Commit | Notes |
+|-------|--------|--------|-------|
+| Phase 1: Foundation (Tasks 1-9) | ✅ Complete | `415ab46` | Username, profiles, visibility, relationships |
+| Phase 2: Connections (Tasks 10-17) | ✅ Complete | `83a18a7` | Connection requests, lifecycle, graph sync, notifications |
+| Phase 3: Legacy Access (Tasks 18-22) | ✅ Complete | `197f7aa` | Access request workflow, admin approval, connected member context |
+| Phase 4: Frontend (Tasks 23-30) | ⬜ Not started | — | Out of scope for backend implementation |
+
+**Deferred items:**
+- Tasks 4-5, 11: Alembic migrations — require running PostgreSQL instance; create before deployment
+- Task 22: Enhanced duplicate detection — basic implementation in place, advanced matching deferred
+
+---
+
+## Phase 1: Foundation ✅
 
 ### Task 1: Add Username Column to Users Model
 
@@ -1785,7 +1800,7 @@ git commit -m "feat(search): respect discoverability in user search"
 
 ---
 
-## Phase 2: User-to-User Connections
+## Phase 2: User-to-User Connections ✅
 
 ### Task 10: Connection and ConnectionRequest Models
 
@@ -2005,7 +2020,7 @@ Commit: `git commit -m "feat(profiles): add connection-aware visibility filterin
 
 ---
 
-## Phase 3: Legacy Access Requests
+## Phase 3: Legacy Access Requests ✅
 
 ### Task 18: LegacyAccessRequest Model and Migration
 
