@@ -14,6 +14,7 @@ from .favorite import UserFavorite
 from .invitation import Invitation
 from .knowledge import KnowledgeAuditLog, StoryChunk
 from .legacy import Legacy, LegacyMember
+from .legacy_access_request import LegacyAccessRequest
 from .legacy_link import LegacyLink, LegacyLinkShare
 from .memory import ConversationChunk, LegacyFact
 from .media import Media
@@ -42,6 +43,7 @@ __all__ = [
     "Invitation",
     "KnowledgeAuditLog",
     "Legacy",
+    "LegacyAccessRequest",
     "LegacyFact",
     "LegacyLink",
     "LegacyLinkShare",

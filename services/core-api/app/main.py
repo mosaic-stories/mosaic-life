@@ -42,6 +42,7 @@ from .routes.connections import router as connections_router
 from .routes.connection_request import router as connection_request_router
 from .routes.prompts import router as prompts_router
 from .routes.tag import router as tag_router
+from .routes.legacy_access_request import router as legacy_access_request_router
 
 logger = logging.getLogger(__name__)
 
@@ -144,3 +145,4 @@ app.include_router(connections_router)
 app.include_router(connection_request_router)
 app.include_router(prompts_router)
 app.include_router(tag_router)
+app.include_router(legacy_access_request_router)
