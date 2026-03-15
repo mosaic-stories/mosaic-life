@@ -248,6 +248,7 @@ def _queue_reindex(
                     visibility=story.visibility,
                     author_id=story.author_id,
                     user_id=user_id,
+                    story_title=story.title,
                 )
         except Exception as e:
             logger.error(

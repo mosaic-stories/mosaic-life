@@ -147,6 +147,68 @@ class NeptuneGraphAdapter(GraphAdapter):
         )
         await self._execute_cypher(cypher, params)
 
+    async def upsert_relationship(
+        self,
+        from_label: str,
+        from_id: str,
+        rel_type: str,
+        to_label: str,
+        to_id: str,
+        properties: dict[str, object] | None = None,
+    ) -> None:
+        fl = self._label(from_label)
+        tl = self._label(to_label)
+        rt = self._rel_type(rel_type)
+        props_clause = ""
+        params: dict[str, Any] = {"from_id": from_id, "to_id": to_id}
+        if properties:
+            props_clause = " SET " + ", ".join(
+                f"r.{k} = $props.{k}" for k in properties
+            )
+            params["props"] = properties
+        cypher = (
+            f"MATCH (a:`{fl}` {{id: $from_id}}), (b:`{tl}` {{id: $to_id}}) "
+            f"MERGE (a)-[r:`{rt}`]->(b){props_clause}"
+        )
+        await self._execute_cypher(cypher, params)
+
+    async def replace_relationship(
+        self,
+        from_label: str,
+        from_id: str,
+        rel_types_to_replace: list[str],
+        to_label: str,
+        to_id: str,
+        new_rel_type: str | None = None,
+        properties: dict[str, object] | None = None,
+    ) -> None:
+        fl = self._label(from_label)
+        tl = self._label(to_label)
+        params: dict[str, Any] = {
+            "from_id": from_id,
+            "to_id": to_id,
+            "relationship_types": [self._rel_type(rel) for rel in rel_types_to_replace],
+        }
+        cypher = (
+            f"MATCH (a:`{fl}` {{id: $from_id}}), (b:`{tl}` {{id: $to_id}}) "
+            f"OPTIONAL MATCH (a)-[r]->(b) "
+            f"WHERE type(r) IN $relationship_types "
+            f"DELETE r"
+        )
+        if new_rel_type:
+            rt = self._rel_type(new_rel_type)
+            if properties:
+                cypher += (
+                    " CREATE (a)-[new_r:`"
+                    + rt
+                    + "`]->(b) SET "
+                    + ", ".join(f"new_r.{k} = $props.{k}" for k in properties)
+                )
+                params["props"] = properties
+            else:
+                cypher += f" CREATE (a)-[new_r:`{rt}`]->(b)"
+        await self._execute_cypher(cypher, params)
+
     async def delete_relationship(
         self,
         from_label: str,
@@ -168,6 +230,9 @@ class NeptuneGraphAdapter(GraphAdapter):
         relationship_types = [
             self._rel_type("TOOK_PLACE_AT"),
             self._rel_type("REFERENCES"),
+            self._rel_type("WRITTEN_ABOUT"),
+            self._rel_type("MENTIONS"),
+            self._rel_type("AUTHORED_BY"),
         ]
         cypher = (
             f"MATCH (s:`{self._label('Story')}` {{id: $story_id}})-[r]->() "

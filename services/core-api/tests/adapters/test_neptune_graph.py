@@ -80,7 +80,93 @@ class TestNeptuneOpenCypherQueryBuild:
         assert "type(r) IN $relationship_types" in cypher
         assert captured["params"] == {
             "story_id": "story-123",
-            "relationship_types": ["prod-TOOK_PLACE_AT", "prod-REFERENCES"],
+            "relationship_types": [
+                "prod-TOOK_PLACE_AT",
+                "prod-REFERENCES",
+                "prod-WRITTEN_ABOUT",
+                "prod-MENTIONS",
+                "prod-AUTHORED_BY",
+            ],
+        }
+
+    def test_upsert_relationship_uses_merge(self) -> None:
+        adapter = NeptuneGraphAdapter(
+            host="h",
+            port=8182,
+            region="us-east-1",
+            iam_auth=False,
+            env_prefix="prod",
+        )
+
+        captured: dict[str, object] = {}
+
+        async def fake_execute(
+            cypher: str, params: dict[str, object]
+        ) -> list[dict[str, object]]:
+            captured["cypher"] = cypher
+            captured["params"] = params
+            return []
+
+        adapter._execute_cypher = fake_execute  # type: ignore[method-assign]
+
+        asyncio.run(
+            adapter.upsert_relationship(
+                "Person",
+                "from-1",
+                "FAMILY_OF",
+                "Person",
+                "to-1",
+                {"source": "declared"},
+            )
+        )
+
+        assert "MERGE (a)-[r:`prod-FAMILY_OF`]->(b)" in str(captured["cypher"])
+        assert captured["params"] == {
+            "from_id": "from-1",
+            "to_id": "to-1",
+            "props": {"source": "declared"},
+        }
+
+    def test_replace_relationship_deletes_old_and_creates_new(self) -> None:
+        adapter = NeptuneGraphAdapter(
+            host="h",
+            port=8182,
+            region="us-east-1",
+            iam_auth=False,
+            env_prefix="prod",
+        )
+
+        captured: dict[str, object] = {}
+
+        async def fake_execute(
+            cypher: str, params: dict[str, object]
+        ) -> list[dict[str, object]]:
+            captured["cypher"] = cypher
+            captured["params"] = params
+            return []
+
+        adapter._execute_cypher = fake_execute  # type: ignore[method-assign]
+
+        asyncio.run(
+            adapter.replace_relationship(
+                "Person",
+                "from-1",
+                ["FAMILY_OF", "FRIENDS_WITH"],
+                "Person",
+                "to-1",
+                new_rel_type="WORKED_WITH",
+                properties={"source": "declared"},
+            )
+        )
+
+        cypher = str(captured["cypher"])
+        assert "OPTIONAL MATCH (a)-[r]->(b)" in cypher
+        assert "DELETE r CREATE (a)-[new_r:`prod-WORKED_WITH`]->(b)" in cypher
+        assert captured["params"] == {
+            "from_id": "from-1",
+            "to_id": "to-1",
+            "relationship_types": ["prod-FAMILY_OF", "prod-FRIENDS_WITH"],
+            "props": {"source": "declared"},
         }
 
     def test_execute_cypher_signs_the_same_body_it_sends(self, monkeypatch) -> None:

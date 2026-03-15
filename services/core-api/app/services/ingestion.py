@@ -7,12 +7,20 @@ from typing import TYPE_CHECKING
 from uuid import UUID
 
 from opentelemetry import trace
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
+from ..models.legacy import Legacy
 from ..models.knowledge import KnowledgeAuditLog
 from ..providers.registry import get_provider_registry
 from .chunking import chunk_story
+
+from .graph_sync import (
+    categorize_relationship,
+    classify_story_person_edge,
+    normalize_person_id,
+)
 
 if TYPE_CHECKING:
     from ..adapters.graph_adapter import GraphAdapter
@@ -30,6 +38,7 @@ async def index_story_chunks(
     visibility: str,
     author_id: UUID,
     user_id: UUID | None = None,
+    story_title: str = "",
 ) -> int:
     """Index story content by chunking, embedding, and storing.
 
@@ -129,6 +138,20 @@ async def index_story_chunks(
                 registry = get_provider_registry()
                 graph_adapter = registry.get_graph_adapter()
                 if graph_adapter:
+                    legacy_result = await db.execute(
+                        select(Legacy).where(Legacy.id == legacy_id)
+                    )
+                    legacy = legacy_result.scalar_one_or_none()
+                    if legacy is None:
+                        logger.warning(
+                            "ingestion.legacy_missing_for_graph_sync",
+                            extra={
+                                "legacy_id": str(legacy_id),
+                                "story_id": str(story_id),
+                            },
+                        )
+                        return chunk_count
+
                     from .entity_extraction import EntityExtractionService
 
                     llm_provider = registry.get_llm_provider()
@@ -141,7 +164,14 @@ async def index_story_chunks(
 
                     # Sync extracted entities to graph
                     await _sync_entities_to_graph(
-                        graph_adapter, story_id, legacy_id, filtered
+                        graph_adapter,
+                        story_id,
+                        legacy_id,
+                        filtered,
+                        story_title=story_title,
+                        author_id=author_id,
+                        legacy_person_id=str(legacy.person_id),
+                        legacy_person_name=legacy.name,
                     )
         except Exception as exc:
             # Entity extraction is best-effort — never block ingestion
@@ -195,6 +225,11 @@ async def _sync_entities_to_graph(
     story_id: UUID,
     legacy_id: UUID,
     entities: ExtractedEntities,
+    *,
+    story_title: str = "",
+    author_id: UUID | None = None,
+    legacy_person_id: str | None = None,
+    legacy_person_name: str | None = None,
 ) -> None:
     """Sync extracted entities to the graph database."""
     with tracer.start_as_current_span("entity_extraction.sync_graph") as span:
@@ -255,11 +290,98 @@ async def _sync_entities_to_graph(
                 obj_id,
             )
 
+        # --- Person nodes and Story→Person edges ---
+        lid = str(legacy_id)
+
+        if legacy_person_id:
+            legacy_person_props: dict[str, object] = {
+                "legacy_id": lid,
+                "source": "declared",
+            }
+            if legacy_person_name:
+                legacy_person_props["name"] = legacy_person_name
+            await graph_adapter.upsert_node(
+                "Person",
+                legacy_person_id,
+                legacy_person_props,
+            )
+
+        for person in entities.people:
+            person_id = normalize_person_id(person.name, lid)
+            await graph_adapter.upsert_node(
+                "Person",
+                person_id,
+                {
+                    "name": person.name,
+                    "legacy_id": lid,
+                    "source": "extracted",
+                },
+            )
+
+            edge_type = classify_story_person_edge(
+                person.name, story_title, person.confidence
+            )
+            await graph_adapter.create_relationship(
+                "Story",
+                sid,
+                edge_type,
+                "Person",
+                person_id,
+                properties={"confidence": person.confidence},
+            )
+
+            # Infer Person→Person relationship from extraction context
+            if legacy_person_id and person.context:
+                rel_label = categorize_relationship(person.context)
+                await graph_adapter.replace_relationship(
+                    "Person",
+                    person_id,
+                    ["FAMILY_OF", "WORKED_WITH", "FRIENDS_WITH", "KNEW"],
+                    "Person",
+                    legacy_person_id,
+                    new_rel_type=rel_label,
+                    properties={
+                        "relationship_type": person.context,
+                        "source": "extracted",
+                        "story_id": sid,
+                    },
+                )
+
+        # --- AUTHORED_BY edge ---
+        if author_id:
+            author_node_id = f"user-{author_id}"
+            await graph_adapter.upsert_node(
+                "Person",
+                author_node_id,
+                {"user_id": str(author_id), "is_user": "true", "source": "declared"},
+            )
+            await graph_adapter.create_relationship(
+                "Story",
+                sid,
+                "AUTHORED_BY",
+                "Person",
+                author_node_id,
+            )
+
         nodes_upserted = (
-            1 + len(entities.places) + len(entities.events) + len(entities.objects)
+            1
+            + len(entities.places)
+            + len(entities.events)
+            + len(entities.objects)
+            + len(entities.people)
+            + (1 if legacy_person_id else 0)
+            + (1 if author_id else 0)
+        )
+        inferred_relationship_count = sum(
+            1 for person in entities.people if legacy_person_id and person.context
         )
         edges_created = (
-            len(entities.places) + len(entities.events) + len(entities.objects)
+            len(entities.places)
+            + len(entities.events)
+            + len(entities.objects)
+            + len(entities.people)
+            + inferred_relationship_count
+            + (1 if author_id else 0)
         )
         span.set_attribute("nodes_upserted", nodes_upserted)
         span.set_attribute("edges_created", edges_created)
@@ -271,5 +393,6 @@ async def _sync_entities_to_graph(
                 "places": len(entities.places),
                 "events": len(entities.events),
                 "objects": len(entities.objects),
+                "people": len(entities.people),
             },
         )

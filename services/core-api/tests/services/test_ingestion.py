@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.adapters.storytelling import PostgresVectorStoreAdapter
@@ -193,6 +194,63 @@ class TestIndexStoryChunks:
         assert audit_log.user_id == test_user.id
         assert audit_log.chunk_count == 1
 
+    @pytest.mark.asyncio
+    async def test_graph_sync_uses_canonical_legacy_person_id(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+        test_story: Story,
+    ) -> None:
+        graph_adapter = AsyncMock()
+        llm_provider = AsyncMock()
+        llm_provider.stream_generate = Mock(
+            return_value=_async_iter(
+                [
+                    '{"people": [{"name": "Uncle Jim", "context": "uncle", "confidence": 0.9}], '
+                    '"places": [], "events": [], "objects": [], "time_references": []}'
+                ]
+            )
+        )
+
+        with patch("app.services.ingestion.get_settings") as mock_settings:
+            mock_settings.return_value.graph_augmentation_enabled = True
+            mock_settings.return_value.entity_extraction_model_id = "test-model"
+
+            with patch("app.services.ingestion.get_provider_registry") as mock_registry:
+                _mock_ingestion_registry(
+                    mock_registry,
+                    embedding_vectors=[[0.1] * 1024],
+                )
+                mock_registry.return_value.get_graph_adapter.return_value = (
+                    graph_adapter
+                )
+                mock_registry.return_value.get_llm_provider.return_value = llm_provider
+
+                await index_story_chunks(
+                    db=db_session,
+                    story_id=test_story.id,
+                    content="Story about Uncle Jim.",
+                    legacy_id=test_legacy.id,
+                    visibility=test_story.visibility,
+                    author_id=test_user.id,
+                    story_title=test_story.title,
+                )
+
+        legacy = (
+            await db_session.execute(select(Legacy).where(Legacy.id == test_legacy.id))
+        ).scalar_one()
+
+        graph_adapter.upsert_node.assert_any_await(
+            "Person",
+            str(legacy.person_id),
+            {
+                "legacy_id": str(test_legacy.id),
+                "source": "declared",
+                "name": legacy.name,
+            },
+        )
+
 
 class TestLogDeletionAudit:
     """Tests for deletion audit logging."""
@@ -304,3 +362,122 @@ class TestSyncEntitiesToGraph:
 
         span.set_attribute.assert_any_call("nodes_upserted", 4)
         span.set_attribute.assert_any_call("edges_created", 3)
+
+
+class TestSyncEntitiesToGraphPersons:
+    """Test person entity sync to graph."""
+
+    @pytest.mark.asyncio
+    async def test_creates_person_nodes_and_edges(self) -> None:
+        """Extracted people create Person nodes and Story→Person edges."""
+        graph = AsyncMock()
+        story_id = uuid4()
+        legacy_id = uuid4()
+        author_id = uuid4()
+
+        entities = ExtractedEntities(
+            people=[
+                ExtractedEntity(name="Uncle Jim", context="uncle", confidence=0.8),
+                ExtractedEntity(name="Sarah", context="friend", confidence=0.95),
+            ],
+        )
+
+        await _sync_entities_to_graph(
+            graph,
+            story_id,
+            legacy_id,
+            entities,
+            story_title="Remembering Sarah",
+            author_id=author_id,
+            legacy_person_id="person-123",
+            legacy_person_name="Grandma Rose",
+        )
+
+        # Should upsert Person nodes for both extracted people
+        person_calls = [
+            c for c in graph.upsert_node.call_args_list if c.args[0] == "Person"
+        ]
+        assert len(person_calls) == 4  # legacy subject + 2 extracted + 1 author
+
+        # Should create edges
+        rel_calls = [
+            c
+            for c in graph.create_relationship.call_args_list
+            if c.args[0] == "Story" and c.args[3] == "Person"
+        ]
+        rel_types = [c.args[2] for c in rel_calls]
+        assert "MENTIONS" in rel_types
+        assert "WRITTEN_ABOUT" in rel_types
+        assert "AUTHORED_BY" in rel_types
+
+    @pytest.mark.asyncio
+    async def test_infers_person_to_person_relationship(self) -> None:
+        """Extraction context 'uncle' creates FAMILY_OF edge."""
+        graph = AsyncMock()
+        story_id = uuid4()
+        legacy_id = uuid4()
+
+        entities = ExtractedEntities(
+            people=[
+                ExtractedEntity(name="Uncle Jim", context="uncle", confidence=0.8),
+            ],
+        )
+
+        await _sync_entities_to_graph(
+            graph,
+            story_id,
+            legacy_id,
+            entities,
+            story_title="A story",
+            author_id=uuid4(),
+            legacy_person_id="person-123",
+            legacy_person_name="Grandma Rose",
+        )
+
+        graph.replace_relationship.assert_awaited_once_with(
+            "Person",
+            "person-uncle-jim-" + str(legacy_id),
+            ["FAMILY_OF", "WORKED_WITH", "FRIENDS_WITH", "KNEW"],
+            "Person",
+            "person-123",
+            new_rel_type="FAMILY_OF",
+            properties={
+                "relationship_type": "uncle",
+                "source": "extracted",
+                "story_id": str(story_id),
+            },
+        )
+
+    @pytest.mark.asyncio
+    async def test_person_relationship_counts_include_inferred_edges(self) -> None:
+        graph = AsyncMock()
+        span = Mock()
+
+        @contextmanager
+        def _span_context():
+            yield span
+
+        with patch(
+            "app.services.ingestion.tracer.start_as_current_span",
+            return_value=_span_context(),
+        ):
+            await _sync_entities_to_graph(
+                graph_adapter=graph,
+                story_id=uuid4(),
+                legacy_id=uuid4(),
+                entities=ExtractedEntities(
+                    people=[
+                        ExtractedEntity(
+                            name="Uncle Jim", context="uncle", confidence=0.8
+                        )
+                    ]
+                ),
+                legacy_person_id="person-123",
+            )
+
+        span.set_attribute.assert_any_call("edges_created", 2)
+
+
+async def _async_iter(chunks: list[str]):
+    for chunk in chunks:
+        yield chunk

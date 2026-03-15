@@ -57,6 +57,33 @@ class GraphAdapter(ABC):
         ...
 
     @abstractmethod
+    async def upsert_relationship(
+        self,
+        from_label: str,
+        from_id: str,
+        rel_type: str,
+        to_label: str,
+        to_id: str,
+        properties: dict[str, object] | None = None,
+    ) -> None:
+        """Create or update a directed relationship between two nodes."""
+        ...
+
+    @abstractmethod
+    async def replace_relationship(
+        self,
+        from_label: str,
+        from_id: str,
+        rel_types_to_replace: list[str],
+        to_label: str,
+        to_id: str,
+        new_rel_type: str | None = None,
+        properties: dict[str, object] | None = None,
+    ) -> None:
+        """Replace matching relationships between two nodes, optionally creating one."""
+        ...
+
+    @abstractmethod
     async def delete_relationship(
         self,
         from_label: str,
