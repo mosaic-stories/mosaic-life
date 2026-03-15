@@ -37,15 +37,39 @@ class LocalGraphAdapter(GraphAdapter):
     def _rel_type(self, logical_type: str) -> str:
         return _prefix_label(self.env_prefix, logical_type)
 
-    async def _execute_gremlin(self, gremlin: str) -> list[dict[str, Any]]:
+    def _bind(self, bindings: dict[str, object], prefix: str, value: object) -> str:
+        key = f"{prefix}_{len(bindings)}"
+        bindings[key] = value
+        return key
+
+    def _property_steps(
+        self, properties: dict[str, object] | None, bindings: dict[str, object]
+    ) -> str:
+        if not properties:
+            return ""
+
+        steps: list[str] = []
+        for key, value in properties.items():
+            value_binding = self._bind(bindings, key, value)
+            steps.append(f".property('{key}', {value_binding})")
+        return "".join(steps)
+
+    async def _execute_gremlin(
+        self,
+        gremlin: str,
+        bindings: dict[str, object] | None = None,
+    ) -> list[dict[str, Any]]:
         """Execute a Gremlin query via the REST API."""
         with tracer.start_as_current_span("graph_adapter.query") as span:
             span.set_attribute("query_type", "gremlin")
             started = time.perf_counter()
+            payload: dict[str, object] = {"gremlin": gremlin}
+            if bindings:
+                payload["bindings"] = bindings
             async with httpx.AsyncClient(timeout=5.0) as client:
                 response = await client.post(
                     f"{self._base_url}/gremlin",
-                    json={"gremlin": gremlin},
+                    json=payload,
                 )
                 response.raise_for_status()
                 data: dict[str, Any] = response.json()
@@ -60,21 +84,25 @@ class LocalGraphAdapter(GraphAdapter):
         self, label: str, node_id: str, properties: dict[str, object]
     ) -> None:
         prefixed = self._label(label)
+        bindings: dict[str, object] = {}
+        node_id_binding = self._bind(bindings, "node_id", node_id)
         # Gremlin upsert: try to get existing, fold to add if not found
-        props = "".join(f".property('{k}', '{v}')" for k, v in properties.items())
+        props = self._property_steps(properties, bindings)
         gremlin = (
-            f"g.V().has('{prefixed}', 'id', '{node_id}')"
+            f"g.V().has('{prefixed}', 'id', {node_id_binding})"
             f".fold().coalesce("
             f"  unfold(),"
-            f"  addV('{prefixed}').property('id', '{node_id}')"
+            f"  addV('{prefixed}').property('id', {node_id_binding})"
             f"){props}"
         )
-        await self._execute_gremlin(gremlin)
+        await self._execute_gremlin(gremlin, bindings)
 
     async def delete_node(self, label: str, node_id: str) -> None:
         prefixed = self._label(label)
-        gremlin = f"g.V().has('{prefixed}', 'id', '{node_id}').drop()"
-        await self._execute_gremlin(gremlin)
+        bindings: dict[str, object] = {}
+        node_id_binding = self._bind(bindings, "node_id", node_id)
+        gremlin = f"g.V().has('{prefixed}', 'id', {node_id_binding}).drop()"
+        await self._execute_gremlin(gremlin, bindings)
 
     async def create_relationship(
         self,
@@ -88,16 +116,17 @@ class LocalGraphAdapter(GraphAdapter):
         fl = self._label(from_label)
         tl = self._label(to_label)
         rt = self._rel_type(rel_type)
-        props = ""
-        if properties:
-            props = "".join(f".property('{k}', '{v}')" for k, v in properties.items())
+        bindings: dict[str, object] = {}
+        from_id_binding = self._bind(bindings, "from_id", from_id)
+        to_id_binding = self._bind(bindings, "to_id", to_id)
+        props = self._property_steps(properties, bindings)
         gremlin = (
-            f"g.V().has('{fl}', 'id', '{from_id}')"
+            f"g.V().has('{fl}', 'id', {from_id_binding})"
             f".addE('{rt}')"
-            f".to(g.V().has('{tl}', 'id', '{to_id}'))"
+            f".to(g.V().has('{tl}', 'id', {to_id_binding}))"
             f"{props}"
         )
-        await self._execute_gremlin(gremlin)
+        await self._execute_gremlin(gremlin, bindings)
 
     async def upsert_relationship(
         self,
@@ -111,21 +140,22 @@ class LocalGraphAdapter(GraphAdapter):
         fl = self._label(from_label)
         tl = self._label(to_label)
         rt = self._rel_type(rel_type)
-        props = ""
-        if properties:
-            props = "".join(f".property('{k}', '{v}')" for k, v in properties.items())
+        bindings: dict[str, object] = {}
+        from_id_binding = self._bind(bindings, "from_id", from_id)
+        to_id_binding = self._bind(bindings, "to_id", to_id)
+        props = self._property_steps(properties, bindings)
         gremlin = (
-            f"g.V().has('{fl}', 'id', '{from_id}')"
+            f"g.V().has('{fl}', 'id', {from_id_binding})"
             f".as('a')"
-            f".V().has('{tl}', 'id', '{to_id}')"
+            f".V().has('{tl}', 'id', {to_id_binding})"
             f".as('b')"
             f".coalesce("
-            f"select('a').outE('{rt}').where(inV().has('{tl}', 'id', '{to_id}')),"
+            f"select('a').outE('{rt}').where(inV().has('{tl}', 'id', {to_id_binding})),"
             f"select('a').addE('{rt}').to(select('b'))"
             f")"
             f"{props}"
         )
-        await self._execute_gremlin(gremlin)
+        await self._execute_gremlin(gremlin, bindings)
 
     async def replace_relationship(
         self,
@@ -139,31 +169,29 @@ class LocalGraphAdapter(GraphAdapter):
     ) -> None:
         fl = self._label(from_label)
         tl = self._label(to_label)
+        bindings: dict[str, object] = {}
+        from_id_binding = self._bind(bindings, "from_id", from_id)
+        to_id_binding = self._bind(bindings, "to_id", to_id)
         edge_filter = ", ".join(
             f"'{self._rel_type(rel_type)}'" for rel_type in rel_types_to_replace
         )
         gremlin = (
-            f"g.V().has('{fl}', 'id', '{from_id}')"
+            f"g.V().has('{fl}', 'id', {from_id_binding})"
             f".as('a')"
             f".outE({edge_filter})"
-            f".where(inV().has('{tl}', 'id', '{to_id}'))"
+            f".where(inV().has('{tl}', 'id', {to_id_binding}))"
             f".drop()"
         )
         if new_rel_type:
             rt = self._rel_type(new_rel_type)
-            props = ""
-            if properties:
-                props = "".join(
-                    f".property('{key}', '{value}')"
-                    for key, value in properties.items()
-                )
+            props = self._property_steps(properties, bindings)
             gremlin += (
-                f".V().has('{fl}', 'id', '{from_id}')"
+                f".V().has('{fl}', 'id', {from_id_binding})"
                 f".addE('{rt}')"
-                f".to(g.V().has('{tl}', 'id', '{to_id}'))"
+                f".to(g.V().has('{tl}', 'id', {to_id_binding}))"
                 f"{props}"
             )
-        await self._execute_gremlin(gremlin)
+        await self._execute_gremlin(gremlin, bindings)
 
     async def delete_relationship(
         self,
@@ -176,16 +204,21 @@ class LocalGraphAdapter(GraphAdapter):
         fl = self._label(from_label)
         tl = self._label(to_label)
         rt = self._rel_type(rel_type)
+        bindings: dict[str, object] = {}
+        from_id_binding = self._bind(bindings, "from_id", from_id)
+        to_id_binding = self._bind(bindings, "to_id", to_id)
         gremlin = (
-            f"g.V().has('{fl}', 'id', '{from_id}')"
+            f"g.V().has('{fl}', 'id', {from_id_binding})"
             f".outE('{rt}')"
-            f".where(inV().has('{tl}', 'id', '{to_id}'))"
+            f".where(inV().has('{tl}', 'id', {to_id_binding}))"
             f".drop()"
         )
-        await self._execute_gremlin(gremlin)
+        await self._execute_gremlin(gremlin, bindings)
 
     async def clear_story_entity_relationships(self, story_id: str) -> None:
         story_label = self._label("Story")
+        bindings: dict[str, object] = {}
+        story_id_binding = self._bind(bindings, "story_id", story_id)
         relationship_types = [
             self._rel_type("TOOK_PLACE_AT"),
             self._rel_type("REFERENCES"),
@@ -194,10 +227,8 @@ class LocalGraphAdapter(GraphAdapter):
             self._rel_type("AUTHORED_BY"),
         ]
         edge_filter = ", ".join(f"'{rel_type}'" for rel_type in relationship_types)
-        gremlin = (
-            f"g.V().has('{story_label}', 'id', '{story_id}').outE({edge_filter}).drop()"
-        )
-        await self._execute_gremlin(gremlin)
+        gremlin = f"g.V().has('{story_label}', 'id', {story_id_binding}).outE({edge_filter}).drop()"
+        await self._execute_gremlin(gremlin, bindings)
 
     async def get_connections(
         self,
@@ -207,6 +238,8 @@ class LocalGraphAdapter(GraphAdapter):
         depth: int = 1,
     ) -> list[dict[str, object]]:
         prefixed = self._label(label)
+        bindings: dict[str, object] = {}
+        node_id_binding = self._bind(bindings, "node_id", node_id)
         if rel_types:
             edge_filter = ", ".join(f"'{self._rel_type(r)}'" for r in rel_types)
             edge_clause = f".bothE({edge_filter})"
@@ -217,17 +250,17 @@ class LocalGraphAdapter(GraphAdapter):
         if depth > 1:
             repeat_clause = f".repeat(bothE().otherV()).times({depth}).dedup()"
             gremlin = (
-                f"g.V().has('{prefixed}', 'id', '{node_id}')"
+                f"g.V().has('{prefixed}', 'id', {node_id_binding})"
                 f"{repeat_clause}"
                 f".valueMap(true).toList()"
             )
         else:
             gremlin = (
-                f"g.V().has('{prefixed}', 'id', '{node_id}')"
+                f"g.V().has('{prefixed}', 'id', {node_id_binding})"
                 f"{edge_clause}.otherV()"
                 f".valueMap(true).toList()"
             )
-        return await self._execute_gremlin(gremlin)
+        return await self._execute_gremlin(gremlin, bindings)
 
     async def find_path(
         self,
@@ -235,14 +268,17 @@ class LocalGraphAdapter(GraphAdapter):
         to_id: str,
         max_depth: int = 6,
     ) -> list[dict[str, object]]:
+        bindings: dict[str, object] = {}
+        from_id_binding = self._bind(bindings, "from_id", from_id)
+        to_id_binding = self._bind(bindings, "to_id", to_id)
         gremlin = (
-            f"g.V().has('id', '{from_id}')"
+            f"g.V().has('id', {from_id_binding})"
             f".repeat(bothE().otherV().simplePath())"
-            f".until(has('id', '{to_id}').or().loops().is({max_depth}))"
-            f".has('id', '{to_id}')"
+            f".until(has('id', {to_id_binding}).or().loops().is({max_depth}))"
+            f".has('id', {to_id_binding})"
             f".path().limit(1).toList()"
         )
-        return await self._execute_gremlin(gremlin)
+        return await self._execute_gremlin(gremlin, bindings)
 
     async def get_related_stories(
         self,
@@ -250,13 +286,15 @@ class LocalGraphAdapter(GraphAdapter):
         limit: int = 10,
     ) -> list[dict[str, object]]:
         prefixed = self._label("Story")
+        bindings: dict[str, object] = {}
+        story_id_binding = self._bind(bindings, "story_id", story_id)
         gremlin = (
-            f"g.V().has('{prefixed}', 'id', '{story_id}')"
+            f"g.V().has('{prefixed}', 'id', {story_id_binding})"
             f".bothE().otherV().bothE().otherV()"
             f".hasLabel('{prefixed}').dedup()"
             f".limit({limit}).valueMap(true).toList()"
         )
-        return await self._execute_gremlin(gremlin)
+        return await self._execute_gremlin(gremlin, bindings)
 
     async def query(
         self, query_str: str, params: dict[str, object] | None = None

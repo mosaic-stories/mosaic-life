@@ -369,10 +369,11 @@ async def _sync_entities_to_graph(
             + len(entities.events)
             + len(entities.objects)
             + len(entities.people)
+            + (1 if legacy_person_id else 0)
             + (1 if author_id else 0)
         )
         inferred_relationship_count = sum(
-            1 for person in entities.people if person.context
+            1 for person in entities.people if legacy_person_id and person.context
         )
         edges_created = (
             len(entities.places)

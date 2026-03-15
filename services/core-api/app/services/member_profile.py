@@ -1,6 +1,9 @@
 """Service for member relationship profiles."""
 
+from __future__ import annotations
+
 import logging
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -12,6 +15,9 @@ from ..models.legacy import LegacyMember
 from ..providers.registry import get_provider_registry
 from ..schemas.member_profile import MemberProfileResponse, MemberProfileUpdate
 from .graph_sync import categorize_relationship
+
+if TYPE_CHECKING:
+    from ..adapters.graph_adapter import GraphAdapter
 
 logger = logging.getLogger(__name__)
 
@@ -107,17 +113,13 @@ async def update_profile(
 
 
 async def _sync_relationship_to_graph(
-    graph_adapter: object,
+    graph_adapter: GraphAdapter,
     user_id: UUID,
     legacy_id: UUID,
     legacy_person_id: UUID,
     relationship_type: str | None,
 ) -> None:
     """Sync a declared member relationship to the graph as a Person->Person edge."""
-    from ..adapters.graph_adapter import GraphAdapter
-
-    if not isinstance(graph_adapter, GraphAdapter):
-        return
 
     user_node_id = f"user-{user_id}"
     legacy_node_id = str(legacy_person_id)
