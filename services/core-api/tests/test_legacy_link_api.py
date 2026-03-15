@@ -282,6 +282,7 @@ class TestGetLinkDetail:
             email="third@example.com",
             google_id="google_third_789",
             name="Third User",
+            username="third-user-0001",
         )
         db_session.add(third_user)
         await db_session.commit()

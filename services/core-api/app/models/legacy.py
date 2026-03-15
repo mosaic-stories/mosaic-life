@@ -1,11 +1,10 @@
 """Legacy and LegacyMember models."""
 
 from datetime import date, datetime
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
-    JSON,
     Date,
     DateTime,
     ForeignKey,
@@ -143,8 +142,6 @@ class LegacyMember(Base):
         server_default=func.current_timestamp(),
         nullable=False,
     )
-
-    profile: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
 
     # Relationships
     legacy: Mapped["Legacy"] = relationship("Legacy", back_populates="members")

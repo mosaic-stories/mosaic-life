@@ -24,6 +24,7 @@ from .session_tokens import (
     hash_session_token,
 )
 from ..models.user import User
+from ..services.username import generate_username
 from .google import GoogleOAuthError, get_google_client
 from .middleware import create_session_cookie, get_current_session, require_auth
 from .models import GoogleUser, MeResponse, SessionData
@@ -377,6 +378,7 @@ async def _find_or_create_user(db: AsyncSession, google_user: GoogleUser) -> Use
             email=google_user.email,
             google_id=google_user.id,
             name=google_user.display_name,
+            username=generate_username(google_user.display_name),
             avatar_url=google_user.picture,
         )
         db.add(user)

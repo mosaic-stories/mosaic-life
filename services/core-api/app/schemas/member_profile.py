@@ -43,8 +43,8 @@ class MemberProfileUpdate(BaseModel):
 
     relationship_type: str | None = Field(None, max_length=50)
     nicknames: list[str] | None = None
-    legacy_to_viewer: str | None = Field(None, max_length=1000)
-    viewer_to_legacy: str | None = Field(None, max_length=1000)
+    who_i_am_to_them: str | None = Field(None, max_length=1000)
+    who_they_are_to_me: str | None = Field(None, max_length=1000)
     character_traits: list[str] | None = None
 
     @field_validator("nicknames")
@@ -83,6 +83,6 @@ class MemberProfileResponse(BaseModel):
 
     relationship_type: str | None = None
     nicknames: list[str] | None = None
-    legacy_to_viewer: str | None = None
-    viewer_to_legacy: str | None = None
+    who_i_am_to_them: str | None = None
+    who_they_are_to_me: str | None = None
     character_traits: list[str] | None = None

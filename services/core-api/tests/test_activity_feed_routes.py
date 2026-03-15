@@ -19,6 +19,7 @@ async def feed_user(db_session: AsyncSession) -> User:
         email="feeduser@example.com",
         google_id="google_feeduser",
         name="Feed User",
+        username="feed-user-0001",
         avatar_url="https://example.com/feed.jpg",
     )
     db_session.add(user)

@@ -204,6 +204,7 @@ class TestRAGFlow:
             email="admirer@example.com",
             google_id="google_admirer_123",
             name="Admirer User",
+            username="admirer-0001",
         )
         db_session.add(admirer)
         await db_session.flush()
@@ -231,6 +232,7 @@ class TestRAGFlow:
             email="stranger@example.com",
             google_id="google_stranger_123",
             name="Stranger",
+            username="stranger-0001",
         )
         db_session.add(non_member)
         await db_session.commit()

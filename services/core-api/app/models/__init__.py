@@ -19,6 +19,8 @@ from .media import Media
 from .tag import Tag
 from .notification import Notification
 from .person import Person
+from .profile_settings import ProfileSettings
+from .relationship import Relationship
 from .story import Story
 from .story_context import ContextFact, StoryContext
 from .story_evolution import StoryEvolutionSession
@@ -47,6 +49,8 @@ __all__ = [
     "MediaTag",
     "Notification",
     "Person",
+    "ProfileSettings",
+    "Relationship",
     "Story",
     "StoryChunk",
     "StoryContext",

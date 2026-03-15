@@ -35,6 +35,9 @@ class User(Base):
         String(255), unique=True, nullable=False, index=True
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    username: Mapped[str] = mapped_column(
+        String(30), unique=True, nullable=False, index=True
+    )
     avatar_url: Mapped[str | None] = mapped_column(String(2000), nullable=True)
     bio: Mapped[str | None] = mapped_column(String(500), nullable=True)
     gender: Mapped[str | None] = mapped_column(String(20), nullable=True)

@@ -35,7 +35,7 @@ async def test_update_profile_creates_new(
     assert result is not None
     assert result.relationship_type == "parent"
     assert result.nicknames == ["Mom"]
-    assert result.legacy_to_viewer is None
+    assert result.who_i_am_to_them is None
 
 
 @pytest.mark.asyncio
@@ -84,8 +84,8 @@ async def test_update_profile_clears_explicit_nulls_and_empty_list(
         MemberProfileUpdate(
             relationship_type="parent",
             nicknames=["Mom"],
-            legacy_to_viewer="She raised me",
-            viewer_to_legacy="I am her child",
+            who_i_am_to_them="She raised me",
+            who_they_are_to_me="I am her child",
             character_traits=["kind", "funny"],
         ),
     )
@@ -97,7 +97,7 @@ async def test_update_profile_clears_explicit_nulls_and_empty_list(
         MemberProfileUpdate(
             relationship_type=None,
             nicknames=None,
-            legacy_to_viewer=None,
+            who_i_am_to_them=None,
             character_traits=[],
         ),
     )
@@ -105,8 +105,8 @@ async def test_update_profile_clears_explicit_nulls_and_empty_list(
     assert result is not None
     assert result.relationship_type is None
     assert result.nicknames is None
-    assert result.legacy_to_viewer is None
-    assert result.viewer_to_legacy == "I am her child"
+    assert result.who_i_am_to_them is None
+    assert result.who_they_are_to_me == "I am her child"
     assert result.character_traits == []
 
 
@@ -118,8 +118,8 @@ async def test_get_profile_after_update(
     data = MemberProfileUpdate(
         relationship_type="sibling",
         nicknames=["Sis"],
-        legacy_to_viewer="My older sister",
-        viewer_to_legacy="Her little brother",
+        who_i_am_to_them="My older sister",
+        who_they_are_to_me="Her little brother",
         character_traits=["brave"],
     )
     await update_profile(db_session, test_legacy.id, test_user.id, data)
@@ -127,8 +127,8 @@ async def test_get_profile_after_update(
     assert result is not None
     assert result.relationship_type == "sibling"
     assert result.nicknames == ["Sis"]
-    assert result.legacy_to_viewer == "My older sister"
-    assert result.viewer_to_legacy == "Her little brother"
+    assert result.who_i_am_to_them == "My older sister"
+    assert result.who_they_are_to_me == "Her little brother"
     assert result.character_traits == ["brave"]
 
 
