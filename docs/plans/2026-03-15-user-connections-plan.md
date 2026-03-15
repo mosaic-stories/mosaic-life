@@ -21,8 +21,9 @@
 | Phase 3: Legacy Access (Tasks 18-22) | ✅ Complete | `197f7aa` | Access request workflow, admin approval, connected member context |
 | Phase 4: Frontend (Tasks 23-30) | ⬜ Not started | — | Out of scope for backend implementation |
 
+| Alembic Migration (Tasks 4-5, 11) | ✅ Complete | `c265747` | Single migration covering all schema changes + data backfill |
+
 **Deferred items:**
-- Tasks 4-5, 11: Alembic migrations — require running PostgreSQL instance; create before deployment
 - Task 22: Enhanced duplicate detection — basic implementation in place, advanced matching deferred
 
 ---
