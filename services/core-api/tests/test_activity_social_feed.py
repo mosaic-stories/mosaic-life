@@ -21,6 +21,7 @@ async def user_alice(db_session: AsyncSession) -> User:
         email="alice@example.com",
         google_id="google_alice",
         name="Alice",
+        username="alice-0001",
         avatar_url="https://example.com/alice.jpg",
     )
     db_session.add(user)
@@ -36,6 +37,7 @@ async def user_bob(db_session: AsyncSession) -> User:
         email="bob@example.com",
         google_id="google_bob",
         name="Bob",
+        username="bob-0001",
     )
     db_session.add(user)
     await db_session.commit()
@@ -50,6 +52,7 @@ async def user_eve(db_session: AsyncSession) -> User:
         email="eve@example.com",
         google_id="google_eve",
         name="Eve",
+        username="eve-0001",
     )
     db_session.add(user)
     await db_session.commit()

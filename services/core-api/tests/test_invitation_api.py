@@ -142,6 +142,7 @@ class TestAcceptInvitation:
             email="accepter@example.com",
             google_id="google_accepter",
             name="Accepter",
+            username="accepter-0001",
         )
         db_session.add(new_user)
         await db_session.commit()

@@ -11,5 +11,6 @@ class UserSearchResult(BaseModel):
     id: UUID
     name: str
     avatar_url: str | None = None
+    username: str | None = None
 
     model_config = {"from_attributes": True}

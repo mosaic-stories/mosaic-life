@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from ..models.legacy import LegacyMember
+from ..models.relationship import Relationship
 from ..providers.registry import get_provider_registry
 from ..schemas.member_profile import MemberProfileResponse, MemberProfileUpdate
 from .graph_sync import categorize_relationship
@@ -35,62 +36,72 @@ async def _get_member(db: AsyncSession, legacy_id: UUID, user_id: UUID) -> Legac
     member = result.scalar_one_or_none()
 
     if not member or member.role == "pending":
-        raise HTTPException(
-            status_code=403,
-            detail="Not a member of this legacy",
-        )
+        raise HTTPException(status_code=403, detail="Not a member of this legacy")
 
     return member
+
+
+async def _get_relationship(
+    db: AsyncSession, legacy_id: UUID, user_id: UUID
+) -> Relationship | None:
+    """Get the relationship record for a legacy membership."""
+    result = await db.execute(
+        select(Relationship).where(
+            Relationship.owner_user_id == user_id,
+            Relationship.legacy_member_legacy_id == legacy_id,
+            Relationship.legacy_member_user_id == user_id,
+        )
+    )
+    return result.scalar_one_or_none()
 
 
 async def get_profile(
     db: AsyncSession, legacy_id: UUID, user_id: UUID
 ) -> MemberProfileResponse | None:
-    """Get a member's relationship profile.
+    """Get a member's relationship profile."""
+    await _get_member(db, legacy_id, user_id)
+    rel = await _get_relationship(db, legacy_id, user_id)
 
-    Returns None if no profile has been set yet.
-    Raises 403 if user is not a member.
-    """
-    member = await _get_member(db, legacy_id, user_id)
-
-    if member.profile is None:
+    if rel is None:
         return None
 
-    return MemberProfileResponse(**member.profile)
+    return MemberProfileResponse(
+        relationship_type=rel.relationship_type,
+        nicknames=rel.nicknames,
+        who_they_are_to_me=rel.who_they_are_to_me,
+        who_i_am_to_them=rel.who_i_am_to_them,
+        character_traits=rel.character_traits,
+    )
 
 
 async def update_profile(
-    db: AsyncSession,
-    legacy_id: UUID,
-    user_id: UUID,
-    data: MemberProfileUpdate,
+    db: AsyncSession, legacy_id: UUID, user_id: UUID, data: MemberProfileUpdate
 ) -> MemberProfileResponse:
-    """Create or update a member's relationship profile.
-
-    Merges partial updates with existing profile data.
-    Raises 403 if user is not a member.
-    """
+    """Create or update a member's relationship profile."""
     member = await _get_member(db, legacy_id, user_id)
+    rel = await _get_relationship(db, legacy_id, user_id)
 
-    existing = dict(member.profile) if member.profile else {}
+    if rel is None:
+        rel = Relationship(
+            owner_user_id=user_id,
+            legacy_member_legacy_id=legacy_id,
+            legacy_member_user_id=user_id,
+        )
+        db.add(rel)
 
-    # Merge: update only fields explicitly provided, including nulls for clears.
+    # Merge: update only explicitly provided fields
     for key in data.model_fields_set:
-        existing[key] = getattr(data, key)
+        setattr(rel, key, getattr(data, key))
 
-    member.profile = existing
     await db.commit()
-    await db.refresh(member)
+    await db.refresh(rel)
 
     logger.info(
         "member_profile.updated",
-        extra={
-            "legacy_id": str(legacy_id),
-            "user_id": str(user_id),
-        },
+        extra={"legacy_id": str(legacy_id), "user_id": str(user_id)},
     )
 
-    # Best-effort graph sync for relationship edges
+    # Best-effort graph sync
     try:
         registry = get_provider_registry()
         graph_adapter = registry.get_graph_adapter()
@@ -100,7 +111,7 @@ async def update_profile(
                 user_id=user_id,
                 legacy_id=legacy_id,
                 legacy_person_id=member.legacy.person_id,
-                relationship_type=existing.get("relationship_type"),
+                relationship_type=rel.relationship_type,
             )
     except Exception:
         logger.warning(
@@ -109,7 +120,13 @@ async def update_profile(
             exc_info=True,
         )
 
-    return MemberProfileResponse(**member.profile)
+    return MemberProfileResponse(
+        relationship_type=rel.relationship_type,
+        nicknames=rel.nicknames,
+        who_they_are_to_me=rel.who_they_are_to_me,
+        who_i_am_to_them=rel.who_i_am_to_them,
+        character_traits=rel.character_traits,
+    )
 
 
 async def _sync_relationship_to_graph(
@@ -120,11 +137,9 @@ async def _sync_relationship_to_graph(
     relationship_type: str | None,
 ) -> None:
     """Sync a declared member relationship to the graph as a Person->Person edge."""
-
     user_node_id = f"user-{user_id}"
     legacy_node_id = str(legacy_person_id)
 
-    # Upsert Person nodes
     await graph_adapter.upsert_node(
         "Person",
         user_node_id,

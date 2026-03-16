@@ -34,6 +34,7 @@ class SessionData(BaseModel):
     google_id: str  # Google user ID
     email: str
     name: str
+    username: str | None = None
     avatar_url: str | None = None
     created_at: datetime
     expires_at: datetime
@@ -45,4 +46,5 @@ class MeResponse(BaseModel):
     id: UUID  # Our internal user ID
     email: str
     name: str
+    username: str | None = None
     avatar_url: str | None = None

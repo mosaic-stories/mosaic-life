@@ -2,12 +2,15 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, X, Users, BookHeart, FileText, User } from 'lucide-react';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import { useUserSearch } from '@/features/user-search';
+import { useDebounce } from '@/lib/hooks/useDebounce';
 
 interface SearchResult {
   id: string;
   type: 'legacy' | 'community' | 'story' | 'person';
   title: string;
   subtitle?: string;
+  username?: string;
   badge?: string;
   badgeColor?: string;
   image?: string;
@@ -85,22 +88,40 @@ export default function SearchBar({ onSelectResult, compact }: SearchBarProps) {
   const [results, setResults] = useState<SearchResult[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
 
-  // Handle search
+  const debouncedQuery = useDebounce(query, 300);
+  const { data: userResults } = useUserSearch(debouncedQuery);
+
+  // Handle search — combine mock data with real user search results
   useEffect(() => {
-    if (query.trim().length > 0) {
-      const searchTerm = query.toLowerCase();
-      const filtered = allSearchData.filter(item => 
-        item.title.toLowerCase().includes(searchTerm) ||
-        item.subtitle?.toLowerCase().includes(searchTerm) ||
-        item.badge?.toLowerCase().includes(searchTerm)
-      );
-      setResults(filtered);
-      setIsOpen(true);
-    } else {
+    if (query.trim().length === 0) {
       setResults([]);
       setIsOpen(false);
+      return;
     }
-  }, [query]);
+
+    const searchTerm = query.toLowerCase();
+    // Keep mock legacy/community results for now
+    const mockResults = allSearchData.filter(item =>
+      item.title.toLowerCase().includes(searchTerm) ||
+      item.subtitle?.toLowerCase().includes(searchTerm) ||
+      item.badge?.toLowerCase().includes(searchTerm)
+    );
+
+    // Add real user results
+    const userSearchResults: SearchResult[] = (userResults || []).map(
+      (user) => ({
+        id: user.id,
+        type: 'person' as const,
+        title: user.name,
+        subtitle: user.username ? `@${user.username}` : undefined,
+        username: user.username ?? undefined,
+        image: user.avatar_url || undefined,
+      })
+    );
+
+    setResults([...mockResults, ...userSearchResults]);
+    setIsOpen(true);
+  }, [query, userResults]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -115,7 +136,11 @@ export default function SearchBar({ onSelectResult, compact }: SearchBarProps) {
   }, []);
 
   const handleSelectResult = (result: SearchResult) => {
-    onSelectResult(result.type, result.id);
+    if (result.type === 'person' && result.username) {
+      onSelectResult(result.type, result.username);
+    } else {
+      onSelectResult(result.type, result.id);
+    }
     setQuery('');
     setIsOpen(false);
   };

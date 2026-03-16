@@ -138,6 +138,7 @@ async def test_user(db_session: AsyncSession) -> User:
         email="test@example.com",
         google_id="google_test_123",
         name="Test User",
+        username="test-user-0001",
         avatar_url="https://example.com/avatar.jpg",
     )
     db_session.add(user)
@@ -153,6 +154,7 @@ async def test_user_2(db_session: AsyncSession) -> User:
         email="test2@example.com",
         google_id="google_test_456",
         name="Test User 2",
+        username="test-user-2-0002",
         avatar_url="https://example.com/avatar2.jpg",
     )
     db_session.add(user)
@@ -171,6 +173,7 @@ def create_auth_headers_for_user(user: User) -> dict[str, str]:
         google_id=user.google_id,
         email=user.email,
         name=user.name,
+        username=user.username,
         avatar_url=user.avatar_url,
         created_at=now,
         expires_at=now + timedelta(hours=24),

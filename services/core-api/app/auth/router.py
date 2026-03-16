@@ -12,18 +12,21 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
 from ..database import get_db
+from ..models.profile_settings import ProfileSettings
 from ..models.user_session import UserSession
+from ..models.user import User
+from ..services.username import allocate_username
 from .session_tokens import (
     extract_client_ip,
     extract_device_info,
     get_session_cookie_value,
     hash_session_token,
 )
-from ..models.user import User
 from .google import GoogleOAuthError, get_google_client
 from .middleware import create_session_cookie, get_current_session, require_auth
 from .models import GoogleUser, MeResponse, SessionData
@@ -33,6 +36,12 @@ logger = logging.getLogger(__name__)
 
 # State token validity period (5 minutes)
 STATE_TOKEN_MAX_AGE = 300
+
+
+def _is_username_integrity_error(exc: IntegrityError) -> bool:
+    """Return True when the integrity error was caused by username uniqueness."""
+    message = str(exc.orig).lower() if exc.orig is not None else str(exc).lower()
+    return "username" in message
 
 
 def _create_signed_state(secret_key: str) -> str:
@@ -105,6 +114,7 @@ async def me(request: Request) -> MeResponse:
         id=session.user_id,
         email=session.email,
         name=session.name,
+        username=session.username,
         avatar_url=session.avatar_url,
     )
 
@@ -236,6 +246,7 @@ async def callback_google(
             google_id=user.google_id,
             email=user.email,
             name=user.name,
+            username=user.username,
             avatar_url=user.avatar_url,
             created_at=now,
             expires_at=now + timedelta(seconds=settings.session_cookie_max_age),
@@ -373,15 +384,33 @@ async def _find_or_create_user(db: AsyncSession, google_user: GoogleUser) -> Use
         )
     else:
         # Create new user
-        user = User(
-            email=google_user.email,
-            google_id=google_user.id,
-            name=google_user.display_name,
-            avatar_url=google_user.picture,
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        user = None
+        created_user = None
+        for _ in range(5):
+            try:
+                user = User(
+                    email=google_user.email,
+                    google_id=google_user.id,
+                    name=google_user.display_name,
+                    username=await allocate_username(db, google_user.display_name),
+                    avatar_url=google_user.picture,
+                )
+                db.add(user)
+                await db.flush()
+                db.add(ProfileSettings(user_id=user.id))
+                await db.commit()
+                await db.refresh(user)
+                created_user = user
+                break
+            except IntegrityError as exc:
+                await db.rollback()
+                if not _is_username_integrity_error(exc):
+                    raise
+
+        if created_user is None:
+            msg = "Unable to create user"
+            raise RuntimeError(msg)
+        user = created_user
 
         logger.info(
             "auth.user_created",

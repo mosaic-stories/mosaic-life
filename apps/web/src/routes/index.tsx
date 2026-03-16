@@ -25,8 +25,12 @@ const StoryEvolution = lazy(() => import('@/features/evolve-workspace/EvolveWork
 const TermsOfService = lazy(() => import('@/pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 
+// Profile
+const ProfilePage = lazy(() => import('@/features/profile/components/ProfilePage'));
+
 // Settings components
 const SettingsLayout = lazy(() => import('@/features/settings/components/SettingsLayout'));
+const ConnectionsSettings = lazy(() => import('@/features/settings/components/ConnectionsSettings'));
 const ProfileSettings = lazy(() => import('@/features/settings/components/ProfileSettings'));
 const AppearanceSettings = lazy(() => import('@/features/settings/components/AppearanceSettings'));
 const AIPreferencesSettings = lazy(() => import('@/features/settings/components/AIPreferencesSettings'));
@@ -98,6 +102,11 @@ export const router = createBrowserRouter([
       {
         path: 'privacy',
         element: <LazyPage><PrivacyPolicy /></LazyPage>,
+      },
+      // Public user profile
+      {
+        path: 'u/:username',
+        element: <LazyPage><ProfilePage /></LazyPage>,
       },
       // Authenticated navigation pages
       {
@@ -205,6 +214,10 @@ export const router = createBrowserRouter([
           {
             path: 'profile',
             element: <LazyPage><ProfileSettings /></LazyPage>,
+          },
+          {
+            path: 'connections',
+            element: <LazyPage><ConnectionsSettings /></LazyPage>,
           },
           {
             path: 'appearance',

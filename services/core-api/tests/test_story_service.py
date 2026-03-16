@@ -465,6 +465,7 @@ class TestDeleteStory:
             email=test_user_2_email,
             google_id="google_user2",
             name="User 2",
+            username="user-2-0001",
         )
         db_session.add(user_2)
         await db_session.flush()

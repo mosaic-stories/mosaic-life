@@ -2,7 +2,7 @@
  * Settings page layout with sidebar navigation.
  */
 
-import { ChevronLeft, Palette, Settings, User, BarChart3, Shield } from 'lucide-react';
+import { ChevronLeft, Palette, Settings, User, Users, BarChart3, Shield } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 import { cn } from '@/components/ui/utils';
@@ -10,6 +10,7 @@ import { SEOHead } from '@/components/seo';
 
 const sidebarItems = [
   { path: 'profile', label: 'Profile', icon: User },
+  { path: 'connections', label: 'Connections & Privacy', icon: Users },
   { path: 'appearance', label: 'Appearance', icon: Palette },
   { path: 'ai', label: 'AI Preferences', icon: Settings },
   { path: 'usage', label: 'Usage & Stats', icon: BarChart3 },

@@ -49,6 +49,7 @@ class TestResolveVisibilityFilter:
             email="admirer@example.com",
             google_id="google_admirer",
             name="Admirer User",
+            username="admirer-0002",
         )
         db_session.add(admirer)
         await db_session.flush()
@@ -84,6 +85,7 @@ class TestResolveVisibilityFilter:
             email="nonmember@example.com",
             google_id="google_nonmember",
             name="Non Member",
+            username="nonmember-0001",
         )
         db_session.add(non_member)
         await db_session.commit()

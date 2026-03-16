@@ -21,6 +21,7 @@ import AISection from './AISection';
 import DeleteLegacyDialog from './DeleteLegacyDialog';
 import LegacyLinkPanel from '@/features/legacy-link/components/LegacyLinkPanel';
 import LegacySidebar from './LegacySidebar';
+import LegacyAccessRequestDialog from '@/features/legacy-access/components/LegacyAccessRequestDialog';
 
 type PromptSeedMode = 'story_prompt' | undefined;
 
@@ -43,6 +44,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const [activeSection, setActiveSection] = useState<SectionId>(tabParam || 'stories');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMemberDrawer, setShowMemberDrawer] = useState(false);
+  const [showAccessRequestDialog, setShowAccessRequestDialog] = useState(false);
 
   // Use fallback hooks that try private endpoint first, then fall back to public
   const legacyQuery = useLegacyWithFallback(legacyId, !!user);
@@ -70,6 +72,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
 
   const currentUserRole = currentUserMember?.role || 'admirer';
   const isMember = !!currentUserMember;
+  const canRequestAccess = !!authUser && !isMember && legacy?.visibility === 'public';
   const _memberProfileQuery = useMemberProfile(legacyId, { enabled: isMember });
 
   const handleAddStory = useCallback(async () => {
@@ -188,6 +191,17 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         onDelete={() => setShowDeleteDialog(true)}
       />
 
+      {canRequestAccess && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4">
+          <Button
+            variant="outline"
+            onClick={() => setShowAccessRequestDialog(true)}
+          >
+            Request Access
+          </Button>
+        </div>
+      )}
+
       <SectionNav
         activeSection={activeSection}
         onSectionChange={setActiveSection}
@@ -263,6 +277,15 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         visibility={legacy.visibility}
         isMember={isMember}
       />
+
+      {legacy && (
+        <LegacyAccessRequestDialog
+          open={showAccessRequestDialog}
+          onOpenChange={setShowAccessRequestDialog}
+          legacyId={legacyId}
+          legacyName={legacy.name}
+        />
+      )}
     </div>
   );
 }

@@ -146,6 +146,7 @@ class TestAcceptInvitation:
             email="newuser@example.com",
             google_id="google_new",
             name="New User",
+            username="new-user-0001",
         )
         db_session.add(new_user)
         await db_session.commit()
@@ -194,6 +195,7 @@ class TestAcceptInvitation:
             email="expired@example.com",
             google_id="google_expired",
             name="Expired User",
+            username="expired-user-0001",
         )
         db_session.add(new_user)
         await db_session.commit()

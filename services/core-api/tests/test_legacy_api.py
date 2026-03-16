@@ -488,6 +488,7 @@ class TestMemberManagement:
             email="other@example.com",
             google_id="google_other",
             name="Other User",
+            username="other-user-0001",
         )
         db_session.add(other_user)
         await db_session.commit()
@@ -524,6 +525,7 @@ class TestMemberManagement:
             email="removable@example.com",
             google_id="google_removable",
             name="Removable User",
+            username="removable-0001",
         )
         db_session.add(other_user)
         await db_session.commit()
@@ -557,6 +559,7 @@ class TestMemberManagement:
             email="leaving@example.com",
             google_id="google_leaving",
             name="Leaving User",
+            username="leaving-0001",
         )
         db_session.add(leaving_user)
         await db_session.commit()

@@ -58,15 +58,15 @@ def format_relationship_context(
             formatted = ", ".join(f'"{n}"' for n in sanitized)
             lines.append(f"- nicknames: [{formatted}]")
 
-    # Legacy to viewer (user describes relationship)
-    if profile.legacy_to_viewer:
-        val = _sanitize(profile.legacy_to_viewer)
+    # Who I am to them (user describes relationship)
+    if profile.who_i_am_to_them:
+        val = _sanitize(profile.who_i_am_to_them)
         if val:
             lines.append(f'- user_describes_relationship_as: "{val}"')
 
-    # Viewer to legacy (user describes self)
-    if profile.viewer_to_legacy:
-        val = _sanitize(profile.viewer_to_legacy)
+    # Who they are to me (user describes self)
+    if profile.who_they_are_to_me:
+        val = _sanitize(profile.who_they_are_to_me)
         if val:
             lines.append(f'- user_describes_self_as: "{val}"')
 

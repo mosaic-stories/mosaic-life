@@ -25,6 +25,7 @@ from .routes.media import router as media_router, local_router as media_local_ro
 from .routes.invitation import router as invitation_router
 from .routes.notification import router as notification_router
 from .routes.user import router as user_router
+from .routes.profile import router as profile_router
 from .routes.settings import router as settings_router
 from .routes.support import router as support_router
 from .routes.seo import router as seo_router
@@ -38,8 +39,10 @@ from .routes.favorite import router as favorite_router
 from .routes.activity import router as activity_router
 from .routes.activity import internal_router as activity_internal_router
 from .routes.connections import router as connections_router
+from .routes.connection_request import router as connection_request_router
 from .routes.prompts import router as prompts_router
 from .routes.tag import router as tag_router
+from .routes.legacy_access_request import router as legacy_access_request_router
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +129,7 @@ app.include_router(invitation_router)
 app.include_router(notification_router)
 app.include_router(user_router)
 app.include_router(settings_router)
+app.include_router(profile_router)
 app.include_router(support_router)
 app.include_router(person_router)
 app.include_router(seo_router)
@@ -138,5 +142,7 @@ app.include_router(favorite_router)
 app.include_router(activity_router)
 app.include_router(activity_internal_router)
 app.include_router(connections_router)
+app.include_router(connection_request_router)
 app.include_router(prompts_router)
 app.include_router(tag_router)
+app.include_router(legacy_access_request_router)

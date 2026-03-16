@@ -11,12 +11,16 @@ import PersonasTabContent from '@/components/connections-hub/PersonasTabContent'
 import PeopleTabContent from '@/components/connections-hub/PeopleTabContent';
 import ConnectionsActivityTabContent from '@/components/connections-hub/ConnectionsActivityTabContent';
 import NewConversationDialog from '@/components/connections-hub/NewConversationDialog';
+import MyConnectionsTab from '@/features/user-connections/components/MyConnectionsTab';
+import ConnectionRequestsTab from '@/features/user-connections/components/ConnectionRequestsTab';
 
 const DEFAULT_TAB = 'personas';
 const DEFAULT_FILTERS: Record<string, string> = {
   personas: 'all',
   people: 'all',
   activity: 'all',
+  'my-connections': 'all',
+  requests: 'all',
 };
 // Static whitelists for tabs with a fixed set of filter values.
 // Tabs absent from this map (e.g. "personas") accept any filter value since
@@ -89,6 +93,8 @@ export default function ConnectionsPage() {
               <TabsTrigger value="personas">Personas</TabsTrigger>
               <TabsTrigger value="people">People</TabsTrigger>
               <TabsTrigger value="activity">Activity</TabsTrigger>
+              <TabsTrigger value="my-connections">My Connections</TabsTrigger>
+              <TabsTrigger value="requests">Requests</TabsTrigger>
             </TabsList>
 
             <TabsContent value="personas">
@@ -110,6 +116,14 @@ export default function ConnectionsPage() {
                 activeFilter={activeFilter}
                 onFilterChange={handleFilterChange}
               />
+            </TabsContent>
+
+            <TabsContent value="my-connections">
+              <MyConnectionsTab />
+            </TabsContent>
+
+            <TabsContent value="requests">
+              <ConnectionRequestsTab />
             </TabsContent>
           </Tabs>
         </div>
