@@ -54,6 +54,8 @@ class LegacyMemberResponse(BaseModel):
     user_id: UUID
     email: str
     name: str
+    username: str
+    avatar_url: str | None = None
     role: str
     joined_at: datetime
 

@@ -540,12 +540,15 @@ async def get_social_feed(
     actor_map: dict[UUID, dict[str, Any]] = {}
     if actor_ids:
         actor_rows = await db.execute(
-            select(User.id, User.name, User.avatar_url).where(User.id.in_(actor_ids))
+            select(User.id, User.name, User.username, User.avatar_url).where(
+                User.id.in_(actor_ids)
+            )
         )
-        for uid, name, avatar_url in actor_rows.all():
+        for uid, name, username, avatar_url in actor_rows.all():
             actor_map[uid] = {
                 "id": uid,
                 "name": name or "",
+                "username": username,
                 "avatar_url": avatar_url,
             }
 
@@ -566,7 +569,13 @@ async def get_social_feed(
                 "created_at": a.created_at,
                 "metadata": a.metadata_,
                 "actor": actor_map.get(
-                    a.user_id, {"id": a.user_id, "name": "", "avatar_url": None}
+                    a.user_id,
+                    {
+                        "id": a.user_id,
+                        "name": "",
+                        "username": "",
+                        "avatar_url": None,
+                    },
                 ),
                 "entity": entity_data,
             }
