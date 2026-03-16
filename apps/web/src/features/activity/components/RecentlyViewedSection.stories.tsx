@@ -90,6 +90,7 @@ const storyItems: EnrichedRecentItemsResponse = {
         content_preview:
           'That summer changed everything. We packed up the old station wagon and drove cross-country, stopping at every roadside attraction we could find.',
         author_name: 'Sarah Chen',
+        author_username: 'sarah-chen',
         legacy_id: 'legacy-002',
         legacy_name: 'Marcus Chen',
       },
@@ -105,6 +106,7 @@ const storyItems: EnrichedRecentItemsResponse = {
         content_preview:
           'Every Sunday morning, abuela would wake up before dawn to start the tamales. The whole house would smell of corn husks and chili.',
         author_name: 'Diego Alvarez',
+        author_username: 'diego-alvarez',
         legacy_id: 'legacy-003',
         legacy_name: 'Sofia Alvarez',
       },
@@ -120,6 +122,7 @@ const storyItems: EnrichedRecentItemsResponse = {
         content_preview:
           'We found a box of letters in the attic, carefully tied with a faded blue ribbon. Each one began the same way: "My dearest Eleanor..."',
         author_name: 'Thomas Roosevelt',
+        author_username: 'thomas-roosevelt',
         legacy_id: 'legacy-001',
         legacy_name: 'Eleanor Roosevelt',
       },
@@ -135,6 +138,7 @@ const storyItems: EnrichedRecentItemsResponse = {
         content_preview:
           'Dad spent every weekend in that garage. He could fix anything — toasters, radios, even the neighbor\'s lawnmower.',
         author_name: 'Emily Whitfield',
+        author_username: 'emily-whitfield',
         legacy_id: 'legacy-004',
         legacy_name: 'James Whitfield',
       },

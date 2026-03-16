@@ -7,6 +7,9 @@ export interface UserLinkProps {
   avatarUrl?: string | null;
   showAvatar?: boolean;
   className?: string;
+  avatarClassName?: string;
+  nameClassName?: string;
+  ariaLabel?: string;
 }
 
 function getInitials(name: string): string {
@@ -25,22 +28,26 @@ export default function UserLink({
   avatarUrl,
   showAvatar = false,
   className = '',
+  avatarClassName = 'size-6',
+  nameClassName = '',
+  ariaLabel,
 }: UserLinkProps) {
   return (
     <Link
       to={`/u/${username}`}
       className={`inline-flex items-center gap-1.5 hover:underline ${className}`}
       onClick={(e) => e.stopPropagation()}
+      aria-label={ariaLabel}
     >
       {showAvatar && (
-        <Avatar className="size-6">
+        <Avatar className={avatarClassName}>
           <AvatarImage src={avatarUrl || undefined} alt={displayName} />
           <AvatarFallback className="bg-theme-primary text-white text-[9px] font-semibold">
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>
       )}
-      <span>{displayName}</span>
+      <span className={nameClassName}>{displayName}</span>
     </Link>
   );
 }

@@ -18,6 +18,7 @@ export default function PersonCard({ person }: PersonCardProps) {
           displayName={person.display_name}
           avatarUrl={person.avatar_url}
           showAvatar
+          avatarClassName="size-10"
           className="text-sm font-medium text-neutral-900"
         />
         <div className="min-w-0 flex-1">

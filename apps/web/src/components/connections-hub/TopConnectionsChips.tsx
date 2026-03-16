@@ -22,6 +22,7 @@ export default function TopConnectionsChips() {
                 displayName={item.display_name}
                 showAvatar
                 avatarUrl={item.avatar_url}
+                avatarClassName="size-12"
                 className="flex flex-col items-center gap-1.5"
               />
               <span className="absolute -top-1 -right-1 size-5 rounded-full bg-theme-primary text-white text-xs flex items-center justify-center font-medium">

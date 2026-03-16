@@ -103,6 +103,7 @@ function MemberRow({ member }: { member: LegacyMember }) {
         displayName={member.name || member.email}
         avatarUrl={member.avatar_url}
         showAvatar
+        avatarClassName="size-8"
         className="text-sm font-medium text-neutral-800"
       />
       <div className="ml-auto">

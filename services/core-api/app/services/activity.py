@@ -378,20 +378,22 @@ async def enrich_entities(
             # Get author names
             author_ids = list({s.author_id for s in stories})
             author_rows = await db.execute(
-                select(User.id, User.name).where(User.id.in_(author_ids))
+                select(User.id, User.name, User.username).where(User.id.in_(author_ids))
             )
-            author_map: dict[UUID, str] = {
-                uid: name or "" for uid, name in author_rows.all()
+            author_map: dict[UUID, tuple[str, str]] = {
+                uid: (name or "", username) for uid, name, username in author_rows.all()
             }
 
             for story in stories:
                 legacy_info = story_legacy_map.get(story.id)
                 content_preview = (story.content or "")[:200]
+                author_name, author_username = author_map.get(story.author_id, ("", ""))
                 result[("story", story.id)] = {
                     "title": story.title,
                     "content_preview": content_preview,
                     "visibility": story.visibility,
-                    "author_name": author_map.get(story.author_id, ""),
+                    "author_name": author_name,
+                    "author_username": author_username,
                     "legacy_id": legacy_info[0] if legacy_info else None,
                     "legacy_name": legacy_info[1] if legacy_info else None,
                 }

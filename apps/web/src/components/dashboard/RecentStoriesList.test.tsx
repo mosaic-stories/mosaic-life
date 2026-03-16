@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
           legacy_name: 'Margaret Chen',
           content_preview: 'A story about family meals.',
           author_name: 'Joe',
+          author_username: 'joe-x1y2',
         },
       },
     ],
@@ -78,6 +79,7 @@ describe('RecentStoriesList', () => {
             legacy_name: 'Margaret Chen',
             content_preview: 'A story about family meals.',
             author_name: 'Joe',
+            author_username: 'joe-x1y2',
           },
         },
       ],
@@ -103,6 +105,7 @@ describe('RecentStoriesList', () => {
             legacy_name: 'Margaret Chen',
             content_preview: 'A story about family meals.',
             author_name: 'Joe',
+            author_username: 'joe-x1y2',
           },
         },
       ],
@@ -129,6 +132,7 @@ describe('RecentStoriesList', () => {
             legacy_name: null,
             content_preview: 'Missing legacy context.',
             author_name: 'Joe',
+            author_username: 'joe-x1y2',
           },
         },
       ],
@@ -136,6 +140,12 @@ describe('RecentStoriesList', () => {
     };
 
     renderList();
-    expect(screen.getByRole('button', { name: /orphaned story/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /orphaned story/i })).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('renders the author name as a profile link when a username is present', () => {
+    renderList();
+
+    expect(screen.getByRole('link', { name: 'Joe' })).toHaveAttribute('href', '/u/joe-x1y2');
   });
 });

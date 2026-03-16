@@ -29,6 +29,7 @@ function IncomingRequestCard({
           displayName={request.from_user_name}
           avatarUrl={request.from_user_avatar_url}
           showAvatar
+          avatarClassName="size-11"
           className="font-medium text-neutral-900"
         />
         <div className="flex-1 min-w-0 space-y-2">
@@ -86,6 +87,7 @@ function OutgoingRequestCard({
           displayName={request.to_user_name}
           avatarUrl={request.to_user_avatar_url}
           showAvatar
+          avatarClassName="size-11"
           className="font-medium text-neutral-900"
         />
         <div className="flex-1 min-w-0 space-y-2">

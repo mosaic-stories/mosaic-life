@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { PenLine, type LucideIcon } from 'lucide-react';
 
 interface MetadataRowProps {
   label: string;
-  value: string | null | undefined;
+  value: ReactNode;
   icon?: LucideIcon;
   editable?: boolean;
   placeholder?: string;
@@ -18,19 +18,20 @@ export default function MetadataRow({
   placeholder,
   onSave,
 }: MetadataRowProps) {
+  const stringValue = typeof value === 'string' ? value : '';
   const [editing, setEditing] = useState(false);
-  const [localValue, setLocalValue] = useState(value || '');
-  const isEmpty = !value;
+  const [localValue, setLocalValue] = useState(stringValue);
+  const isEmpty = value === null || value === undefined || value === '';
 
   useEffect(() => {
     if (!editing) {
-      setLocalValue(value || '');
+      setLocalValue(stringValue);
     }
-  }, [editing, value]);
+  }, [editing, stringValue]);
 
   const handleBlur = () => {
     setEditing(false);
-    if (localValue !== (value || '')) {
+    if (localValue !== stringValue) {
       onSave?.(localValue);
     }
   };
@@ -40,7 +41,7 @@ export default function MetadataRow({
       (e.target as HTMLInputElement).blur();
     }
     if (e.key === 'Escape') {
-      setLocalValue(value || '');
+      setLocalValue(stringValue);
       setEditing(false);
     }
   };
@@ -66,7 +67,7 @@ export default function MetadataRow({
               isEmpty ? 'text-neutral-400 italic' : 'text-neutral-900'
             } ${editable ? 'cursor-pointer hover:text-neutral-700' : ''}`}
           >
-            {value || placeholder || 'Add...'}
+            {isEmpty ? (placeholder || 'Add...') : value}
             {editable && !isEmpty && (
               <PenLine size={10} className="inline ml-1.5 text-neutral-300" />
             )}

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import MetadataRow from './MetadataRow';
+import UserLink from '@/components/UserLink';
 
 describe('MetadataRow', () => {
   it('syncs the displayed value when the prop changes while not editing', () => {
@@ -55,5 +57,18 @@ describe('MetadataRow', () => {
     );
 
     expect(screen.getByDisplayValue('Denver')).toBeInTheDocument();
+  });
+
+  it('renders React node values without coercing them to plain text', () => {
+    render(
+      <MemoryRouter>
+        <MetadataRow
+          label="Uploaded by"
+          value={<UserLink username="pat-doe" displayName="Pat Doe" />}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('link', { name: 'Pat Doe' })).toHaveAttribute('href', '/u/pat-doe');
   });
 });

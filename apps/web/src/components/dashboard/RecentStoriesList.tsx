@@ -1,6 +1,7 @@
 import { Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRecentlyViewed } from '@/features/activity/hooks/useActivity';
+import UserLink from '@/components/UserLink';
 
 export default function RecentStoriesList() {
   const navigate = useNavigate();
@@ -28,13 +29,21 @@ export default function RecentStoriesList() {
           const canNavigate = Boolean(legacyId);
 
           return (
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={canNavigate ? 0 : -1}
+              aria-disabled={!canNavigate}
               key={item.entity_id}
-              disabled={!canNavigate}
               onClick={() => {
                 if (!legacyId) return;
                 navigate(`/legacy/${legacyId}/story/${item.entity_id}`);
+              }}
+              onKeyDown={(e) => {
+                if (!canNavigate) return;
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigate(`/legacy/${legacyId}/story/${item.entity_id}`);
+                }
               }}
               className={`flex items-start gap-3.5 bg-white rounded-xl px-4 py-3.5 border border-neutral-100 shadow-sm transition-shadow ${
                 canNavigate
@@ -60,7 +69,18 @@ export default function RecentStoriesList() {
                   </p>
                 )}
                 <div className="flex items-center gap-2 mt-2 text-[11px] text-neutral-400">
-                  {story.author_name && <span>by {story.author_name}</span>}
+                  {story.author_name && story.author_username ? (
+                    <span>
+                      by{' '}
+                      <UserLink
+                        username={story.author_username}
+                        displayName={story.author_name}
+                        className="text-neutral-400"
+                      />
+                    </span>
+                  ) : story.author_name ? (
+                    <span>by {story.author_name}</span>
+                  ) : null}
                   {item.last_activity_at && (
                     <>
                       <span className="opacity-40">&middot;</span>
@@ -72,7 +92,7 @@ export default function RecentStoriesList() {
                   )}
                 </div>
               </div>
-            </button>
+            </div>
           );
         })}
       </div>

@@ -14,6 +14,7 @@ import { getMediaContentUrl, type MediaItem } from '@/features/media/api/media';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import FavoriteButton from '@/features/favorites/components/FavoriteButton';
 import { useFavoriteCheck } from '@/features/favorites/hooks/useFavorites';
+import UserLink from '@/components/UserLink';
 
 interface MediaGalleryInlineProps {
   legacyId: string;
@@ -161,7 +162,13 @@ export default function MediaGalleryInline({
               <div className="text-sm text-neutral-500 mt-2">
                 <p>{selectedMedia.filename}</p>
                 <p>
-                  Uploaded by {selectedMedia.uploader_name} on{' '}
+                  Uploaded by{' '}
+                  <UserLink
+                    username={selectedMedia.uploader_username}
+                    displayName={selectedMedia.uploader_name}
+                    className="text-neutral-500"
+                  />{' '}
+                  on{' '}
                   {new Date(selectedMedia.created_at).toLocaleDateString()}
                 </p>
               </div>

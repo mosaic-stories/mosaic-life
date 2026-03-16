@@ -35,6 +35,18 @@ describe('UserLink', () => {
     expect(container.querySelector('[data-slot="avatar"]')).toBeInTheDocument();
   });
 
+  it('applies a custom avatar className', () => {
+    const { container } = renderWithRouter(
+      <UserLink
+        username="joe-smith-a1b2"
+        displayName="Joe Smith"
+        showAvatar
+        avatarClassName="size-10"
+      />
+    );
+    expect(container.querySelector('[data-slot="avatar"]')).toHaveClass('size-10');
+  });
+
   it('renders initials fallback when showAvatar is true but no avatarUrl', () => {
     renderWithRouter(
       <UserLink username="joe-smith-a1b2" displayName="Joe Smith" showAvatar />

@@ -18,6 +18,7 @@ export interface EntitySummary {
   death_date?: string | null;
   filename?: string | null;
   author_name?: string | null;
+  author_username?: string | null;
   legacy_id?: string | null;
   legacy_name?: string | null;
 }
