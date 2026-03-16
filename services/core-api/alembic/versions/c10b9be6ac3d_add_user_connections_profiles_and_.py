@@ -244,7 +244,7 @@ def upgrade() -> None:
                 ) VALUES (
                     gen_random_uuid(), :owner, :lm_legacy, :lm_user,
                     :rel_type, :who_they_are, :who_i_am,
-                    :nicknames::json, :traits::json
+                    CAST(:nicknames AS JSON), CAST(:traits AS JSON)
                 )
             """),
             {
