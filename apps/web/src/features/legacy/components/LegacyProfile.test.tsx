@@ -107,6 +107,10 @@ vi.mock('@/features/legacy-link/components/LegacyLinkPanel', () => ({
   default: () => <div data-testid="links-section" />,
 }));
 
+vi.mock('@/features/legacy-access/components/LegacyAccessRequestDialog', () => ({
+  default: () => null,
+}));
+
 import LegacyProfile from './LegacyProfile';
 
 describe('LegacyProfile', () => {
