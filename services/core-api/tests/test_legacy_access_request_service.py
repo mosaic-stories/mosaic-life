@@ -3,7 +3,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.legacy import Legacy
+from app.models.legacy import Legacy, LegacyMember
 from app.models.user import User
 from app.services import legacy_access_request as service
 
@@ -95,6 +95,33 @@ class TestApproveRequest:
                 db_session, test_legacy_2.id, req.id, test_user.id
             )
         assert exc_info.value.status_code == 404
+
+    async def test_approve_rejects_existing_member(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+        test_legacy: Legacy,
+    ) -> None:
+        from fastapi import HTTPException
+
+        req = await service.submit_request(
+            db_session, test_user_2.id, test_legacy.id, "advocate"
+        )
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id,
+                user_id=test_user_2.id,
+                role="admirer",
+            )
+        )
+        await db_session.commit()
+
+        with pytest.raises(HTTPException) as exc_info:
+            await service.approve_request(
+                db_session, test_legacy.id, req.id, test_user.id
+            )
+        assert exc_info.value.status_code == 409
 
 
 @pytest.mark.asyncio

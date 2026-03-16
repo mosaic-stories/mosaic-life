@@ -25,29 +25,36 @@ export const userConnectionKeys = {
     [...userConnectionKeys.all, 'relationship', id] as const,
 };
 
+interface QueryOptions {
+  enabled?: boolean;
+}
+
 // --- Connection Queries ---
 
-export function useMyConnections() {
+export function useMyConnections(options?: QueryOptions) {
   return useQuery({
     queryKey: userConnectionKeys.connections(),
     queryFn: listConnections,
     staleTime: STALE_TIME,
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useIncomingRequests() {
+export function useIncomingRequests(options?: QueryOptions) {
   return useQuery({
     queryKey: userConnectionKeys.incomingRequests(),
     queryFn: getIncomingRequests,
     staleTime: STALE_TIME,
+    enabled: options?.enabled ?? true,
   });
 }
 
-export function useOutgoingRequests() {
+export function useOutgoingRequests(options?: QueryOptions) {
   return useQuery({
     queryKey: userConnectionKeys.outgoingRequests(),
     queryFn: getOutgoingRequests,
     staleTime: STALE_TIME,
+    enabled: options?.enabled ?? true,
   });
 }
 

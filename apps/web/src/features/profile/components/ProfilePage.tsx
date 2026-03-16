@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { SEOHead } from '@/components/seo';
+import { rewriteBackendUrlForDev } from '@/lib/url';
 import { useUserProfile } from '../hooks/useProfile';
 import ConnectButton from '@/features/user-connections/components/ConnectButton';
 import type { ProfileResponse } from '../api/profile';
@@ -57,7 +58,7 @@ function LegaciesSection({
             <div className="flex items-center gap-3">
               {legacy.subject_photo_url ? (
                 <img
-                  src={legacy.subject_photo_url}
+                  src={rewriteBackendUrlForDev(legacy.subject_photo_url)}
                   alt={legacy.name}
                   className="size-12 rounded-full object-cover"
                 />
@@ -75,6 +76,35 @@ function LegaciesSection({
                 </p>
               </div>
             </div>
+          </Card>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StoriesSection({
+  stories,
+}: {
+  stories: ProfileResponse['stories'];
+}) {
+  if (!stories || stories.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <h2 className="text-lg font-semibold text-neutral-900">Stories</h2>
+      <div className="space-y-3">
+        {stories.map((story) => (
+          <Card key={story.id} className="p-4 space-y-2">
+            <div className="space-y-1">
+              <p className="font-medium text-neutral-900">{story.title}</p>
+              {story.legacy_name && (
+                <p className="text-xs text-neutral-500">{story.legacy_name}</p>
+              )}
+            </div>
+            {story.preview && (
+              <p className="text-sm text-neutral-600 line-clamp-3">{story.preview}</p>
+            )}
           </Card>
         ))}
       </div>
@@ -174,17 +204,19 @@ export default function ProfilePage() {
       <div className="max-w-3xl mx-auto px-6 py-12 space-y-8">
         <ProfileHeader profile={profile} />
 
-        {profile.user_id && (
-          <div className="flex justify-center">
-            <ConnectButton
-              targetUserId={profile.user_id}
-              targetUserName={profile.display_name}
-            />
-          </div>
-        )}
+        <div className="flex justify-center">
+          <ConnectButton
+            targetUserId={profile.user_id}
+            targetUserName={profile.display_name}
+          />
+        </div>
 
         {ctx.show_legacies && (
           <LegaciesSection legacies={profile.legacies} />
+        )}
+
+        {ctx.show_stories && (
+          <StoriesSection stories={profile.stories} />
         )}
 
         {ctx.show_connections && (

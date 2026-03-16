@@ -173,6 +173,7 @@ def create_auth_headers_for_user(user: User) -> dict[str, str]:
         google_id=user.google_id,
         email=user.email,
         name=user.name,
+        username=user.username,
         avatar_url=user.avatar_url,
         created_at=now,
         expires_at=now + timedelta(hours=24),

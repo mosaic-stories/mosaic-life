@@ -108,6 +108,7 @@ async def me(request: Request) -> MeResponse:
         id=session.user_id,
         email=session.email,
         name=session.name,
+        username=session.username,
         avatar_url=session.avatar_url,
     )
 
@@ -239,6 +240,7 @@ async def callback_google(
             google_id=user.google_id,
             email=user.email,
             name=user.name,
+            username=user.username,
             avatar_url=user.avatar_url,
             created_at=now,
             expires_at=now + timedelta(seconds=settings.session_cookie_max_age),

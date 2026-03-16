@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.connection import Connection
 from app.models.profile_settings import ProfileSettings
 from app.models.user import User
-from app.services import profile as profile_service
+from app.services import profile_queries as profile_query_service
 
 
 @pytest.mark.asyncio
@@ -28,7 +28,7 @@ class TestProfileConnectionAwareness:
         db_session.add(conn)
         await db_session.commit()
 
-        result = await profile_service.get_profile_by_username(
+        result = await profile_query_service.get_profile_by_username(
             db_session, test_user_2.username, viewer_user_id=test_user.id
         )
         assert result is not None
@@ -44,7 +44,7 @@ class TestProfileConnectionAwareness:
         db_session.add(settings)
         await db_session.commit()
 
-        result = await profile_service.get_profile_by_username(
+        result = await profile_query_service.get_profile_by_username(
             db_session, test_user_2.username, viewer_user_id=test_user.id
         )
         assert result is not None

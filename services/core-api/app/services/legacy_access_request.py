@@ -8,6 +8,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -223,14 +224,31 @@ async def approve_request(
     req.resolved_by = admin_user_id
     req.resolved_at = now
 
-    # Create legacy member
-    member = LegacyMember(
-        legacy_id=req.legacy_id,
-        user_id=req.user_id,
-        role=role,
+    existing_member_result = await db.execute(
+        select(LegacyMember).where(
+            LegacyMember.legacy_id == req.legacy_id,
+            LegacyMember.user_id == req.user_id,
+        )
     )
-    db.add(member)
-    await db.commit()
+    if existing_member_result.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=409, detail="User is already a member of this legacy"
+        )
+
+    db.add(
+        LegacyMember(
+            legacy_id=req.legacy_id,
+            user_id=req.user_id,
+            role=role,
+        )
+    )
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409, detail="User is already a member of this legacy"
+        ) from None
     await db.refresh(req)
 
     # Load related objects for response

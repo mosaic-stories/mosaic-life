@@ -12,28 +12,13 @@ from ..schemas.profile import (
     ProfileSettingsUpdate,
 )
 from ..services import profile as profile_service
+from ..services import profile_queries as profile_query_service
 
 router = APIRouter(prefix="/api/users", tags=["profiles"])
 
 
 class UsernameUpdate(BaseModel):
     username: str = Field(..., min_length=3, max_length=30)
-
-
-@router.get("/{username}", response_model=ProfileResponse)
-async def get_profile(
-    username: str,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-) -> ProfileResponse:
-    """Get a user's profile page data, filtered by viewer authorization."""
-    session = get_current_session(request)
-    viewer_user_id = session.user_id if session else None
-
-    result = await profile_service.get_profile_by_username(db, username, viewer_user_id)
-    if result is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    return result
 
 
 @router.patch("/me/username")
@@ -48,6 +33,19 @@ async def update_username(
     return {"username": data.username}
 
 
+@router.get("/me/profile/settings", response_model=ProfileSettingsResponse)
+async def get_visibility_settings(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> ProfileSettingsResponse:
+    """Get profile visibility settings for the current user."""
+    session = require_auth(request)
+    settings = await profile_query_service.get_profile_settings(db, session.user_id)
+    if settings is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return settings
+
+
 @router.patch("/me/profile/settings", response_model=ProfileSettingsResponse)
 async def update_visibility_settings(
     data: ProfileSettingsUpdate,
@@ -60,3 +58,21 @@ async def update_visibility_settings(
     return await profile_service.update_visibility_settings(
         db, session.user_id, **update_kwargs
     )
+
+
+@router.get("/{username}", response_model=ProfileResponse)
+async def get_profile(
+    username: str,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> ProfileResponse:
+    """Get a user's profile page data, filtered by viewer authorization."""
+    session = get_current_session(request)
+    viewer_user_id = session.user_id if session else None
+
+    result = await profile_query_service.get_profile_by_username(
+        db, username, viewer_user_id
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return result

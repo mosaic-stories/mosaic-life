@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 class ProfileResponse(BaseModel):
     """Public profile data, filtered by viewer authorization."""
 
+    user_id: UUID
     username: str
     display_name: str
     avatar_url: str | None = None
@@ -49,6 +50,7 @@ class VisibilityContext(BaseModel):
 
 
 class ProfileSettingsResponse(BaseModel):
+    username: str
     discoverable: bool
     visibility_legacies: str
     visibility_stories: str

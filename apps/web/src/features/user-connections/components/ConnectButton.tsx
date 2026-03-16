@@ -36,10 +36,11 @@ export default function ConnectButton({
 }: ConnectButtonProps) {
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const isEnabled = !!user && user.id !== targetUserId;
 
-  const { data: connections } = useMyConnections();
-  const { data: outgoing } = useOutgoingRequests();
-  const { data: incoming } = useIncomingRequests();
+  const { data: connections } = useMyConnections({ enabled: isEnabled });
+  const { data: outgoing } = useOutgoingRequests({ enabled: isEnabled });
+  const { data: incoming } = useIncomingRequests({ enabled: isEnabled });
   const acceptRequest = useAcceptRequest();
   const declineRequest = useDeclineRequest();
   const removeConnection = useRemoveConnection();

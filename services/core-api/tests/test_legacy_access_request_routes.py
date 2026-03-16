@@ -3,7 +3,7 @@
 import pytest
 from httpx import AsyncClient
 
-from app.models.legacy import Legacy
+from app.models.legacy import Legacy, LegacyMember
 from app.models.user import User
 from tests.conftest import create_auth_headers_for_user
 
@@ -114,6 +114,39 @@ class TestAccessRequestRoutes:
             headers=auth_headers,
         )
         assert response.status_code == 404
+
+    async def test_approve_rejects_existing_member(
+        self,
+        client: AsyncClient,
+        db_session,
+        test_user: User,
+        test_user_2: User,
+        test_legacy: Legacy,
+        auth_headers: dict[str, str],
+    ) -> None:
+        user2_headers = create_auth_headers_for_user(test_user_2)
+        submit_resp = await client.post(
+            f"/api/legacies/{test_legacy.id}/access-requests",
+            json={"requested_role": "advocate"},
+            headers=user2_headers,
+        )
+        request_id = submit_resp.json()["id"]
+
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id,
+                user_id=test_user_2.id,
+                role="admirer",
+            )
+        )
+        await db_session.commit()
+
+        response = await client.patch(
+            f"/api/legacies/{test_legacy.id}/access-requests/{request_id}/approve",
+            json={},
+            headers=auth_headers,
+        )
+        assert response.status_code == 409
 
     async def test_decline_rejects_mismatched_legacy_id(
         self,

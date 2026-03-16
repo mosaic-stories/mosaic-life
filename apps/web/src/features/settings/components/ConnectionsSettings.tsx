@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { useAuth } from '@/contexts/AuthContext';
 import {
   useProfileSettings,
   useUpdateProfileSettings,
@@ -35,11 +34,10 @@ const VISIBILITY_FIELDS = [
   { key: 'visibility_connections', label: 'Connections list' },
 ] as const;
 
-function UsernameSection() {
-  const { user } = useAuth();
+function UsernameSection({ currentUsername }: { currentUsername: string }) {
   const updateUsername = useUpdateUsername();
   const [editing, setEditing] = useState(false);
-  const [newUsername, setNewUsername] = useState('');
+  const [newUsername, setNewUsername] = useState(currentUsername);
   const [error, setError] = useState<string | null>(null);
 
   const validateUsername = (value: string): string | null => {
@@ -114,15 +112,13 @@ function UsernameSection() {
       ) : (
         <div className="flex items-center gap-3">
           <span className="text-sm text-neutral-700">
-            @{(user as unknown as Record<string, string>)?.username || 'not set'}
+            @{currentUsername}
           </span>
           <Button
             size="sm"
             variant="outline"
             onClick={() => {
-              setNewUsername(
-                (user as unknown as Record<string, string>)?.username || ''
-              );
+              setNewUsername(currentUsername);
               setEditing(true);
             }}
           >
@@ -170,7 +166,7 @@ export default function ConnectionsSettings() {
         </p>
       </div>
 
-      <UsernameSection />
+      <UsernameSection currentUsername={settings?.username ?? 'not-set'} />
 
       <Separator />
 

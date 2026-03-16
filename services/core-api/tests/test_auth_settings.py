@@ -85,3 +85,15 @@ async def test_find_or_create_user_retries_username_collision(
     user = await _find_or_create_user(db_session, google_user)
 
     assert user.username == "collision-user-7777"
+
+
+@pytest.mark.asyncio
+async def test_me_response_includes_username(
+    client,
+    test_user: User,
+    auth_headers: dict[str, str],
+) -> None:
+    response = await client.get("/api/me", headers=auth_headers)
+
+    assert response.status_code == 200
+    assert response.json()["username"] == test_user.username

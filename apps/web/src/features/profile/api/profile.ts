@@ -29,7 +29,7 @@ export interface ProfileConnectionCard {
 }
 
 export interface ProfileResponse {
-  user_id?: string; // TODO: backend returns user_id in profile
+  user_id: string;
   username: string;
   display_name: string;
   avatar_url: string | null;
@@ -41,6 +41,7 @@ export interface ProfileResponse {
 }
 
 export interface ProfileSettingsResponse {
+  username: string;
   discoverable: boolean;
   visibility_legacies: string;
   visibility_stories: string;
