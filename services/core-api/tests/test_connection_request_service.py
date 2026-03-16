@@ -4,6 +4,7 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
+from app.services import connection as connection_service
 from app.services import connection_request as service
 
 
@@ -66,6 +67,33 @@ class TestAcceptRequest:
         with pytest.raises(HTTPException) as exc_info:
             await service.accept_request(db_session, req.id, test_user.id)
         assert exc_info.value.status_code == 403
+
+    async def test_accept_reactivates_removed_connection(
+        self, db_session: AsyncSession, test_user: User, test_user_2: User
+    ) -> None:
+        first_req = await service.create_request(
+            db_session, test_user.id, test_user_2.id, "friend"
+        )
+        first_conn = await service.accept_request(
+            db_session, first_req.id, test_user_2.id
+        )
+        await connection_service.remove_connection(
+            db_session, first_conn.id, test_user.id
+        )
+
+        second_req = await service.create_request(
+            db_session, test_user.id, test_user_2.id, "colleague"
+        )
+        second_conn = await service.accept_request(
+            db_session, second_req.id, test_user_2.id
+        )
+
+        assert second_conn.id == first_conn.id
+
+        detail = await connection_service.get_relationship(
+            db_session, second_conn.id, test_user.id
+        )
+        assert detail.relationship_type == "colleague"
 
 
 @pytest.mark.asyncio

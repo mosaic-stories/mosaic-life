@@ -12,19 +12,21 @@ from urllib.parse import urlencode
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse, Response
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
 from ..database import get_db
+from ..models.profile_settings import ProfileSettings
 from ..models.user_session import UserSession
+from ..models.user import User
+from ..services.username import allocate_username
 from .session_tokens import (
     extract_client_ip,
     extract_device_info,
     get_session_cookie_value,
     hash_session_token,
 )
-from ..models.user import User
-from ..services.username import generate_username
 from .google import GoogleOAuthError, get_google_client
 from .middleware import create_session_cookie, get_current_session, require_auth
 from .models import GoogleUser, MeResponse, SessionData
@@ -374,16 +376,31 @@ async def _find_or_create_user(db: AsyncSession, google_user: GoogleUser) -> Use
         )
     else:
         # Create new user
-        user = User(
-            email=google_user.email,
-            google_id=google_user.id,
-            name=google_user.display_name,
-            username=generate_username(google_user.display_name),
-            avatar_url=google_user.picture,
-        )
-        db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        user = None
+        created_user = None
+        for _ in range(5):
+            try:
+                user = User(
+                    email=google_user.email,
+                    google_id=google_user.id,
+                    name=google_user.display_name,
+                    username=await allocate_username(db, google_user.display_name),
+                    avatar_url=google_user.picture,
+                )
+                db.add(user)
+                await db.flush()
+                db.add(ProfileSettings(user_id=user.id))
+                await db.commit()
+                await db.refresh(user)
+                created_user = user
+                break
+            except IntegrityError:
+                await db.rollback()
+
+        if created_user is None:
+            msg = "Unable to create user"
+            raise RuntimeError(msg)
+        user = created_user
 
         logger.info(
             "auth.user_created",

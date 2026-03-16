@@ -172,21 +172,43 @@ async def accept_request(
     req.status = "accepted"
     req.resolved_at = now
 
-    # Create Connection row (ordered UUIDs)
+    # Reuse a soft-deleted connection for the pair when reconnecting.
     user_a_id = min(req.from_user_id, req.to_user_id)
     user_b_id = max(req.from_user_id, req.to_user_id)
 
-    conn = Connection(user_a_id=user_a_id, user_b_id=user_b_id)
-    db.add(conn)
-    await db.flush()
-
-    # Create Relationship row for the sender
-    rel = Relationship(
-        owner_user_id=req.from_user_id,
-        connection_id=conn.id,
-        relationship_type=req.relationship_type,
+    existing_conn_result = await db.execute(
+        select(Connection).where(
+            Connection.user_a_id == user_a_id,
+            Connection.user_b_id == user_b_id,
+        )
     )
-    db.add(rel)
+    conn = existing_conn_result.scalar_one_or_none()
+
+    if conn is None:
+        conn = Connection(user_a_id=user_a_id, user_b_id=user_b_id)
+        db.add(conn)
+        await db.flush()
+    else:
+        conn.removed_at = None
+        conn.connected_at = now
+
+    # Preserve existing sender notes on reconnect and only refresh the declared type.
+    rel_result = await db.execute(
+        select(Relationship).where(
+            Relationship.owner_user_id == req.from_user_id,
+            Relationship.connection_id == conn.id,
+        )
+    )
+    rel = rel_result.scalar_one_or_none()
+    if rel is None:
+        rel = Relationship(
+            owner_user_id=req.from_user_id,
+            connection_id=conn.id,
+            relationship_type=req.relationship_type,
+        )
+        db.add(rel)
+    else:
+        rel.relationship_type = req.relationship_type
 
     await db.commit()
     await db.refresh(conn)

@@ -88,3 +88,11 @@ class TestUpdateVisibilitySettings:
         )
         assert result.discoverable is True
         assert result.visibility_bio == "public"
+
+    async def test_creates_missing_settings(
+        self, db_session: AsyncSession, test_user: User
+    ) -> None:
+        result = await profile_service.update_visibility_settings(
+            db_session, test_user.id, discoverable=True
+        )
+        assert result.discoverable is True

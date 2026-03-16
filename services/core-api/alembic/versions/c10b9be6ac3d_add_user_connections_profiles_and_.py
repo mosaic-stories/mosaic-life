@@ -35,8 +35,22 @@ def upgrade() -> None:
             or "user"
         )
         base = base[:24].rstrip("-")
-        suffix = "".join(secrets.choice(suffix_chars) for _ in range(4))
-        username = f"{base}-{suffix}"
+        username = None
+        for _ in range(20):
+            suffix = "".join(secrets.choice(suffix_chars) for _ in range(4))
+            candidate = f"{base}-{suffix}"
+            existing = conn.execute(
+                sa.text("SELECT 1 FROM users WHERE username = :username"),
+                {"username": candidate},
+            ).fetchone()
+            if existing is None:
+                username = candidate
+                break
+
+        if username is None:
+            msg = f"Unable to generate unique username for user {user_id}"
+            raise RuntimeError(msg)
+
         conn.execute(
             sa.text("UPDATE users SET username = :username WHERE id = :id"),
             {"username": username, "id": user_id},

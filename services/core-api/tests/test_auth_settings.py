@@ -1,5 +1,14 @@
 import importlib
 
+import pytest
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.auth.models import GoogleUser
+from app.auth.router import _find_or_create_user
+from app.models.profile_settings import ProfileSettings
+from app.models.user import User
+
 
 def test_session_cookie_name_defaults_to_prod_value(monkeypatch):
     monkeypatch.delenv("SESSION_COOKIE_NAME", raising=False)
@@ -32,3 +41,47 @@ def test_session_cookie_name_can_be_overridden(monkeypatch):
         monkeypatch.delenv("SESSION_COOKIE_NAME", raising=False)
         settings_module.get_settings.cache_clear()
         importlib.reload(settings_module)
+
+
+@pytest.mark.asyncio
+async def test_find_or_create_user_creates_profile_settings(
+    db_session: AsyncSession,
+) -> None:
+    google_user = GoogleUser(
+        id="google-new-user",
+        email="new-user@example.com",
+        name="New User",
+        picture="https://example.com/new-user.jpg",
+    )
+
+    user = await _find_or_create_user(db_session, google_user)
+
+    settings = await db_session.execute(
+        select(ProfileSettings).where(ProfileSettings.user_id == user.id)
+    )
+    assert settings.scalar_one_or_none() is not None
+
+
+@pytest.mark.asyncio
+async def test_find_or_create_user_retries_username_collision(
+    db_session: AsyncSession, test_user: User, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    google_user = GoogleUser(
+        id="google-collision-user",
+        email="collision@example.com",
+        name="Collision User",
+        picture="https://example.com/collision.jpg",
+    )
+    candidates = iter([test_user.username, "collision-user-7777"])
+
+    async def fake_allocate_username(db, display_name):
+        return next(candidates)
+
+    monkeypatch.setattr(
+        "app.auth.router.allocate_username",
+        fake_allocate_username,
+    )
+
+    user = await _find_or_create_user(db_session, google_user)
+
+    assert user.username == "collision-user-7777"

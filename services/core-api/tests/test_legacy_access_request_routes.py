@@ -90,3 +90,49 @@ class TestAccessRequestRoutes:
         assert response.status_code == 200
         data = response.json()
         assert len(data) == 1
+
+    async def test_approve_rejects_mismatched_legacy_id(
+        self,
+        client: AsyncClient,
+        test_user: User,
+        test_user_2: User,
+        test_legacy: Legacy,
+        test_legacy_2: Legacy,
+        auth_headers: dict[str, str],
+    ) -> None:
+        user2_headers = create_auth_headers_for_user(test_user_2)
+        submit_resp = await client.post(
+            f"/api/legacies/{test_legacy.id}/access-requests",
+            json={"requested_role": "advocate"},
+            headers=user2_headers,
+        )
+        request_id = submit_resp.json()["id"]
+
+        response = await client.patch(
+            f"/api/legacies/{test_legacy_2.id}/access-requests/{request_id}/approve",
+            json={},
+            headers=auth_headers,
+        )
+        assert response.status_code == 404
+
+    async def test_decline_rejects_mismatched_legacy_id(
+        self,
+        client: AsyncClient,
+        test_user_2: User,
+        test_legacy: Legacy,
+        test_legacy_2: Legacy,
+        auth_headers: dict[str, str],
+    ) -> None:
+        user2_headers = create_auth_headers_for_user(test_user_2)
+        submit_resp = await client.post(
+            f"/api/legacies/{test_legacy.id}/access-requests",
+            json={"requested_role": "advocate"},
+            headers=user2_headers,
+        )
+        request_id = submit_resp.json()["id"]
+
+        response = await client.patch(
+            f"/api/legacies/{test_legacy_2.id}/access-requests/{request_id}/decline",
+            headers=auth_headers,
+        )
+        assert response.status_code == 404

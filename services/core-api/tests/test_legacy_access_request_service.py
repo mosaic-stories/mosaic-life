@@ -57,7 +57,9 @@ class TestApproveRequest:
         req = await service.submit_request(
             db_session, test_user_2.id, test_legacy.id, "advocate"
         )
-        result = await service.approve_request(db_session, req.id, test_user.id)
+        result = await service.approve_request(
+            db_session, test_legacy.id, req.id, test_user.id
+        )
         assert result.status == "approved"
         assert result.assigned_role == "advocate"
 
@@ -70,8 +72,29 @@ class TestApproveRequest:
             db_session, test_user_2.id, test_legacy.id, "advocate"
         )
         with pytest.raises(HTTPException) as exc_info:
-            await service.approve_request(db_session, req.id, test_user_2.id)
+            await service.approve_request(
+                db_session, test_legacy.id, req.id, test_user_2.id
+            )
         assert exc_info.value.status_code == 403
+
+    async def test_approve_rejects_mismatched_legacy(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+        test_legacy: Legacy,
+        test_legacy_2: Legacy,
+    ) -> None:
+        from fastapi import HTTPException
+
+        req = await service.submit_request(
+            db_session, test_user_2.id, test_legacy.id, "advocate"
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            await service.approve_request(
+                db_session, test_legacy_2.id, req.id, test_user.id
+            )
+        assert exc_info.value.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -86,13 +109,32 @@ class TestDeclineRequest:
         req = await service.submit_request(
             db_session, test_user_2.id, test_legacy.id, "advocate"
         )
-        await service.decline_request(db_session, req.id, test_user.id)
+        await service.decline_request(db_session, test_legacy.id, req.id, test_user.id)
 
         # Can submit new request after decline
         new_req = await service.submit_request(
             db_session, test_user_2.id, test_legacy.id, "advocate"
         )
         assert new_req.status == "pending"
+
+    async def test_decline_rejects_mismatched_legacy(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+        test_legacy: Legacy,
+        test_legacy_2: Legacy,
+    ) -> None:
+        from fastapi import HTTPException
+
+        req = await service.submit_request(
+            db_session, test_user_2.id, test_legacy.id, "advocate"
+        )
+        with pytest.raises(HTTPException) as exc_info:
+            await service.decline_request(
+                db_session, test_legacy_2.id, req.id, test_user.id
+            )
+        assert exc_info.value.status_code == 404
 
 
 @pytest.mark.asyncio

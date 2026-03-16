@@ -6,6 +6,9 @@ import re
 import secrets
 import string
 
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 RESERVED_WORDS: frozenset[str] = frozenset(
     {
         "admin",
@@ -42,6 +45,7 @@ RESERVED_WORDS: frozenset[str] = frozenset(
 
 _USERNAME_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]{1}$")
 _SUFFIX_CHARS = string.ascii_lowercase + string.digits
+MAX_USERNAME_ATTEMPTS = 20
 
 
 def validate_username(username: str) -> str | None:
@@ -57,9 +61,8 @@ def validate_username(username: str) -> str | None:
     return None
 
 
-def generate_username(display_name: str) -> str:
-    """Generate a username from a display name with random suffix."""
-    # Normalize: lowercase, replace spaces/special chars with hyphens
+def _slugify_username_base(display_name: str) -> str:
+    """Normalize a display name into a username base."""
     base = display_name.lower().strip()
     base = re.sub(r"[^a-z0-9]+", "-", base)
     base = base.strip("-")
@@ -70,6 +73,28 @@ def generate_username(display_name: str) -> str:
     # Truncate to leave room for suffix (-xxxx = 5 chars)
     base = base[:24]
     base = base.rstrip("-")
+    return base
+
+
+def generate_username(display_name: str) -> str:
+    """Generate a username from a display name with random suffix."""
+    base = _slugify_username_base(display_name)
 
     suffix = "".join(secrets.choice(_SUFFIX_CHARS) for _ in range(4))
     return f"{base}-{suffix}"
+
+
+async def allocate_username(
+    db: AsyncSession, display_name: str, max_attempts: int = MAX_USERNAME_ATTEMPTS
+) -> str:
+    """Allocate an unused username for a display name."""
+    from ..models.user import User
+
+    for _ in range(max_attempts):
+        candidate = generate_username(display_name)
+        existing = await db.execute(select(User.id).where(User.username == candidate))
+        if existing.scalar_one_or_none() is None:
+            return candidate
+
+    msg = "Unable to allocate a unique username"
+    raise RuntimeError(msg)

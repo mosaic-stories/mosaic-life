@@ -64,7 +64,7 @@ async def approve_request(
 ) -> LegacyAccessRequestResponse:
     session = require_auth(request)
     return await service.approve_request(
-        db, request_id, session.user_id, data.assigned_role
+        db, legacy_id, request_id, session.user_id, data.assigned_role
     )
 
 
@@ -76,7 +76,7 @@ async def decline_request(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
     session = require_auth(request)
-    await service.decline_request(db, request_id, session.user_id)
+    await service.decline_request(db, legacy_id, request_id, session.user_id)
     return {"status": "declined"}
 
 

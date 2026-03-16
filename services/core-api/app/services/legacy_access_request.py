@@ -192,12 +192,15 @@ async def list_pending(
 
 async def approve_request(
     db: AsyncSession,
+    legacy_id: UUID,
     request_id: UUID,
     admin_user_id: UUID,
     assigned_role: str | None = None,
 ) -> LegacyAccessRequestResponse:
     """Approve a legacy access request."""
     req = await _get_request(db, request_id)
+    if req.legacy_id != legacy_id:
+        raise HTTPException(status_code=404, detail="Access request not found")
 
     # Verify admin
     admin_check = await db.execute(
@@ -278,11 +281,14 @@ async def approve_request(
 
 async def decline_request(
     db: AsyncSession,
+    legacy_id: UUID,
     request_id: UUID,
     admin_user_id: UUID,
 ) -> None:
     """Decline a legacy access request."""
     req = await _get_request(db, request_id)
+    if req.legacy_id != legacy_id:
+        raise HTTPException(status_code=404, detail="Access request not found")
 
     # Verify admin
     admin_check = await db.execute(

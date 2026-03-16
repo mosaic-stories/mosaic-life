@@ -81,3 +81,16 @@ class TestUpdateVisibilitySettings:
         data = response.json()
         assert data["discoverable"] is True
         assert data["visibility_bio"] == "public"
+
+    async def test_update_settings_creates_missing_row(
+        self,
+        client: AsyncClient,
+        auth_headers: dict,
+    ) -> None:
+        response = await client.patch(
+            "/api/users/me/profile/settings",
+            json={"discoverable": True},
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        assert response.json()["discoverable"] is True

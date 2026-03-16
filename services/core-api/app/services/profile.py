@@ -22,6 +22,19 @@ from .username import validate_username
 logger = logging.getLogger(__name__)
 
 
+def _build_default_profile_settings(user_id: UUID) -> ProfileSettings:
+    """Create an in-memory ProfileSettings object with explicit defaults."""
+    return ProfileSettings(
+        user_id=user_id,
+        discoverable=False,
+        visibility_legacies=VisibilityTier.NOBODY.value,
+        visibility_stories=VisibilityTier.NOBODY.value,
+        visibility_media=VisibilityTier.NOBODY.value,
+        visibility_connections=VisibilityTier.NOBODY.value,
+        visibility_bio=VisibilityTier.CONNECTIONS.value,
+    )
+
+
 def _viewer_can_see(tier: str, is_authenticated: bool, is_connected: bool) -> bool:
     """Check if a viewer meets the visibility tier requirement."""
     if tier == VisibilityTier.PUBLIC.value:
@@ -50,12 +63,7 @@ async def get_profile_by_username(
     settings = settings_result.scalar_one_or_none()
 
     if settings is None:
-        return ProfileResponse(
-            username=user.username,
-            display_name=user.name,
-            avatar_url=user.avatar_url,
-            visibility_context=VisibilityContext(),
-        )
+        settings = _build_default_profile_settings(user.id)
 
     is_authenticated = viewer_user_id is not None
     is_self = viewer_user_id == user.id if viewer_user_id else False
@@ -146,7 +154,8 @@ async def update_visibility_settings(
     )
     settings = result.scalar_one_or_none()
     if settings is None:
-        raise HTTPException(status_code=404, detail="Profile settings not found")
+        settings = _build_default_profile_settings(user_id)
+        db.add(settings)
 
     for key, value in kwargs.items():
         if value is not None and hasattr(settings, key):

@@ -1,6 +1,14 @@
 """Tests for username validation and generation."""
 
-from app.services.username import generate_username, validate_username
+import pytest
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.user import User
+from app.services.username import (
+    allocate_username,
+    generate_username,
+    validate_username,
+)
 
 
 class TestValidateUsername:
@@ -49,3 +57,19 @@ class TestGenerateUsername:
         username = generate_username("")
         assert validate_username(username) is None
         assert len(username) >= 3
+
+
+@pytest.mark.asyncio
+class TestAllocateUsername:
+    async def test_skips_existing_collisions(
+        self, db_session: AsyncSession, test_user: User, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        candidates = iter(["test-user-0001", "fresh-user-9999"])
+
+        monkeypatch.setattr(
+            "app.services.username.generate_username",
+            lambda display_name: next(candidates),
+        )
+
+        username = await allocate_username(db_session, "Fresh User")
+        assert username == "fresh-user-9999"
