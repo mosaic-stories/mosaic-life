@@ -1,6 +1,7 @@
 import { Globe, Lock } from 'lucide-react';
 import type { StorySummary } from '@/features/story/api/stories';
 import FavoriteButton from '@/features/favorites/components/FavoriteButton';
+import UserLink from '@/components/UserLink';
 
 export interface StoryCardProps {
   story: StorySummary;
@@ -9,9 +10,6 @@ export interface StoryCardProps {
 }
 
 export default function StoryCard({ story, onClick, isFavorited = false }: StoryCardProps) {
-  const authorInitials = story.author_name
-    ? story.author_name.split(' ').map(n => n[0]).join('')
-    : '?';
   const formattedDate = new Date(story.created_at).toLocaleDateString('en-US', {
     month: 'long',
     day: 'numeric',
@@ -63,10 +61,13 @@ export default function StoryCard({ story, onClick, isFavorited = false }: Story
       {/* Footer */}
       <div className="border-t border-stone-100 px-5 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="size-6 rounded-full bg-theme-primary flex items-center justify-center text-[9px] font-semibold text-white">
-            {authorInitials}
-          </div>
-          <span className="text-xs text-neutral-500">{story.author_name}</span>
+          <UserLink
+            username={story.author_username}
+            displayName={story.author_name}
+            avatarUrl={story.author_avatar_url}
+            showAvatar
+            className="text-xs text-neutral-500"
+          />
         </div>
         <div className="flex items-center gap-3">
           <span className="text-[11px] text-neutral-400 flex items-center gap-1">

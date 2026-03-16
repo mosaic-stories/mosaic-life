@@ -1,5 +1,6 @@
 import { Landmark, BookOpen, Image, MessageCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import UserLink from '@/components/UserLink';
 import type { SocialFeedItem } from '../api/activity';
 
 const entityIcons: Record<string, typeof Landmark> = {
@@ -41,7 +42,7 @@ export default function ActivityFeedItem({
   onClick,
 }: ActivityFeedItemProps) {
   const Icon = entityIcons[item.entity_type] || BookOpen;
-  const actorName = item.actor.id === currentUserId ? 'You' : item.actor.name;
+  const isCurrentUser = item.actor.id === currentUserId;
   const actionText = actionLabels[item.action] || item.action;
   const entityLabel = entityLabels[item.entity_type] || item.entity_type;
   const metadata = item.metadata as
@@ -78,7 +79,15 @@ export default function ActivityFeedItem({
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm text-neutral-900">
-          <span className="font-medium">{actorName}</span>{' '}
+          {isCurrentUser ? (
+            <span className="font-medium">You</span>
+          ) : (
+            <UserLink
+              username={item.actor.username}
+              displayName={item.actor.name}
+              className="font-medium text-neutral-900"
+            />
+          )}{' '}
           {actionText}{' '}
           {entityName && (
             <span className="font-medium">&ldquo;{entityName}&rdquo;</span>
