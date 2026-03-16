@@ -78,6 +78,7 @@ class ActorSummary(BaseModel):
 
     id: UUID
     name: str
+    username: str
     avatar_url: str | None = None
 
 
@@ -94,6 +95,7 @@ class EntitySummary(BaseModel):
     death_date: str | None = None
     filename: str | None = None
     author_name: str | None = None
+    author_username: str | None = None
     legacy_id: str | None = None
     legacy_name: str | None = None
 

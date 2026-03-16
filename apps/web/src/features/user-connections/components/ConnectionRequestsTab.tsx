@@ -1,8 +1,8 @@
 import { Loader2, Inbox, Send } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import UserLink from '@/components/UserLink';
 import {
   useIncomingRequests,
   useOutgoingRequests,
@@ -20,24 +20,20 @@ function IncomingRequestCard({
 }) {
   const acceptRequest = useAcceptRequest();
   const declineRequest = useDeclineRequest();
-  const initials = request.from_user_name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase();
 
   return (
     <Card className="p-4">
       <div className="flex items-start gap-3">
-        <Avatar className="size-11">
-          <AvatarImage src={request.from_user_avatar_url || undefined} />
-          <AvatarFallback>{initials}</AvatarFallback>
-        </Avatar>
+        <UserLink
+          username={request.from_user_username}
+          displayName={request.from_user_name}
+          avatarUrl={request.from_user_avatar_url}
+          showAvatar
+          avatarClassName="size-11"
+          className="font-medium text-neutral-900"
+        />
         <div className="flex-1 min-w-0 space-y-2">
           <div>
-            <p className="font-medium text-neutral-900">
-              {request.from_user_name}
-            </p>
             <Badge variant="outline" className="text-xs mt-1">
               {request.relationship_type}
             </Badge>
@@ -82,24 +78,20 @@ function OutgoingRequestCard({
   request: ConnectionRequestResponse;
 }) {
   const cancelRequest = useCancelRequest();
-  const initials = request.to_user_name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase();
 
   return (
     <Card className="p-4">
       <div className="flex items-start gap-3">
-        <Avatar className="size-11">
-          <AvatarImage src={request.to_user_avatar_url || undefined} />
-          <AvatarFallback>{initials}</AvatarFallback>
-        </Avatar>
+        <UserLink
+          username={request.to_user_username}
+          displayName={request.to_user_name}
+          avatarUrl={request.to_user_avatar_url}
+          showAvatar
+          avatarClassName="size-11"
+          className="font-medium text-neutral-900"
+        />
         <div className="flex-1 min-w-0 space-y-2">
           <div>
-            <p className="font-medium text-neutral-900">
-              {request.to_user_name}
-            </p>
             <Badge variant="outline" className="text-xs mt-1">
               {request.relationship_type}
             </Badge>

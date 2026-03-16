@@ -11,6 +11,7 @@ export interface ConnectionsStatsResponse {
 export interface TopConnection {
   user_id: string;
   display_name: string;
+  username: string;
   avatar_url: string | null;
   shared_legacy_count: number;
 }
@@ -32,6 +33,7 @@ export interface SharedLegacySummary {
 export interface PersonConnection {
   user_id: string;
   display_name: string;
+  username: string;
   avatar_url: string | null;
   shared_legacy_count: number;
   shared_legacies: SharedLegacySummary[];

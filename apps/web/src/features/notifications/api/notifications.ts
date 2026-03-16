@@ -11,6 +11,7 @@ export interface NotificationResponse {
   actor_id: string | null;
   actor_name: string | null;
   actor_avatar_url: string | null;
+  actor_username: string | null;
   resource_type: string | null;
   resource_id: string | null;
   status: 'unread' | 'read' | 'dismissed';

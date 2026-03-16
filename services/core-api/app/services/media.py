@@ -341,6 +341,8 @@ async def list_legacy_media(
             download_url=storage.generate_download_url(m.storage_path),
             uploaded_by=m.owner_id,
             uploader_name=m.owner.name,
+            uploader_username=m.owner.username,
+            uploader_avatar_url=m.owner.avatar_url,
             legacies=[
                 LegacyAssociationResponse(
                     legacy_id=assoc.legacy_id,
@@ -639,6 +641,8 @@ async def _build_media_detail(
         download_url=storage.generate_download_url(media.storage_path),
         uploaded_by=media.owner_id,
         uploader_name=media.owner.name,
+        uploader_username=media.owner.username,
+        uploader_avatar_url=media.owner.avatar_url,
         legacies=[
             LegacyAssociationResponse(
                 legacy_id=assoc.legacy_id,

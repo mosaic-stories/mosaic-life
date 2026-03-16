@@ -12,9 +12,11 @@ export interface ConnectionRequestResponse {
   id: string;
   from_user_id: string;
   from_user_name: string;
+  from_user_username: string;
   from_user_avatar_url: string | null;
   to_user_id: string;
   to_user_name: string;
+  to_user_username: string;
   to_user_avatar_url: string | null;
   relationship_type: string;
   message: string | null;

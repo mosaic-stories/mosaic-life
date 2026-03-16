@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { ComponentProps } from 'react';
+import { MemoryRouter } from 'react-router-dom';
 import type { MediaItem, PersonSearchResult, TagItem } from '@/features/media/api/media';
 
 const mocks = vi.hoisted(() => ({
@@ -65,7 +66,7 @@ vi.mock('./DetailSection', () => ({
 }));
 
 vi.mock('./MetadataRow', () => ({
-  default: ({ label, value }: { label: string; value: string }) => (
+  default: ({ label, value }: { label: string; value: ReactNode }) => (
     <div>
       <span>{label}</span>
       <span>{value}</span>
@@ -87,6 +88,8 @@ const mediaItem: MediaItem = {
   download_url: '/download/media-1',
   uploaded_by: 'user-1',
   uploader_name: 'Pat Doe',
+  uploader_username: 'pat-doe',
+  uploader_avatar_url: null,
   legacies: [],
   created_at: '2026-03-11T00:00:00Z',
   favorite_count: 0,
@@ -107,17 +110,19 @@ const mediaItemTwo: MediaItem = {
 
 function renderPanel(overrides?: Partial<ComponentProps<typeof MediaDetailPanel>>) {
   return render(
-    <MediaDetailPanel
-      media={mediaItem}
-      allMedia={[mediaItem]}
-      legacyId="legacy-1"
-      profileImageId={null}
-      onClose={mocks.onClose}
-      onNavigate={mocks.onNavigate}
-      isAuthenticated
-      onRequestDelete={mocks.onRequestDelete}
-      {...overrides}
-    />
+    <MemoryRouter>
+      <MediaDetailPanel
+        media={mediaItem}
+        allMedia={[mediaItem]}
+        legacyId="legacy-1"
+        profileImageId={null}
+        onClose={mocks.onClose}
+        onNavigate={mocks.onNavigate}
+        isAuthenticated
+        onRequestDelete={mocks.onRequestDelete}
+        {...overrides}
+      />
+    </MemoryRouter>
   );
 }
 

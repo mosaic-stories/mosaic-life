@@ -9,6 +9,7 @@ import { getMediaContentUrl } from '@/features/media/api/media';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import FavoriteButton from '@/features/favorites/components/FavoriteButton';
 import { useFavoriteCheck } from '@/features/favorites/hooks/useFavorites';
+import UserLink from '@/components/UserLink';
 import {
   useSetProfileImage,
   useUpdateMedia,
@@ -436,7 +437,12 @@ export default function MediaDetailPanel({
             <MetadataRow
               icon={Users}
               label="Uploaded by"
-              value={media.uploader_name}
+              value={
+                <UserLink
+                  username={media.uploader_username}
+                  displayName={media.uploader_name}
+                />
+              }
             />
           </div>
         </DetailSection>

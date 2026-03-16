@@ -623,6 +623,8 @@ async def explore_legacies(
                     user_id=member.user_id,
                     email=member.user.email if member.user else "",
                     name=member.user.name if member.user else "",
+                    username=member.user.username if member.user else "",
+                    avatar_url=member.user.avatar_url if member.user else None,
                     role=member.role,
                     joined_at=member.joined_at,
                 )
@@ -697,6 +699,8 @@ async def get_legacy_public(
             user_id=member.user_id,
             email=member.user.email if member.user else "",
             name=member.user.name if member.user else "",
+            username=member.user.username if member.user else "",
+            avatar_url=member.user.avatar_url if member.user else None,
             role=member.role,
             joined_at=member.joined_at,
         )
@@ -791,6 +795,8 @@ async def get_legacy_detail(
             user_id=member.user_id,
             email=member.user.email,
             name=member.user.name,
+            username=member.user.username,
+            avatar_url=member.user.avatar_url,
             role=member.role,
             joined_at=member.joined_at,
         )

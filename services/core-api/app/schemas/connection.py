@@ -16,9 +16,11 @@ class ConnectionRequestResponse(BaseModel):
     id: UUID
     from_user_id: UUID
     from_user_name: str
+    from_user_username: str
     from_user_avatar_url: str | None = None
     to_user_id: UUID
     to_user_name: str
+    to_user_username: str
     to_user_avatar_url: str | None = None
     relationship_type: str
     message: str | None = None

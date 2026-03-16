@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { PenLine, Plus, Sparkles, MessageCircle, RefreshCw, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import UserLink from '@/components/UserLink';
 import { useCurrentPrompt, useShufflePrompt, useActOnPrompt } from '@/features/story-prompts/hooks/useStoryPrompt';
 import type { Legacy, LegacyMember } from '@/features/legacy/api/legacies';
 import type { SectionId } from './SectionNav';
@@ -93,21 +94,20 @@ export default function LegacySidebar({
 }
 
 function MemberRow({ member }: { member: LegacyMember }) {
-  const initials = member.name
-    ? member.name.split(' ').map(n => n[0]).join('').toUpperCase()
-    : member.email[0].toUpperCase();
-
   const roleLabel = member.role === 'creator' ? 'Creator' : 'Member';
 
   return (
     <div className="flex items-center gap-2.5">
-      <div className="size-8 rounded-full bg-theme-primary flex items-center justify-center text-[11px] font-semibold text-white shrink-0">
-        {initials}
-      </div>
-      <div className="min-w-0">
-        <div className="text-sm font-medium text-neutral-800 truncate">
-          {member.name || member.email}
-        </div>
+      <UserLink
+        username={member.username}
+        displayName={member.name || member.email}
+        avatarUrl={member.avatar_url}
+        showAvatar
+        avatarClassName="size-8"
+        className="min-w-0 flex-1 text-sm font-medium text-neutral-800"
+        nameClassName="truncate"
+      />
+      <div className="ml-auto shrink-0">
         <div className="text-[11px] text-neutral-400">{roleLabel}</div>
       </div>
     </div>

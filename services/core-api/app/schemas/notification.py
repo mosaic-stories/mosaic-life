@@ -17,6 +17,7 @@ class NotificationResponse(BaseModel):
     actor_id: UUID | None = None
     actor_name: str | None = None
     actor_avatar_url: str | None = None
+    actor_username: str | None = None
     resource_type: str | None = None
     resource_id: UUID | None = None
     status: str  # unread, read, dismissed

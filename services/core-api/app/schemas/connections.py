@@ -19,6 +19,7 @@ class TopConnectionResponse(BaseModel):
 
     user_id: UUID
     display_name: str
+    username: str
     avatar_url: str | None
     shared_legacy_count: int
 
@@ -46,6 +47,7 @@ class PersonConnectionResponse(BaseModel):
 
     user_id: UUID
     display_name: str
+    username: str
     avatar_url: str | None
     shared_legacy_count: int
     shared_legacies: list[SharedLegacySummary]

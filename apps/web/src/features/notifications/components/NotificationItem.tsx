@@ -2,6 +2,7 @@ import { X } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import type { NotificationResponse } from '@/features/notifications/api/notifications';
 import { formatDistanceToNow } from 'date-fns';
+import UserLink from '@/components/UserLink';
 
 interface NotificationItemProps {
   notification: NotificationResponse;
@@ -32,13 +33,24 @@ export default function NotificationItem({
         isUnread ? 'bg-blue-50/50' : ''
       }`}
     >
-      <button onClick={onClick} className="flex gap-3 flex-1 text-left">
+      {notification.actor_username ? (
+        <UserLink
+          username={notification.actor_username}
+          displayName={notification.actor_name || 'Unknown user'}
+          avatarUrl={notification.actor_avatar_url}
+          showAvatar
+          avatarClassName="size-9"
+          className="flex-shrink-0 text-sm font-medium text-neutral-900"
+        />
+      ) : (
         <Avatar className="size-9 flex-shrink-0">
           <AvatarImage src={notification.actor_avatar_url || undefined} />
           <AvatarFallback className="bg-theme-primary text-white text-xs">
             {initials}
           </AvatarFallback>
         </Avatar>
+      )}
+      <button type="button" onClick={onClick} className="flex-1 min-w-0 text-left">
         <div className="flex-1 min-w-0">
           <p className="text-sm text-neutral-900 line-clamp-2">
             {notification.message}

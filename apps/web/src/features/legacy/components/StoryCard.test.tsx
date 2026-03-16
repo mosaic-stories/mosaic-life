@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import StoryCard from './StoryCard';
 import type { StorySummary } from '@/features/story/api/stories';
 
@@ -17,6 +18,8 @@ const story: StorySummary = {
   updated_at: '2025-01-01T00:00:00Z',
   author_id: 'user-1',
   author_name: 'Jordan Example',
+  author_username: 'jordan-example-x1y2',
+  author_avatar_url: null,
   legacies: [
     { legacy_id: 'legacy-1', legacy_name: 'Test Legacy', role: 'primary', position: 0 },
   ],
@@ -26,21 +29,21 @@ const story: StorySummary = {
 
 describe('StoryCard', () => {
   it('renders title and content preview', () => {
-    render(<StoryCard story={story} />);
+    render(<MemoryRouter><StoryCard story={story} /></MemoryRouter>);
 
     expect(screen.getByRole('heading', { level: 3 })).toHaveTextContent(/a very long story title/i);
     expect(screen.getByText(/Long content preview/)).toBeInTheDocument();
   });
 
   it('uses truncation classes for long titles', () => {
-    render(<StoryCard story={story} />);
+    render(<MemoryRouter><StoryCard story={story} /></MemoryRouter>);
 
     const title = screen.getByRole('heading', { level: 3 });
     expect(title.className).toMatch(/line-clamp/);
   });
 
   it('shows visibility label and author name', () => {
-    render(<StoryCard story={story} />);
+    render(<MemoryRouter><StoryCard story={story} /></MemoryRouter>);
 
     expect(screen.getByText('Public')).toBeInTheDocument();
     expect(screen.getByText('Jordan Example')).toBeInTheDocument();
@@ -48,7 +51,7 @@ describe('StoryCard', () => {
 
   it('shows Members only for private visibility', () => {
     const privateStory = { ...story, visibility: 'private' as const };
-    render(<StoryCard story={privateStory} />);
+    render(<MemoryRouter><StoryCard story={privateStory} /></MemoryRouter>);
 
     expect(screen.getByText('Members only')).toBeInTheDocument();
   });

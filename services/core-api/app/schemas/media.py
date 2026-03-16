@@ -81,6 +81,8 @@ class MediaSummary(BaseModel):
     download_url: str
     uploaded_by: UUID
     uploader_name: str
+    uploader_username: str
+    uploader_avatar_url: str | None = None
     legacies: list[LegacyAssociationResponse]
     favorite_count: int = Field(
         default=0, description="Number of times this media has been favorited"
@@ -107,6 +109,8 @@ class MediaDetail(BaseModel):
     download_url: str
     uploaded_by: UUID
     uploader_name: str
+    uploader_username: str
+    uploader_avatar_url: str | None = None
     legacies: list[LegacyAssociationResponse]
     favorite_count: int = Field(
         default=0, description="Number of times this media has been favorited"

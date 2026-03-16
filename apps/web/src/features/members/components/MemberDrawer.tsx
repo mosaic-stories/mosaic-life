@@ -36,6 +36,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import InviteMemberModal from './InviteMemberModal';
 import PendingAccessRequests from '@/features/legacy-access/components/PendingAccessRequests';
+import UserLink from '@/components/UserLink';
 
 interface MemberDrawerProps {
   legacyId: string;
@@ -211,7 +212,12 @@ export default function MemberDrawer({
 
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">
-                          {member.name || member.email}
+                          <UserLink
+                            username={member.username}
+                            displayName={member.name || member.email}
+                            avatarUrl={member.avatar_url}
+                            className="font-medium"
+                          />
                           {isCurrentUser && (
                             <span className="text-muted-foreground ml-1">(you)</span>
                           )}

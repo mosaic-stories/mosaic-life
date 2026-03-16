@@ -51,6 +51,8 @@ export interface MediaItem {
   download_url: string;
   uploaded_by: string;
   uploader_name: string;
+  uploader_username: string;
+  uploader_avatar_url: string | null;
   legacies: LegacyAssociation[];
   created_at: string;
   favorite_count?: number;

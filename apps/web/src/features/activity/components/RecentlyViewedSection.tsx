@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { rewriteBackendUrlForDev } from '@/lib/url';
+import UserLink from '@/components/UserLink';
 import { useRecentlyViewed } from '../hooks/useActivity';
 import type { EnrichedRecentItem } from '../api/activity';
 
@@ -114,7 +115,18 @@ function StoryCard({
         </p>
       )}
       {entity.author_name && (
-        <p className="text-xs text-neutral-500">by {entity.author_name}</p>
+        <p className="text-xs text-neutral-500">
+          by{' '}
+          {entity.author_username ? (
+            <UserLink
+              username={entity.author_username}
+              displayName={entity.author_name}
+              className="text-neutral-500"
+            />
+          ) : (
+            entity.author_name
+          )}
+        </p>
       )}
     </Card>
   );

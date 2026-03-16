@@ -116,6 +116,7 @@ async def get_top_connections(
                 {
                     "user_id": user.id,
                     "display_name": user.name,
+                    "username": user.username,
                     "avatar_url": user.avatar_url,
                     "shared_legacy_count": shared_count,
                 }
@@ -164,6 +165,7 @@ class _ConnectionAccumulator:
 
     user_id: UUID
     display_name: str
+    username: str
     avatar_url: str | None
     shared_legacies: list[dict[str, Any]] = field(default_factory=list)
     highest_shared_role: str = "admirer"
@@ -178,6 +180,7 @@ class _ConnectionAccumulator:
         return {
             "user_id": self.user_id,
             "display_name": self.display_name,
+            "username": self.username,
             "avatar_url": self.avatar_url,
             "shared_legacy_count": self.shared_legacy_count,
             "shared_legacies": self.shared_legacies,
@@ -244,6 +247,7 @@ async def get_people(
             connections[other_user_id] = _ConnectionAccumulator(
                 user_id=user.id,
                 display_name=user.name,
+                username=user.username,
                 avatar_url=user.avatar_url,
             )
 

@@ -16,8 +16,8 @@ const baseLegacy: Legacy = {
   created_at: '2025-01-01T00:00:00Z',
   updated_at: '2025-01-01T00:00:00Z',
   members: [
-    { user_id: 'u1', email: 'a@b.com', name: 'A', role: 'creator', joined_at: '2025-01-01' },
-    { user_id: 'u2', email: 'b@b.com', name: 'B', role: 'admirer', joined_at: '2025-01-01' },
+    { user_id: 'u1', email: 'a@b.com', name: 'A', username: 'a-user', role: 'creator', joined_at: '2025-01-01' },
+    { user_id: 'u2', email: 'b@b.com', name: 'B', username: 'b-user', role: 'admirer', joined_at: '2025-01-01' },
   ],
   profile_image_url: null,
   story_count: 0,

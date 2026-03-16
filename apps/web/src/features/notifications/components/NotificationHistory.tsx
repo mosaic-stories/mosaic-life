@@ -7,6 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { X, Bell, UserPlus, UserCheck, UserX, KeyRound } from 'lucide-react';
 import { SEOHead } from '@/components/seo';
+import UserLink from '@/components/UserLink';
 
 function getNotificationIcon(type: string) {
   switch (type) {
@@ -105,27 +106,35 @@ export default function NotificationHistory() {
                         : ''
                   }`}
                 >
-                  <button
-                    onClick={() => handleNotificationClick(notification)}
-                    className="flex gap-4 flex-1 text-left"
-                    disabled={isDismissed}
-                  >
-                    <div className="relative flex-shrink-0">
-                      <Avatar className="size-10">
-                        <AvatarImage
-                          src={notification.actor_avatar_url || undefined}
-                        />
-                        <AvatarFallback className="bg-theme-primary text-white text-sm">
-                          {initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      {getNotificationIcon(notification.type) && (
-                        <span className="absolute -bottom-1 -right-1 size-5 bg-white rounded-full flex items-center justify-center shadow-sm border text-neutral-600">
-                          {getNotificationIcon(notification.type)}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
+                  <div className="relative flex-shrink-0">
+                    <Avatar className="size-10">
+                      <AvatarImage
+                        src={notification.actor_avatar_url || undefined}
+                      />
+                      <AvatarFallback className="bg-theme-primary text-white text-sm">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    {getNotificationIcon(notification.type) && (
+                      <span className="absolute -bottom-1 -right-1 size-5 bg-white rounded-full flex items-center justify-center shadow-sm border text-neutral-600">
+                        {getNotificationIcon(notification.type)}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {notification.actor_username && notification.actor_name && (
+                      <UserLink
+                        username={notification.actor_username}
+                        displayName={notification.actor_name}
+                        className="text-sm font-medium text-neutral-900 mb-1"
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleNotificationClick(notification)}
+                      className="w-full text-left"
+                      disabled={isDismissed}
+                    >
                       <p className="text-sm font-medium text-neutral-900">
                         {notification.title}
                       </p>
@@ -133,8 +142,8 @@ export default function NotificationHistory() {
                         {notification.message}
                       </p>
                       <p className="text-xs text-neutral-500 mt-2">{timeAgo}</p>
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                   {!isDismissed && (
                     <button
                       onClick={() => handleDismiss(notification.id)}
