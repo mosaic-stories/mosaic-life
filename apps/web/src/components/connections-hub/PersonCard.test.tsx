@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import PersonCard from './PersonCard';
 import type { PersonConnection } from '@/features/connections/api/connections';
 
 const mockPerson: PersonConnection = {
   user_id: '1',
   display_name: 'Sarah Chen',
+  username: 'sarah-x1y2',
   avatar_url: null,
   shared_legacy_count: 2,
   shared_legacies: [
@@ -17,23 +19,23 @@ const mockPerson: PersonConnection = {
 
 describe('PersonCard', () => {
   it('renders display name', () => {
-    render(<PersonCard person={mockPerson} />);
+    render(<MemoryRouter><PersonCard person={mockPerson} /></MemoryRouter>);
     expect(screen.getByText('Sarah Chen')).toBeInTheDocument();
   });
 
   it('renders shared legacy count', () => {
-    render(<PersonCard person={mockPerson} />);
+    render(<MemoryRouter><PersonCard person={mockPerson} /></MemoryRouter>);
     expect(screen.getByText('2 shared legacies')).toBeInTheDocument();
   });
 
   it('renders legacy names', () => {
-    render(<PersonCard person={mockPerson} />);
+    render(<MemoryRouter><PersonCard person={mockPerson} /></MemoryRouter>);
     expect(screen.getByText('Margaret Chen')).toBeInTheDocument();
     expect(screen.getByText('James Torres')).toBeInTheDocument();
   });
 
   it('renders role badge', () => {
-    render(<PersonCard person={mockPerson} />);
+    render(<MemoryRouter><PersonCard person={mockPerson} /></MemoryRouter>);
     expect(screen.getByText('advocate')).toBeInTheDocument();
   });
 
@@ -49,7 +51,7 @@ describe('PersonCard', () => {
         { legacy_id: 'l5', legacy_name: 'Legacy 5', user_role: 'admin', connection_role: 'advocate' },
       ],
     };
-    render(<PersonCard person={manyLegacies} />);
+    render(<MemoryRouter><PersonCard person={manyLegacies} /></MemoryRouter>);
     expect(screen.getByText('+2 more')).toBeInTheDocument();
   });
 });

@@ -1,5 +1,6 @@
-import { User, Landmark } from 'lucide-react';
+import { Landmark } from 'lucide-react';
 import type { PersonConnection } from '@/features/connections/api/connections';
+import UserLink from '@/components/UserLink';
 
 interface PersonCardProps {
   person: PersonConnection;
@@ -12,21 +13,14 @@ export default function PersonCard({ person }: PersonCardProps) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-white p-4 space-y-3 hover:shadow-sm transition-shadow">
       <div className="flex items-center gap-3">
-        <div className="size-10 rounded-full overflow-hidden bg-neutral-100 flex-shrink-0">
-          {person.avatar_url ? (
-            <img
-              src={person.avatar_url}
-              alt={person.display_name}
-              className="size-full object-cover"
-            />
-          ) : (
-            <div className="size-full flex items-center justify-center">
-              <User className="size-5 text-neutral-300" />
-            </div>
-          )}
-        </div>
+        <UserLink
+          username={person.username}
+          displayName={person.display_name}
+          avatarUrl={person.avatar_url}
+          showAvatar
+          className="text-sm font-medium text-neutral-900"
+        />
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-medium text-neutral-900">{person.display_name}</p>
           <p className="text-xs text-neutral-500">
             {person.shared_legacy_count} shared {person.shared_legacy_count === 1 ? 'legacy' : 'legacies'}
           </p>
