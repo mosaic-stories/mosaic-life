@@ -10,6 +10,7 @@ interface SearchResult {
   type: 'legacy' | 'community' | 'story' | 'person';
   title: string;
   subtitle?: string;
+  username?: string;
   badge?: string;
   badgeColor?: string;
   image?: string;
@@ -113,6 +114,7 @@ export default function SearchBar({ onSelectResult, compact }: SearchBarProps) {
         type: 'person' as const,
         title: user.name,
         subtitle: user.username ? `@${user.username}` : undefined,
+        username: user.username ?? undefined,
         image: user.avatar_url || undefined,
       })
     );
@@ -134,9 +136,8 @@ export default function SearchBar({ onSelectResult, compact }: SearchBarProps) {
   }, []);
 
   const handleSelectResult = (result: SearchResult) => {
-    if (result.type === 'person' && result.subtitle?.startsWith('@')) {
-      const username = result.subtitle.slice(1);
-      onSelectResult(result.type, username);
+    if (result.type === 'person' && result.username) {
+      onSelectResult(result.type, result.username);
     } else {
       onSelectResult(result.type, result.id);
     }

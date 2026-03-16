@@ -27,6 +27,12 @@ logger = logging.getLogger(__name__)
 MAX_PENDING_REQUESTS = 10
 
 
+def _is_pending_pair_integrity_error(exc: IntegrityError) -> bool:
+    """Return True when the DB rejected a duplicate pending access request."""
+    message = str(exc.orig).lower() if exc.orig is not None else str(exc).lower()
+    return "uq_legacy_access_requests_pending_pair" in message
+
+
 async def submit_request(
     db: AsyncSession,
     user_id: UUID,
@@ -89,7 +95,15 @@ async def submit_request(
         message=message,
     )
     db.add(req)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        if _is_pending_pair_integrity_error(exc):
+            raise HTTPException(
+                status_code=409, detail="A pending request already exists"
+            ) from None
+        raise
     await db.refresh(req)
 
     logger.info(

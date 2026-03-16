@@ -2,6 +2,7 @@ import importlib
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import GoogleUser
@@ -85,6 +86,32 @@ async def test_find_or_create_user_retries_username_collision(
     user = await _find_or_create_user(db_session, google_user)
 
     assert user.username == "collision-user-7777"
+
+
+@pytest.mark.asyncio
+async def test_find_or_create_user_reraises_non_username_integrity_errors(
+    db_session: AsyncSession, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    google_user = GoogleUser(
+        id="google-email-collision",
+        email="collision@example.com",
+        name="Collision User",
+        picture="https://example.com/collision.jpg",
+    )
+
+    async def fake_flush() -> None:
+        raise IntegrityError(
+            statement="INSERT INTO users ...",
+            params={},
+            orig=Exception(
+                'duplicate key value violates unique constraint "users_email_key"'
+            ),
+        )
+
+    monkeypatch.setattr(db_session, "flush", fake_flush)
+
+    with pytest.raises(IntegrityError):
+        await _find_or_create_user(db_session, google_user)
 
 
 @pytest.mark.asyncio

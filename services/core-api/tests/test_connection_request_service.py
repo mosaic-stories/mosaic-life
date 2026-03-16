@@ -1,6 +1,7 @@
 """Tests for connection request service."""
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.user import User
@@ -37,6 +38,35 @@ class TestCreateRequest:
         from fastapi import HTTPException
 
         await service.create_request(db_session, test_user.id, test_user_2.id, "friend")
+        with pytest.raises(HTTPException) as exc_info:
+            await service.create_request(
+                db_session, test_user.id, test_user_2.id, "friend"
+            )
+        assert exc_info.value.status_code == 409
+
+    async def test_duplicate_pending_integrity_error_returns_conflict(
+        self, db_session: AsyncSession, test_user: User, test_user_2: User, monkeypatch
+    ) -> None:
+        from fastapi import HTTPException
+
+        original_commit = db_session.commit
+        calls = 0
+
+        async def fake_commit() -> None:
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise IntegrityError(
+                    statement="INSERT INTO connection_requests ...",
+                    params={},
+                    orig=Exception(
+                        'duplicate key value violates unique index "uq_connection_requests_pending_pair"'
+                    ),
+                )
+            await original_commit()
+
+        monkeypatch.setattr(db_session, "commit", fake_commit)
+
         with pytest.raises(HTTPException) as exc_info:
             await service.create_request(
                 db_session, test_user.id, test_user_2.id, "friend"

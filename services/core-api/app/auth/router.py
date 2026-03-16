@@ -38,6 +38,12 @@ logger = logging.getLogger(__name__)
 STATE_TOKEN_MAX_AGE = 300
 
 
+def _is_username_integrity_error(exc: IntegrityError) -> bool:
+    """Return True when the integrity error was caused by username uniqueness."""
+    message = str(exc.orig).lower() if exc.orig is not None else str(exc).lower()
+    return "username" in message
+
+
 def _create_signed_state(secret_key: str) -> str:
     """Create a signed state token for CSRF protection.
 
@@ -396,8 +402,10 @@ async def _find_or_create_user(db: AsyncSession, google_user: GoogleUser) -> Use
                 await db.refresh(user)
                 created_user = user
                 break
-            except IntegrityError:
+            except IntegrityError as exc:
                 await db.rollback()
+                if not _is_username_integrity_error(exc):
+                    raise
 
         if created_user is None:
             msg = "Unable to create user"

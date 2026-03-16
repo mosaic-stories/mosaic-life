@@ -8,6 +8,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -20,6 +21,12 @@ logger = logging.getLogger(__name__)
 
 MAX_PENDING_REQUESTS = 20
 COOLDOWN_DAYS = 30
+
+
+def _is_pending_pair_integrity_error(exc: IntegrityError) -> bool:
+    """Return True when the DB rejected a duplicate pending request pair."""
+    message = str(exc.orig).lower() if exc.orig is not None else str(exc).lower()
+    return "uq_connection_requests_pending_pair" in message
 
 
 async def create_request(
@@ -114,7 +121,15 @@ async def create_request(
         message=message,
     )
     db.add(req)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        if _is_pending_pair_integrity_error(exc):
+            raise HTTPException(
+                status_code=409, detail="A pending request already exists"
+            ) from None
+        raise
     await db.refresh(req)
 
     logger.info(
