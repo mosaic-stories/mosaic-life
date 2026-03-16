@@ -76,6 +76,7 @@ class StoryAuthorInfo(BaseModel):
 
     id: UUID
     name: str
+    username: str
     email: str
     avatar_url: str | None = None
 
@@ -90,6 +91,8 @@ class StorySummary(BaseModel):
     content_preview: str = Field(description="Truncated preview of story content")
     author_id: UUID
     author_name: str
+    author_username: str
+    author_avatar_url: str | None = None
     visibility: str
     status: str
     legacies: list[LegacyAssociationResponse]
@@ -145,6 +148,8 @@ class StoryDetail(BaseModel):
     id: UUID
     author_id: UUID
     author_name: str
+    author_username: str
+    author_avatar_url: str | None = None
     author_email: str
     title: str
     content: str

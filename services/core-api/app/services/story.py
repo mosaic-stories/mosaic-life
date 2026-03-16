@@ -489,6 +489,8 @@ async def list_legacy_stories(
             content_preview=create_content_preview(story.content),
             author_id=story.author_id,
             author_name=story.author.name,
+            author_username=story.author.username,
+            author_avatar_url=story.author.avatar_url,
             visibility=story.visibility,
             status=story.status,
             legacies=[
@@ -548,6 +550,8 @@ async def list_legacy_stories(
                         content_preview=create_content_preview(story.content),
                         author_id=story.author_id,
                         author_name=story.author.name,
+                        author_username=story.author.username,
+                        author_avatar_url=story.author.avatar_url,
                         visibility=story.visibility,
                         status=story.status,
                         legacies=[
@@ -798,6 +802,8 @@ async def list_stories_scoped(
             content_preview=create_content_preview(story.content),
             author_id=story.author_id,
             author_name=story.author.name,
+            author_username=story.author.username,
+            author_avatar_url=story.author.avatar_url,
             visibility=story.visibility,
             status=story.status,
             legacies=[
@@ -895,6 +901,8 @@ async def list_public_stories(
             content_preview=create_content_preview(story.content),
             author_id=story.author_id,
             author_name=story.author.name,
+            author_username=story.author.username,
+            author_avatar_url=story.author.avatar_url,
             visibility=story.visibility,
             status=story.status,
             legacies=[
@@ -1016,6 +1024,8 @@ async def get_story_detail(
         id=story.id,
         author_id=story.author_id,
         author_name=story.author.name,
+        author_username=story.author.username,
+        author_avatar_url=story.author.avatar_url,
         author_email=story.author.email,
         title=story.title,
         content=normalize_media_urls_for_story_content(story.content),
