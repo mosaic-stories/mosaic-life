@@ -19,12 +19,18 @@
 | Phase 1: Foundation (Tasks 1-9) | ✅ Complete | `415ab46` | Username, profiles, visibility, relationships |
 | Phase 2: Connections (Tasks 10-17) | ✅ Complete | `83a18a7` | Connection requests, lifecycle, graph sync, notifications |
 | Phase 3: Legacy Access (Tasks 18-22) | ✅ Complete | `197f7aa` | Access request workflow, admin approval, connected member context |
-| Phase 4: Frontend (Tasks 23-30) | ⬜ Not started | — | Out of scope for backend implementation |
+| Phase 4: Frontend (Tasks 23-30) | 🔄 In progress | — | Detailed plan: [2026-03-16-user-connections-frontend-plan.md](2026-03-16-user-connections-frontend-plan.md) |
 
 | Alembic Migration (Tasks 4-5, 11) | ✅ Complete | `c265747` | Single migration covering all schema changes + data backfill |
 
 **Deferred items:**
 - Task 22: Enhanced duplicate detection — basic implementation in place, advanced matching deferred
+- Task 28: Enhanced legacy creation with connection-aware duplicate suggestions — requires backend endpoint
+
+**Phase 4 approach changes:**
+- Task 25: `/connections` page extended with new tabs (Option A: coexist with AI Connections Hub) instead of full replacement
+- Task 24: Settings tab named "Connections & Privacy" — includes username, discoverability, visibility controls
+- Task 30: Not needed — backend migration already renamed fields, existing components use API responses directly
 
 ---
 
