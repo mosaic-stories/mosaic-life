@@ -3,6 +3,7 @@ import { apiGet } from '@/lib/api/client';
 export interface ActorSummary {
   id: string;
   name: string;
+  username: string;
   avatar_url: string | null;
 }
 

@@ -5,6 +5,7 @@ export interface LegacyMember {
   user_id: string;
   email: string;
   name: string | null;
+  username: string;
   avatar_url?: string | null;
   role: 'creator' | 'admin' | 'advocate' | 'admirer';
   joined_at: string;

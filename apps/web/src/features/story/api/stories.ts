@@ -21,6 +21,8 @@ export interface StorySummary {
   content_preview: string;
   author_id: string;
   author_name: string;
+  author_username: string;
+  author_avatar_url: string | null;
   visibility: 'public' | 'private' | 'personal';
   status: 'draft' | 'published';
   shared_from: string | null;
@@ -34,6 +36,8 @@ export interface StoryDetail {
   legacies: LegacyAssociation[];
   author_id: string;
   author_name: string;
+  author_username: string;
+  author_avatar_url: string | null;
   author_email: string;
   title: string;
   content: string;
