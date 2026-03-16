@@ -32,11 +32,18 @@ export default function UserLink({
   nameClassName = '',
   ariaLabel,
 }: UserLinkProps) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLAnchorElement>) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.stopPropagation();
+    }
+  };
+
   return (
     <Link
       to={`/u/${username}`}
       className={`inline-flex items-center gap-1.5 hover:underline ${className}`}
       onClick={(e) => e.stopPropagation()}
+      onKeyDown={handleKeyDown}
       aria-label={ariaLabel}
     >
       {showAvatar && (

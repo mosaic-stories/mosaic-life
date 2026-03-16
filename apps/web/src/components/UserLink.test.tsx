@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import UserLink from './UserLink';
 
 function renderWithRouter(ui: React.ReactElement) {
@@ -63,10 +63,27 @@ describe('UserLink', () => {
   });
 
   it('stops click propagation to prevent parent card navigation', () => {
+    const onClick = vi.fn();
     renderWithRouter(
-      <UserLink username="joe-smith-a1b2" displayName="Joe Smith" />
+      <div onClick={onClick}>
+        <UserLink username="joe-smith-a1b2" displayName="Joe Smith" />
+      </div>
     );
     const link = screen.getByRole('link');
-    expect(link).toBeInTheDocument();
+    fireEvent.click(link);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('stops Enter and Space key propagation to protect parent keyboard navigation', () => {
+    const onKeyDown = vi.fn();
+    renderWithRouter(
+      <div onKeyDown={onKeyDown}>
+        <UserLink username="joe-smith-a1b2" displayName="Joe Smith" />
+      </div>
+    );
+    const link = screen.getByRole('link');
+    fireEvent.keyDown(link, { key: 'Enter' });
+    fireEvent.keyDown(link, { key: ' ' });
+    expect(onKeyDown).not.toHaveBeenCalled();
   });
 });

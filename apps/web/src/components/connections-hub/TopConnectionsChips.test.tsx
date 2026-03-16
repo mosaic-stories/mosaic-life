@@ -37,6 +37,11 @@ describe('TopConnectionsChips', () => {
     expect(screen.getByText('James Torres')).toBeInTheDocument();
   });
 
+  it('preserves compact truncation styling for names', () => {
+    renderChips();
+    expect(screen.getByText('Sarah Chen')).toHaveClass('truncate', 'text-xs', 'text-neutral-600');
+  });
+
   it('renders shared legacy count badges', () => {
     renderChips();
     expect(screen.getByText('3')).toBeInTheDocument();

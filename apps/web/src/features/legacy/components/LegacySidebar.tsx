@@ -104,9 +104,10 @@ function MemberRow({ member }: { member: LegacyMember }) {
         avatarUrl={member.avatar_url}
         showAvatar
         avatarClassName="size-8"
-        className="text-sm font-medium text-neutral-800"
+        className="min-w-0 flex-1 text-sm font-medium text-neutral-800"
+        nameClassName="truncate"
       />
-      <div className="ml-auto">
+      <div className="ml-auto shrink-0">
         <div className="text-[11px] text-neutral-400">{roleLabel}</div>
       </div>
     </div>
