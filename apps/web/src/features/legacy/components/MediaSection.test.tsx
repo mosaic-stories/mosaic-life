@@ -89,6 +89,8 @@ const mediaItem: MediaItem = {
   download_url: '/download/media-1',
   uploaded_by: 'user-1',
   uploader_name: 'Pat Doe',
+  uploader_username: 'pat-doe',
+  uploader_avatar_url: null,
   legacies: [],
   created_at: '2026-03-11T00:00:00Z',
   favorite_count: 0,
