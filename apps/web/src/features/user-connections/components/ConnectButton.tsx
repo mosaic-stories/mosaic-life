@@ -44,10 +44,8 @@ export default function ConnectButton({
   const declineRequest = useDeclineRequest();
   const removeConnection = useRemoveConnection();
 
-  // Don't show button for own profile or when not authenticated
-  if (!user || user.id === targetUserId) return null;
-
   const state: ConnectionState = useMemo(() => {
+    if (!user || user.id === targetUserId) return 'none';
     if (!connections || !outgoing || !incoming) return 'loading';
 
     const existingConnection = connections.find(
@@ -66,7 +64,7 @@ export default function ConnectButton({
     if (incomingRequest) return 'pending_received';
 
     return 'none';
-  }, [connections, outgoing, incoming, targetUserId]);
+  }, [connections, outgoing, incoming, targetUserId, user]);
 
   const connectionId = connections?.find(
     (c) => c.user_id === targetUserId
@@ -74,6 +72,9 @@ export default function ConnectButton({
   const incomingRequestId = incoming?.find(
     (r) => r.from_user_id === targetUserId
   )?.id;
+
+  // Don't show button for own profile or when not authenticated
+  if (!user || user.id === targetUserId) return null;
 
   if (state === 'loading') {
     return (

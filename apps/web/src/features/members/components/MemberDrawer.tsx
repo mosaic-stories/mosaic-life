@@ -35,6 +35,7 @@ import {
 } from '@/features/members/hooks/useInvitations';
 import { useAuth } from '@/contexts/AuthContext';
 import InviteMemberModal from './InviteMemberModal';
+import PendingAccessRequests from '@/features/legacy-access/components/PendingAccessRequests';
 
 interface MemberDrawerProps {
   legacyId: string;
@@ -327,6 +328,9 @@ export default function MemberDrawer({
                 </div>
               </>
             )}
+
+            {/* Pending Access Requests */}
+            <PendingAccessRequests legacyId={legacyId} canManage={canManage} />
           </div>
         </SheetContent>
       </Sheet>

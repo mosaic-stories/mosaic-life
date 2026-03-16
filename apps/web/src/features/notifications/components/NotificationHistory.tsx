@@ -5,8 +5,25 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { X, Bell } from 'lucide-react';
+import { X, Bell, UserPlus, UserCheck, UserX, KeyRound } from 'lucide-react';
 import { SEOHead } from '@/components/seo';
+
+function getNotificationIcon(type: string) {
+  switch (type) {
+    case 'connection_request_received':
+      return <UserPlus className="size-4" />;
+    case 'connection_request_accepted':
+      return <UserCheck className="size-4" />;
+    case 'connection_request_declined':
+      return <UserX className="size-4" />;
+    case 'legacy_access_request_received':
+    case 'legacy_access_request_approved':
+    case 'legacy_access_request_declined':
+      return <KeyRound className="size-4" />;
+    default:
+      return null;
+  }
+}
 
 export default function NotificationHistory() {
   const navigate = useNavigate();
@@ -93,14 +110,21 @@ export default function NotificationHistory() {
                     className="flex gap-4 flex-1 text-left"
                     disabled={isDismissed}
                   >
-                    <Avatar className="size-10 flex-shrink-0">
-                      <AvatarImage
-                        src={notification.actor_avatar_url || undefined}
-                      />
-                      <AvatarFallback className="bg-theme-primary text-white text-sm">
-                        {initials}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative flex-shrink-0">
+                      <Avatar className="size-10">
+                        <AvatarImage
+                          src={notification.actor_avatar_url || undefined}
+                        />
+                        <AvatarFallback className="bg-theme-primary text-white text-sm">
+                          {initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      {getNotificationIcon(notification.type) && (
+                        <span className="absolute -bottom-1 -right-1 size-5 bg-white rounded-full flex items-center justify-center shadow-sm border text-neutral-600">
+                          {getNotificationIcon(notification.type)}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-neutral-900">
                         {notification.title}
