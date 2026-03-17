@@ -16,9 +16,9 @@
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Task 1: Backend — Add username matching to search | | |
-| Task 2: Frontend — PeopleSearch component | | |
-| Task 3: Integration — People tab & Dashboard sidebar | | |
+| Task 1: Backend — Add username matching to search | Done | All 7 tests pass, validate-backend clean |
+| Task 2: Frontend — PeopleSearch component | Done | tsc --noEmit clean |
+| Task 3: Integration — People tab & Dashboard sidebar | Done | tsc + lint clean |
 
 ---
 

@@ -4,6 +4,7 @@ import type { PeopleFilter } from '@/features/connections/api/connections';
 import PersonCard from './PersonCard';
 import QuickFilters from '@/components/legacies-hub/QuickFilters';
 import type { FilterOption } from '@/components/legacies-hub/QuickFilters';
+import PeopleSearch from '@/features/user-search/components/PeopleSearch';
 
 interface PeopleTabContentProps {
   activeFilter: string;
@@ -21,6 +22,8 @@ export default function PeopleTabContent({ activeFilter, onFilterChange }: Peopl
 
   return (
     <div className="space-y-6">
+      <PeopleSearch variant="full" />
+
       <QuickFilters options={filterOptions} activeKey={activeFilter} onChange={onFilterChange} />
 
       {isLoading && (
