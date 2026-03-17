@@ -27,10 +27,13 @@ function ResultItem({
   user: UserSearchResult;
   onClick: () => void;
 }) {
+  const isSelectable = Boolean(user.username);
+
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-3 w-full px-3 py-2.5 text-left rounded-lg hover:bg-neutral-50 transition-colors"
+      disabled={!isSelectable}
+      className="flex items-center gap-3 w-full px-3 py-2.5 text-left rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-60 hover:bg-neutral-50 disabled:hover:bg-transparent"
     >
       <Avatar className="size-9 shrink-0">
         <AvatarImage src={user.avatar_url || undefined} />
@@ -44,6 +47,9 @@ function ResultItem({
         </p>
         {user.username && (
           <p className="text-xs text-neutral-500 truncate">@{user.username}</p>
+        )}
+        {!user.username && (
+          <p className="text-xs text-neutral-500 truncate">Profile unavailable</p>
         )}
       </div>
     </button>
@@ -88,9 +94,11 @@ export default function PeopleSearch({ variant }: PeopleSearchProps) {
   }, [variant, hasResults, showNoResults]);
 
   const handleSelect = (user: UserSearchResult) => {
-    if (user.username) {
-      navigate(`/u/${user.username}`);
+    if (!user.username) {
+      return;
     }
+
+    navigate(`/u/${user.username}`);
     setQuery('');
     setDropdownOpen(false);
   };
@@ -129,6 +137,7 @@ export default function PeopleSearch({ variant }: PeopleSearchProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search by name or @username..."
+            aria-label="Find people"
             className="pl-9"
           />
         </div>
@@ -153,6 +162,7 @@ export default function PeopleSearch({ variant }: PeopleSearchProps) {
             if (hasResults || showNoResults) setDropdownOpen(true);
           }}
           placeholder="Search by name or @username..."
+          aria-label="Find people"
           className="pl-9 h-9 text-sm"
         />
       </div>
