@@ -31,6 +31,7 @@ function ResultItem({
 
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={!isSelectable}
       className="flex items-center gap-3 w-full px-3 py-2.5 text-left rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-60 hover:bg-neutral-50 disabled:hover:bg-transparent"
