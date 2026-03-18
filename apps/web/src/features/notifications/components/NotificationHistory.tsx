@@ -3,7 +3,6 @@ import {
   useUpdateNotificationStatus,
 } from '@/features/notifications/hooks/useNotifications';
 import { useNotificationActions } from '@/features/notifications/hooks/useNotificationActions';
-import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { X, Bell, UserPlus, UserCheck, UserX, KeyRound } from 'lucide-react';
@@ -29,7 +28,6 @@ function getNotificationIcon(type: string) {
 }
 
 export default function NotificationHistory() {
-  const navigate = useNavigate();
   const { data: notifications, isLoading } = useNotifications(true); // Include dismissed
   const {
     incomingRequests,
