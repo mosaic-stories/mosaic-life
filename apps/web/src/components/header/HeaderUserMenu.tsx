@@ -15,16 +15,10 @@ import { Button } from '@/components/ui/button';
 import {
   useUnreadCount,
   useNotifications,
-  useUpdateNotificationStatus,
   useMarkAllAsRead,
 } from '@/features/notifications/hooks/useNotifications';
-import {
-  useAcceptRequest,
-  useDeclineRequest,
-  useIncomingRequests,
-} from '@/features/user-connections/hooks/useUserConnections';
+import { useNotificationActions } from '@/features/notifications/hooks/useNotificationActions';
 import { useAuth } from '@/contexts/AuthContext';
-import { resolveNotificationLink } from '@/features/notifications/utils/notificationRouting';
 
 interface HeaderUserMenuProps {
   user: {
@@ -38,18 +32,18 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
   const navigate = useNavigate();
   const { data: unreadData } = useUnreadCount();
   const { data: notifications, refetch } = useNotifications(false);
-  const hasIncomingRequestNotification = (notifications ?? []).some(
-    (notification) => notification.type === 'connection_request_received'
-  );
-  const { data: incomingRequests } = useIncomingRequests({
-    enabled: hasIncomingRequestNotification,
-  });
-  const updateStatus = useUpdateNotificationStatus();
   const markAllRead = useMarkAllAsRead();
-  const acceptRequest = useAcceptRequest();
-  const declineRequest = useDeclineRequest();
   const { logout } = useAuth();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
+
+  const {
+    incomingRequests,
+    handleNotificationClick,
+    handleAccept,
+    handleDecline,
+    isAcceptPending,
+    isDeclinePending,
+  } = useNotificationActions(notifications);
 
   const unreadCount = unreadData?.count ?? 0;
   const recentNotifications = (notifications ?? []).slice(0, 3);
@@ -59,61 +53,6 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
     .map((n) => n[0])
     .join('')
     .toUpperCase();
-
-  const markReadIfNeeded = (notification: { id: string; status?: string }) => {
-    if (notification.status !== 'read') {
-      updateStatus.mutate({ notificationId: notification.id, status: 'read' });
-    }
-  };
-
-  const handleNotificationClick = (notification: {
-    id: string;
-    link: string | null;
-    type: string;
-    resource_id: string | null;
-    status: string;
-  }) => {
-    markReadIfNeeded(notification);
-    const href = resolveNotificationLink(notification);
-    if (href) {
-      navigate(href);
-    }
-  };
-
-  const handleAccept = (notification: {
-    id: string;
-    resource_id: string | null;
-    status: string;
-  }) => {
-    if (!notification.resource_id) {
-      return;
-    }
-
-    acceptRequest.mutate(notification.resource_id, {
-      onSuccess: (connection) => {
-        markReadIfNeeded(notification);
-        navigate(
-          `/connections?tab=my-connections&filter=all&connection=${connection.id}`
-        );
-      },
-    });
-  };
-
-  const handleDecline = (notification: {
-    id: string;
-    resource_id: string | null;
-    status: string;
-  }) => {
-    if (!notification.resource_id) {
-      return;
-    }
-
-    declineRequest.mutate(notification.resource_id, {
-      onSuccess: () => {
-        markReadIfNeeded(notification);
-      },
-    });
-  };
 
   const handleOpenChange = (open: boolean) => {
     if (open) {
@@ -179,7 +118,10 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
                           size="sm"
                           className="h-7 px-2 text-xs"
                           onClick={() => handleAccept(notification)}
-                          disabled={acceptRequest.isPending}
+                          disabled={
+                            !!notification.resource_id &&
+                            isAcceptPending(notification.resource_id)
+                          }
                         >
                           Accept
                         </Button>
@@ -188,7 +130,10 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
                           variant="outline"
                           className="h-7 px-2 text-xs"
                           onClick={() => handleDecline(notification)}
-                          disabled={declineRequest.isPending}
+                          disabled={
+                            !!notification.resource_id &&
+                            isDeclinePending(notification.resource_id)
+                          }
                         >
                           Decline
                         </Button>

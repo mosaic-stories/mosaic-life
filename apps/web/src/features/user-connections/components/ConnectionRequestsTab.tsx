@@ -136,11 +136,13 @@ export default function ConnectionRequestsTab() {
       return;
     }
 
+    const sectionPrefix =
+      focus === 'outgoing' ? 'connection-outgoing' : 'connection-incoming';
     const target = document.getElementById(
-      `connection-request-${highlightedRequestId}`
+      `${sectionPrefix}-${highlightedRequestId}`
     );
     target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  }, [highlightedRequestId, incoming, outgoing]);
+  }, [highlightedRequestId, focus, incoming, outgoing]);
 
   if (isLoading) {
     return (
@@ -174,7 +176,7 @@ export default function ConnectionRequestsTab() {
             {incoming.map((req) => (
               <div
                 key={req.id}
-                id={`connection-request-${req.id}`}
+                id={`connection-incoming-${req.id}`}
                 className={
                   req.id === highlightedRequestId
                     ? 'rounded-lg ring-2 ring-theme-primary ring-offset-2'
@@ -198,7 +200,7 @@ export default function ConnectionRequestsTab() {
             {outgoing.map((req) => (
               <div
                 key={req.id}
-                id={`connection-request-${req.id}`}
+                id={`connection-outgoing-${req.id}`}
                 className={
                   req.id === highlightedRequestId
                     ? 'rounded-lg ring-2 ring-theme-primary ring-offset-2'

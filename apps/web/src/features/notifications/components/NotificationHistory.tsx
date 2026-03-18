@@ -2,11 +2,7 @@ import {
   useNotifications,
   useUpdateNotificationStatus,
 } from '@/features/notifications/hooks/useNotifications';
-import {
-  useAcceptRequest,
-  useDeclineRequest,
-  useIncomingRequests,
-} from '@/features/user-connections/hooks/useUserConnections';
+import { useNotificationActions } from '@/features/notifications/hooks/useNotificationActions';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,7 +10,6 @@ import { X, Bell, UserPlus, UserCheck, UserX, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { SEOHead } from '@/components/seo';
 import UserLink from '@/components/UserLink';
-import { resolveNotificationLink } from '@/features/notifications/utils/notificationRouting';
 
 function getNotificationIcon(type: string) {
   switch (type) {
@@ -36,68 +31,15 @@ function getNotificationIcon(type: string) {
 export default function NotificationHistory() {
   const navigate = useNavigate();
   const { data: notifications, isLoading } = useNotifications(true); // Include dismissed
-  const { data: incomingRequests } = useIncomingRequests();
+  const {
+    incomingRequests,
+    handleNotificationClick,
+    handleAccept,
+    handleDecline,
+    isAcceptPending,
+    isDeclinePending,
+  } = useNotificationActions(notifications);
   const updateStatus = useUpdateNotificationStatus();
-  const acceptRequest = useAcceptRequest();
-  const declineRequest = useDeclineRequest();
-
-  const markReadIfNeeded = (notification: {
-    id: string;
-    status: string;
-  }) => {
-    if (notification.status === 'unread') {
-      updateStatus.mutate({ notificationId: notification.id, status: 'read' });
-    }
-  };
-
-  const handleNotificationClick = (notification: {
-    id: string;
-    link: string | null;
-    type: string;
-    resource_id: string | null;
-    status: string;
-  }) => {
-    markReadIfNeeded(notification);
-    const href = resolveNotificationLink(notification);
-    if (href) {
-      navigate(href);
-    }
-  };
-
-  const handleAccept = (notification: {
-    id: string;
-    resource_id: string | null;
-    status: string;
-  }) => {
-    if (!notification.resource_id) {
-      return;
-    }
-
-    acceptRequest.mutate(notification.resource_id, {
-      onSuccess: (connection) => {
-        markReadIfNeeded(notification);
-        navigate(
-          `/connections?tab=my-connections&filter=all&connection=${connection.id}`
-        );
-      },
-    });
-  };
-
-  const handleDecline = (notification: {
-    id: string;
-    resource_id: string | null;
-    status: string;
-  }) => {
-    if (!notification.resource_id) {
-      return;
-    }
-
-    declineRequest.mutate(notification.resource_id, {
-      onSuccess: () => {
-        markReadIfNeeded(notification);
-      },
-    });
-  };
 
   const handleDismiss = (notificationId: string) => {
     updateStatus.mutate({ notificationId, status: 'dismissed' });
@@ -210,7 +152,10 @@ export default function NotificationHistory() {
                         <Button
                           size="sm"
                           onClick={() => handleAccept(notification)}
-                          disabled={acceptRequest.isPending}
+                          disabled={
+                            !!notification.resource_id &&
+                            isAcceptPending(notification.resource_id)
+                          }
                         >
                           Accept
                         </Button>
@@ -218,7 +163,10 @@ export default function NotificationHistory() {
                           size="sm"
                           variant="outline"
                           onClick={() => handleDecline(notification)}
-                          disabled={declineRequest.isPending}
+                          disabled={
+                            !!notification.resource_id &&
+                            isDeclinePending(notification.resource_id)
+                          }
                         >
                           Decline
                         </Button>

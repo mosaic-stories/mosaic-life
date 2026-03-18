@@ -15,6 +15,7 @@ import {
   useRemoveConnection,
 } from '../hooks/useUserConnections';
 import { formatDistanceToNow } from 'date-fns';
+import { cn } from '@/components/ui/utils';
 
 export default function MyConnectionsTab() {
   const navigate = useNavigate();
@@ -66,11 +67,11 @@ export default function MyConnectionsTab() {
           <Card
             key={conn.id}
             id={`connection-card-${conn.id}`}
-            className={`p-4 ${
-              conn.id === highlightedConnectionId
-                ? 'ring-2 ring-theme-primary ring-offset-2'
-                : ''
-            }`}
+            className={cn(
+              'p-4',
+              conn.id === highlightedConnectionId &&
+                'ring-2 ring-theme-primary ring-offset-2'
+            )}
           >
             <div className="flex items-start gap-3">
               <button

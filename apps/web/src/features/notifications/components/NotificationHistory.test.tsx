@@ -112,4 +112,30 @@ describe('NotificationHistory', () => {
     expect(screen.getByRole('button', { name: 'Accept' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Decline' })).toBeInTheDocument();
   });
+
+  it('calls accept mutation with the correct resource_id', async () => {
+    const user = userEvent.setup();
+    renderHistory();
+
+    await user.click(screen.getByRole('button', { name: 'Accept' }));
+
+    expect(mockAcceptRequest).toHaveBeenCalledWith(
+      'request-1',
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    );
+    expect(mockDeclineRequest).not.toHaveBeenCalled();
+  });
+
+  it('calls decline mutation with the correct resource_id', async () => {
+    const user = userEvent.setup();
+    renderHistory();
+
+    await user.click(screen.getByRole('button', { name: 'Decline' }));
+
+    expect(mockDeclineRequest).toHaveBeenCalledWith(
+      'request-1',
+      expect.objectContaining({ onSuccess: expect.any(Function) })
+    );
+    expect(mockAcceptRequest).not.toHaveBeenCalled();
+  });
 });
