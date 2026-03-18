@@ -18,7 +18,13 @@ import {
   useUpdateNotificationStatus,
   useMarkAllAsRead,
 } from '@/features/notifications/hooks/useNotifications';
+import {
+  useAcceptRequest,
+  useDeclineRequest,
+  useIncomingRequests,
+} from '@/features/user-connections/hooks/useUserConnections';
 import { useAuth } from '@/contexts/AuthContext';
+import { resolveNotificationLink } from '@/features/notifications/utils/notificationRouting';
 
 interface HeaderUserMenuProps {
   user: {
@@ -32,8 +38,16 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
   const navigate = useNavigate();
   const { data: unreadData } = useUnreadCount();
   const { data: notifications, refetch } = useNotifications(false);
+  const hasIncomingRequestNotification = (notifications ?? []).some(
+    (notification) => notification.type === 'connection_request_received'
+  );
+  const { data: incomingRequests } = useIncomingRequests({
+    enabled: hasIncomingRequestNotification,
+  });
   const updateStatus = useUpdateNotificationStatus();
   const markAllRead = useMarkAllAsRead();
+  const acceptRequest = useAcceptRequest();
+  const declineRequest = useDeclineRequest();
   const { logout } = useAuth();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
 
@@ -46,11 +60,59 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
     .join('')
     .toUpperCase();
 
-  const handleNotificationClick = (notification: { id: string; link: string | null }) => {
-    updateStatus.mutate({ notificationId: notification.id, status: 'read' });
-    if (notification.link) {
-      navigate(notification.link);
+  const markReadIfNeeded = (notification: { id: string; status?: string }) => {
+    if (notification.status !== 'read') {
+      updateStatus.mutate({ notificationId: notification.id, status: 'read' });
     }
+  };
+
+  const handleNotificationClick = (notification: {
+    id: string;
+    link: string | null;
+    type: string;
+    resource_id: string | null;
+    status: string;
+  }) => {
+    markReadIfNeeded(notification);
+    const href = resolveNotificationLink(notification);
+    if (href) {
+      navigate(href);
+    }
+  };
+
+  const handleAccept = (notification: {
+    id: string;
+    resource_id: string | null;
+    status: string;
+  }) => {
+    if (!notification.resource_id) {
+      return;
+    }
+
+    acceptRequest.mutate(notification.resource_id, {
+      onSuccess: (connection) => {
+        markReadIfNeeded(notification);
+        navigate(
+          `/connections?tab=my-connections&filter=all&connection=${connection.id}`
+        );
+      },
+    });
+  };
+
+  const handleDecline = (notification: {
+    id: string;
+    resource_id: string | null;
+    status: string;
+  }) => {
+    if (!notification.resource_id) {
+      return;
+    }
+
+    declineRequest.mutate(notification.resource_id, {
+      onSuccess: () => {
+        markReadIfNeeded(notification);
+      },
+    });
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -99,14 +161,40 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
           ) : (
             <div className="space-y-1">
               {recentNotifications.map((notification) => (
-                <button
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className="w-full text-left px-2 py-1.5 text-xs text-neutral-600 hover:bg-neutral-100 rounded truncate"
-                >
-                  <Bell className="size-3 inline mr-2 text-neutral-400" />
-                  {notification.message}
-                </button>
+                <div key={notification.id} className="rounded px-2 py-1.5 hover:bg-neutral-100">
+                  <button
+                    onClick={() => handleNotificationClick(notification)}
+                    className="w-full text-left text-xs text-neutral-600 truncate"
+                  >
+                    <Bell className="size-3 inline mr-2 text-neutral-400" />
+                    {notification.message}
+                  </button>
+                  {notification.type === 'connection_request_received' &&
+                    notification.resource_id &&
+                    (incomingRequests ?? []).some(
+                      (request) => request.id === notification.resource_id
+                    ) && (
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => handleAccept(notification)}
+                          disabled={acceptRequest.isPending}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => handleDecline(notification)}
+                          disabled={declineRequest.isPending}
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    )}
+                </div>
               ))}
             </div>
           )}

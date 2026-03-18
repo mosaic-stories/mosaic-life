@@ -1,4 +1,5 @@
-import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { MoreVertical, Loader2, Users } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,8 +18,21 @@ import { formatDistanceToNow } from 'date-fns';
 
 export default function MyConnectionsTab() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: connections, isLoading } = useMyConnections();
   const removeConnection = useRemoveConnection();
+  const highlightedConnectionId = searchParams.get('connection');
+
+  useEffect(() => {
+    if (!highlightedConnectionId) {
+      return;
+    }
+
+    const target = document.getElementById(
+      `connection-card-${highlightedConnectionId}`
+    );
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlightedConnectionId, connections]);
 
   if (isLoading) {
     return (
@@ -49,7 +63,15 @@ export default function MyConnectionsTab() {
           .join('')
           .toUpperCase();
         return (
-          <Card key={conn.id} className="p-4">
+          <Card
+            key={conn.id}
+            id={`connection-card-${conn.id}`}
+            className={`p-4 ${
+              conn.id === highlightedConnectionId
+                ? 'ring-2 ring-theme-primary ring-offset-2'
+                : ''
+            }`}
+          >
             <div className="flex items-start gap-3">
               <button
                 onClick={() =>

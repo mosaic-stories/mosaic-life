@@ -2,12 +2,19 @@ import {
   useNotifications,
   useUpdateNotificationStatus,
 } from '@/features/notifications/hooks/useNotifications';
+import {
+  useAcceptRequest,
+  useDeclineRequest,
+  useIncomingRequests,
+} from '@/features/user-connections/hooks/useUserConnections';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { X, Bell, UserPlus, UserCheck, UserX, KeyRound } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { SEOHead } from '@/components/seo';
 import UserLink from '@/components/UserLink';
+import { resolveNotificationLink } from '@/features/notifications/utils/notificationRouting';
 
 function getNotificationIcon(type: string) {
   switch (type) {
@@ -29,19 +36,67 @@ function getNotificationIcon(type: string) {
 export default function NotificationHistory() {
   const navigate = useNavigate();
   const { data: notifications, isLoading } = useNotifications(true); // Include dismissed
+  const { data: incomingRequests } = useIncomingRequests();
   const updateStatus = useUpdateNotificationStatus();
+  const acceptRequest = useAcceptRequest();
+  const declineRequest = useDeclineRequest();
 
-  const handleNotificationClick = (notification: {
+  const markReadIfNeeded = (notification: {
     id: string;
-    link: string | null;
     status: string;
   }) => {
     if (notification.status === 'unread') {
       updateStatus.mutate({ notificationId: notification.id, status: 'read' });
     }
-    if (notification.link) {
-      navigate(notification.link);
+  };
+
+  const handleNotificationClick = (notification: {
+    id: string;
+    link: string | null;
+    type: string;
+    resource_id: string | null;
+    status: string;
+  }) => {
+    markReadIfNeeded(notification);
+    const href = resolveNotificationLink(notification);
+    if (href) {
+      navigate(href);
     }
+  };
+
+  const handleAccept = (notification: {
+    id: string;
+    resource_id: string | null;
+    status: string;
+  }) => {
+    if (!notification.resource_id) {
+      return;
+    }
+
+    acceptRequest.mutate(notification.resource_id, {
+      onSuccess: (connection) => {
+        markReadIfNeeded(notification);
+        navigate(
+          `/connections?tab=my-connections&filter=all&connection=${connection.id}`
+        );
+      },
+    });
+  };
+
+  const handleDecline = (notification: {
+    id: string;
+    resource_id: string | null;
+    status: string;
+  }) => {
+    if (!notification.resource_id) {
+      return;
+    }
+
+    declineRequest.mutate(notification.resource_id, {
+      onSuccess: () => {
+        markReadIfNeeded(notification);
+      },
+    });
   };
 
   const handleDismiss = (notificationId: string) => {
@@ -88,6 +143,13 @@ export default function NotificationHistory() {
                   .toUpperCase() || '?';
               const isUnread = notification.status === 'unread';
               const isDismissed = notification.status === 'dismissed';
+              const hasInlineActions =
+                !isDismissed &&
+                notification.type === 'connection_request_received' &&
+                !!notification.resource_id &&
+                (incomingRequests ?? []).some(
+                  (request) => request.id === notification.resource_id
+                );
               const timeAgo = formatDistanceToNow(
                 new Date(notification.created_at),
                 {
@@ -143,6 +205,25 @@ export default function NotificationHistory() {
                       </p>
                       <p className="text-xs text-neutral-500 mt-2">{timeAgo}</p>
                     </button>
+                    {hasInlineActions && (
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleAccept(notification)}
+                          disabled={acceptRequest.isPending}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDecline(notification)}
+                          disabled={declineRequest.isPending}
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   {!isDismissed && (
                     <button
