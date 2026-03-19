@@ -1,4 +1,6 @@
 import { Loader2, Inbox, Send } from 'lucide-react';
+import { useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -121,10 +123,26 @@ function OutgoingRequestCard({
 }
 
 export default function ConnectionRequestsTab() {
+  const [searchParams] = useSearchParams();
   const { data: incoming, isLoading: incomingLoading } = useIncomingRequests();
   const { data: outgoing, isLoading: outgoingLoading } = useOutgoingRequests();
+  const highlightedRequestId = searchParams.get('request');
+  const focus = searchParams.get('focus');
 
   const isLoading = incomingLoading || outgoingLoading;
+
+  useEffect(() => {
+    if (!highlightedRequestId) {
+      return;
+    }
+
+    const sectionPrefix =
+      focus === 'outgoing' ? 'connection-outgoing' : 'connection-incoming';
+    const target = document.getElementById(
+      `${sectionPrefix}-${highlightedRequestId}`
+    );
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [highlightedRequestId, focus, incoming, outgoing]);
 
   if (isLoading) {
     return (
@@ -156,7 +174,17 @@ export default function ConnectionRequestsTab() {
           </h3>
           <div className="grid gap-3 sm:grid-cols-2">
             {incoming.map((req) => (
-              <IncomingRequestCard key={req.id} request={req} />
+              <div
+                key={req.id}
+                id={`connection-incoming-${req.id}`}
+                className={
+                  req.id === highlightedRequestId
+                    ? 'rounded-lg ring-2 ring-theme-primary ring-offset-2'
+                    : undefined
+                }
+              >
+                <IncomingRequestCard request={req} />
+              </div>
             ))}
           </div>
         </div>
@@ -170,11 +198,30 @@ export default function ConnectionRequestsTab() {
           </h3>
           <div className="grid gap-3 sm:grid-cols-2">
             {outgoing.map((req) => (
-              <OutgoingRequestCard key={req.id} request={req} />
+              <div
+                key={req.id}
+                id={`connection-outgoing-${req.id}`}
+                className={
+                  req.id === highlightedRequestId
+                    ? 'rounded-lg ring-2 ring-theme-primary ring-offset-2'
+                    : undefined
+                }
+              >
+                <OutgoingRequestCard request={req} />
+              </div>
             ))}
           </div>
         </div>
       )}
+
+      {highlightedRequestId &&
+        ((focus === 'incoming' && !incoming?.some((req) => req.id === highlightedRequestId)) ||
+          (focus === 'outgoing' && !outgoing?.some((req) => req.id === highlightedRequestId))) && (
+          <p className="text-sm text-neutral-500">
+            This request is no longer pending. Recent updates are still available in
+            your notification history.
+          </p>
+        )}
     </div>
   );
 }

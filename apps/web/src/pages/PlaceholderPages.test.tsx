@@ -29,11 +29,21 @@ vi.mock('@/contexts/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'user-1' } }),
 }));
 
-function renderPage() {
+vi.mock('@/features/user-connections/hooks/useUserConnections', () => ({
+  useMyConnections: () => ({ data: [], isLoading: false }),
+  useIncomingRequests: () => ({ data: [], isLoading: false }),
+  useOutgoingRequests: () => ({ data: [], isLoading: false }),
+  useAcceptRequest: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeclineRequest: () => ({ mutate: vi.fn(), isPending: false }),
+  useCancelRequest: () => ({ mutate: vi.fn(), isPending: false }),
+  useRemoveConnection: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
+function renderPage(initialEntry = '/connections') {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[initialEntry]}>
         <ConnectionsPage />
       </MemoryRouter>
     </QueryClientProvider>,
@@ -61,5 +71,15 @@ describe('ConnectionsPage', () => {
     expect(screen.getByRole('tab', { name: /personas/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /people/i })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /activity/i })).toBeInTheDocument();
+  });
+
+  it('opens the requests tab from notification deep links', () => {
+    renderPage('/connections?tab=requests&request=request-1&focus=incoming');
+
+    expect(screen.getByRole('tab', { name: /requests/i })).toHaveAttribute(
+      'data-state',
+      'active'
+    );
+    expect(screen.getByText('No pending requests')).toBeInTheDocument();
   });
 });

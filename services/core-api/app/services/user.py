@@ -20,7 +20,7 @@ async def search_users(
     current_user_id: UUID,
     limit: int = 10,
 ) -> list[UserSearchResult]:
-    """Search users by name, respecting discoverability settings.
+    """Search users by name or username, respecting discoverability settings.
 
     Args:
         db: Database session
@@ -35,8 +35,13 @@ async def search_users(
     if len(query) < 3:
         return []
 
-    # Case-insensitive search on name field
-    search_pattern = f"%{query}%"
+    # Strip leading @ for username searches
+    search_query = query.lstrip("@")
+    if len(search_query) < 3:
+        return []
+
+    # Case-insensitive search on name and username fields
+    search_pattern = f"%{search_query}%"
 
     # Subquery: legacies the current user is a member of
     my_legacies = (
@@ -56,7 +61,10 @@ async def search_users(
         select(User)
         .outerjoin(ProfileSettings, ProfileSettings.user_id == User.id)
         .where(
-            User.name.ilike(search_pattern),
+            or_(
+                User.name.ilike(search_pattern),
+                User.username.ilike(search_pattern),
+            ),
             User.id != current_user_id,
             or_(
                 ProfileSettings.discoverable == True,  # noqa: E712

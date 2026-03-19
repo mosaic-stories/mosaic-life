@@ -147,6 +147,9 @@ async def create_request(
             notification_type="connection_request_received",
             title="New connection request",
             message=f"{sender.name} wants to connect with you",
+            link=(
+                f"/connections?tab=requests&filter=all&focus=incoming&request={req.id}"
+            ),
             actor_id=from_user_id,
             resource_type="connection_request",
             resource_id=req.id,
@@ -299,6 +302,7 @@ async def accept_request(
             notification_type="connection_request_accepted",
             title="Connection request accepted",
             message=f"{target_user.name} accepted your connection request",
+            link=(f"/connections?tab=my-connections&filter=all&connection={conn.id}"),
             actor_id=user_id,
             resource_type="connection",
             resource_id=conn.id,
@@ -350,6 +354,7 @@ async def decline_request(db: AsyncSession, request_id: UUID, user_id: UUID) -> 
             notification_type="connection_request_declined",
             title="Connection request update",
             message="Your connection request was not accepted at this time",
+            link="/connections?tab=requests&filter=all&focus=outgoing",
             actor_id=user_id,
             resource_type="connection_request",
             resource_id=request_id,

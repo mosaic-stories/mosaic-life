@@ -15,9 +15,9 @@ import { Button } from '@/components/ui/button';
 import {
   useUnreadCount,
   useNotifications,
-  useUpdateNotificationStatus,
   useMarkAllAsRead,
 } from '@/features/notifications/hooks/useNotifications';
+import { useNotificationActions } from '@/features/notifications/hooks/useNotificationActions';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface HeaderUserMenuProps {
@@ -32,10 +32,18 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
   const navigate = useNavigate();
   const { data: unreadData } = useUnreadCount();
   const { data: notifications, refetch } = useNotifications(false);
-  const updateStatus = useUpdateNotificationStatus();
   const markAllRead = useMarkAllAsRead();
   const { logout } = useAuth();
   const [helpDialogOpen, setHelpDialogOpen] = useState(false);
+
+  const {
+    incomingRequests,
+    handleNotificationClick,
+    handleAccept,
+    handleDecline,
+    isAcceptPending,
+    isDeclinePending,
+  } = useNotificationActions(notifications);
 
   const unreadCount = unreadData?.count ?? 0;
   const recentNotifications = (notifications ?? []).slice(0, 3);
@@ -45,13 +53,6 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
     .map((n) => n[0])
     .join('')
     .toUpperCase();
-
-  const handleNotificationClick = (notification: { id: string; link: string | null }) => {
-    updateStatus.mutate({ notificationId: notification.id, status: 'read' });
-    if (notification.link) {
-      navigate(notification.link);
-    }
-  };
 
   const handleOpenChange = (open: boolean) => {
     if (open) {
@@ -99,14 +100,46 @@ export default function HeaderUserMenu({ user }: HeaderUserMenuProps) {
           ) : (
             <div className="space-y-1">
               {recentNotifications.map((notification) => (
-                <button
-                  key={notification.id}
-                  onClick={() => handleNotificationClick(notification)}
-                  className="w-full text-left px-2 py-1.5 text-xs text-neutral-600 hover:bg-neutral-100 rounded truncate"
-                >
-                  <Bell className="size-3 inline mr-2 text-neutral-400" />
-                  {notification.message}
-                </button>
+                <div key={notification.id} className="rounded px-2 py-1.5 hover:bg-neutral-100">
+                  <button
+                    onClick={() => handleNotificationClick(notification)}
+                    className="w-full text-left text-xs text-neutral-600 truncate"
+                  >
+                    <Bell className="size-3 inline mr-2 text-neutral-400" />
+                    {notification.message}
+                  </button>
+                  {notification.type === 'connection_request_received' &&
+                    notification.resource_id &&
+                    (incomingRequests ?? []).some(
+                      (request) => request.id === notification.resource_id
+                    ) && (
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => handleAccept(notification)}
+                          disabled={
+                            !!notification.resource_id &&
+                            isAcceptPending(notification.resource_id)
+                          }
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => handleDecline(notification)}
+                          disabled={
+                            !!notification.resource_id &&
+                            isDeclinePending(notification.resource_id)
+                          }
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    )}
+                </div>
               ))}
             </div>
           )}

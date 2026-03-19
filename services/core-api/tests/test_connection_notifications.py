@@ -26,6 +26,10 @@ class TestConnectionNotifications:
             call_kwargs = mock_create.call_args[1]
             assert call_kwargs["user_id"] == test_user_2.id
             assert call_kwargs["notification_type"] == "connection_request_received"
+            assert (
+                call_kwargs["link"]
+                == f"/connections?tab=requests&filter=all&focus=incoming&request={call_kwargs['resource_id']}"
+            )
 
     async def test_accept_request_sends_notification(
         self, db_session: AsyncSession, test_user: User, test_user_2: User
@@ -39,6 +43,10 @@ class TestConnectionNotifications:
             call_kwargs = mock_create.call_args[1]
             assert call_kwargs["user_id"] == test_user.id
             assert call_kwargs["notification_type"] == "connection_request_accepted"
+            assert (
+                call_kwargs["link"]
+                == f"/connections?tab=my-connections&filter=all&connection={call_kwargs['resource_id']}"
+            )
 
     async def test_decline_request_sends_notification(
         self, db_session: AsyncSession, test_user: User, test_user_2: User
@@ -52,6 +60,10 @@ class TestConnectionNotifications:
             call_kwargs = mock_create.call_args[1]
             assert call_kwargs["user_id"] == test_user.id
             assert call_kwargs["notification_type"] == "connection_request_declined"
+            assert (
+                call_kwargs["link"]
+                == "/connections?tab=requests&filter=all&focus=outgoing"
+            )
 
     async def test_notification_failure_does_not_block_create(
         self, db_session: AsyncSession, test_user: User, test_user_2: User

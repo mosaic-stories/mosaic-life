@@ -2,10 +2,11 @@ import {
   useNotifications,
   useUpdateNotificationStatus,
 } from '@/features/notifications/hooks/useNotifications';
-import { useNavigate } from 'react-router-dom';
+import { useNotificationActions } from '@/features/notifications/hooks/useNotificationActions';
 import { formatDistanceToNow } from 'date-fns';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { X, Bell, UserPlus, UserCheck, UserX, KeyRound } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { SEOHead } from '@/components/seo';
 import UserLink from '@/components/UserLink';
 
@@ -27,22 +28,16 @@ function getNotificationIcon(type: string) {
 }
 
 export default function NotificationHistory() {
-  const navigate = useNavigate();
   const { data: notifications, isLoading } = useNotifications(true); // Include dismissed
+  const {
+    incomingRequests,
+    handleNotificationClick,
+    handleAccept,
+    handleDecline,
+    isAcceptPending,
+    isDeclinePending,
+  } = useNotificationActions(notifications);
   const updateStatus = useUpdateNotificationStatus();
-
-  const handleNotificationClick = (notification: {
-    id: string;
-    link: string | null;
-    status: string;
-  }) => {
-    if (notification.status === 'unread') {
-      updateStatus.mutate({ notificationId: notification.id, status: 'read' });
-    }
-    if (notification.link) {
-      navigate(notification.link);
-    }
-  };
 
   const handleDismiss = (notificationId: string) => {
     updateStatus.mutate({ notificationId, status: 'dismissed' });
@@ -88,6 +83,13 @@ export default function NotificationHistory() {
                   .toUpperCase() || '?';
               const isUnread = notification.status === 'unread';
               const isDismissed = notification.status === 'dismissed';
+              const hasInlineActions =
+                !isDismissed &&
+                notification.type === 'connection_request_received' &&
+                !!notification.resource_id &&
+                (incomingRequests ?? []).some(
+                  (request) => request.id === notification.resource_id
+                );
               const timeAgo = formatDistanceToNow(
                 new Date(notification.created_at),
                 {
@@ -143,6 +145,31 @@ export default function NotificationHistory() {
                       </p>
                       <p className="text-xs text-neutral-500 mt-2">{timeAgo}</p>
                     </button>
+                    {hasInlineActions && (
+                      <div className="mt-3 flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => handleAccept(notification)}
+                          disabled={
+                            !!notification.resource_id &&
+                            isAcceptPending(notification.resource_id)
+                          }
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDecline(notification)}
+                          disabled={
+                            !!notification.resource_id &&
+                            isDeclinePending(notification.resource_id)
+                          }
+                        >
+                          Decline
+                        </Button>
+                      </div>
+                    )}
                   </div>
                   {!isDismissed && (
                     <button

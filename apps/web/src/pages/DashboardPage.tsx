@@ -1,4 +1,4 @@
-import { Loader2, ArrowRight, Plus } from 'lucide-react';
+import { Loader2, ArrowRight, Plus, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Footer from '@/components/Footer';
 import { Card } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import RecentStoriesList from '@/components/dashboard/RecentStoriesList';
 import QuickActions from '@/components/dashboard/QuickActions';
 import SidebarActivity from '@/components/dashboard/SidebarActivity';
 import SidebarFavorites from '@/components/dashboard/SidebarFavorites';
+import PeopleSearch from '@/features/user-search/components/PeopleSearch';
 
 export default function DashboardPage() {
   const { data: myLegaciesData, isLoading: myLegaciesLoading } = useLegacies('all', { enabled: true });
@@ -85,6 +86,16 @@ export default function DashboardPage() {
           {/* RIGHT SIDEBAR */}
           <div className="min-w-0 space-y-5 lg:sticky lg:top-20 lg:self-start">
             <QuickActions />
+
+            {/* Find People */}
+            <Card className="p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Users className="size-4 text-theme-primary" />
+                <h3 className="text-sm font-medium text-neutral-900">Find People</h3>
+              </div>
+              <PeopleSearch variant="compact" />
+            </Card>
+
             <SidebarActivity />
             <SidebarFavorites />
           </div>

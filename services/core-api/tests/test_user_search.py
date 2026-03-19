@@ -43,3 +43,54 @@ class TestUserSearchDiscoverability:
             db_session, "Test User 2", test_user.id
         )
         assert len(results) == 0
+
+    async def test_search_by_username_finds_discoverable_user(
+        self, db_session: AsyncSession, test_user: User, test_user_2: User
+    ) -> None:
+        settings = ProfileSettings(user_id=test_user_2.id, discoverable=True)
+        db_session.add(settings)
+        await db_session.commit()
+
+        results = await user_service.search_users(
+            db_session, "test-user-2", test_user.id
+        )
+        assert len(results) == 1
+        assert results[0].username == test_user_2.username
+
+    async def test_search_by_partial_username(
+        self, db_session: AsyncSession, test_user: User, test_user_2: User
+    ) -> None:
+        settings = ProfileSettings(user_id=test_user_2.id, discoverable=True)
+        db_session.add(settings)
+        await db_session.commit()
+
+        results = await user_service.search_users(
+            db_session, "user-2-0002", test_user.id
+        )
+        assert len(results) == 1
+        assert results[0].username == test_user_2.username
+
+    async def test_search_strips_at_prefix(
+        self, db_session: AsyncSession, test_user: User, test_user_2: User
+    ) -> None:
+        settings = ProfileSettings(user_id=test_user_2.id, discoverable=True)
+        db_session.add(settings)
+        await db_session.commit()
+
+        results = await user_service.search_users(
+            db_session, "@test-user-2", test_user.id
+        )
+        assert len(results) == 1
+        assert results[0].username == test_user_2.username
+
+    async def test_username_search_respects_discoverability(
+        self, db_session: AsyncSession, test_user: User, test_user_2: User
+    ) -> None:
+        settings = ProfileSettings(user_id=test_user_2.id, discoverable=False)
+        db_session.add(settings)
+        await db_session.commit()
+
+        results = await user_service.search_users(
+            db_session, "test-user-2", test_user.id
+        )
+        assert len(results) == 0
