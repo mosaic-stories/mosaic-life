@@ -337,6 +337,13 @@ networkPolicy:
         - podSelector:
             matchLabels:
               app.kubernetes.io/part-of: mosaic-life
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - port: 8080
+          protocol: TCP
   egress:
     - to:
         - namespaceSelector: {}
