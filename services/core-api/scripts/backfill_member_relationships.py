@@ -35,6 +35,30 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def build_member_relationship_query(limit: int | None = None):
+    """Build the query used to backfill legacy member relationships.
+
+    Ownership is part of the effective lookup key for membership relationships,
+    so the join must include owner_user_id to avoid selecting unrelated rows.
+    """
+    rel = aliased(Relationship)
+    query = (
+        select(LegacyMember, rel)
+        .join(
+            rel,
+            (rel.owner_user_id == LegacyMember.user_id)
+            & (rel.legacy_member_legacy_id == LegacyMember.legacy_id)
+            & (rel.legacy_member_user_id == LegacyMember.user_id),
+            isouter=True,
+        )
+        .options(selectinload(LegacyMember.legacy))
+        .where(LegacyMember.role != "pending")
+    )
+    if limit:
+        query = query.limit(limit)
+    return query
+
+
 async def backfill_member_relationships(
     dry_run: bool = False,
     limit: int | None = None,
@@ -68,22 +92,7 @@ async def backfill_member_relationships(
         sys.exit(1)
 
     async with async_session() as db:
-        rel = aliased(Relationship)
-        query = (
-            select(LegacyMember, rel)
-            .join(
-                rel,
-                (rel.legacy_member_legacy_id == LegacyMember.legacy_id)
-                & (rel.legacy_member_user_id == LegacyMember.user_id),
-                isouter=True,
-            )
-            .options(selectinload(LegacyMember.legacy))
-            .where(LegacyMember.role != "pending")
-        )
-        if limit:
-            query = query.limit(limit)
-
-        result = await db.execute(query)
+        result = await db.execute(build_member_relationship_query(limit))
         rows = result.all()
         total = len(rows)
 
