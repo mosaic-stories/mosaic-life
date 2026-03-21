@@ -14,6 +14,9 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4000"
+        prometheus.io/path: "/metrics"
       labels:
         {{- include "litellm.selectorLabels" . | nindent 8 }}
     spec:
@@ -87,6 +90,8 @@ spec:
               value: us-east-1
             - name: AWS_REGION
               value: us-east-1
+            - name: PROMETHEUS_MULTIPROC_DIR
+              value: /tmp/prometheus_multiproc
           livenessProbe:
             httpGet:
               path: /health/liveliness
