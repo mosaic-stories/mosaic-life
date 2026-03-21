@@ -34,6 +34,7 @@ networkPolicy:
   enabled: true
   allowedNamespaces:
     - mosaic-prod
+    - observability
     - mosaic-staging
   vpcCidr: "10.20.0.0/16"
 
