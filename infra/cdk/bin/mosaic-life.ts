@@ -7,6 +7,7 @@ import { AuroraDatabaseStack } from '../lib/aurora-database-stack';
 import { StagingResourcesStack } from '../lib/staging-resources-stack';
 import { NeptuneDatabaseStack } from '../lib/neptune-database-stack';
 import { LiteLLMSharedStack } from '../lib/litellm-shared-stack';
+import { AlbAccessLogsStack } from '../lib/alb-access-logs-stack';
 
 const app = new cdk.App();
 
@@ -75,6 +76,21 @@ new StagingResourcesStack(app, 'MosaicStagingResourcesStack', {
 // LiteLLM Shared Stack - IRSA role for the shared aiservices deployment
 new LiteLLMSharedStack(app, 'MosaicLiteLLMSharedStack', {
   env,
+});
+
+// ALB Access Logs Stack - Athena/Glue resources for querying ALB logs
+new AlbAccessLogsStack(app, 'MosaicAlbAccessLogsStack', {
+  env,
+  logsBucket: 'mosaic-life-observability',
+  athenaResultsLocation: 's3://mosaic-life-observability/athena/results/alb-logs/',
+  accountId: env.account!,
+  region: env.region!,
+  environments: ['prod', 'staging'],
+  prefixes: {
+    prod: 'alb/access/prod',
+    staging: 'alb/access/staging',
+  },
+  projectionStartDate: '2026/03/01',
 });
 
 app.synth();
