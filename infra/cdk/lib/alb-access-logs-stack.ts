@@ -25,15 +25,9 @@ interface AlbAccessLogsStackProps extends cdk.StackProps {
   region: string;
 
   /**
-   * Environments to create tables for (e.g. ['prod', 'staging']).
+   * Shared S3 prefix for ALB access logs.
    */
-  environments: string[];
-
-  /**
-   * S3 prefix template per environment. Key = env name, value = S3 prefix.
-   * Example: { prod: 'alb/access/prod', staging: 'alb/access/staging' }
-   */
-  prefixes: Record<string, string>;
+  logsPrefix: string;
 
   /**
    * Start date for partition projection range (yyyy/MM/dd format).
@@ -117,47 +111,43 @@ export class AlbAccessLogsStack extends cdk.Stack {
       { name: 'conn_trace_id', type: 'string' },
     ];
 
-    // Create a table per environment
-    for (const env of props.environments) {
-      const prefix = props.prefixes[env];
-      const s3Location = `s3://${props.logsBucket}/${prefix}/AWSLogs/${props.accountId}/elasticloadbalancing/${props.region}/`;
-      const storageLocationTemplate = `s3://${props.logsBucket}/${prefix}/AWSLogs/${props.accountId}/elasticloadbalancing/${props.region}/\${day}`;
+    const s3Location = `s3://${props.logsBucket}/${props.logsPrefix}/AWSLogs/${props.accountId}/elasticloadbalancing/${props.region}/`;
+    const storageLocationTemplate = `s3://${props.logsBucket}/${props.logsPrefix}/AWSLogs/${props.accountId}/elasticloadbalancing/${props.region}/\${day}`;
 
-      const table = new glue.CfnTable(this, `AlbLogsTable-${env}`, {
-        catalogId: this.account,
-        databaseName: 'mosaic_life_alb_logs',
-        tableInput: {
-          name: `${env}_access_logs`,
-          description: `ALB access logs for ${env} environment`,
-          tableType: 'EXTERNAL_TABLE',
-          parameters: {
-            'projection.enabled': 'true',
-            'projection.day.type': 'date',
-            'projection.day.range': `${props.projectionStartDate},NOW`,
-            'projection.day.format': 'yyyy/MM/dd',
-            'projection.day.interval': '1',
-            'projection.day.interval.unit': 'DAYS',
-            'storage.location.template': storageLocationTemplate,
-          },
-          partitionKeys: [{ name: 'day', type: 'string' }],
-          storageDescriptor: {
-            columns,
-            location: s3Location,
-            inputFormat: 'org.apache.hadoop.mapred.TextInputFormat',
-            outputFormat: 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat',
-            serdeInfo: {
-              serializationLibrary: 'org.apache.hadoop.hive.serde2.RegexSerDe',
-              parameters: {
-                'serialization.format': '1',
-                'input.regex': albLogRegex,
-              },
+    const table = new glue.CfnTable(this, 'AlbLogsTable', {
+      catalogId: this.account,
+      databaseName: 'mosaic_life_alb_logs',
+      tableInput: {
+        name: 'access_logs',
+        description: 'ALB access logs for the shared Mosaic Life load balancer',
+        tableType: 'EXTERNAL_TABLE',
+        parameters: {
+          'projection.enabled': 'true',
+          'projection.day.type': 'date',
+          'projection.day.range': `${props.projectionStartDate},NOW`,
+          'projection.day.format': 'yyyy/MM/dd',
+          'projection.day.interval': '1',
+          'projection.day.interval.unit': 'DAYS',
+          'storage.location.template': storageLocationTemplate,
+        },
+        partitionKeys: [{ name: 'day', type: 'string' }],
+        storageDescriptor: {
+          columns,
+          location: s3Location,
+          inputFormat: 'org.apache.hadoop.mapred.TextInputFormat',
+          outputFormat: 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat',
+          serdeInfo: {
+            serializationLibrary: 'org.apache.hadoop.hive.serde2.RegexSerDe',
+            parameters: {
+              'serialization.format': '1',
+              'input.regex': albLogRegex,
             },
           },
         },
-      });
+      },
+    });
 
-      table.addDependency(database);
-    }
+    table.addDependency(database);
 
     cdk.Tags.of(this).add('Project', 'MosaicLife');
     cdk.Tags.of(this).add('ManagedBy', 'CDK');

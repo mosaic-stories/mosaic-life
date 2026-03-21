@@ -85,11 +85,7 @@ new AlbAccessLogsStack(app, 'MosaicAlbAccessLogsStack', {
   athenaResultsLocation: 's3://mosaic-life-observability/athena/results/alb-logs/',
   accountId: env.account!,
   region: env.region!,
-  environments: ['prod', 'staging'],
-  prefixes: {
-    prod: 'alb/access/prod',
-    staging: 'alb/access/staging',
-  },
+  logsPrefix: 'alb/access/shared',
   projectionStartDate: '2026/03/01',
 });
 

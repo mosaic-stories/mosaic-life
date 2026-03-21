@@ -63,7 +63,7 @@ web:
       alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
       alb.ingress.kubernetes.io/healthy-threshold-count: "2"
       alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
-      alb.ingress.kubernetes.io/load-balancer-attributes: access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/prod
+      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/shared
       alb.ingress.kubernetes.io/tags: "Environment=prod,Project=MosaicLife,Component=web"
       
       # External DNS annotations for automatic Route53 record creation
@@ -143,7 +143,7 @@ coreApi:
       alb.ingress.kubernetes.io/success-codes: "200"
       alb.ingress.kubernetes.io/backend-protocol-version: HTTP1
       # SSE/Streaming support - increased timeout per SHARED-SERVICES §4
-      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/prod
+      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/shared
       alb.ingress.kubernetes.io/tags: "Environment=prod,Project=MosaicLife,Component=backend"
       
       # External DNS annotations for automatic Route53 record creation

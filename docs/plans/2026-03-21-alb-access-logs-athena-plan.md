@@ -2,9 +2,9 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-**Goal:** Enable ALB access logging to S3 for prod/staging and create Athena tables with partition projection for querying those logs.
+**Goal:** Enable ALB access logging to S3 for the shared prod/staging ALB and create an Athena table with partition projection for querying those logs.
 
-**Architecture:** ALB access logs are enabled via `load-balancer-attributes` annotations on Kubernetes Ingress resources. Logs land in `s3://mosaic-life-observability/alb/access/{env}/`. A CDK stack creates Glue database + tables with partition projection so Athena can query logs without manual partition management.
+**Architecture:** ALB access logs are enabled via `load-balancer-attributes` annotations on Kubernetes Ingress resources. Because prod and staging share the `mosaic-life-main` ALB group, logs land in `s3://mosaic-life-observability/alb/access/shared/`. A CDK stack creates a Glue database + table with partition projection so Athena can query logs without manual partition management.
 
 **Tech Stack:** Helm (values overrides), AWS CDK (TypeScript), Glue, Athena
 
@@ -49,15 +49,9 @@ interface AlbAccessLogsStackProps extends cdk.StackProps {
   region: string;
 
   /**
-   * Environments to create tables for (e.g. ['prod', 'staging']).
+   * Shared S3 prefix for ALB access logs.
    */
-  environments: string[];
-
-  /**
-   * S3 prefix template per environment. Key = env name, value = S3 prefix.
-   * Example: { prod: 'alb/access/prod', staging: 'alb/access/staging' }
-   */
-  prefixes: Record<string, string>;
+  logsPrefix: string;
 
   /**
    * Start date for partition projection range (yyyy/MM/dd format).
@@ -141,47 +135,43 @@ export class AlbAccessLogsStack extends cdk.Stack {
       { name: 'conn_trace_id', type: 'string' },
     ];
 
-    // Create a table per environment
-    for (const env of props.environments) {
-      const prefix = props.prefixes[env];
-      const s3Location = `s3://${props.logsBucket}/${prefix}/AWSLogs/${props.accountId}/elasticloadbalancing/${props.region}/`;
-      const storageLocationTemplate = `s3://${props.logsBucket}/${prefix}/AWSLogs/${props.accountId}/elasticloadbalancing/${props.region}/\${day}`;
+    const s3Location = `s3://${props.logsBucket}/${props.logsPrefix}/AWSLogs/${props.accountId}/elasticloadbalancing/${props.region}/`;
+    const storageLocationTemplate = `s3://${props.logsBucket}/${props.logsPrefix}/AWSLogs/${props.accountId}/elasticloadbalancing/${props.region}/\${day}`;
 
-      const table = new glue.CfnTable(this, `AlbLogsTable-${env}`, {
-        catalogId: this.account,
-        databaseName: 'mosaic_life_alb_logs',
-        tableInput: {
-          name: `${env}_access_logs`,
-          description: `ALB access logs for ${env} environment`,
-          tableType: 'EXTERNAL_TABLE',
-          parameters: {
-            'projection.enabled': 'true',
-            'projection.day.type': 'date',
-            'projection.day.range': `${props.projectionStartDate},NOW`,
-            'projection.day.format': 'yyyy/MM/dd',
-            'projection.day.interval': '1',
-            'projection.day.interval.unit': 'DAYS',
-            'storage.location.template': storageLocationTemplate,
-          },
-          partitionKeys: [{ name: 'day', type: 'string' }],
-          storageDescriptor: {
-            columns,
-            location: s3Location,
-            inputFormat: 'org.apache.hadoop.mapred.TextInputFormat',
-            outputFormat: 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat',
-            serdeInfo: {
-              serializationLibrary: 'org.apache.hadoop.hive.serde2.RegexSerDe',
-              parameters: {
-                'serialization.format': '1',
-                'input.regex': albLogRegex,
-              },
+    const table = new glue.CfnTable(this, 'AlbLogsTable', {
+      catalogId: this.account,
+      databaseName: 'mosaic_life_alb_logs',
+      tableInput: {
+        name: 'access_logs',
+        description: 'ALB access logs for the shared Mosaic Life load balancer',
+        tableType: 'EXTERNAL_TABLE',
+        parameters: {
+          'projection.enabled': 'true',
+          'projection.day.type': 'date',
+          'projection.day.range': `${props.projectionStartDate},NOW`,
+          'projection.day.format': 'yyyy/MM/dd',
+          'projection.day.interval': '1',
+          'projection.day.interval.unit': 'DAYS',
+          'storage.location.template': storageLocationTemplate,
+        },
+        partitionKeys: [{ name: 'day', type: 'string' }],
+        storageDescriptor: {
+          columns,
+          location: s3Location,
+          inputFormat: 'org.apache.hadoop.mapred.TextInputFormat',
+          outputFormat: 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat',
+          serdeInfo: {
+            serializationLibrary: 'org.apache.hadoop.hive.serde2.RegexSerDe',
+            parameters: {
+              'serialization.format': '1',
+              'input.regex': albLogRegex,
             },
           },
         },
-      });
+      },
+    });
 
-      table.addDependency(database);
-    }
+    table.addDependency(database);
 
     cdk.Tags.of(this).add('Project', 'MosaicLife');
     cdk.Tags.of(this).add('ManagedBy', 'CDK');
@@ -227,11 +217,7 @@ new AlbAccessLogsStack(app, 'MosaicAlbAccessLogsStack', {
   athenaResultsLocation: 's3://mosaic-life-observability/athena/results/alb-logs/',
   accountId: env.account!,
   region: env.region!,
-  environments: ['prod', 'staging'],
-  prefixes: {
-    prod: 'alb/access/prod',
-    staging: 'alb/access/staging',
-  },
+  logsPrefix: 'alb/access/shared',
   projectionStartDate: '2026/03/01',
 });
 ```
@@ -261,7 +247,7 @@ git commit -m "feat(observability): register ALB access logs stack in CDK app"
 After line 65 (`alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"`), before the tags annotation, add:
 
 ```yaml
-      alb.ingress.kubernetes.io/load-balancer-attributes: access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/prod
+      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/shared
 ```
 
 **Step 2: Append access log attributes to core-api load-balancer-attributes**
@@ -275,7 +261,7 @@ Replace line 145:
 With:
 
 ```yaml
-      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/prod
+      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/shared
 ```
 
 **Step 3: Verify Helm template renders**
@@ -303,7 +289,7 @@ git commit -m "feat(observability): enable ALB access logs for production"
 In the `web.ingress.annotations` section (after line 16), add:
 
 ```yaml
-      alb.ingress.kubernetes.io/load-balancer-attributes: access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/staging
+      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/shared
 ```
 
 **Step 2: Add core-api ingress annotations section for staging**
@@ -313,13 +299,13 @@ Add a new `coreApi.ingress.annotations` section to override the base values:
 ```yaml
   ingress:
     annotations:
-      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/staging
+      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/shared
 ```
 
 **Step 3: Verify Helm template renders with staging overrides**
 
 Run: `cd /apps/mosaic-life && helm template test infra/helm/mosaic-life/ -f infra/helm/mosaic-life/values-staging.yaml | grep -A2 "load-balancer-attributes"`
-Expected: Both ingresses show staging prefix
+Expected: Both ingresses show the shared prefix and match production
 
 **Step 4: Commit**
 
