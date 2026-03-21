@@ -12,7 +12,7 @@
 
 ---
 
-### Task 1: Create CDK Stack for Athena/Glue Resources
+### Task 1: Create CDK Stack for Athena/Glue Resources ✅
 
 **Files:**
 - Create: `infra/cdk/lib/alb-access-logs-stack.ts`
@@ -204,7 +204,7 @@ git commit -m "feat(observability): add CDK stack for ALB access logs Athena tab
 
 ---
 
-### Task 2: Register Stack in CDK Entry Point
+### Task 2: Register Stack in CDK Entry Point ✅
 
 **Files:**
 - Modify: `infra/cdk/bin/mosaic-life.ts:1-80`
@@ -250,7 +250,7 @@ git commit -m "feat(observability): register ALB access logs stack in CDK app"
 
 ---
 
-### Task 3: Add Access Log Annotations to Production Values
+### Task 3: Add Access Log Annotations to Production Values ✅
 
 **Files:**
 - Modify: `infra/helm/mosaic-life/values.yaml:51-66` (web ingress annotations)
@@ -292,7 +292,7 @@ git commit -m "feat(observability): enable ALB access logs for production"
 
 ---
 
-### Task 4: Add Access Log Annotations to Staging Values
+### Task 4: Add Access Log Annotations to Staging Values ✅
 
 **Files:**
 - Modify: `infra/helm/mosaic-life/values-staging.yaml:14-16` (web ingress annotations)
@@ -330,7 +330,7 @@ git commit -m "feat(observability): enable ALB access logs for staging"
 
 ---
 
-### Task 5: Final Validation
+### Task 5: Final Validation ✅
 
 **Step 1: Verify CDK compiles cleanly**
 
