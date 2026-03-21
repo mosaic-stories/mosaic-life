@@ -14,6 +14,7 @@ web:
   ingress:
     annotations:
       external-dns.alpha.kubernetes.io/hostname: "stage.mosaiclife.me"
+      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/shared
     hosts:
       - host: stage.mosaiclife.me
         paths:
@@ -23,6 +24,9 @@ web:
 # Core API - staging configuration
 coreApi:
   replicaCount: 2
+  ingress:
+    annotations:
+      alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/shared
   extraEnv:
     - name: SESSION_COOKIE_NAME
       value: "mosaic_session_stage"

@@ -18,12 +18,14 @@ import sys
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import aliased
 
 sys.path.insert(0, ".")
 
 from app.config import get_settings
 from app.database import normalize_async_db_url
 from app.models.legacy import LegacyMember
+from app.models.relationship import Relationship
 from app.services.graph_sync import categorize_relationship
 
 logging.basicConfig(
@@ -31,6 +33,30 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+def build_member_relationship_query(limit: int | None = None):
+    """Build the query used to backfill legacy member relationships.
+
+    Ownership is part of the effective lookup key for membership relationships,
+    so the join must include owner_user_id to avoid selecting unrelated rows.
+    """
+    rel = aliased(Relationship)
+    query = (
+        select(LegacyMember, rel)
+        .join(
+            rel,
+            (rel.owner_user_id == LegacyMember.user_id)
+            & (rel.legacy_member_legacy_id == LegacyMember.legacy_id)
+            & (rel.legacy_member_user_id == LegacyMember.user_id),
+            isouter=True,
+        )
+        .options(selectinload(LegacyMember.legacy))
+        .where(LegacyMember.role != "pending")
+    )
+    if limit:
+        query = query.limit(limit)
+    return query
 
 
 async def backfill_member_relationships(
@@ -66,24 +92,15 @@ async def backfill_member_relationships(
         sys.exit(1)
 
     async with async_session() as db:
-        query = (
-            select(LegacyMember)
-            .options(selectinload(LegacyMember.legacy))
-            .where(LegacyMember.role != "pending")
-            .where(LegacyMember.profile.isnot(None))
-        )
-        if limit:
-            query = query.limit(limit)
+        result = await db.execute(build_member_relationship_query(limit))
+        rows = result.all()
+        total = len(rows)
 
-        result = await db.execute(query)
-        members = result.scalars().all()
-        total = len(members)
-
-        logger.info(f"Found {total} members with profiles to process")
+        logger.info(f"Found {total} members to process")
 
         if dry_run:
-            for m in members:
-                rt = (m.profile or {}).get("relationship_type", "none")
+            for m, r in rows:
+                rt = r.relationship_type if r else "none"
                 logger.info(
                     f"[DRY RUN] user={m.user_id} legacy={m.legacy_id} "
                     f"relationship_type={rt} -> {categorize_relationship(rt)}"
@@ -93,10 +110,9 @@ async def backfill_member_relationships(
         success = 0
         failed = 0
 
-        for i, member in enumerate(members, 1):
+        for i, (member, rel_record) in enumerate(rows, 1):
             try:
-                profile = member.profile or {}
-                relationship_type = profile.get("relationship_type")
+                relationship_type = rel_record.relationship_type if rel_record else None
                 user_node_id = f"user-{member.user_id}"
                 legacy_node_id = str(member.legacy.person_id)
                 edge_label = (

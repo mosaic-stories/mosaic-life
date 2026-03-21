@@ -14,6 +14,9 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "4000"
+        prometheus.io/path: "/metrics"
       labels:
         {{- include "litellm.selectorLabels" . | nindent 8 }}
     spec:
@@ -36,8 +39,11 @@ spec:
                 cp -a "$MIGRATIONS_SRC"/. /mnt/proxy-extras-migrations/
               fi
 
+              # Create Prometheus multiprocess directory
+              mkdir -p /mnt/tmp/prometheus_multiproc
+
               # Set ownership for non-root main container
-              chown -R 1000:1000 /mnt/root-home/ /mnt/proxy-extras-migrations/ /mnt/litellm-data/
+              chown -R 1000:1000 /mnt/root-home/ /mnt/proxy-extras-migrations/ /mnt/litellm-data/ /mnt/tmp/prometheus_multiproc/
           securityContext:
             runAsUser: 0
             runAsNonRoot: false
@@ -48,6 +54,8 @@ spec:
               mountPath: /mnt/proxy-extras-migrations
             - name: litellm-data
               mountPath: /mnt/litellm-data
+            - name: tmp
+              mountPath: /mnt/tmp
       containers:
         - name: litellm
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -87,6 +95,8 @@ spec:
               value: us-east-1
             - name: AWS_REGION
               value: us-east-1
+            - name: PROMETHEUS_MULTIPROC_DIR
+              value: /tmp/prometheus_multiproc
           livenessProbe:
             httpGet:
               path: /health/liveliness
