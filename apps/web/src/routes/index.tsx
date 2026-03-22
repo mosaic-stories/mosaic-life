@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate, useParams } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import RootLayout from './RootLayout';
 import ProtectedRoute from './ProtectedRoute';
+import PreserveSearchRedirect from './PreserveSearchRedirect';
 import ErrorPage from '@/components/ErrorPage';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -140,11 +141,7 @@ export const router = createBrowserRouter([
       // ── Explore section ──
       {
         path: 'explore',
-        element: (
-          <ProtectedRoute>
-            <LazyPage><ExploreLayout /></LazyPage>
-          </ProtectedRoute>
-        ),
+        element: <LazyPage><ExploreLayout /></LazyPage>,
         children: [
           { index: true, element: <Navigate to="legacies" replace /> },
           { path: 'legacies', element: <LazyPage><ExploreLegaciesPage /></LazyPage> },
@@ -155,10 +152,10 @@ export const router = createBrowserRouter([
       },
 
       // ── Old URL redirects ──
-      { path: 'legacies', element: <Navigate to="/my/legacies" replace /> },
-      { path: 'stories', element: <Navigate to="/my/stories" replace /> },
-      { path: 'connections', element: <Navigate to="/my/conversations" replace /> },
-      { path: 'my-legacies', element: <Navigate to="/my/legacies" replace /> },
+      { path: 'legacies', element: <PreserveSearchRedirect to="/my/legacies" /> },
+      { path: 'stories', element: <PreserveSearchRedirect to="/my/stories" /> },
+      { path: 'connections', element: <PreserveSearchRedirect to="/my/conversations" /> },
+      { path: 'my-legacies', element: <PreserveSearchRedirect to="/my/legacies" /> },
 
       // Public legacy view
       {
