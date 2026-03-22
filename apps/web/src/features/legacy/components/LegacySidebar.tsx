@@ -10,6 +10,7 @@ import SidebarSection from './SidebarSection';
 interface LegacySidebarProps {
   legacy: Legacy;
   legacyId: string;
+  canManageLegacy?: boolean;
   onMembersClick: () => void;
   onSectionChange: (section: SectionId) => void;
 }
@@ -17,6 +18,7 @@ interface LegacySidebarProps {
 export default function LegacySidebar({
   legacy,
   legacyId,
+  canManageLegacy = true,
   onMembersClick,
   onSectionChange,
 }: LegacySidebarProps) {
@@ -38,12 +40,14 @@ export default function LegacySidebar({
               Add a biography to tell their story
             </p>
           )}
-          <button
-            onClick={() => navigate(`/legacy/${legacyId}/edit`)}
-            className="text-sm font-medium text-theme-primary hover:text-theme-primary-dark transition-colors flex items-center gap-1"
-          >
-            Edit biography <PenLine size={12} />
-          </button>
+          {canManageLegacy && (
+            <button
+              onClick={() => navigate(`/legacy/${legacyId}/edit`)}
+              className="text-sm font-medium text-theme-primary hover:text-theme-primary-dark transition-colors flex items-center gap-1"
+            >
+              Edit biography <PenLine size={12} />
+            </button>
+          )}
         </SidebarSection>
 
         {/* Life Timeline (stub) */}
@@ -58,12 +62,14 @@ export default function LegacySidebar({
               <p className="text-sm text-neutral-400 italic">
                 Add life events to build a timeline
               </p>
-              <button
-                onClick={() => navigate(`/legacy/${legacyId}/edit`)}
-                className="text-xs font-medium text-theme-primary hover:text-theme-primary-dark transition-colors mt-1 flex items-center gap-1"
-              >
-                <Calendar size={11} /> Add events
-              </button>
+              {canManageLegacy && (
+                <button
+                  onClick={() => navigate(`/legacy/${legacyId}/edit`)}
+                  className="text-xs font-medium text-theme-primary hover:text-theme-primary-dark transition-colors mt-1 flex items-center gap-1"
+                >
+                  <Calendar size={11} /> Add events
+                </button>
+              )}
             </div>
           </div>
         </SidebarSection>
@@ -74,12 +80,14 @@ export default function LegacySidebar({
             {members.map((member) => (
               <MemberRow key={member.user_id} member={member} />
             ))}
-            <button
-              onClick={onMembersClick}
-              className="flex items-center gap-1.5 py-2 text-sm font-medium text-theme-primary hover:text-theme-primary-dark transition-colors"
-            >
-              <Plus size={14} /> Invite someone
-            </button>
+            {canManageLegacy && (
+              <button
+                onClick={onMembersClick}
+                className="flex items-center gap-1.5 py-2 text-sm font-medium text-theme-primary hover:text-theme-primary-dark transition-colors"
+              >
+                <Plus size={14} /> Invite someone
+              </button>
+            )}
           </div>
         </SidebarSection>
       </div>

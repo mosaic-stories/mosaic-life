@@ -72,6 +72,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
 
   const currentUserRole = currentUserMember?.role || 'admirer';
   const isMember = !!currentUserMember;
+  const canManageLegacy = currentUserRole === 'creator' || currentUserRole === 'admin';
   const canRequestAccess = !!authUser && !isMember && legacy?.visibility === 'public';
   const _memberProfileQuery = useMemberProfile(legacyId, { enabled: isMember });
 
@@ -190,6 +191,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         isAuthenticated={!!authUser}
         canAddStory={isMember}
         canRequestAccess={canRequestAccess}
+        canManageLegacy={canManageLegacy}
         onAddStory={handleAddStory}
         onRequestAccess={() => setShowAccessRequestDialog(true)}
         isCreatingStory={createStory.isPending}
@@ -255,6 +257,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
           <LegacySidebar
             legacy={legacy}
             legacyId={legacyId}
+            canManageLegacy={isMember}
             onMembersClick={() => setShowMemberDrawer(true)}
             onSectionChange={setActiveSection}
           />

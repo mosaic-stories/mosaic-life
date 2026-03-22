@@ -19,6 +19,7 @@ export interface ProfileHeaderProps {
   isAuthenticated: boolean;
   canAddStory?: boolean;
   canRequestAccess?: boolean;
+  canManageLegacy?: boolean;
   onAddStory: () => void;
   onRequestAccess?: () => void;
   isCreatingStory: boolean;
@@ -34,6 +35,7 @@ export default function ProfileHeader({
   isAuthenticated,
   canAddStory = true,
   canRequestAccess = false,
+  canManageLegacy = false,
   onAddStory,
   onRequestAccess,
   isCreatingStory,
@@ -155,26 +157,28 @@ export default function ProfileHeader({
               >
                 <Share2 size={16} />
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="bg-white/15 backdrop-blur-sm text-white border border-white/20 hover:bg-white/25 hover:text-white"
-                  >
-                    <MoreVertical size={16} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={onEdit}>
-                    <Pencil className="size-4" /> Edit Legacy
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                    <Trash2 className="size-4" /> Delete Legacy
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {canManageLegacy && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="bg-white/15 backdrop-blur-sm text-white border border-white/20 hover:bg-white/25 hover:text-white"
+                    >
+                      <MoreVertical size={16} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={onEdit}>
+                      <Pencil className="size-4" /> Edit Legacy
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                      <Trash2 className="size-4" /> Delete Legacy
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           )}
         </div>

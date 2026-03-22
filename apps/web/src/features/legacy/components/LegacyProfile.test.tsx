@@ -74,11 +74,12 @@ vi.mock('@/components/seo', () => ({
 }));
 
 vi.mock('./ProfileHeader', () => ({
-  default: (props: { canAddStory?: boolean; canRequestAccess?: boolean }) => (
+  default: (props: { canAddStory?: boolean; canRequestAccess?: boolean; canManageLegacy?: boolean }) => (
     <div
       data-testid="profile-header"
       data-can-add-story={String(props.canAddStory)}
       data-can-request-access={String(props.canRequestAccess)}
+      data-can-manage-legacy={String(props.canManageLegacy)}
     />
   ),
 }));
@@ -106,7 +107,9 @@ vi.mock('./DeleteLegacyDialog', () => ({
 }));
 
 vi.mock('./LegacySidebar', () => ({
-  default: () => <div data-testid="legacy-sidebar" />,
+  default: (props: { canManageLegacy?: boolean }) => (
+    <div data-testid="legacy-sidebar" data-can-manage-legacy={String(props.canManageLegacy)} />
+  ),
 }));
 
 vi.mock('@/features/members/components/MemberDrawer', () => ({
@@ -181,6 +184,18 @@ describe('LegacyProfile', () => {
     render(<LegacyProfile legacyId="legacy-1" />);
 
     expect(screen.getByTestId('profile-header')).toBeInTheDocument();
+    expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-manage-legacy', 'false');
+  });
+
+  it('allows legacy management actions for admin members', () => {
+    mocks.legacy = {
+      ...mocks.legacy,
+      members: [{ email: 'test@example.com', role: 'admin' }],
+    };
+
+    render(<LegacyProfile legacyId="legacy-1" />);
+
+    expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-manage-legacy', 'true');
   });
 
   it('routes request access into the header and disables story creation for non-members', () => {
@@ -200,7 +215,9 @@ describe('LegacyProfile', () => {
 
     expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-add-story', 'false');
     expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-request-access', 'true');
+    expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-manage-legacy', 'false');
     expect(screen.getByTestId('stories-section')).toHaveAttribute('data-can-add-story', 'false');
+    expect(screen.getByTestId('legacy-sidebar')).toHaveAttribute('data-can-manage-legacy', 'false');
   });
 
   it('disables member profile loading for public viewers who are not members', () => {
