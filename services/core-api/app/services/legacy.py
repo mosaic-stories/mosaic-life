@@ -315,6 +315,7 @@ async def list_user_legacies(
         .options(
             selectinload(Legacy.creator),
             selectinload(Legacy.profile_image),
+            selectinload(Legacy.background_image),
         )
         .where(
             LegacyMember.user_id == user_id,
@@ -356,6 +357,8 @@ async def list_user_legacies(
             person_id=legacy.person_id,
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
+            background_image_id=legacy.background_image_id,
+            background_image_url=get_background_image_url(legacy),
             favorite_count=legacy.favorite_count or 0,
             story_count=story_counts.get(legacy.id, 0),
         )
@@ -387,6 +390,7 @@ async def list_user_legacies_scoped(
         .options(
             selectinload(Legacy.creator),
             selectinload(Legacy.profile_image),
+            selectinload(Legacy.background_image),
         )
         .where(
             LegacyMember.user_id == user_id,
@@ -423,6 +427,8 @@ async def list_user_legacies_scoped(
             person_id=legacy.person_id,
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
+            background_image_id=legacy.background_image_id,
+            background_image_url=get_background_image_url(legacy),
             favorite_count=legacy.favorite_count or 0,
             story_count=story_counts.get(legacy.id, 0),
         )
@@ -560,6 +566,7 @@ async def explore_legacies(
         selectinload(Legacy.creator),
         selectinload(Legacy.members).selectinload(LegacyMember.user),
         selectinload(Legacy.profile_image),
+        selectinload(Legacy.background_image),
     )
 
     # Apply visibility filtering
@@ -645,6 +652,8 @@ async def explore_legacies(
             person_id=legacy.person_id,
             profile_image_id=legacy.profile_image_id,
             profile_image_url=get_profile_image_url(legacy),
+            background_image_id=legacy.background_image_id,
+            background_image_url=get_background_image_url(legacy),
             favorite_count=legacy.favorite_count or 0,
             story_count=story_counts.get(legacy.id, 0),
         )
@@ -677,6 +686,7 @@ async def get_legacy_public(
             selectinload(Legacy.creator),
             selectinload(Legacy.members).selectinload(LegacyMember.user),
             selectinload(Legacy.profile_image),
+            selectinload(Legacy.background_image),
         )
         .where(Legacy.id == legacy_id, Legacy.visibility == "public")
     )
@@ -736,6 +746,8 @@ async def get_legacy_public(
         person_id=legacy.person_id,
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
+        background_image_id=legacy.background_image_id,
+        background_image_url=get_background_image_url(legacy),
         favorite_count=legacy.favorite_count or 0,
         story_count=story_count,
     )
@@ -771,6 +783,7 @@ async def get_legacy_detail(
             selectinload(Legacy.creator),
             selectinload(Legacy.members).selectinload(LegacyMember.user),
             selectinload(Legacy.profile_image),
+            selectinload(Legacy.background_image),
         )
         .where(Legacy.id == legacy_id)
     )
@@ -838,6 +851,8 @@ async def get_legacy_detail(
         person_id=legacy.person_id,
         profile_image_id=legacy.profile_image_id,
         profile_image_url=get_profile_image_url(legacy),
+        background_image_id=legacy.background_image_id,
+        background_image_url=get_background_image_url(legacy),
         favorite_count=legacy.favorite_count or 0,
         story_count=story_count,
     )
@@ -1004,7 +1019,11 @@ async def update_legacy(
     # Load legacy
     result = await db.execute(
         select(Legacy)
-        .options(selectinload(Legacy.creator))
+        .options(
+            selectinload(Legacy.creator),
+            selectinload(Legacy.profile_image),
+            selectinload(Legacy.background_image),
+        )
         .where(Legacy.id == legacy_id)
     )
     legacy = result.scalar_one_or_none()
@@ -1059,6 +1078,10 @@ async def update_legacy(
         creator_name=legacy.creator.name,
         current_user_role="creator",
         person_id=legacy.person_id,
+        profile_image_id=legacy.profile_image_id,
+        profile_image_url=get_profile_image_url(legacy),
+        background_image_id=legacy.background_image_id,
+        background_image_url=get_background_image_url(legacy),
         favorite_count=legacy.favorite_count or 0,
         story_count=story_count,
     )

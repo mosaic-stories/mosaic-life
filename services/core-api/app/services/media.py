@@ -511,6 +511,73 @@ async def set_profile_image(
     )
 
 
+async def set_background_image(
+    db: AsyncSession,
+    user_id: UUID,
+    legacy_id: UUID,
+    media_id: UUID,
+) -> None:
+    """Set legacy background image from existing media.
+
+    Media must be associated with the legacy. User must be an editor or creator.
+
+    Args:
+        db: Database session
+        user_id: User setting the background image
+        legacy_id: Legacy ID
+        media_id: Media ID to use as background image
+
+    Raises:
+        HTTPException: 404 if media not found or not associated, 403 if no access
+    """
+    # Check user is creator or editor
+    member_result = await db.execute(
+        select(LegacyMember).where(
+            LegacyMember.legacy_id == legacy_id,
+            LegacyMember.user_id == user_id,
+            LegacyMember.role.in_(["creator", "editor"]),
+        )
+    )
+    member = member_result.scalar_one_or_none()
+
+    if not member:
+        raise HTTPException(
+            status_code=403,
+            detail="Must be creator or editor to set background image",
+        )
+
+    # Verify media is associated with this legacy
+    assoc_result = await db.execute(
+        select(MediaLegacy).where(
+            MediaLegacy.media_id == media_id,
+            MediaLegacy.legacy_id == legacy_id,
+        )
+    )
+    association = assoc_result.scalar_one_or_none()
+
+    if not association:
+        raise HTTPException(
+            status_code=404,
+            detail="Media not found in this legacy",
+        )
+
+    # Update legacy
+    legacy_result = await db.execute(select(Legacy).where(Legacy.id == legacy_id))
+    legacy = legacy_result.scalar_one()
+    legacy.background_image_id = media_id
+
+    await db.commit()
+
+    logger.info(
+        "legacy.background_image_set",
+        extra={
+            "legacy_id": str(legacy_id),
+            "media_id": str(media_id),
+            "user_id": str(user_id),
+        },
+    )
+
+
 async def _check_media_access(
     db: AsyncSession,
     user_id: UUID,

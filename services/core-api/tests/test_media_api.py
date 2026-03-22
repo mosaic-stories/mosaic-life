@@ -357,3 +357,63 @@ class TestSetProfileImage:
             json={"media_id": str(fake_id)},
         )
         assert response.status_code == 404
+
+
+class TestSetBackgroundImage:
+    """Tests for PATCH /api/legacies/{legacy_id}/background-image."""
+
+    @pytest.mark.asyncio
+    async def test_requires_auth(
+        self,
+        client: AsyncClient,
+        test_legacy: Legacy,
+        test_media: Media,
+    ):
+        """Test setting background image requires authentication."""
+        response = await client.patch(
+            f"/api/legacies/{test_legacy.id}/background-image",
+            json={"media_id": str(test_media.id)},
+        )
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_media_not_found(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+    ):
+        """Test setting background image with non-associated media returns 404."""
+        import uuid
+
+        fake_id = uuid.uuid4()
+        response = await client.patch(
+            f"/api/legacies/{test_legacy.id}/background-image",
+            headers=auth_headers,
+            json={"media_id": str(fake_id)},
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_set_background_image_success(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+        test_media: Media,
+    ):
+        """Test successfully setting background image."""
+        response = await client.patch(
+            f"/api/legacies/{test_legacy.id}/background-image",
+            headers=auth_headers,
+            json={"media_id": str(test_media.id)},
+        )
+        assert response.status_code == 204
+
+        # Verify via legacy detail
+        detail = await client.get(
+            f"/api/legacies/{test_legacy.id}",
+            headers=auth_headers,
+        )
+        assert detail.status_code == 200
+        assert detail.json()["background_image_id"] == str(test_media.id)

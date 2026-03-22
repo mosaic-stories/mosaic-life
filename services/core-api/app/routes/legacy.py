@@ -17,7 +17,7 @@ from ..schemas.legacy import (
     LegacyScopedResponse,
     LegacyUpdate,
 )
-from ..schemas.media import SetProfileImageRequest
+from ..schemas.media import SetBackgroundImageRequest, SetProfileImageRequest
 from ..schemas.member_profile import MemberProfileResponse, MemberProfileUpdate
 from ..services import activity as activity_service
 from ..services import legacy as legacy_service
@@ -497,6 +497,32 @@ async def set_profile_image(
     """
     session = require_auth(request)
     await media_service.set_profile_image(
+        db=db,
+        user_id=session.user_id,
+        legacy_id=legacy_id,
+        media_id=data.media_id,
+    )
+
+
+@router.patch(
+    "/{legacy_id}/background-image",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Set background image",
+    description="Set legacy background image from existing media. User must be creator or editor.",
+)
+async def set_background_image(
+    legacy_id: UUID,
+    data: SetBackgroundImageRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Set legacy background image from existing media.
+
+    Media must be associated with the legacy.
+    Only creators and editors can set the background image.
+    """
+    session = require_auth(request)
+    await media_service.set_background_image(
         db=db,
         user_id=session.user_id,
         legacy_id=legacy_id,

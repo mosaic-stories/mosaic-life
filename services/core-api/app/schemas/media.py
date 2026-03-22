@@ -130,3 +130,9 @@ class SetProfileImageRequest(BaseModel):
     """Request to set legacy profile image."""
 
     media_id: UUID
+
+
+class SetBackgroundImageRequest(BaseModel):
+    """Request to set legacy background image."""
+
+    media_id: UUID
