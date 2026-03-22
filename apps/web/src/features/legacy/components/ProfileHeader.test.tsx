@@ -107,4 +107,28 @@ describe('ProfileHeader', () => {
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Legacies')).toBeInTheDocument();
   });
+
+  it('replaces Add Story with Request Access for authenticated non-members', () => {
+    render(
+      <MemoryRouter>
+        <ProfileHeader
+          legacy={baseLegacy}
+          dates=""
+          legacyId="legacy-1"
+          isAuthenticated={true}
+          canAddStory={false}
+          canRequestAccess={true}
+          onAddStory={() => {}}
+          onRequestAccess={() => {}}
+          isCreatingStory={false}
+          onShare={() => {}}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Request Access')).toBeInTheDocument();
+    expect(screen.queryByText('Add Story')).not.toBeInTheDocument();
+  });
 });

@@ -5,10 +5,11 @@ const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
   searchParams: new URLSearchParams(),
   authUser: {
+    id: 'user-1',
     name: 'Test User',
     email: 'test@example.com',
     avatar_url: null,
-  } as { name: string; email: string; avatar_url: string | null } | null,
+  } as { id: string; name: string; email: string; avatar_url: string | null } | null,
   memberProfileHook: vi.fn<
     (legacyId: string, options?: { enabled?: boolean }) => { data: null; isLoading: boolean }
   >(() => ({ data: null, isLoading: false })),
@@ -16,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     id: 'legacy-1',
     name: 'Test Legacy',
     biography: 'Test biography',
+    created_by: 'user-1',
     members: [{ email: 'test@example.com', role: 'creator' }],
     profile_image_url: null,
     birth_date: null,
@@ -72,7 +74,13 @@ vi.mock('@/components/seo', () => ({
 }));
 
 vi.mock('./ProfileHeader', () => ({
-  default: () => <div data-testid="profile-header" />,
+  default: (props: { canAddStory?: boolean; canRequestAccess?: boolean }) => (
+    <div
+      data-testid="profile-header"
+      data-can-add-story={String(props.canAddStory)}
+      data-can-request-access={String(props.canRequestAccess)}
+    />
+  ),
 }));
 
 vi.mock('./SectionNav', () => ({
@@ -80,7 +88,9 @@ vi.mock('./SectionNav', () => ({
 }));
 
 vi.mock('./StoriesSection', () => ({
-  default: () => <div data-testid="stories-section" />,
+  default: (props: { canAddStory?: boolean }) => (
+    <div data-testid="stories-section" data-can-add-story={String(props.canAddStory)} />
+  ),
 }));
 
 vi.mock('./MediaSection', () => ({
@@ -118,6 +128,7 @@ describe('LegacyProfile', () => {
     mocks.searchParams = new URLSearchParams('tab=stories');
     mocks.navigate.mockReset();
     mocks.authUser = {
+      id: 'user-1',
       name: 'Test User',
       email: 'test@example.com',
       avatar_url: null,
@@ -128,6 +139,7 @@ describe('LegacyProfile', () => {
       id: 'legacy-1',
       name: 'Test Legacy',
       biography: 'Test biography',
+      created_by: 'user-1',
       members: [{ email: 'test@example.com', role: 'creator' }],
       profile_image_url: null,
       birth_date: null,
@@ -169,6 +181,26 @@ describe('LegacyProfile', () => {
     render(<LegacyProfile legacyId="legacy-1" />);
 
     expect(screen.getByTestId('profile-header')).toBeInTheDocument();
+  });
+
+  it('routes request access into the header and disables story creation for non-members', () => {
+    mocks.authUser = {
+      id: 'viewer-1',
+      name: 'Viewer',
+      email: 'viewer@example.com',
+      avatar_url: null,
+    };
+    mocks.legacy = {
+      ...mocks.legacy,
+      created_by: 'creator-1',
+      members: [],
+    };
+
+    render(<LegacyProfile legacyId="legacy-1" />);
+
+    expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-add-story', 'false');
+    expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-request-access', 'true');
+    expect(screen.getByTestId('stories-section')).toHaveAttribute('data-can-add-story', 'false');
   });
 
   it('disables member profile loading for public viewers who are not members', () => {

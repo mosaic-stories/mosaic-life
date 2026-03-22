@@ -188,23 +188,15 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         dates={dates}
         legacyId={legacyId}
         isAuthenticated={!!authUser}
+        canAddStory={isMember}
+        canRequestAccess={canRequestAccess}
         onAddStory={handleAddStory}
+        onRequestAccess={() => setShowAccessRequestDialog(true)}
         isCreatingStory={createStory.isPending}
         onShare={() => setShowMemberDrawer(true)}
         onEdit={() => navigate(`/legacy/${legacyId}/edit`)}
         onDelete={() => setShowDeleteDialog(true)}
       />
-
-      {canRequestAccess && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-4">
-          <Button
-            variant="outline"
-            onClick={() => setShowAccessRequestDialog(true)}
-          >
-            Request Access
-          </Button>
-        </div>
-      )}
 
       <SectionNav
         activeSection={activeSection}
@@ -227,6 +219,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
               storiesError={storiesError}
               onStoryClick={(storyId) => navigate(`/legacy/${legacyId}/story/${storyId}`)}
               onAddStory={handleAddStory}
+              canAddStory={isMember}
               isCreatingStory={createStory.isPending}
             />
           )}

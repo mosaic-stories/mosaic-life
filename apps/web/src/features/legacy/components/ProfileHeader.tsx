@@ -17,7 +17,10 @@ export interface ProfileHeaderProps {
   dates: string;
   legacyId: string;
   isAuthenticated: boolean;
+  canAddStory?: boolean;
+  canRequestAccess?: boolean;
   onAddStory: () => void;
+  onRequestAccess?: () => void;
   isCreatingStory: boolean;
   onShare: () => void;
   onEdit: () => void;
@@ -29,7 +32,10 @@ export default function ProfileHeader({
   dates,
   legacyId: _legacyId,
   isAuthenticated,
+  canAddStory = true,
+  canRequestAccess = false,
   onAddStory,
+  onRequestAccess,
   isCreatingStory,
   onShare,
   onEdit,
@@ -118,19 +124,29 @@ export default function ProfileHeader({
           {/* Action buttons */}
           {isAuthenticated && (
             <div className="flex gap-2 shrink-0">
-              <Button
-                size="sm"
-                className="bg-white text-theme-primary-dark hover:bg-white/90 shadow-md"
-                onClick={onAddStory}
-                disabled={isCreatingStory}
-              >
-                {isCreatingStory ? (
-                  <Loader2 className="size-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Plus className="size-4 mr-1.5" />
-                )}
-                <span className="hidden sm:inline">Add Story</span>
-              </Button>
+              {canRequestAccess ? (
+                <Button
+                  size="sm"
+                  className="bg-white text-theme-primary-dark hover:bg-white/90 shadow-md"
+                  onClick={onRequestAccess}
+                >
+                  <span>Request Access</span>
+                </Button>
+              ) : canAddStory ? (
+                <Button
+                  size="sm"
+                  className="bg-white text-theme-primary-dark hover:bg-white/90 shadow-md"
+                  onClick={onAddStory}
+                  disabled={isCreatingStory}
+                >
+                  {isCreatingStory ? (
+                    <Loader2 className="size-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Plus className="size-4 mr-1.5" />
+                  )}
+                  <span className="hidden sm:inline">Add Story</span>
+                </Button>
+              ) : null}
               <Button
                 size="sm"
                 variant="ghost"
