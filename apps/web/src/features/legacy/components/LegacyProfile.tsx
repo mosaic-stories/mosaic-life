@@ -109,7 +109,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const handleDeleteLegacy = async () => {
     try {
       await deleteLegacy.mutateAsync(legacyId);
-      navigate('/legacies');
+      navigate('/my/legacies');
     } catch (error) {
       console.error('Failed to delete legacy:', error);
     }
@@ -164,7 +164,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
             <Button variant="outline" onClick={() => navigate('/')}>
               Go Home
             </Button>
-            <Button onClick={() => navigate('/legacies')}>
+            <Button onClick={() => navigate('/my/legacies')}>
               All Legacies
             </Button>
           </div>

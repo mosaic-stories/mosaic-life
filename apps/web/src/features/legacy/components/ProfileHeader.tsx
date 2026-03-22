@@ -75,7 +75,7 @@ export default function ProfileHeader({
         <nav className="flex items-center gap-2 text-[13px] text-white/60">
           <Link to="/" className="hover:text-white/80 transition-colors">Home</Link>
           <ChevronRight size={12} />
-          <Link to="/legacies" className="hover:text-white/80 transition-colors">Legacies</Link>
+          <Link to="/my/legacies" className="hover:text-white/80 transition-colors">Legacies</Link>
           <ChevronRight size={12} />
           <span className="text-white/90 font-medium">{legacy.name}</span>
         </nav>

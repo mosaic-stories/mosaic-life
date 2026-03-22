@@ -14,7 +14,7 @@ export default function RecentStoriesList() {
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-serif font-medium tracking-tight">Recent Stories</h2>
         <button
-          onClick={() => navigate('/stories')}
+          onClick={() => navigate('/my/stories')}
           className="text-xs text-theme-primary font-medium hover:underline"
         >
           Browse all
