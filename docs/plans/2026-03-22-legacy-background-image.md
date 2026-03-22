@@ -8,6 +8,21 @@
 
 **Tech Stack:** Python/FastAPI, SQLAlchemy, Alembic, React/TypeScript, TanStack Query
 
+**Progress:**
+- [x] Task 1: Backend — Add background_image_id to Legacy model *(commit: a1e9f02)*
+- [x] Task 2: Backend — Create Alembic migration *(commit: a1e9f02)*
+- [x] Task 3: Backend — Add background image URL helper and update schema *(commit: a1e9f02)*
+- [x] Task 4: Backend — Wire background_image fields into all LegacyResponse builders *(commit: be7becd)*
+- [x] Task 5: Backend — Add set_background_image service function and endpoint *(commit: be7becd)*
+- [x] Task 6: Backend — Write tests for background image endpoint *(commit: be7becd)*
+- [ ] Task 7: Frontend — Add background image fields to API types and functions
+- [ ] Task 8: Frontend — Update ProfileHeader to display background image
+- [ ] Task 9: Frontend — Add "Set as Background" button to MediaDetailPanel
+- [ ] Task 10: Frontend — Create ImagePicker component
+- [ ] Task 11: Frontend — Add ImagePicker to LegacyEdit form
+- [ ] Task 12: Frontend — Add ImagePicker to LegacyCreation form
+- [ ] Task 13: Validation — Full backend validation and frontend build
+
 ---
 
 ### Task 1: Backend — Add background_image_id to Legacy model
