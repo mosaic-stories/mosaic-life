@@ -42,6 +42,7 @@ class TestRequestUploadUrl:
         assert "upload_url" in data
         assert "media_id" in data
         assert "storage_path" in data
+        assert data["upload_url"].startswith("/media/")
         assert data["storage_path"].startswith(f"users/{test_user.id}/")
 
     @pytest.mark.asyncio
@@ -252,6 +253,7 @@ class TestGetMedia:
         assert data["filename"] == "test-image.jpg"
         assert data["id"] == str(test_media.id)
         assert "download_url" in data
+        assert data["download_url"].startswith("/media/")
         assert "storage_path" in data
         assert data["caption"] == "Ceremony photo"
         assert data["date_taken"] == "1962"

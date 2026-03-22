@@ -1,11 +1,13 @@
 """Tests for media service."""
 
+from pathlib import Path
 import pytest
 from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.storage import LocalStorageAdapter
 from app.models.associations import MediaLegacy, MediaPerson, MediaTag
 from app.models.legacy import Legacy
 from app.models.media import Media
@@ -108,6 +110,25 @@ class TestGenerateStoragePath:
 
         assert path.startswith(f"users/{test_user.id}/")
         assert path.endswith(".jpg")
+
+
+class TestLocalStorageAdapter:
+    """Tests for local storage URL generation."""
+
+    def test_uses_relative_urls_for_local_dev(self, tmp_path: Path):
+        """Local media URLs should stay same-origin via the dev proxy."""
+        adapter = LocalStorageAdapter(
+            str(tmp_path), "http://beelink.projecthewitt.info:8080"
+        )
+
+        assert (
+            adapter.generate_upload_url("users/test/file.jpg", "image/jpeg")
+            == "/media/users/test/file.jpg"
+        )
+        assert (
+            adapter.generate_download_url("users/test/file.jpg")
+            == "/media/users/test/file.jpg"
+        )
 
 
 class TestRequestUploadUrlAssociations:
