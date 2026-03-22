@@ -10,6 +10,25 @@
 
 **Design Doc:** `docs/plans/2026-03-22-vertical-sidebar-navigation-design.md`
 
+## Implementation Status
+
+| Task | Status | Commit |
+|------|--------|--------|
+| 1. Restructure navigation config | Done | `295e6a4` |
+| 2. Create SectionSwitcher | Done | `2bbfe91` |
+| 3. Create SidebarNav | Done | `2bbfe91` |
+| 4. Create SidebarLayout | Done | `2bbfe91` |
+| 5. Create MobileNavSheet | Done | `2bbfe91` |
+| 6. Update BottomTabBar | Done | `7b97e19` |
+| 7. Update AppHeader | Done | `7b97e19` |
+| 8. Create section layout routes | Done | `1eac29a` |
+| 9. Create placeholder pages | Done | `1eac29a` |
+| 10. Restructure router | Done | `26f4c1c` |
+| 11. Remove Find People widget | Done | `47b2c80` |
+| 12. Update internal links | Done | `47b2c80` |
+| 13. Smoke test | Done | Manual verification pending |
+| 14. Build validation | Done | `1eae5ca` (build, lint, 371 tests pass) |
+
 ---
 
 ### Task 1: Restructure Navigation Config
