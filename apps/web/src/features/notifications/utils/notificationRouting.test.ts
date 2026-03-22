@@ -19,7 +19,7 @@ describe('resolveNotificationLink', () => {
         link: null,
         resource_id: 'request-1',
       })
-    ).toBe('/connections?tab=requests&filter=all&focus=incoming&request=request-1');
+    ).toBe('/my/conversations?tab=requests&filter=all&focus=incoming&request=request-1');
   });
 
   it('derives a connection deep link for accepted connection notifications', () => {
@@ -30,7 +30,7 @@ describe('resolveNotificationLink', () => {
         resource_id: 'connection-1',
       })
     ).toBe(
-      '/connections?tab=my-connections&filter=all&connection=connection-1'
+      '/my/conversations?tab=my-connections&filter=all&connection=connection-1'
     );
   });
 });
