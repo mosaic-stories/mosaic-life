@@ -17,7 +17,11 @@ import RelationshipCombobox from '@/components/ui/relationship-combobox';
 import { updateMemberProfile } from '@/features/members/api/memberProfile';
 import { normalizeOptionalText } from '@/lib/form-utils';
 import ImagePicker from '@/features/media/components/ImagePicker';
-import { setProfileImage, setBackgroundImage } from '@/features/media/api/media';
+import {
+  addMediaLegacyAssociation,
+  setProfileImage,
+  setBackgroundImage,
+} from '@/features/media/api/media';
 
 export default function LegacyCreation() {
   const navigate = useNavigate();
@@ -75,20 +79,20 @@ export default function LegacyCreation() {
         person_id: selectedPerson?.person_id ?? null,
       });
 
-      // Set images if uploaded
+      const selectedImageIds = [...new Set(
+        [profileImageId, backgroundImageId].filter(
+          (mediaId): mediaId is string => mediaId !== null
+        )
+      )];
+      for (const mediaId of selectedImageIds) {
+        await addMediaLegacyAssociation(mediaId, legacy.id);
+      }
+
       if (profileImageId) {
-        try {
-          await setProfileImage(legacy.id, profileImageId);
-        } catch (err) {
-          console.error('Failed to set profile image:', err);
-        }
+        await setProfileImage(legacy.id, profileImageId);
       }
       if (backgroundImageId) {
-        try {
-          await setBackgroundImage(legacy.id, backgroundImageId);
-        } catch (err) {
-          console.error('Failed to set background image:', err);
-        }
+        await setBackgroundImage(legacy.id, backgroundImageId);
       }
 
       // Save relationship profile if any fields were filled

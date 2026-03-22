@@ -136,3 +136,11 @@ class SetBackgroundImageRequest(BaseModel):
     """Request to set legacy background image."""
 
     media_id: UUID
+
+
+class AddMediaLegacyAssociationRequest(BaseModel):
+    """Request to associate existing media with a legacy."""
+
+    legacy_id: UUID
+    role: Literal["primary", "secondary"] = Field(default="primary")
+    position: int = Field(default=0, ge=0)

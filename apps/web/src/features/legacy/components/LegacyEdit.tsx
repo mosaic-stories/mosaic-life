@@ -9,7 +9,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useLegacy, useUpdateLegacy } from '@/features/legacy/hooks/useLegacies';
 import type { LegacyVisibility } from '@/features/legacy/api/legacies';
 import ImagePicker from '@/features/media/components/ImagePicker';
-import { setProfileImage, setBackgroundImage } from '@/features/media/api/media';
+import {
+  clearBackgroundImage,
+  clearProfileImage,
+  setProfileImage,
+  setBackgroundImage,
+} from '@/features/media/api/media';
 import { normalizeOptionalText } from '@/lib/form-utils';
 import { SEOHead } from '@/components/seo';
 import PageActionBar from '@/components/PageActionBar';
@@ -141,8 +146,14 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
           if (profileImageId && profileImageId !== legacy.profile_image_id) {
             await setProfileImage(legacyId, profileImageId);
           }
+          if (!profileImageId && legacy.profile_image_id) {
+            await clearProfileImage(legacyId);
+          }
           if (backgroundImageId && backgroundImageId !== legacy.background_image_id) {
             await setBackgroundImage(legacyId, backgroundImageId);
+          }
+          if (!backgroundImageId && legacy.background_image_id) {
+            await clearBackgroundImage(legacyId);
           }
         } catch (legacyError) {
           legacySaveFailed = true;

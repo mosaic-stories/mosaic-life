@@ -19,6 +19,7 @@ from ..models.person import Person
 from ..models.tag import Tag
 from ..schemas.associations import LegacyAssociationResponse
 from ..schemas.media import (
+    AddMediaLegacyAssociationRequest,
     MediaConfirmResponse,
     MediaDetail,
     MediaPersonCreate,
@@ -563,12 +564,12 @@ async def set_profile_image(
     Raises:
         HTTPException: 404 if media not found or not associated, 403 if no access
     """
-    # Check user is creator or editor
+    # Check user is creator or admin
     member_result = await db.execute(
         select(LegacyMember).where(
             LegacyMember.legacy_id == legacy_id,
             LegacyMember.user_id == user_id,
-            LegacyMember.role.in_(["creator", "editor"]),
+            LegacyMember.role.in_(["creator", "admin"]),
         )
     )
     member = member_result.scalar_one_or_none()
@@ -576,7 +577,7 @@ async def set_profile_image(
     if not member:
         raise HTTPException(
             status_code=403,
-            detail="Must be creator or editor to set profile image",
+            detail="Must be creator or admin to set profile image",
         )
 
     # Verify media is associated with this legacy
@@ -630,12 +631,12 @@ async def set_background_image(
     Raises:
         HTTPException: 404 if media not found or not associated, 403 if no access
     """
-    # Check user is creator or editor
+    # Check user is creator or admin
     member_result = await db.execute(
         select(LegacyMember).where(
             LegacyMember.legacy_id == legacy_id,
             LegacyMember.user_id == user_id,
-            LegacyMember.role.in_(["creator", "editor"]),
+            LegacyMember.role.in_(["creator", "admin"]),
         )
     )
     member = member_result.scalar_one_or_none()
@@ -643,7 +644,7 @@ async def set_background_image(
     if not member:
         raise HTTPException(
             status_code=403,
-            detail="Must be creator or editor to set background image",
+            detail="Must be creator or admin to set background image",
         )
 
     # Verify media is associated with this legacy
@@ -676,6 +677,160 @@ async def set_background_image(
             "user_id": str(user_id),
         },
     )
+
+
+async def clear_profile_image(
+    db: AsyncSession,
+    user_id: UUID,
+    legacy_id: UUID,
+) -> None:
+    """Clear the legacy profile image."""
+    member_result = await db.execute(
+        select(LegacyMember).where(
+            LegacyMember.legacy_id == legacy_id,
+            LegacyMember.user_id == user_id,
+            LegacyMember.role.in_(["creator", "admin"]),
+        )
+    )
+    member = member_result.scalar_one_or_none()
+
+    if not member:
+        raise HTTPException(
+            status_code=403,
+            detail="Must be creator or admin to clear profile image",
+        )
+
+    legacy_result = await db.execute(select(Legacy).where(Legacy.id == legacy_id))
+    legacy = legacy_result.scalar_one_or_none()
+    if not legacy:
+        raise HTTPException(status_code=404, detail="Legacy not found")
+
+    legacy.profile_image_id = None
+    await db.commit()
+
+    logger.info(
+        "legacy.profile_image_cleared",
+        extra={
+            "legacy_id": str(legacy_id),
+            "user_id": str(user_id),
+        },
+    )
+
+
+async def clear_background_image(
+    db: AsyncSession,
+    user_id: UUID,
+    legacy_id: UUID,
+) -> None:
+    """Clear the legacy background image."""
+    member_result = await db.execute(
+        select(LegacyMember).where(
+            LegacyMember.legacy_id == legacy_id,
+            LegacyMember.user_id == user_id,
+            LegacyMember.role.in_(["creator", "admin"]),
+        )
+    )
+    member = member_result.scalar_one_or_none()
+
+    if not member:
+        raise HTTPException(
+            status_code=403,
+            detail="Must be creator or admin to clear background image",
+        )
+
+    legacy_result = await db.execute(select(Legacy).where(Legacy.id == legacy_id))
+    legacy = legacy_result.scalar_one_or_none()
+    if not legacy:
+        raise HTTPException(status_code=404, detail="Legacy not found")
+
+    legacy.background_image_id = None
+    await db.commit()
+
+    logger.info(
+        "legacy.background_image_cleared",
+        extra={
+            "legacy_id": str(legacy_id),
+            "user_id": str(user_id),
+        },
+    )
+
+
+async def add_media_legacy_association(
+    db: AsyncSession,
+    user_id: UUID,
+    media_id: UUID,
+    data: AddMediaLegacyAssociationRequest,
+) -> MediaDetail:
+    """Associate an existing user-owned media item with a legacy."""
+    media_result = await db.execute(
+        select(Media)
+        .options(
+            selectinload(Media.owner),
+            selectinload(Media.legacy_associations),
+            selectinload(Media.tag_associations),
+            selectinload(Media.person_associations),
+        )
+        .where(Media.id == media_id)
+    )
+    media = media_result.scalar_one_or_none()
+    if not media:
+        raise HTTPException(status_code=404, detail="Media not found")
+
+    if media.owner_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the owner can associate media with a legacy",
+        )
+
+    member_result = await db.execute(
+        select(LegacyMember).where(
+            LegacyMember.legacy_id == data.legacy_id,
+            LegacyMember.user_id == user_id,
+            LegacyMember.role != "pending",
+        )
+    )
+    member = member_result.scalar_one_or_none()
+    if not member:
+        raise HTTPException(
+            status_code=403,
+            detail="Must be a legacy member to associate media",
+        )
+
+    existing_assoc = next(
+        (
+            assoc
+            for assoc in media.legacy_associations
+            if assoc.legacy_id == data.legacy_id
+        ),
+        None,
+    )
+    if existing_assoc:
+        existing_assoc.role = data.role
+        existing_assoc.position = data.position
+    else:
+        db.add(
+            MediaLegacy(
+                media_id=media_id,
+                legacy_id=data.legacy_id,
+                role=data.role,
+                position=data.position,
+            )
+        )
+
+    await db.commit()
+
+    logger.info(
+        "media.legacy_association_added",
+        extra={
+            "media_id": str(media_id),
+            "legacy_id": str(data.legacy_id),
+            "user_id": str(user_id),
+        },
+    )
+
+    await db.refresh(media, attribute_names=["legacy_associations"])
+    await db.refresh(media, attribute_names=["owner"])
+    return await _build_media_detail(db, media)
 
 
 async def _check_media_access(

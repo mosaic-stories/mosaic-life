@@ -151,12 +151,33 @@ export async function setProfileImage(
   });
 }
 
+export async function clearProfileImage(legacyId: string): Promise<void> {
+  return apiDelete(`/api/legacies/${legacyId}/profile-image`);
+}
+
 export async function setBackgroundImage(
   legacyId: string,
   mediaId: string
 ): Promise<void> {
   return apiPatch(`/api/legacies/${legacyId}/background-image`, {
     media_id: mediaId,
+  });
+}
+
+export async function clearBackgroundImage(legacyId: string): Promise<void> {
+  return apiDelete(`/api/legacies/${legacyId}/background-image`);
+}
+
+export async function addMediaLegacyAssociation(
+  mediaId: string,
+  legacyId: string,
+  role: 'primary' | 'secondary' = 'primary',
+  position = 0,
+): Promise<MediaDetail> {
+  return apiPost<MediaDetail>(`/api/media/${mediaId}/legacy-associations`, {
+    legacy_id: legacyId,
+    role,
+    position,
   });
 }
 
