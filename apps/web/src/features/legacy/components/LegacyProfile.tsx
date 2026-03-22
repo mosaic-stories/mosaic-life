@@ -251,6 +251,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
               profileImageId={legacy.profile_image_id}
               backgroundImageId={legacy.background_image_id}
               isAuthenticated={!!user}
+              canUploadMedia={isMember}
             />
           )}
 

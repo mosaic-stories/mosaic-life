@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type { MediaItem } from '@/features/media/api/media';
+import { ApiError } from '@/lib/api/client';
 
 type MatchMediaStub = {
   matches: boolean;
@@ -38,7 +39,9 @@ vi.mock('@/features/favorites/hooks/useFavorites', () => ({
 }));
 
 vi.mock('@/features/media/components/MediaGalleryHeader', () => ({
-  default: () => <div data-testid="media-gallery-header" />,
+  default: ({ canUpload }: { canUpload?: boolean }) => (
+    <div data-testid="media-gallery-header" data-can-upload={String(canUpload)} />
+  ),
 }));
 
 vi.mock('@/features/media/components/MediaUploader', () => ({
@@ -188,5 +191,28 @@ describe('MediaSection', () => {
 
     expect(screen.queryByTestId('mobile-sheet')).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /delete photo/i })).toHaveLength(1);
+  });
+
+  it('shows an empty state instead of an error for non-members who cannot access legacy media', () => {
+    mocks.useMedia.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: new ApiError(403, 'Forbidden'),
+    });
+
+    render(
+      <MediaSection
+        legacyId="legacy-1"
+        profileImageId={null}
+        backgroundImageId={null}
+        isAuthenticated
+        canUploadMedia={false}
+      />
+    );
+
+    expect(screen.getByTestId('media-gallery-header')).toHaveAttribute('data-can-upload', 'false');
+    expect(screen.getByText('No photos yet')).toBeInTheDocument();
+    expect(screen.getByText('No public photos are available to view')).toBeInTheDocument();
+    expect(screen.queryByText('Failed to load media gallery')).not.toBeInTheDocument();
   });
 });

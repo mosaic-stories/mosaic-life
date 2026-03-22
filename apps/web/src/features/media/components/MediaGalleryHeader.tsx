@@ -10,12 +10,14 @@ interface MediaGalleryHeaderProps {
   photoCount: number;
   contributorCount: number;
   onUploadClick: () => void;
+  canUpload?: boolean;
 }
 
 export default function MediaGalleryHeader({
   photoCount,
   contributorCount,
   onUploadClick,
+  canUpload = true,
 }: MediaGalleryHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-6">
@@ -52,15 +54,16 @@ export default function MediaGalleryHeader({
             </Tooltip>
           </TooltipProvider>
         </div>
-        {/* Upload button */}
-        <button
-          type="button"
-          onClick={onUploadClick}
-          className="flex items-center gap-1.5 px-4 py-2 bg-stone-700 text-white rounded-lg text-[13px] font-semibold hover:bg-stone-800 transition-colors"
-        >
-          <Upload size={14} />
-          Upload
-        </button>
+        {canUpload && (
+          <button
+            type="button"
+            onClick={onUploadClick}
+            className="flex items-center gap-1.5 px-4 py-2 bg-stone-700 text-white rounded-lg text-[13px] font-semibold hover:bg-stone-800 transition-colors"
+          >
+            <Upload size={14} />
+            Upload
+          </button>
+        )}
       </div>
     </div>
   );

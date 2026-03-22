@@ -17,12 +17,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { ApiError } from '@/lib/api/client';
 
 export interface MediaSectionProps {
   legacyId: string;
   profileImageId: string | null | undefined;
   backgroundImageId: string | null | undefined;
   isAuthenticated: boolean;
+  canUploadMedia?: boolean;
 }
 
 export default function MediaSection({
@@ -30,9 +32,12 @@ export default function MediaSection({
   profileImageId,
   backgroundImageId,
   isAuthenticated,
+  canUploadMedia = true,
 }: MediaSectionProps) {
   const { data: media, isLoading, error } = useMedia(legacyId, { enabled: isAuthenticated });
   const deleteMedia = useDeleteMedia(legacyId);
+  const showEmptyForRestrictedPublicViewer =
+    !canUploadMedia && error instanceof ApiError && error.status === 403;
 
   const mediaIds = media?.map(m => m.id) ?? [];
   const { data: favoriteData } = useFavoriteCheck('media', isAuthenticated ? mediaIds : []);
@@ -114,7 +119,7 @@ export default function MediaSection({
     );
   }
 
-  if (error) {
+  if (error && !showEmptyForRestrictedPublicViewer) {
     return (
       <div className="text-center py-12 text-red-600">
         Failed to load media gallery
@@ -128,6 +133,7 @@ export default function MediaSection({
         photoCount={media?.length ?? 0}
         contributorCount={contributorCount}
         onUploadClick={handleUploadClick}
+        canUpload={canUploadMedia}
       />
 
       {/* Upload zone */}
@@ -168,7 +174,9 @@ export default function MediaSection({
             <div className="col-span-full text-center py-12 text-neutral-500">
               <ImageIcon className="size-12 mx-auto text-neutral-300 mb-4" />
               <p>No photos yet</p>
-              <p className="text-sm">Upload photos to get started</p>
+              <p className="text-sm">
+                {canUploadMedia ? 'Upload photos to get started' : 'No public photos are available to view'}
+              </p>
             </div>
           )}
         </div>
