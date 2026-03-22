@@ -933,7 +933,7 @@ git commit -m "feat(web): add MediaStatsBar component"
 
 ---
 
-### Task 6: Implement MyMediaPage
+### Task 6: Implement MyMediaPage ✅
 
 **Files:**
 - Modify: `apps/web/src/pages/MyMediaPage.tsx`
@@ -1099,7 +1099,7 @@ git commit -m "feat(web): implement My Media page with stats and gallery"
 
 ---
 
-### Task 7: Update exports and run full test suite
+### Task 7: Update exports and run full test suite ✅
 
 **Files:**
 - Modify: `apps/web/src/features/media/index.ts`

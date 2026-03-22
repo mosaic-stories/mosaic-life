@@ -223,7 +223,7 @@ export default function MediaDetailPanel({
 
   const handleAddTag = (name: string) => {
     addTag.mutate(
-      { mediaId: media.id, name, legacyId },
+      { mediaId: media.id, name, legacyId: effectiveLegacyId },
       {
         onSuccess: () => setTagInput(''),
       }
