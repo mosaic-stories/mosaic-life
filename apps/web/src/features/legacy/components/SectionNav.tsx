@@ -1,4 +1,5 @@
 import { BookOpen, Image, Link2, Sparkles, Users, MessageSquare } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export type SectionId = 'stories' | 'media' | 'links' | 'ai';
 
@@ -21,6 +22,7 @@ export interface SectionNavProps {
   storyCount?: number;
   memberCount?: number;
   creatorName?: string | null;
+  creatorUsername?: string | null;
   onMembersClick?: () => void;
 }
 
@@ -30,6 +32,7 @@ export default function SectionNav({
   storyCount,
   memberCount,
   creatorName,
+  creatorUsername,
   onMembersClick,
 }: SectionNavProps) {
   return (
@@ -87,7 +90,17 @@ export default function SectionNav({
           )}
           {creatorName && (
             <div className="text-[13px] text-neutral-500">
-              Created by <span className="font-semibold text-theme-primary">{creatorName}</span>
+              Created by {' '}
+              {creatorUsername ? (
+                <Link
+                  to={`/u/${creatorUsername}`}
+                  className="font-semibold text-theme-primary hover:underline"
+                >
+                  {creatorName}
+                </Link>
+              ) : (
+                <span className="font-semibold text-theme-primary">{creatorName}</span>
+              )}
             </div>
           )}
         </div>

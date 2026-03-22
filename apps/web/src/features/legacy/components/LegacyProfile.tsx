@@ -165,6 +165,9 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const dates = formatLegacyDates(legacy);
   const memberCount = legacy.members?.length || 0;
   const storyCount = stories?.length || 0;
+  const creatorUsername = legacy.members?.find(
+    (member) => member.user_id === legacy.created_by || member.role === 'creator'
+  )?.username ?? null;
 
   return (
     <div className="min-h-screen bg-theme-background transition-colors duration-300">
@@ -208,6 +211,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         storyCount={storyCount}
         memberCount={memberCount}
         creatorName={legacy.creator_name}
+        creatorUsername={creatorUsername}
         onMembersClick={() => setShowMemberDrawer(true)}
       />
 
