@@ -15,13 +15,15 @@
 - [x] Task 4: Backend — Wire background_image fields into all LegacyResponse builders *(commit: be7becd)*
 - [x] Task 5: Backend — Add set_background_image service function and endpoint *(commit: be7becd)*
 - [x] Task 6: Backend — Write tests for background image endpoint *(commit: be7becd)*
-- [ ] Task 7: Frontend — Add background image fields to API types and functions
-- [ ] Task 8: Frontend — Update ProfileHeader to display background image
-- [ ] Task 9: Frontend — Add "Set as Background" button to MediaDetailPanel
-- [ ] Task 10: Frontend — Create ImagePicker component
-- [ ] Task 11: Frontend — Add ImagePicker to LegacyEdit form
-- [ ] Task 12: Frontend — Add ImagePicker to LegacyCreation form
-- [ ] Task 13: Validation — Full backend validation and frontend build
+- [x] Task 7: Frontend — Add background image fields to API types and functions *(commit: 42fee48)*
+- [x] Task 8: Frontend — Update ProfileHeader to display background image *(commit: 42fee48)*
+- [x] Task 9: Frontend — Add "Set as Background" button to MediaDetailPanel *(commit: 42fee48)*
+- [x] Task 10: Frontend — Create ImagePicker component *(commit: 91406a0)*
+- [x] Task 11: Frontend — Add ImagePicker to LegacyEdit form *(commit: 91406a0)*
+- [x] Task 12: Frontend — Add ImagePicker to LegacyCreation form *(commit: 91406a0)*
+- [x] Task 13: Validation — Full backend validation and frontend build *(commit: 72ce2cb)*
+
+**Status: COMPLETE** — All 13 tasks implemented and validated.
 
 ---
 
