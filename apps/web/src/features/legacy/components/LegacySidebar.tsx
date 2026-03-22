@@ -11,6 +11,7 @@ interface LegacySidebarProps {
   legacy: Legacy;
   legacyId: string;
   canManageLegacy?: boolean;
+  canInviteMembers?: boolean;
   onMembersClick: () => void;
   onSectionChange: (section: SectionId) => void;
 }
@@ -19,6 +20,7 @@ export default function LegacySidebar({
   legacy,
   legacyId,
   canManageLegacy = true,
+  canInviteMembers = true,
   onMembersClick,
   onSectionChange,
 }: LegacySidebarProps) {
@@ -80,7 +82,7 @@ export default function LegacySidebar({
             {members.map((member) => (
               <MemberRow key={member.user_id} member={member} />
             ))}
-            {canManageLegacy && (
+            {canInviteMembers && (
               <button
                 onClick={onMembersClick}
                 className="flex items-center gap-1.5 py-2 text-sm font-medium text-theme-primary hover:text-theme-primary-dark transition-colors"

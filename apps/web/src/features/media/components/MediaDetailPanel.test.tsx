@@ -291,7 +291,7 @@ describe('MediaDetailPanel', () => {
     expect(screen.queryByText('Background')).not.toBeInTheDocument();
   });
 
-  it('derives legacyId from media.legacies[0] when legacyId prop is omitted', () => {
+  it('does not show tag editing controls when legacyId is omitted', () => {
     const mediaWithLegacy = {
       ...mediaItem,
       legacies: [{ legacy_id: 'derived-legacy', legacy_name: 'Rose', role: 'primary' as const, position: 0 }],
@@ -309,7 +309,27 @@ describe('MediaDetailPanel', () => {
       </MemoryRouter>
     );
 
-    // Hooks should be called with the derived legacy ID
-    expect(mocks.useUpdateMedia).toHaveBeenCalledWith('derived-legacy');
+    expect(screen.queryByPlaceholderText(/add a tag and press enter/i)).not.toBeInTheDocument();
+  });
+
+  it('does not derive legacyId from media associations when no explicit legacyId is provided', () => {
+    const mediaWithLegacy = {
+      ...mediaItem,
+      legacies: [{ legacy_id: 'derived-legacy', legacy_name: 'Rose', role: 'primary' as const, position: 0 }],
+    };
+
+    render(
+      <MemoryRouter>
+        <MediaDetailPanel
+          media={mediaWithLegacy}
+          allMedia={[mediaWithLegacy]}
+          onClose={mocks.onClose}
+          onNavigate={mocks.onNavigate}
+          isAuthenticated={true}
+        />
+      </MemoryRouter>
+    );
+
+    expect(mocks.useUpdateMedia).toHaveBeenCalledWith(undefined);
   });
 });

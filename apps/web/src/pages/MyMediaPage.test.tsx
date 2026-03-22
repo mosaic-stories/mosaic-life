@@ -38,8 +38,10 @@ vi.mock('@/features/media/hooks/useMedia', async () => {
 });
 
 vi.mock('@/features/media/components/MediaBrowser', () => ({
-  default: ({ media }: { media: MediaItem[] }) => (
-    <div data-testid="media-browser">{media.length} items</div>
+  default: ({ media, legacyId }: { media: MediaItem[]; legacyId?: string }) => (
+    <div data-testid="media-browser" data-legacy-id={legacyId ?? ''}>
+      {media.length} items
+    </div>
   ),
 }));
 
@@ -77,6 +79,16 @@ describe('MyMediaPage', () => {
       </MemoryRouter>
     );
     expect(screen.getByTestId('media-browser')).toHaveTextContent('1 items');
+  });
+
+  it('does not pass a legacy context into the cross-legacy media browser', () => {
+    render(
+      <MemoryRouter>
+        <MyMediaPage />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByTestId('media-browser')).toHaveAttribute('data-legacy-id', '');
   });
 
   it('calls useMedia with no legacyId to fetch all media', () => {

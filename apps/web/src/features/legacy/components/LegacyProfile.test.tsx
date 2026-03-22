@@ -109,8 +109,12 @@ vi.mock('./DeleteLegacyDialog', () => ({
 }));
 
 vi.mock('./LegacySidebar', () => ({
-  default: (props: { canManageLegacy?: boolean }) => (
-    <div data-testid="legacy-sidebar" data-can-manage-legacy={String(props.canManageLegacy)} />
+  default: (props: { canManageLegacy?: boolean; canInviteMembers?: boolean }) => (
+    <div
+      data-testid="legacy-sidebar"
+      data-can-manage-legacy={String(props.canManageLegacy)}
+      data-can-invite-members={String(props.canInviteMembers)}
+    />
   ),
 }));
 
@@ -210,7 +214,7 @@ describe('LegacyProfile', () => {
     expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-manage-legacy', 'false');
   });
 
-  it('allows legacy management actions for admin members', () => {
+  it('does not expose creator-only legacy management actions for admin members', () => {
     mocks.legacy = {
       ...mocks.legacy,
       members: [{ email: 'test@example.com', role: 'admin' }],
@@ -218,7 +222,9 @@ describe('LegacyProfile', () => {
 
     render(<LegacyProfile legacyId="legacy-1" />);
 
-    expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-manage-legacy', 'true');
+    expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-manage-legacy', 'false');
+    expect(screen.getByTestId('legacy-sidebar')).toHaveAttribute('data-can-manage-legacy', 'false');
+    expect(screen.getByTestId('legacy-sidebar')).toHaveAttribute('data-can-invite-members', 'true');
   });
 
   it('routes request access into the header and disables story creation for non-members', () => {
@@ -241,6 +247,7 @@ describe('LegacyProfile', () => {
     expect(screen.getByTestId('profile-header')).toHaveAttribute('data-can-manage-legacy', 'false');
     expect(screen.getByTestId('stories-section')).toHaveAttribute('data-can-add-story', 'false');
     expect(screen.getByTestId('legacy-sidebar')).toHaveAttribute('data-can-manage-legacy', 'false');
+    expect(screen.getByTestId('legacy-sidebar')).toHaveAttribute('data-can-invite-members', 'false');
   });
 
   it('disables member profile loading for public viewers who are not members', () => {

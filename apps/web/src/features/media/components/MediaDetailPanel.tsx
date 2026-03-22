@@ -103,8 +103,8 @@ export default function MediaDetailPanel({
   isAuthenticated,
   onRequestDelete,
 }: MediaDetailPanelProps) {
-  const effectiveLegacyId = legacyId ?? media.legacies[0]?.legacy_id ?? '';
-  const showLegacyActions = !!legacyId;
+  const effectiveLegacyId = legacyId ?? '';
+  const showLegacyActions = effectiveLegacyId.length > 0;
 
   const [tagInput, setTagInput] = useState('');
   const [personSearch, setPersonSearch] = useState('');
@@ -600,7 +600,7 @@ export default function MediaDetailPanel({
                     key={tag.id}
                     label={tag.name}
                     onRemove={
-                      isAuthenticated
+                      isAuthenticated && showLegacyActions
                         ? () => removeTag.mutate({ mediaId: media.id, tagId: tag.id })
                         : undefined
                     }
@@ -611,7 +611,7 @@ export default function MediaDetailPanel({
               <p className="text-sm text-neutral-400 italic">No tags yet</p>
             )}
 
-            {isAuthenticated && (
+            {isAuthenticated && showLegacyActions && (
               <div className="mt-1.5 space-y-2">
                 <div className="flex items-center gap-2">
                   <Plus size={13} className="text-neutral-400 shrink-0" />

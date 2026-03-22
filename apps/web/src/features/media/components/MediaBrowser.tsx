@@ -96,9 +96,6 @@ export default function MediaBrowser({
     }
   };
 
-  // Derive legacyId for detail panel from selected media if not provided
-  const detailLegacyId = legacyId ?? selectedMedia?.legacies[0]?.legacy_id;
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12" role="status">
@@ -162,7 +159,7 @@ export default function MediaBrowser({
             <MediaDetailPanel
               media={selectedMedia}
               allMedia={media}
-              legacyId={detailLegacyId}
+              legacyId={legacyId}
               profileImageId={profileImageId}
               backgroundImageId={backgroundImageId}
               onClose={() => setSelectedMediaId(null)}
@@ -186,7 +183,7 @@ export default function MediaBrowser({
             <MediaDetailPanel
               media={selectedMedia}
               allMedia={media}
-              legacyId={detailLegacyId}
+              legacyId={legacyId}
               profileImageId={profileImageId}
               backgroundImageId={backgroundImageId}
               onClose={() => setSelectedMediaId(null)}

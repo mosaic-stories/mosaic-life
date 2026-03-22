@@ -48,6 +48,7 @@ describe('LegacySidebar', () => {
           legacy={legacy}
           legacyId="legacy-1"
           canManageLegacy={false}
+          canInviteMembers={false}
           onMembersClick={vi.fn()}
           onSectionChange={vi.fn()}
         />
@@ -58,13 +59,14 @@ describe('LegacySidebar', () => {
     expect(screen.queryByText('Invite someone')).not.toBeInTheDocument();
   });
 
-  it('shows management links for members', () => {
+  it('shows edit and invite links for creators', () => {
     render(
       <MemoryRouter>
         <LegacySidebar
           legacy={legacy}
           legacyId="legacy-1"
           canManageLegacy={true}
+          canInviteMembers={true}
           onMembersClick={vi.fn()}
           onSectionChange={vi.fn()}
         />
@@ -72,6 +74,24 @@ describe('LegacySidebar', () => {
     );
 
     expect(screen.getByText('Edit biography')).toBeInTheDocument();
+    expect(screen.getByText('Invite someone')).toBeInTheDocument();
+  });
+
+  it('shows invite without legacy editing for non-creator managers', () => {
+    render(
+      <MemoryRouter>
+        <LegacySidebar
+          legacy={legacy}
+          legacyId="legacy-1"
+          canManageLegacy={false}
+          canInviteMembers={true}
+          onMembersClick={vi.fn()}
+          onSectionChange={vi.fn()}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByText('Edit biography')).not.toBeInTheDocument();
     expect(screen.getByText('Invite someone')).toBeInTheDocument();
   });
 });
