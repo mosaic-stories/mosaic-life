@@ -56,6 +56,21 @@ describe('SectionNav', () => {
     expect(screen.queryByRole('link', { name: 'Jordan Doe' })).not.toBeInTheDocument();
   });
 
+  it('hides the AI Chat tab when AI access is disabled', () => {
+    render(
+      <MemoryRouter>
+        <SectionNav
+          activeSection="stories"
+          onSectionChange={vi.fn()}
+          showAIChat={false}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByText('AI Chat')).not.toBeInTheDocument();
+    expect(screen.getByText('Stories')).toBeInTheDocument();
+  });
+
   it('keeps the members control clickable', async () => {
     const user = userEvent.setup();
     const onMembersClick = vi.fn();

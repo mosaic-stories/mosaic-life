@@ -19,6 +19,7 @@ const tabs: TabDef[] = [
 export interface SectionNavProps {
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
+  showAIChat?: boolean;
   storyCount?: number;
   memberCount?: number;
   creatorName?: string | null;
@@ -30,6 +31,7 @@ export interface SectionNavProps {
 export default function SectionNav({
   activeSection,
   onSectionChange,
+  showAIChat = true,
   storyCount,
   memberCount,
   creatorName,
@@ -37,12 +39,14 @@ export default function SectionNav({
   creatorIsCurrentUser,
   onMembersClick,
 }: SectionNavProps) {
+  const visibleTabs = showAIChat ? tabs : tabs.filter((tab) => tab.id !== 'ai');
+
   return (
     <nav className="bg-white border-b sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
         {/* Tabs */}
         <div className="flex gap-0">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSection === tab.id;
             return (

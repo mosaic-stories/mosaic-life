@@ -85,7 +85,9 @@ vi.mock('./ProfileHeader', () => ({
 }));
 
 vi.mock('./SectionNav', () => ({
-  default: () => <div data-testid="section-nav" />,
+  default: (props: { showAIChat?: boolean }) => (
+    <div data-testid="section-nav" data-show-ai-chat={String(props.showAIChat)} />
+  ),
 }));
 
 vi.mock('./StoriesSection', () => ({
@@ -166,6 +168,27 @@ describe('LegacyProfile', () => {
 
     expect(screen.getByTestId('ai-section')).toBeInTheDocument();
     expect(screen.queryByTestId('stories-section')).not.toBeInTheDocument();
+  });
+
+  it('hides AI for non-members even when the URL requests the ai tab', () => {
+    mocks.searchParams = new URLSearchParams('tab=ai');
+    mocks.authUser = {
+      id: 'viewer-1',
+      name: 'Viewer',
+      email: 'viewer@example.com',
+      avatar_url: null,
+    };
+    mocks.legacy = {
+      ...mocks.legacy,
+      created_by: 'creator-1',
+      members: [],
+    };
+
+    render(<LegacyProfile legacyId="legacy-1" />);
+
+    expect(screen.getByTestId('section-nav')).toHaveAttribute('data-show-ai-chat', 'false');
+    expect(screen.getByTestId('stories-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('ai-section')).not.toBeInTheDocument();
   });
 
   it('renders profile header and sidebar', () => {

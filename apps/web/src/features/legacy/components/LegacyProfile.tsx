@@ -29,6 +29,15 @@ interface LegacyProfileProps {
   legacyId: string;
 }
 
+function resolveActiveSection(
+  requestedSection: SectionId | null,
+  canAccessAI: boolean,
+): SectionId {
+  if (!requestedSection) return 'stories';
+  if (requestedSection === 'ai' && !canAccessAI) return 'stories';
+  return requestedSection;
+}
+
 export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const { user: authUser } = useAuth();
   const user = useMemo(() => {
@@ -41,7 +50,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const promptSeedMode: PromptSeedMode = searchParams.get('seed') === 'story_prompt'
     ? 'story_prompt'
     : undefined;
-  const [activeSection, setActiveSection] = useState<SectionId>(tabParam || 'stories');
+  const [activeSection, setActiveSection] = useState<SectionId>(() => resolveActiveSection(tabParam, false));
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showMemberDrawer, setShowMemberDrawer] = useState(false);
   const [showAccessRequestDialog, setShowAccessRequestDialog] = useState(false);
@@ -52,10 +61,6 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const deleteLegacy = useDeleteLegacy();
 
   const createStory = useCreateStory();
-
-  useEffect(() => {
-    setActiveSection(tabParam || 'stories');
-  }, [tabParam]);
 
   const legacy = legacyQuery.data;
   const legacyLoading = legacyQuery.isLoading;
@@ -72,9 +77,14 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
 
   const currentUserRole = currentUserMember?.role || 'admirer';
   const isMember = !!currentUserMember;
+  const canAccessAI = isMember;
   const canManageLegacy = currentUserRole === 'creator' || currentUserRole === 'admin';
   const canRequestAccess = !!authUser && !isMember && legacy?.visibility === 'public';
   const _memberProfileQuery = useMemberProfile(legacyId, { enabled: isMember });
+
+  useEffect(() => {
+    setActiveSection(resolveActiveSection(tabParam, canAccessAI));
+  }, [tabParam, canAccessAI]);
 
   const handleAddStory = useCallback(async () => {
     try {
@@ -203,6 +213,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
       <SectionNav
         activeSection={activeSection}
         onSectionChange={setActiveSection}
+        showAIChat={canAccessAI}
         storyCount={storyCount}
         memberCount={memberCount}
         creatorName={legacy.creator_name}
@@ -243,7 +254,7 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
             />
           )}
 
-          {activeSection === 'ai' && (
+          {activeSection === 'ai' && canAccessAI && (
             <AISection
               legacyId={legacyId}
               initialConversationId={conversationParam}
