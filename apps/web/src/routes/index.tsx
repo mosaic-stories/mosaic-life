@@ -28,6 +28,18 @@ const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 // Profile
 const ProfilePage = lazy(() => import('@/features/profile/components/ProfilePage'));
 
+// Section layouts
+const MyMosaicLayout = lazy(() => import('./MyMosaicLayout'));
+const ExploreLayout = lazy(() => import('./ExploreLayout'));
+
+// New pages
+const MyMediaPage = lazy(() => import('@/pages/MyMediaPage'));
+const PersonalPage = lazy(() => import('@/pages/PersonalPage'));
+const ExploreLegaciesPage = lazy(() => import('@/pages/ExploreLegaciesPage'));
+const ExploreStoriesPage = lazy(() => import('@/pages/ExploreStoriesPage'));
+const ExploreMediaPage = lazy(() => import('@/pages/ExploreMediaPage'));
+const ExplorePeoplePage = lazy(() => import('@/pages/ExplorePeoplePage'));
+
 // Settings components
 const SettingsLayout = lazy(() => import('@/features/settings/components/SettingsLayout'));
 const ConnectionsSettings = lazy(() => import('@/features/settings/components/ConnectionsSettings'));
@@ -52,13 +64,10 @@ function LazyPage({ children }: { children: React.ReactNode }) {
 }
 
 // Auth-aware homepage wrapper
-// DashboardPage and PublicHomePage are React.lazy components.
-// The parent <LazyPage> provides the required <Suspense> boundary.
 function AuthAwareHome() {
   const { user, isLoading } = useAuth();
   if (isLoading) return <PageLoader />;
-  // If auth check fails, user is null — falls through to PublicHomePage as safe fallback
-  return user ? <DashboardPage /> : <PublicHomePage />;
+  return user ? <Navigate to="/my/overview" replace /> : <PublicHomePage />;
 }
 
 // Route param extractors — pass URL params as props to page components
@@ -108,47 +117,61 @@ export const router = createBrowserRouter([
         path: 'u/:username',
         element: <LazyPage><ProfilePage /></LazyPage>,
       },
-      // Authenticated navigation pages
+
+      // ── My Mosaic section ──
       {
-        path: 'legacies',
+        path: 'my',
         element: (
           <ProtectedRoute>
-            <LazyPage><LegaciesPage /></LazyPage>
+            <LazyPage><MyMosaicLayout /></LazyPage>
           </ProtectedRoute>
         ),
+        children: [
+          { index: true, element: <Navigate to="overview" replace /> },
+          { path: 'overview', element: <LazyPage><DashboardPage /></LazyPage> },
+          { path: 'legacies', element: <LazyPage><LegaciesPage /></LazyPage> },
+          { path: 'stories', element: <LazyPage><StoriesPage /></LazyPage> },
+          { path: 'media', element: <LazyPage><MyMediaPage /></LazyPage> },
+          { path: 'conversations', element: <LazyPage><ConnectionsPage /></LazyPage> },
+          { path: 'personal', element: <LazyPage><PersonalPage /></LazyPage> },
+        ],
       },
+
+      // ── Explore section ──
       {
-        path: 'stories',
+        path: 'explore',
         element: (
           <ProtectedRoute>
-            <LazyPage><StoriesPage /></LazyPage>
+            <LazyPage><ExploreLayout /></LazyPage>
           </ProtectedRoute>
         ),
+        children: [
+          { index: true, element: <Navigate to="legacies" replace /> },
+          { path: 'legacies', element: <LazyPage><ExploreLegaciesPage /></LazyPage> },
+          { path: 'stories', element: <LazyPage><ExploreStoriesPage /></LazyPage> },
+          { path: 'media', element: <LazyPage><ExploreMediaPage /></LazyPage> },
+          { path: 'people', element: <LazyPage><ExplorePeoplePage /></LazyPage> },
+        ],
       },
-      {
-        path: 'connections',
-        element: (
-          <ProtectedRoute>
-            <LazyPage><ConnectionsPage /></LazyPage>
-          </ProtectedRoute>
-        ),
-      },
+
+      // ── Old URL redirects ──
+      { path: 'legacies', element: <Navigate to="/my/legacies" replace /> },
+      { path: 'stories', element: <Navigate to="/my/stories" replace /> },
+      { path: 'connections', element: <Navigate to="/my/conversations" replace /> },
+      { path: 'my-legacies', element: <Navigate to="/my/legacies" replace /> },
+
       // Public legacy view
       {
         path: 'legacy/:legacyId',
         element: <LazyPage><WithLegacyId Component={LegacyProfile} /></LazyPage>,
       },
-      // Invitation accept page (requires auth but not protected route)
+      // Invitation accept page
       {
         path: 'invite/:token',
         element: <LazyPage><InviteAcceptPage /></LazyPage>,
       },
 
       // Protected routes
-      {
-        path: 'my-legacies',
-        element: <Navigate to="/legacies" replace />,
-      },
       {
         path: 'legacy/new',
         element: (
