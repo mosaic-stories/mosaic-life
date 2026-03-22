@@ -5,7 +5,7 @@ import { useHeaderContext } from './HeaderContext';
 import HeaderLogo from './HeaderLogo';
 import HeaderUserMenu from './HeaderUserMenu';
 import HeaderOverflowMenu from './HeaderOverflowMenu';
-import NavLinks from './NavLinks';
+import SectionSwitcher from '@/components/navigation/SectionSwitcher';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthModal } from '@/lib/hooks/useAuthModal';
 
@@ -27,7 +27,7 @@ export default function AppHeader() {
         {/* Center: Nav links (authenticated desktop) or Slot content (public) */}
         {user && !isMobile ? (
           <div className="flex-1 flex items-center justify-center">
-            <NavLinks />
+            <SectionSwitcher />
           </div>
         ) : isMobile ? (
           slotContent && <HeaderOverflowMenu>{slotContent}</HeaderOverflowMenu>
