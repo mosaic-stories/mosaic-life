@@ -651,7 +651,7 @@ git commit -m "feat(web): extract MediaBrowser shared component"
 
 ---
 
-### Task 4: Refactor MediaSection to use MediaBrowser
+### Task 4: Refactor MediaSection to use MediaBrowser ✅
 
 **Files:**
 - Modify: `apps/web/src/features/legacy/components/MediaSection.tsx`
@@ -765,7 +765,7 @@ git commit -m "refactor(web): simplify MediaSection to use MediaBrowser"
 
 ---
 
-### Task 5: Create MediaStatsBar component
+### Task 5: Create MediaStatsBar component ✅
 
 **Files:**
 - Create: `apps/web/src/features/media/components/MediaStatsBar.tsx`
