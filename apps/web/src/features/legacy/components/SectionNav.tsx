@@ -1,4 +1,5 @@
 import { BookOpen, Image, Link2, Sparkles, Users, MessageSquare } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export type SectionId = 'stories' | 'media' | 'links' | 'ai';
 
@@ -18,26 +19,34 @@ const tabs: TabDef[] = [
 export interface SectionNavProps {
   activeSection: SectionId;
   onSectionChange: (section: SectionId) => void;
+  showAIChat?: boolean;
   storyCount?: number;
   memberCount?: number;
   creatorName?: string | null;
+  creatorUsername?: string | null;
+  creatorIsCurrentUser?: boolean;
   onMembersClick?: () => void;
 }
 
 export default function SectionNav({
   activeSection,
   onSectionChange,
+  showAIChat = true,
   storyCount,
   memberCount,
   creatorName,
+  creatorUsername,
+  creatorIsCurrentUser,
   onMembersClick,
 }: SectionNavProps) {
+  const visibleTabs = showAIChat ? tabs : tabs.filter((tab) => tab.id !== 'ai');
+
   return (
     <nav className="bg-white border-b sticky top-0 z-30">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
         {/* Tabs */}
         <div className="flex gap-0">
-          {tabs.map((tab) => {
+          {visibleTabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSection === tab.id;
             return (
@@ -87,7 +96,17 @@ export default function SectionNav({
           )}
           {creatorName && (
             <div className="text-[13px] text-neutral-500">
-              Created by <span className="font-semibold text-theme-primary">{creatorName}</span>
+              Created by {' '}
+              {creatorUsername ? (
+                <Link
+                  to={`/u/${creatorUsername}`}
+                  className="font-semibold text-theme-primary hover:underline"
+                >
+                  {creatorIsCurrentUser ? 'you' : creatorName}
+                </Link>
+              ) : (
+                <span className="font-semibold text-theme-primary">{creatorName}</span>
+              )}
             </div>
           )}
         </div>

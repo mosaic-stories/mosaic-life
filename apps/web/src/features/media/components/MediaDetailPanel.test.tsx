@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   useAddTag: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useRemoveTag: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useSetProfileImage: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useSetBackgroundImage: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useLegacyTags: vi.fn(() => ({ data: [] as TagItem[] })),
   useSearchPersons: vi.fn((_: string) => ({ data: [] as PersonSearchResult[] | undefined })),
   favoriteCheck: vi.fn(() => ({ data: { favorites: {} } })),
@@ -36,6 +37,7 @@ vi.mock('@/features/media/hooks/useMedia', async () => {
     useAddTag: mocks.useAddTag,
     useRemoveTag: mocks.useRemoveTag,
     useSetProfileImage: mocks.useSetProfileImage,
+    useSetBackgroundImage: mocks.useSetBackgroundImage,
     useLegacyTags: mocks.useLegacyTags,
     useSearchPersons: mocks.useSearchPersons,
   };
@@ -116,6 +118,7 @@ function renderPanel(overrides?: Partial<ComponentProps<typeof MediaDetailPanel>
         allMedia={[mediaItem]}
         legacyId="legacy-1"
         profileImageId={null}
+        backgroundImageId={null}
         onClose={mocks.onClose}
         onNavigate={mocks.onNavigate}
         isAuthenticated
@@ -266,5 +269,67 @@ describe('MediaDetailPanel', () => {
     fireEvent.keyDown(button, { key: 'Escape', bubbles: true });
 
     expect(mocks.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides set-as-profile and set-as-background buttons when legacyId is omitted', () => {
+    render(
+      <MemoryRouter>
+        <MediaDetailPanel
+          media={mediaItem}
+          allMedia={[mediaItem]}
+          onClose={mocks.onClose}
+          onNavigate={mocks.onNavigate}
+          isAuthenticated={true}
+          onRequestDelete={mocks.onRequestDelete}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByText('Set as Profile')).not.toBeInTheDocument();
+    expect(screen.queryByText('Set as Background')).not.toBeInTheDocument();
+    expect(screen.queryByText('Profile Photo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Background')).not.toBeInTheDocument();
+  });
+
+  it('does not show tag editing controls when legacyId is omitted', () => {
+    const mediaWithLegacy = {
+      ...mediaItem,
+      legacies: [{ legacy_id: 'derived-legacy', legacy_name: 'Rose', role: 'primary' as const, position: 0 }],
+    };
+
+    render(
+      <MemoryRouter>
+        <MediaDetailPanel
+          media={mediaWithLegacy}
+          allMedia={[mediaWithLegacy]}
+          onClose={mocks.onClose}
+          onNavigate={mocks.onNavigate}
+          isAuthenticated={true}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByPlaceholderText(/add a tag and press enter/i)).not.toBeInTheDocument();
+  });
+
+  it('does not derive legacyId from media associations when no explicit legacyId is provided', () => {
+    const mediaWithLegacy = {
+      ...mediaItem,
+      legacies: [{ legacy_id: 'derived-legacy', legacy_name: 'Rose', role: 'primary' as const, position: 0 }],
+    };
+
+    render(
+      <MemoryRouter>
+        <MediaDetailPanel
+          media={mediaWithLegacy}
+          allMedia={[mediaWithLegacy]}
+          onClose={mocks.onClose}
+          onNavigate={mocks.onNavigate}
+          isAuthenticated={true}
+        />
+      </MemoryRouter>
+    );
+
+    expect(mocks.useUpdateMedia).toHaveBeenCalledWith(undefined);
   });
 });

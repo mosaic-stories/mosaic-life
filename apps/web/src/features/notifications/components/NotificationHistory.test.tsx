@@ -102,7 +102,7 @@ describe('NotificationHistory', () => {
       status: 'read',
     });
     expect(mockNavigate).toHaveBeenCalledWith(
-      '/connections?tab=requests&filter=all&focus=incoming&request=request-1'
+      '/my/conversations?tab=requests&filter=all&focus=incoming&request=request-1'
     );
   });
 

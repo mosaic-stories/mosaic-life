@@ -95,6 +95,7 @@ Thumbs.db
 
 # Local development
 .local/
+.mcp.json
 
 # Docker Compose local environment
 infra/compose/.env

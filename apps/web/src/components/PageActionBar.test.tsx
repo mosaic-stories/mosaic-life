@@ -8,14 +8,14 @@ describe('PageActionBar', () => {
   it('renders a back link with the given label', () => {
     render(
       <MemoryRouter>
-        <PageActionBar backLabel="Legacies" backTo="/legacies">
+        <PageActionBar backLabel="Legacies" backTo="/my/legacies">
           <button>Action</button>
         </PageActionBar>
       </MemoryRouter>
     );
     const link = screen.getByRole('link', { name: /legacies/i });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/legacies');
+    expect(link).toHaveAttribute('href', '/my/legacies');
   });
 
   it('renders children as actions on the right', () => {
@@ -34,7 +34,7 @@ describe('PageActionBar', () => {
   it('renders the back arrow icon', () => {
     render(
       <MemoryRouter>
-        <PageActionBar backLabel="Stories" backTo="/stories">
+        <PageActionBar backLabel="Stories" backTo="/my/stories">
           <button>Action</button>
         </PageActionBar>
       </MemoryRouter>

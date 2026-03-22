@@ -3,9 +3,10 @@
 import pytest
 from datetime import datetime, timedelta, timezone
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.associations import MediaPerson, MediaTag
+from app.models.associations import MediaLegacy, MediaPerson, MediaTag
 from app.models.legacy import Legacy
 from app.models.media import Media
 from app.models.person import Person
@@ -42,6 +43,7 @@ class TestRequestUploadUrl:
         assert "upload_url" in data
         assert "media_id" in data
         assert "storage_path" in data
+        assert data["upload_url"].startswith("/media/")
         assert data["storage_path"].startswith(f"users/{test_user.id}/")
 
     @pytest.mark.asyncio
@@ -205,6 +207,24 @@ class TestListMedia:
         data = response.json()
         assert data == []
 
+    @pytest.mark.asyncio
+    async def test_lists_user_media_without_legacy_filter(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_media: Media,
+    ):
+        """Test listing all user-owned media when no legacy filter is provided."""
+        response = await client.get(
+            "/api/media/",
+            headers=auth_headers,
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["id"] == str(test_media.id)
+        assert data[0]["legacies"][0]["legacy_id"]
+
 
 class TestGetMedia:
     """Tests for GET /api/media/{media_id}."""
@@ -252,6 +272,7 @@ class TestGetMedia:
         assert data["filename"] == "test-image.jpg"
         assert data["id"] == str(test_media.id)
         assert "download_url" in data
+        assert data["download_url"].startswith("/media/")
         assert "storage_path" in data
         assert data["caption"] == "Ceremony photo"
         assert data["date_taken"] == "1962"
@@ -357,3 +378,147 @@ class TestSetProfileImage:
             json={"media_id": str(fake_id)},
         )
         assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_clear_profile_image_success(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+        test_media: Media,
+    ):
+        """Test successfully clearing profile image."""
+        test_legacy.profile_image_id = test_media.id
+
+        response = await client.delete(
+            f"/api/legacies/{test_legacy.id}/profile-image",
+            headers=auth_headers,
+        )
+        assert response.status_code == 204
+
+        detail = await client.get(
+            f"/api/legacies/{test_legacy.id}",
+            headers=auth_headers,
+        )
+        assert detail.status_code == 200
+        assert detail.json()["profile_image_id"] is None
+
+
+class TestSetBackgroundImage:
+    """Tests for PATCH /api/legacies/{legacy_id}/background-image."""
+
+    @pytest.mark.asyncio
+    async def test_requires_auth(
+        self,
+        client: AsyncClient,
+        test_legacy: Legacy,
+        test_media: Media,
+    ):
+        """Test setting background image requires authentication."""
+        response = await client.patch(
+            f"/api/legacies/{test_legacy.id}/background-image",
+            json={"media_id": str(test_media.id)},
+        )
+        assert response.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_media_not_found(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+    ):
+        """Test setting background image with non-associated media returns 404."""
+        import uuid
+
+        fake_id = uuid.uuid4()
+        response = await client.patch(
+            f"/api/legacies/{test_legacy.id}/background-image",
+            headers=auth_headers,
+            json={"media_id": str(fake_id)},
+        )
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_set_background_image_success(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+        test_media: Media,
+    ):
+        """Test successfully setting background image."""
+        response = await client.patch(
+            f"/api/legacies/{test_legacy.id}/background-image",
+            headers=auth_headers,
+            json={"media_id": str(test_media.id)},
+        )
+        assert response.status_code == 204
+
+        # Verify via legacy detail
+        detail = await client.get(
+            f"/api/legacies/{test_legacy.id}",
+            headers=auth_headers,
+        )
+        assert detail.status_code == 200
+        assert detail.json()["background_image_id"] == str(test_media.id)
+
+    @pytest.mark.asyncio
+    async def test_clear_background_image_success(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+        test_media: Media,
+    ):
+        """Test successfully clearing background image."""
+        test_legacy.background_image_id = test_media.id
+
+        response = await client.delete(
+            f"/api/legacies/{test_legacy.id}/background-image",
+            headers=auth_headers,
+        )
+        assert response.status_code == 204
+
+        detail = await client.get(
+            f"/api/legacies/{test_legacy.id}",
+            headers=auth_headers,
+        )
+        assert detail.status_code == 200
+        assert detail.json()["background_image_id"] is None
+
+
+class TestAddMediaLegacyAssociation:
+    """Tests for POST /api/media/{media_id}/legacy-associations."""
+
+    @pytest.mark.asyncio
+    async def test_adds_association_for_new_legacy(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_media: Media,
+        test_legacy_2: Legacy,
+        db_session: AsyncSession,
+    ):
+        """Test attaching owned media to another legacy the user belongs to."""
+        response = await client.post(
+            f"/api/media/{test_media.id}/legacy-associations",
+            headers=auth_headers,
+            json={
+                "legacy_id": str(test_legacy_2.id),
+                "role": "secondary",
+                "position": 1,
+            },
+        )
+        assert response.status_code == 200
+
+        assoc_result = await db_session.execute(
+            select(MediaLegacy).where(
+                MediaLegacy.media_id == test_media.id,
+                MediaLegacy.legacy_id == test_legacy_2.id,
+            )
+        )
+        association = assoc_result.scalar_one_or_none()
+        assert association is not None
+        assert association.role == "secondary"
+        assert association.position == 1

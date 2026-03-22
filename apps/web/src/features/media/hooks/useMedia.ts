@@ -1,12 +1,16 @@
 // TanStack Query hooks for media
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
+  addMediaLegacyAssociation,
+  clearBackgroundImage,
+  clearProfileImage,
   listMedia,
   requestUploadUrl,
   uploadFile,
   confirmUpload,
   deleteMedia,
   setProfileImage,
+  setBackgroundImage,
   validateFile,
   updateMedia,
   tagPerson,
@@ -121,6 +125,66 @@ export function useSetProfileImage(legacyId: string) {
     mutationFn: (mediaId: string) => setProfileImage(legacyId, mediaId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: legacyKeys.detail(legacyId) });
+    },
+  });
+}
+
+export function useClearProfileImage(legacyId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => clearProfileImage(legacyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: legacyKeys.detail(legacyId) });
+    },
+  });
+}
+
+export function useSetBackgroundImage(legacyId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (mediaId: string) => setBackgroundImage(legacyId, mediaId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: legacyKeys.detail(legacyId) });
+    },
+  });
+}
+
+export function useClearBackgroundImage(legacyId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => clearBackgroundImage(legacyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: legacyKeys.detail(legacyId) });
+    },
+  });
+}
+
+export function useAddMediaLegacyAssociation(legacyId?: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      mediaId,
+      targetLegacyId,
+      role,
+      position,
+    }: {
+      mediaId: string;
+      targetLegacyId: string;
+      role?: 'primary' | 'secondary';
+      position?: number;
+    }) => addMediaLegacyAssociation(mediaId, targetLegacyId, role, position),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: mediaKeys.list(legacyId ?? variables.targetLegacyId),
+      });
+      queryClient.invalidateQueries({ queryKey: mediaKeys.lists() });
+      queryClient.invalidateQueries({
+        queryKey: legacyKeys.detail(variables.targetLegacyId),
+      });
     },
   });
 }

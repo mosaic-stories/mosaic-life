@@ -17,7 +17,11 @@ export interface ProfileHeaderProps {
   dates: string;
   legacyId: string;
   isAuthenticated: boolean;
+  canAddStory?: boolean;
+  canRequestAccess?: boolean;
+  canManageLegacy?: boolean;
   onAddStory: () => void;
+  onRequestAccess?: () => void;
   isCreatingStory: boolean;
   onShare: () => void;
   onEdit: () => void;
@@ -29,7 +33,11 @@ export default function ProfileHeader({
   dates,
   legacyId: _legacyId,
   isAuthenticated,
+  canAddStory = true,
+  canRequestAccess = false,
+  canManageLegacy = false,
   onAddStory,
+  onRequestAccess,
   isCreatingStory,
   onShare,
   onEdit,
@@ -38,17 +46,26 @@ export default function ProfileHeader({
   const profileImageUrl = legacy.profile_image_url
     ? rewriteBackendUrlForDev(legacy.profile_image_url)
     : null;
+  const backgroundImageUrl = legacy.background_image_url
+    ? rewriteBackendUrlForDev(legacy.background_image_url)
+    : null;
 
   return (
     <section className="relative h-[280px] sm:h-[280px] overflow-hidden bg-gradient-to-br from-theme-primary-dark via-theme-primary to-theme-primary/70">
       {/* Cover image background */}
-      {profileImageUrl && (
+      {backgroundImageUrl ? (
+        <img
+          src={backgroundImageUrl}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+        />
+      ) : profileImageUrl ? (
         <img
           src={profileImageUrl}
           alt=""
           className="absolute inset-0 w-full h-full object-cover opacity-15 blur-sm"
         />
-      )}
+      ) : null}
 
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-theme-primary-dark/30 to-theme-primary-dark/85" />
@@ -58,7 +75,7 @@ export default function ProfileHeader({
         <nav className="flex items-center gap-2 text-[13px] text-white/60">
           <Link to="/" className="hover:text-white/80 transition-colors">Home</Link>
           <ChevronRight size={12} />
-          <Link to="/legacies" className="hover:text-white/80 transition-colors">Legacies</Link>
+          <Link to="/my/legacies" className="hover:text-white/80 transition-colors">Legacies</Link>
           <ChevronRight size={12} />
           <span className="text-white/90 font-medium">{legacy.name}</span>
         </nav>
@@ -109,19 +126,29 @@ export default function ProfileHeader({
           {/* Action buttons */}
           {isAuthenticated && (
             <div className="flex gap-2 shrink-0">
-              <Button
-                size="sm"
-                className="bg-white text-theme-primary-dark hover:bg-white/90 shadow-md"
-                onClick={onAddStory}
-                disabled={isCreatingStory}
-              >
-                {isCreatingStory ? (
-                  <Loader2 className="size-4 mr-1.5 animate-spin" />
-                ) : (
-                  <Plus className="size-4 mr-1.5" />
-                )}
-                <span className="hidden sm:inline">Add Story</span>
-              </Button>
+              {canRequestAccess ? (
+                <Button
+                  size="sm"
+                  className="bg-white text-theme-primary-dark hover:bg-white/90 shadow-md"
+                  onClick={onRequestAccess}
+                >
+                  <span>Request Access</span>
+                </Button>
+              ) : canAddStory ? (
+                <Button
+                  size="sm"
+                  className="bg-white text-theme-primary-dark hover:bg-white/90 shadow-md"
+                  onClick={onAddStory}
+                  disabled={isCreatingStory}
+                >
+                  {isCreatingStory ? (
+                    <Loader2 className="size-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Plus className="size-4 mr-1.5" />
+                  )}
+                  <span className="hidden sm:inline">Add Story</span>
+                </Button>
+              ) : null}
               <Button
                 size="sm"
                 variant="ghost"
@@ -130,26 +157,28 @@ export default function ProfileHeader({
               >
                 <Share2 size={16} />
               </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="bg-white/15 backdrop-blur-sm text-white border border-white/20 hover:bg-white/25 hover:text-white"
-                  >
-                    <MoreVertical size={16} />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={onEdit}>
-                    <Pencil className="size-4" /> Edit Legacy
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem variant="destructive" onClick={onDelete}>
-                    <Trash2 className="size-4" /> Delete Legacy
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              {canManageLegacy && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="bg-white/15 backdrop-blur-sm text-white border border-white/20 hover:bg-white/25 hover:text-white"
+                    >
+                      <MoreVertical size={16} />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={onEdit}>
+                      <Pencil className="size-4" /> Edit Legacy
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={onDelete}>
+                      <Trash2 className="size-4" /> Delete Legacy
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           )}
         </div>

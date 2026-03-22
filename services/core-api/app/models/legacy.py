@@ -83,6 +83,13 @@ class Legacy(Base):
         index=True,
     )
 
+    background_image_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("media.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     person_id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("persons.id", ondelete="SET NULL"),
@@ -106,6 +113,11 @@ class Legacy(Base):
     profile_image: Mapped["Media | None"] = relationship(
         "Media",
         foreign_keys=[profile_image_id],
+        lazy="joined",
+    )
+    background_image: Mapped["Media | None"] = relationship(
+        "Media",
+        foreign_keys=[background_image_id],
         lazy="joined",
     )
 

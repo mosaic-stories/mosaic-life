@@ -1,11 +1,13 @@
 """Tests for media service."""
 
+from pathlib import Path
 import pytest
 from uuid import uuid4
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.adapters.storage import LocalStorageAdapter
 from app.models.associations import MediaLegacy, MediaPerson, MediaTag
 from app.models.legacy import Legacy
 from app.models.media import Media
@@ -108,6 +110,25 @@ class TestGenerateStoragePath:
 
         assert path.startswith(f"users/{test_user.id}/")
         assert path.endswith(".jpg")
+
+
+class TestLocalStorageAdapter:
+    """Tests for local storage URL generation."""
+
+    def test_uses_relative_urls_for_local_dev(self, tmp_path: Path):
+        """Local media URLs should stay same-origin via the dev proxy."""
+        adapter = LocalStorageAdapter(
+            str(tmp_path), "http://beelink.projecthewitt.info:8080"
+        )
+
+        assert (
+            adapter.generate_upload_url("users/test/file.jpg", "image/jpeg")
+            == "/media/users/test/file.jpg"
+        )
+        assert (
+            adapter.generate_download_url("users/test/file.jpg")
+            == "/media/users/test/file.jpg"
+        )
 
 
 class TestRequestUploadUrlAssociations:
@@ -245,3 +266,81 @@ class TestAddMediaTag:
 
         assert exc.value.status_code == 400
         assert "associated with this media" in exc.value.detail
+
+
+class TestMediaLegacyAssociation:
+    """Tests for attaching owned media to additional legacies."""
+
+    @pytest.mark.asyncio
+    async def test_add_media_legacy_association_creates_new_row(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_media: Media,
+        test_legacy_2: Legacy,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        class DummyStorage:
+            def generate_download_url(self, storage_path: str) -> str:
+                return f"https://example.test/download/{storage_path}"
+
+        monkeypatch.setattr(
+            media_service, "get_storage_adapter", lambda: DummyStorage()
+        )
+
+        detail = await media_service.add_media_legacy_association(
+            db=db_session,
+            user_id=test_user.id,
+            media_id=test_media.id,
+            data=media_service.AddMediaLegacyAssociationRequest(
+                legacy_id=test_legacy_2.id,
+                role="secondary",
+                position=2,
+            ),
+        )
+
+        assoc_result = await db_session.execute(
+            select(MediaLegacy).where(
+                MediaLegacy.media_id == test_media.id,
+                MediaLegacy.legacy_id == test_legacy_2.id,
+            )
+        )
+        association = assoc_result.scalar_one_or_none()
+        assert association is not None
+        assert association.role == "secondary"
+        assert association.position == 2
+        assert len(detail.legacies) == 2
+
+
+class TestClearLegacyImages:
+    """Tests for clearing legacy profile and background images."""
+
+    @pytest.mark.asyncio
+    async def test_clear_profile_and_background_image(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+        test_media: Media,
+    ):
+        test_legacy.profile_image_id = test_media.id
+        test_legacy.background_image_id = test_media.id
+        await db_session.commit()
+
+        await media_service.clear_profile_image(
+            db=db_session,
+            user_id=test_user.id,
+            legacy_id=test_legacy.id,
+        )
+        await media_service.clear_background_image(
+            db=db_session,
+            user_id=test_user.id,
+            legacy_id=test_legacy.id,
+        )
+
+        legacy_result = await db_session.execute(
+            select(Legacy).where(Legacy.id == test_legacy.id)
+        )
+        refreshed_legacy = legacy_result.scalar_one()
+        assert refreshed_legacy.profile_image_id is None
+        assert refreshed_legacy.background_image_id is None

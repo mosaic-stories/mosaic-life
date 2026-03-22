@@ -83,7 +83,7 @@ export function useNotificationActions(
         });
         markReadIfNeeded(notification);
         navigate(
-          `/connections?tab=my-connections&filter=all&connection=${connection.id}`
+          `/my/conversations?tab=my-connections&filter=all&connection=${connection.id}`
         );
       },
       onError: () => {

@@ -42,7 +42,6 @@ class LocalStorageAdapter(StorageAdapter):
 
     def __init__(self, base_path: str, api_url: str):
         self.base_path = Path(base_path)
-        self.api_url = api_url.rstrip("/")
         self.base_path.mkdir(parents=True, exist_ok=True)
 
     def generate_upload_url(self, path: str, content_type: str) -> str:
@@ -50,11 +49,13 @@ class LocalStorageAdapter(StorageAdapter):
         # Ensure parent directory exists
         full_path = self.base_path / path
         full_path.parent.mkdir(parents=True, exist_ok=True)
-        return f"{self.api_url}/media/{path}"
+        # Use a relative path so local dev can stay same-origin via the web proxy.
+        return f"/media/{path}"
 
     def generate_download_url(self, path: str) -> str:
         """Generate local download URL."""
-        return f"{self.api_url}/media/{path}"
+        # Use a relative path so local dev can stay same-origin via the web proxy.
+        return f"/media/{path}"
 
     def file_exists(self, path: str) -> bool:
         """Check if file exists locally."""

@@ -17,7 +17,7 @@ from ..schemas.legacy import (
     LegacyScopedResponse,
     LegacyUpdate,
 )
-from ..schemas.media import SetProfileImageRequest
+from ..schemas.media import SetBackgroundImageRequest, SetProfileImageRequest
 from ..schemas.member_profile import MemberProfileResponse, MemberProfileUpdate
 from ..services import activity as activity_service
 from ..services import legacy as legacy_service
@@ -482,7 +482,7 @@ async def update_member_profile(
     "/{legacy_id}/profile-image",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Set profile image",
-    description="Set legacy profile image from existing media. User must be creator or editor.",
+    description="Set legacy profile image from existing media. User must be creator or admin.",
 )
 async def set_profile_image(
     legacy_id: UUID,
@@ -493,7 +493,7 @@ async def set_profile_image(
     """Set legacy profile image from existing media.
 
     Media must be associated with the legacy.
-    Only creators and editors can set the profile image.
+    Only creators and admins can set the profile image.
     """
     session = require_auth(request)
     await media_service.set_profile_image(
@@ -501,4 +501,70 @@ async def set_profile_image(
         user_id=session.user_id,
         legacy_id=legacy_id,
         media_id=data.media_id,
+    )
+
+
+@router.delete(
+    "/{legacy_id}/profile-image",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Clear profile image",
+    description="Clear the legacy profile image. User must be creator or admin.",
+)
+async def clear_profile_image(
+    legacy_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Clear the legacy profile image."""
+    session = require_auth(request)
+    await media_service.clear_profile_image(
+        db=db,
+        user_id=session.user_id,
+        legacy_id=legacy_id,
+    )
+
+
+@router.patch(
+    "/{legacy_id}/background-image",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Set background image",
+    description="Set legacy background image from existing media. User must be creator or admin.",
+)
+async def set_background_image(
+    legacy_id: UUID,
+    data: SetBackgroundImageRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Set legacy background image from existing media.
+
+    Media must be associated with the legacy.
+    Only creators and admins can set the background image.
+    """
+    session = require_auth(request)
+    await media_service.set_background_image(
+        db=db,
+        user_id=session.user_id,
+        legacy_id=legacy_id,
+        media_id=data.media_id,
+    )
+
+
+@router.delete(
+    "/{legacy_id}/background-image",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Clear background image",
+    description="Clear the legacy background image. User must be creator or admin.",
+)
+async def clear_background_image(
+    legacy_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Clear the legacy background image."""
+    session = require_auth(request)
+    await media_service.clear_background_image(
+        db=db,
+        user_id=session.user_id,
+        legacy_id=legacy_id,
     )

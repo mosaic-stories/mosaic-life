@@ -10,14 +10,14 @@ export function resolveNotificationLink(
   switch (notification.type) {
     case 'connection_request_received':
       return notification.resource_id
-        ? `/connections?tab=requests&filter=all&focus=incoming&request=${notification.resource_id}`
-        : '/connections?tab=requests&filter=all&focus=incoming';
+        ? `/my/conversations?tab=requests&filter=all&focus=incoming&request=${notification.resource_id}`
+        : '/my/conversations?tab=requests&filter=all&focus=incoming';
     case 'connection_request_accepted':
       return notification.resource_id
-        ? `/connections?tab=my-connections&filter=all&connection=${notification.resource_id}`
-        : '/connections?tab=my-connections&filter=all';
+        ? `/my/conversations?tab=my-connections&filter=all&connection=${notification.resource_id}`
+        : '/my/conversations?tab=my-connections&filter=all';
     case 'connection_request_declined':
-      return '/connections?tab=requests&filter=all&focus=outgoing';
+      return '/my/conversations?tab=requests&filter=all&focus=outgoing';
     default:
       return null;
   }

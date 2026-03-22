@@ -12,6 +12,7 @@ import { useFavoriteCheck } from '@/features/favorites/hooks/useFavorites';
 import UserLink from '@/components/UserLink';
 import {
   useSetProfileImage,
+  useSetBackgroundImage,
   useUpdateMedia,
   useTagPerson,
   useUntagPerson,
@@ -74,8 +75,9 @@ function shouldKeepEscapeLocal(target: EventTarget | null): boolean {
 interface MediaDetailPanelProps {
   media: MediaItem;
   allMedia: MediaItem[];
-  legacyId: string;
+  legacyId?: string;
   profileImageId?: string | null;
+  backgroundImageId?: string | null;
   onClose: () => void;
   onNavigate: (mediaId: string) => void;
   isAuthenticated: boolean;
@@ -95,11 +97,15 @@ export default function MediaDetailPanel({
   allMedia,
   legacyId,
   profileImageId,
+  backgroundImageId,
   onClose,
   onNavigate,
   isAuthenticated,
   onRequestDelete,
 }: MediaDetailPanelProps) {
+  const effectiveLegacyId = legacyId ?? '';
+  const showLegacyActions = effectiveLegacyId.length > 0;
+
   const [tagInput, setTagInput] = useState('');
   const [personSearch, setPersonSearch] = useState('');
   const [showPersonSearch, setShowPersonSearch] = useState(false);
@@ -153,18 +159,20 @@ export default function MediaDetailPanel({
   }, [prevMedia, nextMedia, onNavigate, onClose, editingCaption]);
 
   // Hooks
-  const updateMedia = useUpdateMedia(legacyId);
-  const tagPerson = useTagPerson(legacyId);
-  const untagPerson = useUntagPerson(legacyId);
-  const addTag = useAddTag(legacyId);
-  const removeTag = useRemoveTag(legacyId);
-  const setProfileImage = useSetProfileImage(legacyId);
-  const { data: legacyTags } = useLegacyTags(legacyId);
-  const { data: personSearchResults } = useSearchPersons(personSearch, legacyId);
+  const updateMedia = useUpdateMedia(effectiveLegacyId || undefined);
+  const tagPerson = useTagPerson(effectiveLegacyId || undefined);
+  const untagPerson = useUntagPerson(effectiveLegacyId || undefined);
+  const addTag = useAddTag(effectiveLegacyId || undefined);
+  const removeTag = useRemoveTag(effectiveLegacyId || undefined);
+  const setProfileImage = useSetProfileImage(effectiveLegacyId);
+  const setBackgroundImage = useSetBackgroundImage(effectiveLegacyId);
+  const { data: legacyTags } = useLegacyTags(effectiveLegacyId || undefined);
+  const { data: personSearchResults } = useSearchPersons(personSearch, effectiveLegacyId || undefined);
   const { data: favoriteData } = useFavoriteCheck('media', [media.id]);
 
   const isFavorited = favoriteData?.favorites[media.id] ?? false;
   const isProfileImage = media.id === profileImageId;
+  const isBackgroundImage = media.id === backgroundImageId;
   const normalizedTagInput = tagInput.trim().toLowerCase();
   const filteredTagSuggestions = normalizedTagInput
     ? (legacyTags ?? [])
@@ -205,7 +213,7 @@ export default function MediaDetailPanel({
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tagInput.trim()) {
       addTag.mutate(
-        { mediaId: media.id, name: tagInput.trim(), legacyId },
+        { mediaId: media.id, name: tagInput.trim(), legacyId: effectiveLegacyId },
         {
           onSuccess: () => setTagInput(''),
         }
@@ -215,7 +223,7 @@ export default function MediaDetailPanel({
 
   const handleAddTag = (name: string) => {
     addTag.mutate(
-      { mediaId: media.id, name, legacyId },
+      { mediaId: media.id, name, legacyId: effectiveLegacyId },
       {
         onSuccess: () => setTagInput(''),
       }
@@ -251,6 +259,10 @@ export default function MediaDetailPanel({
 
   const handleSetProfile = () => {
     setProfileImage.mutate(media.id);
+  };
+
+  const handleSetBackground = () => {
+    setBackgroundImage.mutate(media.id);
   };
 
   const downloadUrl = rewriteBackendUrlForDev(getMediaContentUrl(media.id));
@@ -318,7 +330,7 @@ export default function MediaDetailPanel({
             Download
           </a>
 
-          {isAuthenticated && (
+          {showLegacyActions && isAuthenticated && (
             isProfileImage ? (
               <span className="inline-flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/20 rounded-md px-2.5 py-1.5">
                 <Star size={12} className="fill-amber-300" />
@@ -332,6 +344,24 @@ export default function MediaDetailPanel({
               >
                 <Star size={13} />
                 Set as Profile
+              </button>
+            )
+          )}
+
+          {showLegacyActions && isAuthenticated && (
+            isBackgroundImage ? (
+              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300 bg-emerald-500/20 rounded-md px-2.5 py-1.5">
+                <Star size={12} className="fill-emerald-300" />
+                Background
+              </span>
+            ) : (
+              <button
+                onClick={handleSetBackground}
+                disabled={setBackgroundImage.isPending}
+                className="inline-flex items-center gap-1.5 text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-md px-2.5 py-1.5 transition-colors disabled:opacity-50"
+              >
+                <Star size={13} />
+                Set as Background
               </button>
             )
           )}
@@ -570,7 +600,7 @@ export default function MediaDetailPanel({
                     key={tag.id}
                     label={tag.name}
                     onRemove={
-                      isAuthenticated
+                      isAuthenticated && showLegacyActions
                         ? () => removeTag.mutate({ mediaId: media.id, tagId: tag.id })
                         : undefined
                     }
@@ -581,7 +611,7 @@ export default function MediaDetailPanel({
               <p className="text-sm text-neutral-400 italic">No tags yet</p>
             )}
 
-            {isAuthenticated && (
+            {isAuthenticated && showLegacyActions && (
               <div className="mt-1.5 space-y-2">
                 <div className="flex items-center gap-2">
                   <Plus size={13} className="text-neutral-400 shrink-0" />

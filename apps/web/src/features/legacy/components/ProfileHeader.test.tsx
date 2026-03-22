@@ -107,4 +107,51 @@ describe('ProfileHeader', () => {
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Legacies')).toBeInTheDocument();
   });
+
+  it('replaces Add Story with Request Access for authenticated non-members', () => {
+    render(
+      <MemoryRouter>
+        <ProfileHeader
+          legacy={baseLegacy}
+          dates=""
+          legacyId="legacy-1"
+          isAuthenticated={true}
+          canAddStory={false}
+          canRequestAccess={true}
+          onAddStory={() => {}}
+          onRequestAccess={() => {}}
+          isCreatingStory={false}
+          onShare={() => {}}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText('Request Access')).toBeInTheDocument();
+    expect(screen.queryByText('Add Story')).not.toBeInTheDocument();
+  });
+
+  it('hides the legacy management menu when the viewer cannot manage the legacy', () => {
+    render(
+      <MemoryRouter>
+        <ProfileHeader
+          legacy={baseLegacy}
+          dates=""
+          legacyId="legacy-1"
+          isAuthenticated={true}
+          canManageLegacy={false}
+          onAddStory={() => {}}
+          isCreatingStory={false}
+          onShare={() => {}}
+          onEdit={() => {}}
+          onDelete={() => {}}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByRole('button', { name: /edit legacy/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Edit Legacy')).not.toBeInTheDocument();
+    expect(screen.queryByText('Delete Legacy')).not.toBeInTheDocument();
+  });
 });

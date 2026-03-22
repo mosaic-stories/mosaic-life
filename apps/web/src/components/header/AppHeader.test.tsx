@@ -67,19 +67,17 @@ describe('AppHeader', () => {
 });
 
 describe('AppHeader navigation', () => {
-  it('shows navigation links when logged in (desktop)', () => {
+  it('shows section switcher when logged in (desktop)', () => {
     mockUser = { id: '1', name: 'John Doe', email: 'john@example.com' };
     renderWithProviders(<AppHeader />);
-    expect(screen.getByRole('link', { name: /home/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /legacies/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /stories/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /connections/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /community/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /my mosaic/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /explore/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /community/i })).toBeInTheDocument();
   });
 
-  it('does NOT show navigation links when logged out', () => {
+  it('does NOT show section switcher when logged out', () => {
     mockUser = null;
     renderWithProviders(<AppHeader />);
-    expect(screen.queryByRole('link', { name: /legacies/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /my mosaic/i })).not.toBeInTheDocument();
   });
 });

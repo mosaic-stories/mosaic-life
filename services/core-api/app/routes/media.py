@@ -14,6 +14,7 @@ from ..auth.middleware import require_auth
 from ..config import get_settings
 from ..database import get_db
 from ..schemas.media import (
+    AddMediaLegacyAssociationRequest,
     MediaConfirmResponse,
     MediaDetail,
     MediaPersonCreate,
@@ -105,11 +106,9 @@ async def list_media(
             user_id=session.user_id,
             legacy_id=legacy_id,
         )
-    # TODO: Implement list_user_media for listing all user's media
-    # For now, require legacy_id
-    raise HTTPException(
-        status_code=400,
-        detail="legacy_id query parameter is required",
+    return await media_service.list_user_media(
+        db=db,
+        user_id=session.user_id,
     )
 
 
@@ -230,6 +229,27 @@ async def update_media(
         metadata={"fields": list(data.model_dump(exclude_unset=True).keys())},
     )
     return result
+
+
+@router.post(
+    "/{media_id}/legacy-associations",
+    response_model=MediaDetail,
+    summary="Associate media with a legacy",
+)
+async def add_media_legacy_association(
+    media_id: UUID,
+    data: AddMediaLegacyAssociationRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> MediaDetail:
+    """Associate an existing user-owned media item with a legacy."""
+    session = require_auth(request)
+    return await media_service.add_media_legacy_association(
+        db=db,
+        user_id=session.user_id,
+        media_id=media_id,
+        data=data,
+    )
 
 
 @router.get(
