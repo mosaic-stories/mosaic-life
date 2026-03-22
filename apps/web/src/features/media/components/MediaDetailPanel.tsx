@@ -75,7 +75,7 @@ function shouldKeepEscapeLocal(target: EventTarget | null): boolean {
 interface MediaDetailPanelProps {
   media: MediaItem;
   allMedia: MediaItem[];
-  legacyId: string;
+  legacyId?: string;
   profileImageId?: string | null;
   backgroundImageId?: string | null;
   onClose: () => void;
@@ -103,6 +103,9 @@ export default function MediaDetailPanel({
   isAuthenticated,
   onRequestDelete,
 }: MediaDetailPanelProps) {
+  const effectiveLegacyId = legacyId ?? media.legacies[0]?.legacy_id ?? '';
+  const showLegacyActions = !!legacyId;
+
   const [tagInput, setTagInput] = useState('');
   const [personSearch, setPersonSearch] = useState('');
   const [showPersonSearch, setShowPersonSearch] = useState(false);
@@ -156,15 +159,15 @@ export default function MediaDetailPanel({
   }, [prevMedia, nextMedia, onNavigate, onClose, editingCaption]);
 
   // Hooks
-  const updateMedia = useUpdateMedia(legacyId);
-  const tagPerson = useTagPerson(legacyId);
-  const untagPerson = useUntagPerson(legacyId);
-  const addTag = useAddTag(legacyId);
-  const removeTag = useRemoveTag(legacyId);
-  const setProfileImage = useSetProfileImage(legacyId);
-  const setBackgroundImage = useSetBackgroundImage(legacyId);
-  const { data: legacyTags } = useLegacyTags(legacyId);
-  const { data: personSearchResults } = useSearchPersons(personSearch, legacyId);
+  const updateMedia = useUpdateMedia(effectiveLegacyId || undefined);
+  const tagPerson = useTagPerson(effectiveLegacyId || undefined);
+  const untagPerson = useUntagPerson(effectiveLegacyId || undefined);
+  const addTag = useAddTag(effectiveLegacyId || undefined);
+  const removeTag = useRemoveTag(effectiveLegacyId || undefined);
+  const setProfileImage = useSetProfileImage(effectiveLegacyId);
+  const setBackgroundImage = useSetBackgroundImage(effectiveLegacyId);
+  const { data: legacyTags } = useLegacyTags(effectiveLegacyId || undefined);
+  const { data: personSearchResults } = useSearchPersons(personSearch, effectiveLegacyId || undefined);
   const { data: favoriteData } = useFavoriteCheck('media', [media.id]);
 
   const isFavorited = favoriteData?.favorites[media.id] ?? false;
@@ -210,7 +213,7 @@ export default function MediaDetailPanel({
   const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && tagInput.trim()) {
       addTag.mutate(
-        { mediaId: media.id, name: tagInput.trim(), legacyId },
+        { mediaId: media.id, name: tagInput.trim(), legacyId: effectiveLegacyId },
         {
           onSuccess: () => setTagInput(''),
         }
@@ -327,7 +330,7 @@ export default function MediaDetailPanel({
             Download
           </a>
 
-          {isAuthenticated && (
+          {showLegacyActions && isAuthenticated && (
             isProfileImage ? (
               <span className="inline-flex items-center gap-1.5 text-xs text-amber-300 bg-amber-500/20 rounded-md px-2.5 py-1.5">
                 <Star size={12} className="fill-amber-300" />
@@ -345,7 +348,7 @@ export default function MediaDetailPanel({
             )
           )}
 
-          {isAuthenticated && (
+          {showLegacyActions && isAuthenticated && (
             isBackgroundImage ? (
               <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300 bg-emerald-500/20 rounded-md px-2.5 py-1.5">
                 <Star size={12} className="fill-emerald-300" />

@@ -270,4 +270,46 @@ describe('MediaDetailPanel', () => {
 
     expect(mocks.onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('hides set-as-profile and set-as-background buttons when legacyId is omitted', () => {
+    render(
+      <MemoryRouter>
+        <MediaDetailPanel
+          media={mediaItem}
+          allMedia={[mediaItem]}
+          onClose={mocks.onClose}
+          onNavigate={mocks.onNavigate}
+          isAuthenticated={true}
+          onRequestDelete={mocks.onRequestDelete}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.queryByText('Set as Profile')).not.toBeInTheDocument();
+    expect(screen.queryByText('Set as Background')).not.toBeInTheDocument();
+    expect(screen.queryByText('Profile Photo')).not.toBeInTheDocument();
+    expect(screen.queryByText('Background')).not.toBeInTheDocument();
+  });
+
+  it('derives legacyId from media.legacies[0] when legacyId prop is omitted', () => {
+    const mediaWithLegacy = {
+      ...mediaItem,
+      legacies: [{ legacy_id: 'derived-legacy', legacy_name: 'Rose', role: 'primary' as const, position: 0 }],
+    };
+
+    render(
+      <MemoryRouter>
+        <MediaDetailPanel
+          media={mediaWithLegacy}
+          allMedia={[mediaWithLegacy]}
+          onClose={mocks.onClose}
+          onNavigate={mocks.onNavigate}
+          isAuthenticated={true}
+        />
+      </MemoryRouter>
+    );
+
+    // Hooks should be called with the derived legacy ID
+    expect(mocks.useUpdateMedia).toHaveBeenCalledWith('derived-legacy');
+  });
 });

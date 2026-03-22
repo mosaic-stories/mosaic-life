@@ -12,7 +12,7 @@
 
 ---
 
-### Task 1: Add `badge` prop to MediaThumbnail
+### Task 1: Add `badge` prop to MediaThumbnail ✅
 
 **Files:**
 - Modify: `apps/web/src/features/media/components/MediaThumbnail.tsx`
@@ -125,7 +125,7 @@ git commit -m "feat(web): add badge prop to MediaThumbnail"
 
 ---
 
-### Task 2: Make `legacyId` optional in MediaDetailPanel
+### Task 2: Make `legacyId` optional in MediaDetailPanel ✅
 
 **Files:**
 - Modify: `apps/web/src/features/media/components/MediaDetailPanel.tsx:75-105`
@@ -230,7 +230,7 @@ git commit -m "refactor(web): make legacyId optional in MediaDetailPanel"
 
 ---
 
-### Task 3: Extract MediaBrowser component
+### Task 3: Extract MediaBrowser component ✅
 
 **Files:**
 - Create: `apps/web/src/features/media/components/MediaBrowser.tsx`

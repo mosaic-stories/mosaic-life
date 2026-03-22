@@ -8,6 +8,7 @@ interface MediaThumbnailProps {
   isProfile: boolean;
   isFavorited: boolean;
   onClick: () => void;
+  badge?: React.ReactNode;
 }
 
 export default function MediaThumbnail({
@@ -16,6 +17,7 @@ export default function MediaThumbnail({
   isProfile,
   isFavorited,
   onClick,
+  badge,
 }: MediaThumbnailProps) {
   return (
     <button
@@ -56,6 +58,13 @@ export default function MediaThumbnail({
           </div>
         )}
       </div>
+
+      {/* Custom badge — bottom left */}
+      {badge && (
+        <div data-slot="badge" className="absolute bottom-2 left-2">
+          {badge}
+        </div>
+      )}
     </button>
   );
 }
