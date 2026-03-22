@@ -22,6 +22,25 @@ describe('SectionNav', () => {
     expect(creatorLink).toHaveAttribute('href', '/u/jordan-doe');
   });
 
+  it('renders "you" as the profile link text for the current user', () => {
+    render(
+      <MemoryRouter>
+        <SectionNav
+          activeSection="stories"
+          onSectionChange={vi.fn()}
+          creatorName="Jordan Doe"
+          creatorUsername="jordan-doe"
+          creatorIsCurrentUser={true}
+        />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByText(/Created by/i)).toBeInTheDocument();
+    const creatorLink = screen.getByRole('link', { name: 'you' });
+    expect(creatorLink).toHaveAttribute('href', '/u/jordan-doe');
+    expect(screen.queryByRole('link', { name: 'Jordan Doe' })).not.toBeInTheDocument();
+  });
+
   it('renders plain text when the creator username is unavailable', () => {
     render(
       <MemoryRouter>

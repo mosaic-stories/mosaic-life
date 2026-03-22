@@ -23,6 +23,7 @@ export interface SectionNavProps {
   memberCount?: number;
   creatorName?: string | null;
   creatorUsername?: string | null;
+  creatorIsCurrentUser?: boolean;
   onMembersClick?: () => void;
 }
 
@@ -33,6 +34,7 @@ export default function SectionNav({
   memberCount,
   creatorName,
   creatorUsername,
+  creatorIsCurrentUser,
   onMembersClick,
 }: SectionNavProps) {
   return (
@@ -96,7 +98,7 @@ export default function SectionNav({
                   to={`/u/${creatorUsername}`}
                   className="font-semibold text-theme-primary hover:underline"
                 >
-                  {creatorName}
+                  {creatorIsCurrentUser ? 'you' : creatorName}
                 </Link>
               ) : (
                 <span className="font-semibold text-theme-primary">{creatorName}</span>
