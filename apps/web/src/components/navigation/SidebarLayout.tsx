@@ -27,11 +27,13 @@ export default function SidebarLayout({ items }: SidebarLayoutProps) {
 
   return (
     <div className="flex min-h-[calc(100vh-57px)]">
-      <SidebarNav
-        items={items}
-        collapsed={collapsed}
-        onToggleCollapse={() => setCollapsed((c) => !c)}
-      />
+      <div className="sticky top-[57px] h-[calc(100vh-57px)] shrink-0">
+        <SidebarNav
+          items={items}
+          collapsed={collapsed}
+          onToggleCollapse={() => setCollapsed((c) => !c)}
+        />
+      </div>
       <main className="flex-1 min-w-0">
         <Outlet />
       </main>

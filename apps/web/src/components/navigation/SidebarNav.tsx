@@ -18,7 +18,7 @@ export default function SidebarNav({ items, collapsed, onToggleCollapse }: Sideb
   return (
     <aside
       className={cn(
-        'flex flex-col border-r bg-neutral-50/80 transition-[width] duration-200 ease-in-out shrink-0',
+        'flex flex-col h-full border-r bg-neutral-50/80 transition-[width] duration-200 ease-in-out shrink-0',
         collapsed ? 'w-[60px]' : 'w-[200px]',
       )}
     >
