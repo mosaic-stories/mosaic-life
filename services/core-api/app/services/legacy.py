@@ -94,6 +94,14 @@ def get_profile_image_url(legacy: Legacy) -> str | None:
     return storage.generate_download_url(legacy.profile_image.storage_path)
 
 
+def get_background_image_url(legacy: Legacy) -> str | None:
+    """Get the download URL for a legacy's background image."""
+    if not legacy.background_image or not legacy.background_image.storage_path:
+        return None
+    storage = get_storage_adapter()
+    return storage.generate_download_url(legacy.background_image.storage_path)
+
+
 async def get_story_count(db: AsyncSession, legacy_id: UUID) -> int:
     """Get the number of stories associated with a legacy."""
     result = await db.execute(
