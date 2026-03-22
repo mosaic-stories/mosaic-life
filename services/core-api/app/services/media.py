@@ -249,6 +249,106 @@ async def confirm_upload(
     )
 
 
+async def list_user_media(
+    db: AsyncSession,
+    user_id: UUID,
+) -> list[MediaSummary]:
+    """List all media uploaded by the current user across all legacies."""
+    result = await db.execute(
+        select(Media)
+        .options(
+            selectinload(Media.owner),
+            selectinload(Media.legacy_associations),
+        )
+        .where(Media.owner_id == user_id)
+        .order_by(Media.created_at.desc())
+    )
+    media_list = result.scalars().unique().all()
+
+    # Get all unique legacy IDs from all media
+    all_legacy_ids: set[UUID] = set()
+    for media in media_list:
+        all_legacy_ids.update(assoc.legacy_id for assoc in media.legacy_associations)
+
+    legacy_names = await _get_legacy_names(db, list(all_legacy_ids))
+
+    storage = get_storage_adapter()
+
+    # Bulk fetch tags and people for all media
+    media_ids = [m.id for m in media_list]
+
+    tag_result = (
+        await db.execute(
+            select(MediaTag.media_id, Tag.id, Tag.name)
+            .join(Tag, MediaTag.tag_id == Tag.id)
+            .where(MediaTag.media_id.in_(media_ids))
+        )
+        if media_ids
+        else None
+    )
+    tags_by_media: dict[UUID, list[TagResponse]] = {}
+    if tag_result:
+        for row in tag_result.all():
+            tags_by_media.setdefault(row[0], []).append(
+                TagResponse(id=row[1], name=row[2])
+            )
+
+    people_result = (
+        await db.execute(
+            select(
+                MediaPerson.media_id,
+                MediaPerson.person_id,
+                Person.canonical_name,
+                MediaPerson.role,
+            )
+            .join(Person, MediaPerson.person_id == Person.id)
+            .where(MediaPerson.media_id.in_(media_ids))
+        )
+        if media_ids
+        else None
+    )
+    people_by_media: dict[UUID, list[MediaPersonResponse]] = {}
+    if people_result:
+        for p_media_id, p_person_id, p_name, p_role in people_result.all():
+            people_by_media.setdefault(p_media_id, []).append(
+                MediaPersonResponse(
+                    person_id=p_person_id, person_name=p_name, role=p_role
+                )
+            )
+
+    return [
+        MediaSummary(
+            id=m.id,
+            filename=m.filename,
+            content_type=m.content_type,
+            size_bytes=m.size_bytes,
+            download_url=storage.generate_download_url(m.storage_path),
+            uploaded_by=m.owner_id,
+            uploader_name=m.owner.name,
+            uploader_username=m.owner.username,
+            uploader_avatar_url=m.owner.avatar_url,
+            legacies=[
+                LegacyAssociationResponse(
+                    legacy_id=assoc.legacy_id,
+                    legacy_name=legacy_names.get(assoc.legacy_id, "Unknown"),
+                    role=assoc.role,
+                    position=assoc.position,
+                )
+                for assoc in sorted(m.legacy_associations, key=lambda a: a.position)
+            ],
+            created_at=m.created_at,
+            favorite_count=m.favorite_count or 0,
+            caption=m.caption,
+            date_taken=m.date_taken,
+            location=m.location,
+            era=m.era,
+            tags=tags_by_media.get(m.id, []),
+            people=people_by_media.get(m.id, []),
+        )
+        for m in media_list
+    ]
+
+
 async def list_legacy_media(
     db: AsyncSession,
     user_id: UUID,

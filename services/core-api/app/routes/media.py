@@ -105,11 +105,9 @@ async def list_media(
             user_id=session.user_id,
             legacy_id=legacy_id,
         )
-    # TODO: Implement list_user_media for listing all user's media
-    # For now, require legacy_id
-    raise HTTPException(
-        status_code=400,
-        detail="legacy_id query parameter is required",
+    return await media_service.list_user_media(
+        db=db,
+        user_id=session.user_id,
     )
 
 
