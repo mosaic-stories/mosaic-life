@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useLegacy, useUpdateLegacy } from '@/features/legacy/hooks/useLegacies';
 import type { LegacyVisibility } from '@/features/legacy/api/legacies';
+import ImagePicker from '@/features/media/components/ImagePicker';
+import { setProfileImage, setBackgroundImage } from '@/features/media/api/media';
 import { normalizeOptionalText } from '@/lib/form-utils';
 import { SEOHead } from '@/components/seo';
 import PageActionBar from '@/components/PageActionBar';
@@ -36,6 +38,10 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
   const [visibility, setVisibility] = useState<LegacyVisibility>('private');
   const [error, setError] = useState<string | null>(null);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [profileImageId, setProfileImageId] = useState<string | null>(null);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [backgroundImageId, setBackgroundImageId] = useState<string | null>(null);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
 
   // Relationship profile state
   const [relationshipExpanded, setRelationshipExpanded] = useState(false);
@@ -58,6 +64,10 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
       setBiography(legacy.biography || '');
       setGender(legacy.gender || '');
       setVisibility(legacy.visibility || 'private');
+      setProfileImageId(legacy.profile_image_id ?? null);
+      setProfileImageUrl(legacy.profile_image_url ?? null);
+      setBackgroundImageId(legacy.background_image_id ?? null);
+      setBackgroundImageUrl(legacy.background_image_url ?? null);
       setHasInitialized(true);
     }
   }, [legacy, hasInitialized]);
@@ -126,6 +136,14 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
             },
           });
           legacySaved = true;
+
+          // Save images if changed
+          if (profileImageId && profileImageId !== legacy.profile_image_id) {
+            await setProfileImage(legacyId, profileImageId);
+          }
+          if (backgroundImageId && backgroundImageId !== legacy.background_image_id) {
+            await setBackgroundImage(legacyId, backgroundImageId);
+          }
         } catch (legacyError) {
           legacySaveFailed = true;
           console.error('Legacy save failed:', legacyError);
@@ -355,6 +373,38 @@ export default function LegacyEdit({ legacyId }: LegacyEditProps) {
                     <p className="text-xs text-neutral-500">
                       Control who can see this legacy.
                     </p>
+                  </div>
+
+                  {/* Images */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <ImagePicker
+                      label="Profile Image"
+                      currentImageUrl={profileImageUrl}
+                      currentImageId={profileImageId}
+                      legacyId={legacyId}
+                      onImageSelected={(mediaId, url) => {
+                        setProfileImageId(mediaId);
+                        setProfileImageUrl(url);
+                      }}
+                      onImageRemoved={() => {
+                        setProfileImageId(null);
+                        setProfileImageUrl(null);
+                      }}
+                    />
+                    <ImagePicker
+                      label="Background Image"
+                      currentImageUrl={backgroundImageUrl}
+                      currentImageId={backgroundImageId}
+                      legacyId={legacyId}
+                      onImageSelected={(mediaId, url) => {
+                        setBackgroundImageId(mediaId);
+                        setBackgroundImageUrl(url);
+                      }}
+                      onImageRemoved={() => {
+                        setBackgroundImageId(null);
+                        setBackgroundImageUrl(null);
+                      }}
+                    />
                   </div>
                 </>
               )}

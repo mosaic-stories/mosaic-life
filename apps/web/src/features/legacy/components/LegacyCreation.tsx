@@ -16,6 +16,8 @@ import TagInput from '@/components/ui/tag-input';
 import RelationshipCombobox from '@/components/ui/relationship-combobox';
 import { updateMemberProfile } from '@/features/members/api/memberProfile';
 import { normalizeOptionalText } from '@/lib/form-utils';
+import ImagePicker from '@/features/media/components/ImagePicker';
+import { setProfileImage, setBackgroundImage } from '@/features/media/api/media';
 
 export default function LegacyCreation() {
   const navigate = useNavigate();
@@ -37,6 +39,10 @@ export default function LegacyCreation() {
   const [legacyToViewer, setLegacyToViewer] = useState('');
   const [viewerToLegacy, setViewerToLegacy] = useState('');
   const [traits, setTraits] = useState<string[]>([]);
+  const [profileImageId, setProfileImageId] = useState<string | null>(null);
+  const [profileImageUrl, setProfileImageUrl] = useState<string | null>(null);
+  const [backgroundImageId, setBackgroundImageId] = useState<string | null>(null);
+  const [backgroundImageUrl, setBackgroundImageUrl] = useState<string | null>(null);
 
   const matchQuery = usePersonMatch(name, birthDate || null, deathDate || null);
   const candidates = matchQuery.data?.candidates ?? [];
@@ -68,6 +74,22 @@ export default function LegacyCreation() {
         visibility,
         person_id: selectedPerson?.person_id ?? null,
       });
+
+      // Set images if uploaded
+      if (profileImageId) {
+        try {
+          await setProfileImage(legacy.id, profileImageId);
+        } catch (err) {
+          console.error('Failed to set profile image:', err);
+        }
+      }
+      if (backgroundImageId) {
+        try {
+          await setBackgroundImage(legacy.id, backgroundImageId);
+        } catch (err) {
+          console.error('Failed to set background image:', err);
+        }
+      }
 
       // Save relationship profile if any fields were filled
       const hasRelationshipData =
@@ -309,6 +331,36 @@ export default function LegacyCreation() {
                 <p className="text-xs text-neutral-500">
                   You can change this setting later.
                 </p>
+              </div>
+
+              {/* Images */}
+              <div className="grid grid-cols-2 gap-4">
+                <ImagePicker
+                  label="Profile Image"
+                  currentImageUrl={profileImageUrl}
+                  currentImageId={profileImageId}
+                  onImageSelected={(mediaId, url) => {
+                    setProfileImageId(mediaId);
+                    setProfileImageUrl(url);
+                  }}
+                  onImageRemoved={() => {
+                    setProfileImageId(null);
+                    setProfileImageUrl(null);
+                  }}
+                />
+                <ImagePicker
+                  label="Background Image"
+                  currentImageUrl={backgroundImageUrl}
+                  currentImageId={backgroundImageId}
+                  onImageSelected={(mediaId, url) => {
+                    setBackgroundImageId(mediaId);
+                    setBackgroundImageUrl(url);
+                  }}
+                  onImageRemoved={() => {
+                    setBackgroundImageId(null);
+                    setBackgroundImageUrl(null);
+                  }}
+                />
               </div>
 
               {/* My Relationship section */}
