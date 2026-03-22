@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   useAddTag: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useRemoveTag: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useSetProfileImage: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
+  useSetBackgroundImage: vi.fn(() => ({ mutate: vi.fn(), isPending: false })),
   useLegacyTags: vi.fn(() => ({ data: [] as TagItem[] })),
   useSearchPersons: vi.fn((_: string) => ({ data: [] as PersonSearchResult[] | undefined })),
   favoriteCheck: vi.fn(() => ({ data: { favorites: {} } })),
@@ -36,6 +37,7 @@ vi.mock('@/features/media/hooks/useMedia', async () => {
     useAddTag: mocks.useAddTag,
     useRemoveTag: mocks.useRemoveTag,
     useSetProfileImage: mocks.useSetProfileImage,
+    useSetBackgroundImage: mocks.useSetBackgroundImage,
     useLegacyTags: mocks.useLegacyTags,
     useSearchPersons: mocks.useSearchPersons,
   };
@@ -116,6 +118,7 @@ function renderPanel(overrides?: Partial<ComponentProps<typeof MediaDetailPanel>
         allMedia={[mediaItem]}
         legacyId="legacy-1"
         profileImageId={null}
+        backgroundImageId={null}
         onClose={mocks.onClose}
         onNavigate={mocks.onNavigate}
         isAuthenticated

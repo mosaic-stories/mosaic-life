@@ -142,7 +142,7 @@ describe('MediaSection', () => {
     const user = userEvent.setup();
 
     render(
-      <MediaSection legacyId="legacy-1" profileImageId={null} isAuthenticated />
+      <MediaSection legacyId="legacy-1" profileImageId={null} backgroundImageId={null} isAuthenticated />
     );
 
     await user.click(screen.getByRole('button', { name: /family-photo.jpg/i }));
@@ -156,7 +156,7 @@ describe('MediaSection', () => {
     const user = userEvent.setup();
 
     render(
-      <MediaSection legacyId="legacy-1" profileImageId={null} isAuthenticated />
+      <MediaSection legacyId="legacy-1" profileImageId={null} backgroundImageId={null} isAuthenticated />
     );
 
     await user.click(screen.getByRole('button', { name: /family-photo.jpg/i }));
@@ -171,7 +171,7 @@ describe('MediaSection', () => {
 
     expect(() => {
       render(
-        <MediaSection legacyId="legacy-1" profileImageId={null} isAuthenticated />
+        <MediaSection legacyId="legacy-1" profileImageId={null} backgroundImageId={null} isAuthenticated />
       );
     }).not.toThrow();
   });
@@ -181,7 +181,7 @@ describe('MediaSection', () => {
     stubMatchMedia(true);
 
     render(
-      <MediaSection legacyId="legacy-1" profileImageId={null} isAuthenticated />
+      <MediaSection legacyId="legacy-1" profileImageId={null} backgroundImageId={null} isAuthenticated />
     );
 
     await user.click(screen.getByRole('button', { name: /family-photo.jpg/i }));
