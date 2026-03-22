@@ -21,12 +21,14 @@ import { Button } from '@/components/ui/button';
 export interface MediaSectionProps {
   legacyId: string;
   profileImageId: string | null | undefined;
+  backgroundImageId: string | null | undefined;
   isAuthenticated: boolean;
 }
 
 export default function MediaSection({
   legacyId,
   profileImageId,
+  backgroundImageId,
   isAuthenticated,
 }: MediaSectionProps) {
   const { data: media, isLoading, error } = useMedia(legacyId, { enabled: isAuthenticated });
@@ -179,6 +181,7 @@ export default function MediaSection({
               allMedia={media ?? []}
               legacyId={legacyId}
               profileImageId={profileImageId}
+              backgroundImageId={backgroundImageId}
               onClose={() => setSelectedMediaId(null)}
               onNavigate={handleNavigate}
               isAuthenticated={isAuthenticated}
@@ -202,6 +205,7 @@ export default function MediaSection({
               allMedia={media ?? []}
               legacyId={legacyId}
               profileImageId={profileImageId}
+              backgroundImageId={backgroundImageId}
               onClose={() => setSelectedMediaId(null)}
               onNavigate={handleNavigate}
               isAuthenticated={isAuthenticated}

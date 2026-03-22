@@ -151,6 +151,15 @@ export async function setProfileImage(
   });
 }
 
+export async function setBackgroundImage(
+  legacyId: string,
+  mediaId: string
+): Promise<void> {
+  return apiPatch(`/api/legacies/${legacyId}/background-image`, {
+    media_id: mediaId,
+  });
+}
+
 export async function updateMedia(mediaId: string, data: MediaUpdateData): Promise<MediaDetail> {
   return apiPut<MediaDetail>(`/api/media/${mediaId}`, data);
 }

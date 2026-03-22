@@ -12,6 +12,7 @@ import { useFavoriteCheck } from '@/features/favorites/hooks/useFavorites';
 import UserLink from '@/components/UserLink';
 import {
   useSetProfileImage,
+  useSetBackgroundImage,
   useUpdateMedia,
   useTagPerson,
   useUntagPerson,
@@ -76,6 +77,7 @@ interface MediaDetailPanelProps {
   allMedia: MediaItem[];
   legacyId: string;
   profileImageId?: string | null;
+  backgroundImageId?: string | null;
   onClose: () => void;
   onNavigate: (mediaId: string) => void;
   isAuthenticated: boolean;
@@ -95,6 +97,7 @@ export default function MediaDetailPanel({
   allMedia,
   legacyId,
   profileImageId,
+  backgroundImageId,
   onClose,
   onNavigate,
   isAuthenticated,
@@ -159,12 +162,14 @@ export default function MediaDetailPanel({
   const addTag = useAddTag(legacyId);
   const removeTag = useRemoveTag(legacyId);
   const setProfileImage = useSetProfileImage(legacyId);
+  const setBackgroundImage = useSetBackgroundImage(legacyId);
   const { data: legacyTags } = useLegacyTags(legacyId);
   const { data: personSearchResults } = useSearchPersons(personSearch, legacyId);
   const { data: favoriteData } = useFavoriteCheck('media', [media.id]);
 
   const isFavorited = favoriteData?.favorites[media.id] ?? false;
   const isProfileImage = media.id === profileImageId;
+  const isBackgroundImage = media.id === backgroundImageId;
   const normalizedTagInput = tagInput.trim().toLowerCase();
   const filteredTagSuggestions = normalizedTagInput
     ? (legacyTags ?? [])
@@ -253,6 +258,10 @@ export default function MediaDetailPanel({
     setProfileImage.mutate(media.id);
   };
 
+  const handleSetBackground = () => {
+    setBackgroundImage.mutate(media.id);
+  };
+
   const downloadUrl = rewriteBackendUrlForDev(getMediaContentUrl(media.id));
 
   return (
@@ -332,6 +341,24 @@ export default function MediaDetailPanel({
               >
                 <Star size={13} />
                 Set as Profile
+              </button>
+            )
+          )}
+
+          {isAuthenticated && (
+            isBackgroundImage ? (
+              <span className="inline-flex items-center gap-1.5 text-xs text-emerald-300 bg-emerald-500/20 rounded-md px-2.5 py-1.5">
+                <Star size={12} className="fill-emerald-300" />
+                Background
+              </span>
+            ) : (
+              <button
+                onClick={handleSetBackground}
+                disabled={setBackgroundImage.isPending}
+                className="inline-flex items-center gap-1.5 text-xs text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-md px-2.5 py-1.5 transition-colors disabled:opacity-50"
+              >
+                <Star size={13} />
+                Set as Background
               </button>
             )
           )}

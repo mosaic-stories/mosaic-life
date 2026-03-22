@@ -7,6 +7,7 @@ import {
   confirmUpload,
   deleteMedia,
   setProfileImage,
+  setBackgroundImage,
   validateFile,
   updateMedia,
   tagPerson,
@@ -119,6 +120,17 @@ export function useSetProfileImage(legacyId: string) {
 
   return useMutation({
     mutationFn: (mediaId: string) => setProfileImage(legacyId, mediaId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: legacyKeys.detail(legacyId) });
+    },
+  });
+}
+
+export function useSetBackgroundImage(legacyId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (mediaId: string) => setBackgroundImage(legacyId, mediaId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: legacyKeys.detail(legacyId) });
     },

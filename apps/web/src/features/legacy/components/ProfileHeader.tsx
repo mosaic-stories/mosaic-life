@@ -38,17 +38,26 @@ export default function ProfileHeader({
   const profileImageUrl = legacy.profile_image_url
     ? rewriteBackendUrlForDev(legacy.profile_image_url)
     : null;
+  const backgroundImageUrl = legacy.background_image_url
+    ? rewriteBackendUrlForDev(legacy.background_image_url)
+    : null;
 
   return (
     <section className="relative h-[280px] sm:h-[280px] overflow-hidden bg-gradient-to-br from-theme-primary-dark via-theme-primary to-theme-primary/70">
       {/* Cover image background */}
-      {profileImageUrl && (
+      {backgroundImageUrl ? (
+        <img
+          src={backgroundImageUrl}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover opacity-30"
+        />
+      ) : profileImageUrl ? (
         <img
           src={profileImageUrl}
           alt=""
           className="absolute inset-0 w-full h-full object-cover opacity-15 blur-sm"
         />
-      )}
+      ) : null}
 
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-gradient-to-b from-theme-primary-dark/30 to-theme-primary-dark/85" />

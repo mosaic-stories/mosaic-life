@@ -30,6 +30,8 @@ export interface Legacy {
   current_user_role?: 'creator' | 'admin' | 'advocate' | 'admirer';
   profile_image_id?: string | null;
   profile_image_url?: string | null;
+  background_image_id?: string | null;
+  background_image_url?: string | null;
   person_id?: string | null;
   favorite_count?: number;
   story_count: number;
