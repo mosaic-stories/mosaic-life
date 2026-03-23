@@ -198,6 +198,7 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
       <StoryToolbar
         legacyId={legacyId}
         legacyName={legacyName}
+        storyTitle={existingStory?.title ?? 'Story'}
         isEditMode={isEditMode}
         canEdit={canEdit}
         showHistory={showHistory}
