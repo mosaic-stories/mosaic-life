@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -9,7 +9,13 @@ import {
 } from '@/components/ui/resizable';
 import { useStory, storyKeys, useUpdateStory } from '@/features/story/hooks/useStories';
 import { useIsMobile } from '@/components/ui/use-mobile';
-import { evolutionKeys, useActiveEvolution, useSaveManualDraft } from '@/lib/hooks/useEvolution';
+import { ApiError } from '@/lib/api/client';
+import {
+  evolutionKeys,
+  useActiveEvolution,
+  useSaveManualDraft,
+  useStartEvolution,
+} from '@/lib/hooks/useEvolution';
 import { discardActiveEvolution, acceptEvolution } from '@/lib/api/evolution';
 import { WorkspaceHeader } from './components/WorkspaceHeader';
 import { EditorPanel } from './components/EditorPanel';
@@ -51,10 +57,16 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [title, setTitle] = useState('Untitled');
+  const bootstrapAttemptedRef = useRef(false);
 
   const { data: story, isLoading } = useStory(storyId);
   const updateStory = useUpdateStory();
-  const { data: activeEvolution } = useActiveEvolution(storyId);
+  const {
+    data: activeEvolution,
+    error: activeEvolutionError,
+    isLoading: isActiveEvolutionLoading,
+  } = useActiveEvolution(storyId);
+  const startEvolution = useStartEvolution(storyId);
   const saveDraft = useSaveManualDraft(storyId);
   const { triggerRewrite, abort: abortRewrite } = useAIRewrite(storyId);
 
@@ -136,6 +148,36 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
       setTitle(story.title);
     }
   }, [story?.title]);
+
+  useEffect(() => {
+    if (!storyId || !story || activeEvolution || isActiveEvolutionLoading || startEvolution.isPending) {
+      return;
+    }
+
+    if (!(activeEvolutionError instanceof ApiError) || activeEvolutionError.status !== 404) {
+      return;
+    }
+
+    if (bootstrapAttemptedRef.current) {
+      return;
+    }
+    bootstrapAttemptedRef.current = true;
+
+    void startEvolution.mutateAsync('biographer').catch((error) => {
+      bootstrapAttemptedRef.current = false;
+      console.error('Failed to bootstrap evolution session:', error);
+    });
+  }, [
+    storyId,
+    story,
+    activeEvolution,
+    activeEvolutionError,
+    isActiveEvolutionLoading,
+    startEvolution,
+  ]);
+
+  const isBootstrappingSession =
+    !activeEvolution && (isActiveEvolutionLoading || startEvolution.isPending);
 
   const handleContentChange = useCallback((markdown: string) => {
     setContent(markdown);
@@ -284,6 +326,14 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     return (
       <div className="h-[calc(100dvh-3.5rem)] flex items-center justify-center">
         <span className="text-neutral-400">Loading workspace...</span>
+      </div>
+    );
+  }
+
+  if (isBootstrappingSession) {
+    return (
+      <div className="h-[calc(100dvh-3.5rem)] flex items-center justify-center">
+        <span className="text-neutral-400">Preparing evolve workspace...</span>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ApiError } from '@/lib/api/client';
 
 const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
@@ -16,6 +17,9 @@ const mocks = vi.hoisted(() => ({
   createNewConversation: vi.fn(),
   updateStory: { mutateAsync: vi.fn(), isPending: false },
   activeEvolution: null,
+  activeEvolutionError: null as Error | null,
+  activeEvolutionLoading: false,
+  startEvolution: { mutateAsync: vi.fn(), isPending: false },
   saveDraft: { mutateAsync: vi.fn(), isPending: false },
   triggerRewrite: vi.fn(),
   abortRewrite: vi.fn(),
@@ -50,7 +54,12 @@ vi.mock('@/lib/hooks/useEvolution', () => ({
     all: ['evolution'],
     active: (storyId: string) => ['evolution', storyId],
   },
-  useActiveEvolution: () => ({ data: mocks.activeEvolution }),
+  useActiveEvolution: () => ({
+    data: mocks.activeEvolution,
+    error: mocks.activeEvolutionError,
+    isLoading: mocks.activeEvolutionLoading,
+  }),
+  useStartEvolution: () => mocks.startEvolution,
   useSaveManualDraft: () => mocks.saveDraft,
 }));
 
@@ -136,6 +145,14 @@ describe('EvolveWorkspace conversation handoff', () => {
     mocks.createNewConversation.mockReset();
     mocks.createNewConversation.mockResolvedValue({ id: 'new-conv' });
     mocks.updateStory.mutateAsync.mockReset();
+    mocks.activeEvolution = null;
+    mocks.activeEvolutionError = null;
+    mocks.activeEvolutionLoading = false;
+    mocks.startEvolution.mutateAsync.mockReset();
+    mocks.startEvolution.mutateAsync.mockResolvedValue({
+      id: 'session-1',
+      draft_version_id: null,
+    });
     mocks.saveDraft.mutateAsync.mockReset();
     mocks.triggerRewrite.mockReset();
     mocks.abortRewrite.mockReset();
@@ -167,5 +184,27 @@ describe('EvolveWorkspace conversation handoff', () => {
 
     expect(useEvolveWorkspaceStore.getState().seedMode).toBe('default');
     expect(mocks.createNewConversation).toHaveBeenCalledOnce();
+  });
+
+  it('bootstraps an evolution session when the active-session lookup returns 404', async () => {
+    mocks.activeEvolutionError = new ApiError(404, 'API Error: 404 Not Found');
+
+    renderWithProviders();
+
+    await waitFor(() => {
+      expect(mocks.startEvolution.mutateAsync).toHaveBeenCalledWith('biographer');
+    });
+  });
+
+  it('does not bootstrap a session for non-404 active-session errors', async () => {
+    mocks.activeEvolutionError = new ApiError(500, 'API Error: 500 Internal Server Error');
+
+    renderWithProviders();
+
+    await waitFor(() => {
+      expect(mocks.createNewConversation).toHaveBeenCalledOnce();
+    });
+
+    expect(mocks.startEvolution.mutateAsync).not.toHaveBeenCalled();
   });
 });
