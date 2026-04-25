@@ -15,12 +15,12 @@ spec:
     path: infra/helm/prerender
     helm:
       values: |
-        replicaCount: 0
+        replicaCount: 1
         config:
           allowedDomains: "mosaiclife.me,api.mosaiclife.me"
         autoscaling:
           enabled: false
-          minReplicas: 0
+          minReplicas: 1
           maxReplicas: 5
 
   destination:
