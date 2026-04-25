@@ -938,6 +938,94 @@ argocd-apply-staging:
     kubectl apply -f infra/argocd/applications/mosaic-life-staging.yaml
     @echo "✓ Staging application configured"
 
+# Show staging ArgoCD apps and live namespace resources
+stage-status:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    APPS=(mosaic-life-staging docs-staging prerender-staging)
+    echo "Staging ArgoCD applications:"
+    kubectl get applications -n argocd "${APPS[@]}" -o wide --ignore-not-found=true
+    echo ""
+    echo "Staging namespace resources:"
+    kubectl get pods,deploy,svc,ingress,hpa,pdb,externalsecret,secretstore -n mosaic-staging --ignore-not-found=true
+
+# Spin down staging by deleting only staging ArgoCD applications
+stage-down confirm="":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    APPS=(mosaic-life-staging docs-staging prerender-staging)
+    if [ "{{confirm}}" != "mosaic-staging" ]; then
+      echo "Refusing to spin down staging without explicit confirmation."
+      echo "This deletes only these ArgoCD Applications in namespace argocd:"
+      printf '  - %s\n' "${APPS[@]}"
+      echo ""
+      echo "Run: just stage-down mosaic-staging"
+      exit 1
+    fi
+
+    echo "Spinning down staging ArgoCD applications:"
+    printf '  - %s\n' "${APPS[@]}"
+    echo ""
+    for app in "${APPS[@]}"; do
+      kubectl delete application -n argocd "$app" --ignore-not-found=true --wait=false
+    done
+
+    echo ""
+    echo "Waiting for ArgoCD application deletion and resource pruning..."
+    for app in "${APPS[@]}"; do
+      if kubectl get application -n argocd "$app" >/dev/null 2>&1; then
+        kubectl wait --for=delete "application/$app" -n argocd --timeout=10m
+      fi
+    done
+
+    echo ""
+    echo "Remaining resources in mosaic-staging:"
+    kubectl get pods,deploy,svc,ingress,hpa,pdb,externalsecret,secretstore -n mosaic-staging --ignore-not-found=true
+    echo ""
+    echo "✓ Staging spin-down requested. Production applications were not touched."
+
+# Restore staging ArgoCD applications
+stage-up:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    APPS=(mosaic-life-staging docs-staging prerender-staging)
+    echo "Restoring staging ArgoCD applications..."
+    kubectl apply -f infra/argocd/applications/mosaic-life-staging.yaml
+    kubectl apply -f infra/argocd/applications/docs-staging.yaml
+    kubectl apply -f infra/argocd/applications/prerender-staging.yaml
+
+    if command -v argocd >/dev/null 2>&1; then
+      echo ""
+      echo "Triggering ArgoCD sync for staging applications..."
+      for app in "${APPS[@]}"; do
+        if ! argocd app sync "$app" --async; then
+          echo "Warning: argocd sync failed for $app; automated sync may still reconcile it."
+        fi
+      done
+    else
+      echo ""
+      echo "argocd CLI not found; relying on automated sync."
+    fi
+
+    echo ""
+    echo "✓ Staging restore requested."
+    echo "Monitor with: just stage-wait-up"
+
+# Wait for staging ArgoCD apps to be synced and healthy
+stage-wait-up timeout="600":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    APPS=(mosaic-life-staging docs-staging prerender-staging)
+    if command -v argocd >/dev/null 2>&1; then
+      for app in "${APPS[@]}"; do
+        argocd app wait "$app" --sync --health --timeout {{timeout}}
+      done
+    else
+      echo "argocd CLI is required for sync/health waiting."
+      exit 1
+    fi
+    echo "✓ Staging applications are synced and healthy."
+
 # Apply Graph Explorer production ArgoCD application
 argocd-apply-graph-explorer-prod:
     kubectl apply -f infra/argocd/applications/graph-explorer-prod.yaml
