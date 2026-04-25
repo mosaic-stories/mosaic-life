@@ -14,7 +14,7 @@ dist/
 build/
 .next/
 out/
-
+nohup.out
 # Environment variables
 .env
 .env.local
