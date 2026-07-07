@@ -7,6 +7,7 @@ from pathlib import Path
 
 import boto3  # type: ignore
 from botocore.config import Config as BotoConfig  # type: ignore
+from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 
 from ..config import get_settings
 
@@ -153,7 +154,7 @@ class S3StorageAdapter(StorageAdapter):
         try:
             self._ops_client.head_object(Bucket=self.bucket, Key=path)
             return True
-        except self._ops_client.exceptions.ClientError:
+        except ClientError:
             return False
 
     def delete_file(self, path: str) -> None:

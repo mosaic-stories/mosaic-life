@@ -51,6 +51,15 @@ export default function AuthModal({ isOpen, onClose, onAuthenticate: _onAuthenti
           textColor: 'text-neutral-900',
           borderColor: 'border-neutral-300',
         }
+      : activeProvider === null
+      ? {
+          provider: 'loading',
+          label: 'Loading…',
+          icon: null,
+          bgColor: 'bg-neutral-50',
+          textColor: 'text-neutral-400',
+          borderColor: 'border-neutral-200',
+        }
       : {
           provider: 'google',
           label: 'Continue with Google',
@@ -80,6 +89,7 @@ export default function AuthModal({ isOpen, onClose, onAuthenticate: _onAuthenti
           <div className="space-y-3">
             <Button
               onClick={handleLogin}
+              disabled={activeProvider === null}
               className={`w-full h-12 ${providerButton.bgColor} ${providerButton.textColor} border ${providerButton.borderColor} hover:shadow-md transition-all flex items-center justify-center gap-3`}
               variant="outline"
             >

@@ -13,7 +13,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  activeProvider: string;
+  activeProvider: string | null;
   login: () => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -28,7 +28,7 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeProvider, setActiveProvider] = useState<string>('google');
+  const [activeProvider, setActiveProvider] = useState<string | null>(null);
 
   // Fetch the active auth provider once on mount
   useEffect(() => {
@@ -38,7 +38,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         console.log('[auth] active provider:', data.active);
         setActiveProvider(data.active);
       })
-      .catch((err) => console.warn('[auth] provider fetch failed, defaulting to google:', err));
+      .catch((err) => console.warn('[auth] provider fetch failed:', err));
   }, []);
 
   // Fetch current user from /api/me
@@ -82,11 +82,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => window.removeEventListener('auth:expired', handleAuthExpired);
   }, []);
 
-  // Redirect to the active auth provider's login endpoint
+  // Redirect to the active auth provider's login endpoint.
+  // If the provider hasn't loaded yet, fetch it on-demand to avoid a race
+  // where login() fires before /api/auth/providers has resolved.
   const login = useCallback(() => {
     const returnUrl = window.location.pathname + window.location.search;
     sessionStorage.setItem('auth_return_url', returnUrl);
-    window.location.href = `/api/auth/${activeProvider}`;
+    if (activeProvider) {
+      window.location.href = `/api/auth/${activeProvider}`;
+    } else {
+      fetch('/api/auth/providers')
+        .then((r) => r.json())
+        .then((data: { active: string }) => {
+          setActiveProvider(data.active);
+          window.location.href = `/api/auth/${data.active}`;
+        })
+        .catch(() => {
+          // Last-resort fallback — should not normally be reached
+          window.location.href = '/api/auth/google';
+        });
+    }
   }, [activeProvider]);
 
   // Logout user

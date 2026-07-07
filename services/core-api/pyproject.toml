@@ -55,6 +55,8 @@ exclude = ["alembic*"]
 
 [dependency-groups]
 dev = [
+    "mypy>=1.19.1",
+    "ruff>=0.15.6",
     "types-pyyaml>=6.0.12.20250915",
 ]
 

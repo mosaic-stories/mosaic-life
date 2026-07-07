@@ -47,6 +47,19 @@ def _is_username_integrity_error(exc: IntegrityError) -> bool:
     return "username" in message
 
 
+def _is_email_integrity_error(exc: IntegrityError) -> bool:
+    message = str(exc.orig).lower() if exc.orig is not None else str(exc).lower()
+    return "email" in message
+
+
+class EmailAlreadyExistsError(Exception):
+    """Raised when a new user's email is already registered under a different provider."""
+
+    def __init__(self, email: str) -> None:
+        super().__init__(f"Email already registered: {email}")
+        self.email = email
+
+
 def _create_signed_state(secret_key: str) -> str:
     """Create a HMAC-signed state token for CSRF protection."""
     nonce = secrets.token_urlsafe(16)
@@ -85,6 +98,25 @@ def _verify_signed_state(state: str, secret_key: str) -> bool:
     except Exception as exc:
         logger.warning("auth.state.invalid", extra={"error": str(exc)})
         return False
+
+
+def _sign_pkce_value(value: str, secret: str) -> str:
+    """HMAC-sign a PKCE verifier so the cookie cannot be forged or tampered with."""
+    sig = hmac.new(secret.encode(), value.encode(), hashlib.sha256).digest()
+    return f"{value}.{base64.urlsafe_b64encode(sig).decode()}"
+
+
+def _verify_and_extract_pkce_value(signed: str, secret: str) -> str | None:
+    """Verify the signed PKCE cookie and return the raw verifier, or None if invalid."""
+    try:
+        raw, sig_b64 = signed.rsplit(".", 1)
+        expected = hmac.new(secret.encode(), raw.encode(), hashlib.sha256).digest()
+        actual = base64.urlsafe_b64decode(sig_b64.encode())
+        if hmac.compare_digest(expected, actual):
+            return raw
+        return None
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -250,6 +282,11 @@ async def callback_google(
         await _build_and_set_session(request, db, user, settings, response)
         return response
 
+    except EmailAlreadyExistsError as exc:
+        logger.warning("auth.email_already_registered", extra={"email": exc.email})
+        return RedirectResponse(
+            url=f"{settings.app_url}/?error=email_already_registered"
+        )
     except GoogleOAuthError as exc:
         logger.error("auth.google.oauth_error", extra={"error": str(exc)})
         return RedirectResponse(url=f"{settings.app_url}/?error=authentication_failed")
@@ -311,7 +348,7 @@ async def login_keycloak(request: Request) -> RedirectResponse:
     # the frontend proxy on mosaic.*.
     response.set_cookie(
         key=_PKCE_COOKIE,
-        value=code_verifier,
+        value=_sign_pkce_value(code_verifier, settings.session_secret_key),
         max_age=STATE_TOKEN_MAX_AGE,
         httponly=True,
         secure=settings.session_cookie_secure,
@@ -347,11 +384,16 @@ async def callback_keycloak(
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code")
 
-    code_verifier = request.cookies.get(_PKCE_COOKIE)
-    if not code_verifier:
+    signed_verifier = request.cookies.get(_PKCE_COOKIE)
+    if not signed_verifier:
         raise HTTPException(
             status_code=400, detail="Missing PKCE verifier — login session expired"
         )
+    code_verifier = _verify_and_extract_pkce_value(
+        signed_verifier, settings.session_secret_key
+    )
+    if not code_verifier:
+        raise HTTPException(status_code=400, detail="Invalid PKCE verifier")
 
     try:
         kc = get_keycloak_client(settings)
@@ -392,6 +434,11 @@ async def callback_keycloak(
         )
         return response
 
+    except EmailAlreadyExistsError as exc:
+        logger.warning("auth.email_already_registered", extra={"email": exc.email})
+        return RedirectResponse(
+            url=f"{settings.app_url}/?error=email_already_registered"
+        )
     except KeycloakOIDCError as exc:
         logger.error("auth.keycloak.oidc_error", extra={"error": str(exc)})
         return RedirectResponse(url=f"{settings.app_url}/?error=authentication_failed")
@@ -496,6 +543,8 @@ async def _find_or_create_user(
                 break
             except IntegrityError as exc:
                 await db.rollback()
+                if _is_email_integrity_error(exc):
+                    raise EmailAlreadyExistsError(email)
                 if not _is_username_integrity_error(exc):
                     raise
         else:
