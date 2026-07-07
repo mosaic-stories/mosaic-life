@@ -200,7 +200,6 @@ class TestGetLegacy:
         session_data = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
@@ -311,7 +310,6 @@ class TestRequestJoin:
         session_data = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
@@ -398,7 +396,6 @@ class TestJoinApprovalFlow:
         session_data_1 = SessionData(
             user_id=test_user.id,
             provider=test_user.provider,
-
             provider_id=test_user.provider_id,
             email=test_user.email,
             name=test_user.name,
@@ -421,7 +418,6 @@ class TestJoinApprovalFlow:
         session_data_2 = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,

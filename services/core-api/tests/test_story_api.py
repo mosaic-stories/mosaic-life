@@ -83,7 +83,6 @@ class TestCreateStory:
         session_data = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
@@ -180,7 +179,6 @@ class TestListStories:
         session_data = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
@@ -277,7 +275,6 @@ class TestGetStory:
         session_data = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
@@ -359,7 +356,6 @@ class TestUpdateStory:
         session_data = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
@@ -413,7 +409,6 @@ class TestUpdateStory:
         session_data = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
@@ -469,7 +464,6 @@ class TestDeleteStory:
         session_data = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
@@ -588,7 +582,6 @@ class TestStoryWorkflow:
         session_data_1 = SessionData(
             user_id=test_user.id,
             provider=test_user.provider,
-
             provider_id=test_user.provider_id,
             email=test_user.email,
             name=test_user.name,
@@ -602,7 +595,6 @@ class TestStoryWorkflow:
         session_data_2 = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,

@@ -74,10 +74,11 @@ class KeycloakOIDCClient:
         if not self._internal_base_url:
             return {}
         parsed = urlparse(self._public_base_url)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
         return {
             "X-Forwarded-Host": parsed.netloc,
             "X-Forwarded-Proto": parsed.scheme,
-            "X-Forwarded-Port": str(443 if parsed.scheme == "https" else 80),
+            "X-Forwarded-Port": str(port),
         }
 
     # ------------------------------------------------------------------

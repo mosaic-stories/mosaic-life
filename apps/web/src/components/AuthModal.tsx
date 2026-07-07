@@ -33,11 +33,12 @@ function KeycloakIcon() {
   );
 }
 
-export default function AuthModal({ isOpen, onClose, onAuthenticate: _onAuthenticate }: AuthModalProps) {
+export default function AuthModal({ isOpen, onClose, onAuthenticate }: AuthModalProps) {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const { activeProvider, login } = useAuth();
 
   const handleLogin = () => {
+    onAuthenticate(activeProvider ?? '');
     login();
   };
 

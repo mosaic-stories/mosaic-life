@@ -129,7 +129,6 @@ class TestRequestUploadUrl:
         session_data = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
-
             provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,

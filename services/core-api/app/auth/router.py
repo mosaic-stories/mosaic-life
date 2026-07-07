@@ -235,6 +235,9 @@ async def callback_google(
     """Handle Google OAuth callback."""
     settings = get_settings()
 
+    if settings.auth_provider != "google":
+        raise HTTPException(status_code=404, detail="Google auth not active")
+
     if error:
         logger.error("auth.google.callback_error", extra={"error": error})
         return RedirectResponse(url=f"{settings.app_url}/?error={error}")
@@ -369,6 +372,9 @@ async def callback_keycloak(
 ) -> RedirectResponse:
     """Handle Keycloak OIDC callback — exchange code for tokens and create session."""
     settings = get_settings()
+
+    if settings.auth_provider != "keycloak":
+        raise HTTPException(status_code=404, detail="Keycloak auth not active")
 
     if error:
         logger.error("auth.keycloak.callback_error", extra={"error": error})

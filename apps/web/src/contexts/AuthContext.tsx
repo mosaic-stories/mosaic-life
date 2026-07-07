@@ -35,7 +35,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     fetch('/api/auth/providers')
       .then((r) => r.json())
       .then((data: { active: string }) => {
-        console.log('[auth] active provider:', data.active);
+        if (import.meta.env.DEV) {
+          console.log('[auth] active provider:', data.active);
+        }
         setActiveProvider(data.active);
       })
       .catch((err) => console.warn('[auth] provider fetch failed:', err));
