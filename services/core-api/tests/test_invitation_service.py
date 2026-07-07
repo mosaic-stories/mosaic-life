@@ -145,6 +145,8 @@ class TestAcceptInvitation:
         new_user = User(
             email="newuser@example.com",
             google_id="google_new",
+            provider="google",
+            provider_id="google_new",
             name="New User",
             username="new-user-0001",
         )
@@ -194,6 +196,8 @@ class TestAcceptInvitation:
         new_user = User(
             email="expired@example.com",
             google_id="google_expired",
+            provider="google",
+            provider_id="google_expired",
             name="Expired User",
             username="expired-user-0001",
         )

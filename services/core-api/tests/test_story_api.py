@@ -82,7 +82,9 @@ class TestCreateStory:
         now = datetime.now(timezone.utc)
         session_data = SessionData(
             user_id=test_user_2.id,
-            google_id=test_user_2.google_id,
+            provider=test_user_2.provider,
+
+            provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
             avatar_url=test_user_2.avatar_url,
@@ -177,7 +179,9 @@ class TestListStories:
         now = datetime.now(timezone.utc)
         session_data = SessionData(
             user_id=test_user_2.id,
-            google_id=test_user_2.google_id,
+            provider=test_user_2.provider,
+
+            provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
             avatar_url=test_user_2.avatar_url,
@@ -272,7 +276,9 @@ class TestGetStory:
         now = datetime.now(timezone.utc)
         session_data = SessionData(
             user_id=test_user_2.id,
-            google_id=test_user_2.google_id,
+            provider=test_user_2.provider,
+
+            provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
             avatar_url=test_user_2.avatar_url,
@@ -352,7 +358,9 @@ class TestUpdateStory:
         now = datetime.now(timezone.utc)
         session_data = SessionData(
             user_id=test_user_2.id,
-            google_id=test_user_2.google_id,
+            provider=test_user_2.provider,
+
+            provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
             avatar_url=test_user_2.avatar_url,
@@ -404,7 +412,9 @@ class TestUpdateStory:
         now = datetime.now(timezone.utc)
         session_data = SessionData(
             user_id=test_user_2.id,
-            google_id=test_user_2.google_id,
+            provider=test_user_2.provider,
+
+            provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
             avatar_url=test_user_2.avatar_url,
@@ -458,7 +468,9 @@ class TestDeleteStory:
         now = datetime.now(timezone.utc)
         session_data = SessionData(
             user_id=test_user_2.id,
-            google_id=test_user_2.google_id,
+            provider=test_user_2.provider,
+
+            provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
             avatar_url=test_user_2.avatar_url,
@@ -575,7 +587,9 @@ class TestStoryWorkflow:
 
         session_data_1 = SessionData(
             user_id=test_user.id,
-            google_id=test_user.google_id,
+            provider=test_user.provider,
+
+            provider_id=test_user.provider_id,
             email=test_user.email,
             name=test_user.name,
             avatar_url=test_user.avatar_url,
@@ -587,7 +601,9 @@ class TestStoryWorkflow:
 
         session_data_2 = SessionData(
             user_id=test_user_2.id,
-            google_id=test_user_2.google_id,
+            provider=test_user_2.provider,
+
+            provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
             avatar_url=test_user_2.avatar_url,
