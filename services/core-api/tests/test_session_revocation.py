@@ -148,9 +148,10 @@ async def test_revoking_another_session_rejects_its_cookie(
 
 
 @pytest.mark.asyncio
-async def test_valid_session_updates_last_active_at(
+async def test_last_active_at_is_throttled_within_window(
     client: AsyncClient, db_session: AsyncSession, issued_session
 ) -> None:
+    """last_active_at only refreshes once per throttle window, not on every request."""
     cookie_name, cookie_value, session_row = issued_session
     original_last_active = session_row.last_active_at
 
@@ -160,7 +161,7 @@ async def test_valid_session_updates_last_active_at(
     assert response.status_code == 200
 
     await db_session.refresh(session_row)
-    assert session_row.last_active_at >= original_last_active
+    assert session_row.last_active_at == original_last_active
 
 
 @pytest.mark.asyncio

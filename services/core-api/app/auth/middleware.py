@@ -145,11 +145,17 @@ class SessionMiddleware(BaseHTTPMiddleware):
                 return False
             if session_row.revoked_at is not None:
                 return True
-now = datetime.now(timezone.utc)
-if (now - session_row.last_active_at).total_seconds() >= 60:
-    session_row.last_active_at = now
-    await db.commit()
-return False
+            now = datetime.now(timezone.utc)
+            last_active_at = session_row.last_active_at
+            if last_active_at.tzinfo is None:
+                # SQLite hands back naive datetimes even for
+                # DateTime(timezone=True) columns; every write path stores
+                # UTC, so treat a naive read as UTC too.
+                last_active_at = last_active_at.replace(tzinfo=timezone.utc)
+            if (now - last_active_at).total_seconds() >= 60:
+                session_row.last_active_at = now
+                await db.commit()
+            return False
         finally:
             await db_gen.aclose()
 
