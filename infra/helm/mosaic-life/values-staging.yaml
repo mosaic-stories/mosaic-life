@@ -28,6 +28,8 @@ coreApi:
     annotations:
       alb.ingress.kubernetes.io/load-balancer-attributes: idle_timeout.timeout_seconds=3600,access_logs.s3.enabled=true,access_logs.s3.bucket=mosaic-life-observability,access_logs.s3.prefix=alb/access/shared
   extraEnv:
+    - name: ENV
+      value: "staging"
     - name: SESSION_COOKIE_NAME
       value: "mosaic_session_stage"
     - name: SESSION_COOKIE_DOMAIN
@@ -37,3 +39,5 @@ coreApi:
 externalSecrets:
   neptune:
     secretKey: "mosaic/staging/neptune/connection"
+  internalApi:
+    secretKey: "mosaic/staging/internal-api/token"

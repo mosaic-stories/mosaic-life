@@ -78,6 +78,11 @@ externalSecrets:
     # - PRs to main: mosaic/prod/session/secret-key
     # - PRs to develop: mosaic/staging/session/secret-key
     secretKey: ""  # Set via --set externalSecrets.session.secretKey
+  internalApi:
+    # Dynamically set by workflow based on target branch:
+    # - PRs to main: mosaic/prod/internal-api/token
+    # - PRs to develop: mosaic/staging/internal-api/token
+    secretKey: ""  # Set via --set externalSecrets.internalApi.secretKey
 
 # Service Account for preview - reuse the prod IRSA role
 # This allows preview environments to access S3 and other AWS resources

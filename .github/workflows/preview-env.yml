@@ -1,9 +1,10 @@
 name: Preview Environment
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches: [main, develop]
+  workflow_dispatch: # temporarily disabled - re-add pull_request trigger to re-enable
+  # pull_request:
+  #   types: [opened, synchronize, reopened, closed]
+  #   branches: [main, develop]
 
 env:
   AWS_REGION: us-east-1
@@ -30,6 +31,7 @@ jobs:
       target-env: ${{ steps.vars.outputs.target-env }}
       db-secret-key: ${{ steps.vars.outputs.db-secret-key }}
       session-secret-key: ${{ steps.vars.outputs.session-secret-key }}
+      internal-api-token-key: ${{ steps.vars.outputs.internal-api-token-key }}
       s3-media-bucket: ${{ steps.vars.outputs.s3-media-bucket }}
       s3-backup-bucket: ${{ steps.vars.outputs.s3-backup-bucket }}
       iam-role-arn: ${{ steps.vars.outputs.iam-role-arn }}
@@ -70,6 +72,7 @@ jobs:
           # Set environment-specific resource references (always staging for preview)
           echo "db-secret-key=mosaic/${PREVIEW_ENV}/rds/credentials" >> $GITHUB_OUTPUT
           echo "session-secret-key=mosaic/${PREVIEW_ENV}/session/secret-key" >> $GITHUB_OUTPUT
+          echo "internal-api-token-key=mosaic/${PREVIEW_ENV}/internal-api/token" >> $GITHUB_OUTPUT
           echo "s3-media-bucket=mosaic-${PREVIEW_ENV}-media-033691785857" >> $GITHUB_OUTPUT
           echo "s3-backup-bucket=mosaic-${PREVIEW_ENV}-backups-033691785857" >> $GITHUB_OUTPUT
           echo "iam-role-arn=arn:aws:iam::033691785857:role/mosaic-${PREVIEW_ENV}-core-api-role" >> $GITHUB_OUTPUT
@@ -188,6 +191,7 @@ jobs:
           TARGET_ENV: ${{ needs.build-preview-images.outputs.target-env }}
           DB_SECRET_KEY: ${{ needs.build-preview-images.outputs.db-secret-key }}
           SESSION_SECRET_KEY: ${{ needs.build-preview-images.outputs.session-secret-key }}
+          INTERNAL_API_TOKEN_KEY: ${{ needs.build-preview-images.outputs.internal-api-token-key }}
           S3_MEDIA_BUCKET: ${{ needs.build-preview-images.outputs.s3-media-bucket }}
           S3_BACKUP_BUCKET: ${{ needs.build-preview-images.outputs.s3-backup-bucket }}
           IAM_ROLE_ARN: ${{ needs.build-preview-images.outputs.iam-role-arn }}
@@ -206,6 +210,7 @@ jobs:
             --set global.domain=${WEB_HOST} \
             --set "externalSecrets.database.secretKey=${DB_SECRET_KEY}" \
             --set "externalSecrets.session.secretKey=${SESSION_SECRET_KEY}" \
+            --set "externalSecrets.internalApi.secretKey=${INTERNAL_API_TOKEN_KEY}" \
             --set "global.s3.mediaBucket=${S3_MEDIA_BUCKET}" \
             --set "global.s3.backupBucket=${S3_BACKUP_BUCKET}" \
             --set "coreApi.serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${IAM_ROLE_ARN}" \
@@ -219,7 +224,7 @@ jobs:
             --set "coreApi.ingress.annotations.external-dns\\.alpha\\.kubernetes\\.io/hostname=${API_HOST}" \
             --set "web.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/group\\.name=mosaic-life-preview-${PR_NUMBER}" \
             --set "coreApi.ingress.annotations.alb\\.ingress\\.kubernetes\\.io/group\\.name=mosaic-life-preview-${PR_NUMBER}" \
-            --set "coreApi.extraEnv[0].name=ENVIRONMENT" \
+            --set "coreApi.extraEnv[0].name=ENV" \
             --set "coreApi.extraEnv[0].value=preview" \
             --set "coreApi.extraEnv[1].name=PR_NUMBER" \
             --set-string "coreApi.extraEnv[1].value=${PR_NUMBER}" \

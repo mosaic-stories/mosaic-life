@@ -1,6 +1,10 @@
 import os
 from functools import lru_cache
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
+
+# Known-insecure fallback shipped in source; anyone can read it in this public
+# repo, so it must never be the active key outside of local dev.
+INSECURE_SESSION_SECRET_KEY = "dev-secret-change-in-production"
 
 
 def _as_bool(value: str | None, default: bool = False) -> bool:
@@ -42,7 +46,7 @@ class Settings(BaseModel):
 
     # Session Configuration
     session_secret_key: str = os.getenv(
-        "SESSION_SECRET_KEY", "dev-secret-change-in-production"
+        "SESSION_SECRET_KEY", INSECURE_SESSION_SECRET_KEY
     )
     session_cookie_name: str = os.getenv("SESSION_COOKIE_NAME", "mosaic_session")
     session_cookie_secure: bool = os.getenv("ENV", "dev") != "dev"
@@ -176,6 +180,32 @@ class Settings(BaseModel):
         "ENTITY_EXTRACTION_MODEL_ID",
         "claude-haiku-4-5",
     )
+
+    @model_validator(mode="after")
+    def _require_real_secrets_outside_dev(self) -> "Settings":
+        """Fail fast instead of silently booting with an insecure default.
+
+        SESSION_SECRET_KEY signs both session cookies and the OAuth state
+        token; INTERNAL_API_TOKEN gates the internal cleanup endpoints. A
+        missing or misspelled env var in a non-dev deploy must not fall back
+        to a publicly-known secret or an open endpoint. See issue #95.
+        """
+        if self.env == "dev":
+            return self
+        if (
+            not self.session_secret_key
+            or self.session_secret_key == INSECURE_SESSION_SECRET_KEY
+        ):
+            raise RuntimeError(
+                "SESSION_SECRET_KEY must be set to a strong random value "
+                "in non-dev environments"
+            )
+        if not self.internal_api_token:
+            raise RuntimeError(
+                "INTERNAL_API_TOKEN must be set to a strong random value "
+                "in non-dev environments"
+            )
+        return self
 
 
 @lru_cache
