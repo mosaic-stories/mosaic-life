@@ -173,7 +173,11 @@ coreApi:
     - name: DEBUG_SSE_ENABLED
       value: "false"
     
-    # Google OAuth Configuration
+    # Auth provider — must be "google" in production
+    - name: AUTH_PROVIDER
+      value: "google"
+
+    # Google OAuth Configuration (injected from AWS Secrets Manager via ExternalSecrets)
     - name: GOOGLE_CLIENT_ID
       valueFrom:
         secretKeyRef:
