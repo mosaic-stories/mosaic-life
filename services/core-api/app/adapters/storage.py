@@ -105,7 +105,7 @@ class S3StorageAdapter(StorageAdapter):
                 signature_version="s3v4",
                 s3={"addressing_style": "path" if endpoint_url else "auto"},
             ),
-            **creds,  # type: ignore[arg-type]
+            **creds,
         )
 
         # Operations client — uses the internal Docker endpoint when available so
@@ -120,7 +120,7 @@ class S3StorageAdapter(StorageAdapter):
                 signature_version="s3v4",
                 s3={"addressing_style": "path" if ops_endpoint else "auto"},
             ),
-            **creds,  # type: ignore[arg-type]
+            **creds,
         )
 
     def generate_upload_url(self, path: str, content_type: str) -> str:
