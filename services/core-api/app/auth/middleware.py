@@ -145,9 +145,11 @@ class SessionMiddleware(BaseHTTPMiddleware):
                 return False
             if session_row.revoked_at is not None:
                 return True
-            session_row.last_active_at = datetime.now(timezone.utc)
-            await db.commit()
-            return False
+now = datetime.now(timezone.utc)
+if (now - session_row.last_active_at).total_seconds() >= 60:
+    session_row.last_active_at = now
+    await db.commit()
+return False
         finally:
             await db_gen.aclose()
 
