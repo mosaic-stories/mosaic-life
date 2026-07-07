@@ -163,7 +163,7 @@ coreApi:
   env:
     - name: PORT
       value: "8080"
-    - name: ENVIRONMENT
+    - name: ENV
       value: "production"
     - name: LOG_LEVEL
       value: "info"
@@ -209,7 +209,14 @@ coreApi:
           key: secret-key
     - name: SESSION_COOKIE_DOMAIN
       value: ".mosaiclife.me"  # Cross-subdomain cookie for api.mosaiclife.me -> mosaiclife.me
-    
+
+    # Internal API token — gates the CronJob-facing cleanup endpoints
+    - name: INTERNAL_API_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: internal-api-token
+          key: token
+
     # AWS S3 Configuration
     - name: STORAGE_BACKEND
       value: "s3"
@@ -403,6 +410,10 @@ externalSecrets:
     secretKey: "mosaic/prod/rds/credentials"
   session:
     secretKey: "mosaic/prod/session/secret-key"
+  internalApi:
+    # Must contain {token: "<strong random value>"}. Generate with:
+    # python -c "import secrets; print(secrets.token_urlsafe(48))"
+    secretKey: "mosaic/prod/internal-api/token"
   googleOAuth:
     secretKey: "mosaic/prod/google-oauth"
   debugSse:

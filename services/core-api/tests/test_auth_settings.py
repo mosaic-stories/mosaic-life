@@ -44,6 +44,91 @@ def test_session_cookie_name_can_be_overridden(monkeypatch):
         importlib.reload(settings_module)
 
 
+def test_dev_env_allows_insecure_defaults(monkeypatch):
+    monkeypatch.setenv("ENV", "dev")
+    monkeypatch.delenv("SESSION_SECRET_KEY", raising=False)
+    monkeypatch.delenv("INTERNAL_API_TOKEN", raising=False)
+
+    from app.config import settings as settings_module
+
+    importlib.reload(settings_module)
+    settings_module.get_settings.cache_clear()
+
+    try:
+        settings = settings_module.get_settings()
+        assert (
+            settings.session_secret_key == settings_module.INSECURE_SESSION_SECRET_KEY
+        )
+        assert settings.internal_api_token is None
+    finally:
+        monkeypatch.delenv("ENV", raising=False)
+        settings_module.get_settings.cache_clear()
+        importlib.reload(settings_module)
+
+
+def test_non_dev_env_rejects_insecure_session_secret(monkeypatch):
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.delenv("SESSION_SECRET_KEY", raising=False)
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "a-strong-internal-token")
+
+    from app.config import settings as settings_module
+
+    importlib.reload(settings_module)
+    settings_module.get_settings.cache_clear()
+
+    try:
+        with pytest.raises(RuntimeError, match="SESSION_SECRET_KEY"):
+            settings_module.get_settings()
+    finally:
+        monkeypatch.delenv("ENV", raising=False)
+        monkeypatch.delenv("INTERNAL_API_TOKEN", raising=False)
+        settings_module.get_settings.cache_clear()
+        importlib.reload(settings_module)
+
+
+def test_non_dev_env_rejects_missing_internal_api_token(monkeypatch):
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("SESSION_SECRET_KEY", "a-strong-random-secret")
+    monkeypatch.delenv("INTERNAL_API_TOKEN", raising=False)
+
+    from app.config import settings as settings_module
+
+    importlib.reload(settings_module)
+    settings_module.get_settings.cache_clear()
+
+    try:
+        with pytest.raises(RuntimeError, match="INTERNAL_API_TOKEN"):
+            settings_module.get_settings()
+    finally:
+        monkeypatch.delenv("ENV", raising=False)
+        monkeypatch.delenv("SESSION_SECRET_KEY", raising=False)
+        settings_module.get_settings.cache_clear()
+        importlib.reload(settings_module)
+
+
+def test_non_dev_env_boots_with_real_secrets_configured(monkeypatch):
+    monkeypatch.setenv("ENV", "production")
+    monkeypatch.setenv("SESSION_SECRET_KEY", "a-strong-random-secret")
+    monkeypatch.setenv("INTERNAL_API_TOKEN", "a-strong-internal-token")
+
+    from app.config import settings as settings_module
+
+    importlib.reload(settings_module)
+    settings_module.get_settings.cache_clear()
+
+    try:
+        settings = settings_module.get_settings()
+        assert settings.env == "production"
+        assert settings.session_secret_key == "a-strong-random-secret"
+        assert settings.internal_api_token == "a-strong-internal-token"
+    finally:
+        monkeypatch.delenv("ENV", raising=False)
+        monkeypatch.delenv("SESSION_SECRET_KEY", raising=False)
+        monkeypatch.delenv("INTERNAL_API_TOKEN", raising=False)
+        settings_module.get_settings.cache_clear()
+        importlib.reload(settings_module)
+
+
 @pytest.mark.asyncio
 async def test_find_or_create_user_creates_profile_settings(
     db_session: AsyncSession,
