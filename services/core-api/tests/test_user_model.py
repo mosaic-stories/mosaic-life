@@ -12,6 +12,8 @@ class TestUserUsername:
         user = User(
             email="username@example.com",
             google_id="google_uname_1",
+            provider="google",
+            provider_id="google_uname_1",
             name="Jane Doe",
             username="jane-doe-a1b2",
         )
@@ -24,12 +26,16 @@ class TestUserUsername:
         user1 = User(
             email="u1@example.com",
             google_id="g1",
+            provider="google",
+            provider_id="g1",
             name="User One",
             username="unique-name-x1y2",
         )
         user2 = User(
             email="u2@example.com",
             google_id="g2",
+            provider="google",
+            provider_id="g2",
             name="User Two",
             username="unique-name-x1y2",
         )

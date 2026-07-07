@@ -144,7 +144,7 @@ class IntentAnalyzer:
                     messages=[{"role": "user", "content": query}],
                     system_prompt=system_prompt,
                     model_id=self._model_id,
-                    max_tokens=512,
+                    max_tokens=2048,
                 ):
                     chunks.append(chunk)
 

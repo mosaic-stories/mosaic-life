@@ -203,6 +203,8 @@ class TestRAGFlow:
         admirer = User(
             email="admirer@example.com",
             google_id="google_admirer_123",
+            provider="google",
+            provider_id="google_admirer_123",
             name="Admirer User",
             username="admirer-0001",
         )
@@ -231,6 +233,8 @@ class TestRAGFlow:
         non_member = User(
             email="stranger@example.com",
             google_id="google_stranger_123",
+            provider="google",
+            provider_id="google_stranger_123",
             name="Stranger",
             username="stranger-0001",
         )

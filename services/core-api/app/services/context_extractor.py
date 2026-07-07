@@ -283,7 +283,7 @@ class ContextExtractor:
                 messages=[{"role": "user", "content": prompt}],
                 system_prompt="You are a precise fact extraction assistant. Return only valid JSON.",
                 model_id=self._model_id,
-                max_tokens=2048,
+                max_tokens=4096,
             ):
                 full_text += chunk
 

@@ -23,7 +23,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    allowedHosts: ['beelink.projecthewitt.info', 'localhost'],
+    allowedHosts: ['mosaic.m5.build-it.xyz', 'beelink.projecthewitt.info', 'localhost'],
     proxy: {
       '/api': {
         target: BACKEND_URL,
@@ -54,7 +54,7 @@ export default defineConfig({
         "style-src 'self' 'unsafe-inline'", // Allow inline styles for dev
         "img-src 'self' data: blob: https:",
         "font-src 'self' data: https:",
-        "connect-src 'self' ws: wss:", // WebSocket for HMR
+        "connect-src 'self' ws: wss: https://s3.m5.build-it.xyz https://mosaicapi.m5.build-it.xyz", // WebSocket for HMR + S3 presigned URLs + backend API
         "object-src 'none'",
         "base-uri 'self'",
         "frame-ancestors 'none'"

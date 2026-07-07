@@ -21,6 +21,8 @@ async def enrichment_user(db_session: AsyncSession) -> User:
     user = User(
         email="enrich@example.com",
         google_id="google_enrich_123",
+        provider="google",
+        provider_id="google_enrich_123",
         name="Enrichment User",
         username="enrich-user-0001",
         avatar_url="https://example.com/enrich.jpg",

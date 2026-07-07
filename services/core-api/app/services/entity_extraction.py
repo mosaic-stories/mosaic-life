@@ -124,7 +124,7 @@ class EntityExtractionService:
                     messages=[{"role": "user", "content": normalized_content}],
                     system_prompt=_EXTRACTION_PROMPT,
                     model_id=self._model_id,
-                    max_tokens=2048,
+                    max_tokens=4096,
                 ):
                     chunks.append(chunk)
 

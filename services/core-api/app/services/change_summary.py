@@ -69,7 +69,7 @@ async def generate_change_summary(
             messages=messages,
             system_prompt=SUMMARY_SYSTEM_PROMPT,
             model_id=settings.change_summary_model_id,
-            max_tokens=100,
+            max_tokens=2048,
         ):
             chunks.append(chunk)
 

@@ -19,6 +19,8 @@ async def tracking_user(db_session: AsyncSession) -> User:
     user = User(
         email="tracker@example.com",
         google_id="google_tracker_123",
+        provider="google",
+        provider_id="google_tracker_123",
         name="Tracker User",
         username="tracker-0001",
     )
@@ -34,6 +36,8 @@ async def opted_out_user(db_session: AsyncSession) -> User:
     user = User(
         email="private@example.com",
         google_id="google_private_123",
+        provider="google",
+        provider_id="google_private_123",
         name="Private User",
         username="private-user-0001",
         preferences={"activity_tracking_enabled": False},

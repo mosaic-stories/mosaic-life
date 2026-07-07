@@ -281,6 +281,8 @@ class TestGetLinkDetail:
         third_user = User(
             email="third@example.com",
             google_id="google_third_789",
+            provider="google",
+            provider_id="google_third_789",
             name="Third User",
             username="third-user-0001",
         )

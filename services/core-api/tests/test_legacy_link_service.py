@@ -620,6 +620,8 @@ class TestGetLinkDetail:
         third_user = User(
             email="third@example.com",
             google_id="google_third",
+            provider="google",
+            provider_id="google_third",
             name="Third User",
             username="third-user-0002",
         )

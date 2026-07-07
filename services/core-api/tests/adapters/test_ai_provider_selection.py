@@ -43,6 +43,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             llm_provider = get_llm_provider()
@@ -70,6 +71,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             llm_provider = get_llm_provider()
@@ -98,6 +100,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             llm_provider = get_llm_provider(region="eu-west-1")
@@ -119,6 +122,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             with pytest.raises(AIProviderError) as exc:
@@ -142,6 +146,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             with pytest.raises(AIProviderError) as exc:
@@ -167,6 +172,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             llm_provider = get_llm_provider()
@@ -191,6 +197,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             embedding_provider = get_embedding_provider()
@@ -211,6 +218,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             with pytest.raises(AIProviderError) as exc:
@@ -232,6 +240,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             with pytest.raises(AIProviderError) as exc:
@@ -257,6 +266,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             from app.adapters.litellm import LiteLLMAdapter
@@ -283,6 +293,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             from app.adapters.litellm import LiteLLMAdapter
@@ -309,6 +320,7 @@ class TestProviderSelection:
                 openai_embedding_model="text-embedding-3-small",
                 litellm_base_url="http://litellm:4000",
                 litellm_api_key="sk-test",
+                litellm_embedding_model="titan-embed-text-v2",
             ),
         ):
             from app.adapters.litellm import LiteLLMAdapter

@@ -199,7 +199,8 @@ class TestGetLegacy:
         now = datetime.now(timezone.utc)
         session_data = SessionData(
             user_id=test_user_2.id,
-            google_id=test_user_2.google_id,
+            provider=test_user_2.provider,
+            provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
             avatar_url=test_user_2.avatar_url,
@@ -308,7 +309,8 @@ class TestRequestJoin:
         now = datetime.now(timezone.utc)
         session_data = SessionData(
             user_id=test_user_2.id,
-            google_id=test_user_2.google_id,
+            provider=test_user_2.provider,
+            provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
             avatar_url=test_user_2.avatar_url,
@@ -393,7 +395,8 @@ class TestJoinApprovalFlow:
         # User 1 creates legacy
         session_data_1 = SessionData(
             user_id=test_user.id,
-            google_id=test_user.google_id,
+            provider=test_user.provider,
+            provider_id=test_user.provider_id,
             email=test_user.email,
             name=test_user.name,
             avatar_url=test_user.avatar_url,
@@ -414,7 +417,8 @@ class TestJoinApprovalFlow:
         # User 2 requests to join
         session_data_2 = SessionData(
             user_id=test_user_2.id,
-            google_id=test_user_2.google_id,
+            provider=test_user_2.provider,
+            provider_id=test_user_2.provider_id,
             email=test_user_2.email,
             name=test_user_2.name,
             avatar_url=test_user_2.avatar_url,
@@ -487,6 +491,8 @@ class TestMemberManagement:
         other_user = User(
             email="other@example.com",
             google_id="google_other",
+            provider="google",
+            provider_id="google_other",
             name="Other User",
             username="other-user-0001",
         )
@@ -524,6 +530,8 @@ class TestMemberManagement:
         other_user = User(
             email="removable@example.com",
             google_id="google_removable",
+            provider="google",
+            provider_id="google_removable",
             name="Removable User",
             username="removable-0001",
         )
@@ -558,6 +566,8 @@ class TestMemberManagement:
         leaving_user = User(
             email="leaving@example.com",
             google_id="google_leaving",
+            provider="google",
+            provider_id="google_leaving",
             name="Leaving User",
             username="leaving-0001",
         )

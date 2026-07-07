@@ -16,6 +16,8 @@ async def recent_user(db_session: AsyncSession) -> User:
     user = User(
         email="recent@example.com",
         google_id="google_recent_123",
+        provider="google",
+        provider_id="google_recent_123",
         name="Recent User",
         username="recent-user-0001",
     )
@@ -104,6 +106,8 @@ class TestGetEnrichedRecentItems:
         user = User(
             email="norecenttrack@example.com",
             google_id="google_norecent",
+            provider="google",
+            provider_id="google_norecent",
             name="No Track",
             username="norecent-0001",
             preferences={"activity_tracking_enabled": False},

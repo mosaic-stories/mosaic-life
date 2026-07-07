@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.models import GoogleUser
-from app.auth.router import _find_or_create_user
+from app.auth.router import EmailAlreadyExistsError, _find_or_create_user
 from app.models.profile_settings import ProfileSettings
 from app.models.user import User
 
@@ -55,7 +55,15 @@ async def test_find_or_create_user_creates_profile_settings(
         picture="https://example.com/new-user.jpg",
     )
 
-    user = await _find_or_create_user(db_session, google_user)
+    user = await _find_or_create_user(
+        db_session,
+        provider="google",
+        provider_id=google_user.id,
+        email=google_user.email,
+        name=google_user.display_name,
+        avatar_url=google_user.picture,
+        google_id=google_user.id,
+    )
 
     settings = await db_session.execute(
         select(ProfileSettings).where(ProfileSettings.user_id == user.id)
@@ -83,7 +91,15 @@ async def test_find_or_create_user_retries_username_collision(
         fake_allocate_username,
     )
 
-    user = await _find_or_create_user(db_session, google_user)
+    user = await _find_or_create_user(
+        db_session,
+        provider="google",
+        provider_id=google_user.id,
+        email=google_user.email,
+        name=google_user.display_name,
+        avatar_url=google_user.picture,
+        google_id=google_user.id,
+    )
 
     assert user.username == "collision-user-7777"
 
@@ -110,8 +126,16 @@ async def test_find_or_create_user_reraises_non_username_integrity_errors(
 
     monkeypatch.setattr(db_session, "flush", fake_flush)
 
-    with pytest.raises(IntegrityError):
-        await _find_or_create_user(db_session, google_user)
+    with pytest.raises(EmailAlreadyExistsError):
+        await _find_or_create_user(
+            db_session,
+            provider="google",
+            provider_id=google_user.id,
+            email=google_user.email,
+            name=google_user.display_name,
+            avatar_url=google_user.picture,
+            google_id=google_user.id,
+        )
 
 
 @pytest.mark.asyncio

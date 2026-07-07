@@ -1,10 +1,10 @@
-"""User model for Google OAuth authentication."""
+"""User model supporting multiple OAuth providers."""
 
 from datetime import datetime
 from typing import TYPE_CHECKING, Any
 from uuid import UUID, uuid4
 
-from sqlalchemy import JSON, DateTime, String
+from sqlalchemy import JSON, DateTime, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,9 +18,14 @@ if TYPE_CHECKING:
 
 
 class User(Base):
-    """User model representing authenticated users via Google OAuth."""
+    """User model supporting Google OAuth and Keycloak OIDC authentication."""
 
     __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint(
+            "provider", "provider_id", name="uq_users_provider_provider_id"
+        ),
+    )
 
     id: Mapped[UUID] = mapped_column(
         PG_UUID(as_uuid=True),
@@ -31,9 +36,15 @@ class User(Base):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )
-    google_id: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True
+    # Legacy Google ID — kept for existing Google users; null for Keycloak users
+    google_id: Mapped[str | None] = mapped_column(
+        String(255), unique=True, nullable=True, index=True
     )
+    # Generic provider identity — the active auth fields
+    provider: Mapped[str] = mapped_column(
+        String(50), nullable=False, server_default="google"
+    )
+    provider_id: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     username: Mapped[str] = mapped_column(
         String(30), unique=True, nullable=False, index=True

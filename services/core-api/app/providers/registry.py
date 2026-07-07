@@ -105,6 +105,7 @@ class ProviderRegistry:
             return get_litellm_adapter(
                 base_url=self._settings.litellm_base_url,
                 api_key=self._settings.litellm_api_key or "",
+                default_embedding_model=self._settings.litellm_embedding_model,
             )
 
         raise AIProviderError(

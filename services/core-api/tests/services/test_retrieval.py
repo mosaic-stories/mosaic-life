@@ -48,6 +48,8 @@ class TestResolveVisibilityFilter:
         admirer = User(
             email="admirer@example.com",
             google_id="google_admirer",
+            provider="google",
+            provider_id="google_admirer",
             name="Admirer User",
             username="admirer-0002",
         )
@@ -84,6 +86,8 @@ class TestResolveVisibilityFilter:
         non_member = User(
             email="nonmember@example.com",
             google_id="google_nonmember",
+            provider="google",
+            provider_id="google_nonmember",
             name="Non Member",
             username="nonmember-0001",
         )
