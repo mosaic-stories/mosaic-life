@@ -13,6 +13,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  activeProvider: string;
   login: () => void;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -27,6 +28,18 @@ interface AuthProviderProps {
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeProvider, setActiveProvider] = useState<string>('google');
+
+  // Fetch the active auth provider once on mount
+  useEffect(() => {
+    fetch('/api/auth/providers')
+      .then((r) => r.json())
+      .then((data: { active: string }) => {
+        console.log('[auth] active provider:', data.active);
+        setActiveProvider(data.active);
+      })
+      .catch((err) => console.warn('[auth] provider fetch failed, defaulting to google:', err));
+  }, []);
 
   // Fetch current user from /api/me
   const refreshUser = useCallback(async () => {
@@ -69,15 +82,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return () => window.removeEventListener('auth:expired', handleAuthExpired);
   }, []);
 
-  // Redirect to Google OAuth
+  // Redirect to the active auth provider's login endpoint
   const login = useCallback(() => {
-    // Get the current URL to redirect back after login
     const returnUrl = window.location.pathname + window.location.search;
-    // Store return URL in sessionStorage for after OAuth callback
     sessionStorage.setItem('auth_return_url', returnUrl);
-    // Redirect to backend OAuth endpoint
-    window.location.href = '/api/auth/google';
-  }, []);
+    window.location.href = `/api/auth/${activeProvider}`;
+  }, [activeProvider]);
 
   // Logout user
   const logout = useCallback(async () => {
@@ -97,6 +107,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user,
     isLoading,
     isAuthenticated: !!user,
+    activeProvider,
     login,
     logout,
     refreshUser,

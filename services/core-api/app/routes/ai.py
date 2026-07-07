@@ -775,8 +775,7 @@ async def _extract_context_from_conversation(
             llm = registry.get_llm_provider()
             settings = get_settings()
             model_id = (
-                getattr(settings, "context_extraction_model_id", None)
-                or "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
+                settings.context_extraction_model_id or settings.default_chat_model_id
             )
             extractor = ContextExtractor(llm_provider=llm, model_id=model_id)
 

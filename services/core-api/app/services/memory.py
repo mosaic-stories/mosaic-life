@@ -225,7 +225,7 @@ async def _call_summarize_llm(messages: list[dict[str, str]], legacy_name: str) 
             messages=messages,
             system_prompt=prompt,
             model_id="",  # Use provider default
-            max_tokens=1024,
+            max_tokens=4096,
         ):
             full_response += chunk
 

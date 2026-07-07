@@ -9,7 +9,7 @@
 #   Frontend: http://localhost:5173 (Vite dev server with HMR)
 #   Backend:  http://localhost:8080 (FastAPI with auto-reload)
 #   API Docs: http://localhost:8080/docs
-#   Postgres: localhost:15432
+#   Postgres: localhost:25432
 
 services:
   # Backend API (FastAPI)
@@ -21,7 +21,10 @@ services:
     # Load environment variables from .env file
     env_file:
       - .env
-    
+    networks:
+      - mosaic
+      - edge
+
     # Environment variables can be overridden here if needed
     # Uncomment and modify as necessary for specific deployments
     # environment:
@@ -57,11 +60,17 @@ services:
 
     # Health check
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mosaicapi.rule=Host(`mosaicapi.m5.build-it.xyz`)"
+      - "traefik.http.routers.mosaicapi.service=core-api-compose@docker"
+      - "traefik.http.routers.mosaicapi.entrypoints=websecure"
+      - "traefik.http.routers.mosaicapi.tls=true"
 
   # Frontend Dev Server (Vite with HMR)
   web:
@@ -73,12 +82,15 @@ services:
     env_file:
       - .env
     
-    # Environment variables can be overridden here if needed
-    # Uncomment and modify as necessary for specific deployments
-    # environment:
-    #   VITE_API_URL: http://localhost:8080
-    #   VITE_BACKEND_URL: http://core-api:8080
-    
+    # VITE_BACKEND_URL is overridden here so the Vite server-side proxy uses the
+    # internal Docker service name rather than the external Traefik hostname.
+    environment:
+      VITE_BACKEND_URL: "http://core-api:8080"
+
+    networks:
+      - mosaic
+      - edge
+
     ports:
       - "5173:5173"
     volumes:
@@ -87,6 +99,12 @@ services:
       # Use named volume for node_modules (faster on non-Linux)
       - web-node-modules:/app/node_modules
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mosaicweb.rule=Host(`mosaic.m5.build-it.xyz`)"
+      - "traefik.http.routers.mosaicweb.service=web-compose@docker"
+      - "traefik.http.routers.mosaicweb.entrypoints=websecure"
+      - "traefik.http.routers.mosaicweb.tls=true"
 
   # PostgreSQL Database with pgvector extension
   postgres:
@@ -95,6 +113,9 @@ services:
     # Load environment variables from .env file
     env_file:
       - .env
+
+    networks:
+      - mosaic 
 
     # Environment variables can be overridden here if needed
     # Uncomment and modify as necessary for specific deployments
@@ -105,10 +126,10 @@ services:
     #   PGDATA: /var/lib/postgresql/data/pgdata
 
     ports:
-      - "15432:5432"
+      - "25432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./init-litellm-db.sql:/docker-entrypoint-initdb.d/02-init-litellm.sql:ro
+#      - ./init-litellm-db.sql:/docker-entrypoint-initdb.d/02-init-litellm.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d mosaic"]
       interval: 5s
@@ -120,6 +141,10 @@ services:
   neptune-local:
     image: tinkerpop/gremlin-server:3.7.3
     container_name: mosaic-neptune-local
+    networks:
+      - mosaic 
+      - edge 
+
     ports:
       - "18182:8182"
     volumes:
@@ -132,63 +157,93 @@ services:
       timeout: 5s
       retries: 5
     restart: unless-stopped
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.neptune.rule=Host(`neptune.m5.build-it.xyz`)"
+      - "traefik.http.routers.neptune.service=neptune@internal"
+      - "traefik.http.routers.neptune.entrypoints=websecure"
+      - "traefik.http.routers.neptune.tls=true"
 
   # LiteLLM AI Proxy
-  litellm:
-    image: ghcr.io/berriai/litellm-database:main-stable
-    ports:
-      - "14000:4000"
-    environment:
-      LITELLM_MASTER_KEY: "sk-local-dev-key-1234"
-      LITELLM_SALT_KEY: "sk-local-salt-key-1234"
-      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/litellm"
-    volumes:
-      - ./litellm-config.yaml:/app/config.yaml:ro
-      # Mount AWS credentials for Bedrock access (uses host's STS credentials)
-      - ~/.aws:/root/.aws:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:4000/health/liveliness"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-    restart: unless-stopped
-
+#  litellm:
+#    image: ghcr.io/berriai/litellm-database:main-stable
+#    ports:
+#      - "14000:4000"
+#    environment:
+#      LITELLM_MASTER_KEY: "sk-local-dev-key-1234"
+#      LITELLM_SALT_KEY: "sk-local-salt-key-1234"
+#      DATABASE_URL: "postgresql://postgres:postgres@postgres:5432/litellm"
+#    volumes:
+#      - ./litellm-config.yaml:/app/config.yaml:ro
+#      # Mount AWS credentials for Bedrock access (uses host's STS credentials)
+#      - ~/.aws:/root/.aws:ro
+#    depends_on:
+#      postgres:
+#        condition: service_healthy
+##    healthcheck:
+##      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+##      interval: 30s
+##      timeout: 10s
+##      retries: 3
+##      start_period: 30s
+#    restart: unless-stopped
+#    networks:
+#      - mosaic 
+#      - edge 
+#    labels:
+#      - "traefik.enable=true"
+#      - "traefik.http.routers.litellm.rule=Host(`litellm.m5.build-it.xyz`)"
+#      - "traefik.http.routers.litellm.service=litellm-compose@docker"
+#      - "traefik.http.routers.litellm.entrypoints=websecure"
+#      - "traefik.http.routers.litellm.tls=true"
+#
   # Documentation Site (MkDocs)
   docs:
     build:
       context: ../..
       dockerfile: apps/docs/Dockerfile
-    ports:
-      - "8000:8080"
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 3s
       retries: 3
+    networks:
+      - mosaic 
+      - edge 
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.docs.rule=Host(`docs.m5.build-it.xyz`)"
+      - "traefik.http.routers.docs.service=docs@internal"
+      - "traefik.http.routers.docs.entrypoints=websecure"
+      - "traefik.http.routers.docs.tls=true"
+      - "traefik.http.routers.docs.loadbalancer.server.port=8080"
 
   # Prerender Service for SEO (renders pages for bots)
-  prerender:
-    image: tvanro/prerender-alpine:7.2.0
-    ports:
-      - "3000:3000"
-    environment:
-      - CHROME_FLAGS=--no-sandbox --headless --disable-gpu --disable-dev-shm-usage
-      - ALLOWED_DOMAINS=localhost,127.0.0.1
-      - CACHE_MAXSIZE=1000
-      - CACHE_TTL=86400
-    mem_limit: 1g
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
-
+#  prerender:
+#    image: tvanro/prerender-alpine:7.2.0
+#    ports:
+#      - "3000:3000"
+#    environment:
+#      - CHROME_FLAGS=--no-sandbox --headless --disable-gpu --disable-dev-shm-usage
+#      - ALLOWED_DOMAINS=localhost,127.0.0.1
+#      - CACHE_MAXSIZE=1000
+#      - CACHE_TTL=86400
+#    mem_limit: 1g
+#    restart: unless-stopped
+#    healthcheck:
+#      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+#      interval: 30s
+#      timeout: 10s
+#      retries: 3
+#      start_period: 30s
+#    labels:
+#      - "traefik.enable=true"
+#      - "traefik.http.routers.prerender.rule=Host(`prerender.m5.build-it.xyz`)"
+#      - "traefik.http.routers.prerender.service=prerender@internal"
+#      - "traefik.http.routers.prerender.entrypoints=websecure"
+#      - "traefik.http.routers.prerender.tls=true"
+#
   # Graph Explorer - Visual Neptune/Gremlin graph exploration UI
   graph-explorer:
     image: public.ecr.aws/neptune/graph-explorer:latest
@@ -207,6 +262,22 @@ services:
       neptune-local:
         condition: service_healthy
     restart: unless-stopped
+    networks:
+      - mosaic 
+      - edge 
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.graph.rule=Host(`graph.m5.build-it.xyz`)"
+      - "traefik.http.routers.graph.service=graph@internal"
+      - "traefik.http.routers.graph.entrypoints=websecure"
+      - "traefik.http.routers.graph.tls=true"
+
+networks:
+  mosaic:
+    name: mosaic
+  edge:
+    external: true
 
 volumes:
   postgres-data:

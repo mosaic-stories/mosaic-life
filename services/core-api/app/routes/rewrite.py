@@ -18,6 +18,7 @@ from app.models.story import Story
 from app.models.associations import StoryLegacy
 from app.models.story_evolution import StoryEvolutionSession
 from app.models.story_version import StoryVersion
+from app.config import get_settings
 from app.providers.registry import get_provider_registry
 from app.schemas.ai import SSEErrorEvent
 from app.schemas.rewrite import RewriteRequest
@@ -82,9 +83,7 @@ async def rewrite_story(
     from app.config.personas import get_persona
 
     persona = get_persona(data.persona_id)
-    model_id = (
-        persona.model_id if persona else "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-    )
+    model_id = persona.model_id if persona else get_settings().default_chat_model_id
 
     async def rewrite_stream() -> AsyncGenerator[str, None]:
         try:

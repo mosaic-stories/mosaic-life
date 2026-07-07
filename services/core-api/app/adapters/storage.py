@@ -71,23 +71,60 @@ class LocalStorageAdapter(StorageAdapter):
 
 
 class S3StorageAdapter(StorageAdapter):
-    """Storage adapter for AWS S3 (production)."""
+    """Storage adapter for AWS S3 or any S3-compatible service (e.g. rustfs/MinIO)."""
 
-    def __init__(self, bucket: str, region: str):
+    def __init__(
+        self,
+        bucket: str,
+        region: str,
+        endpoint_url: str | None = None,
+        internal_endpoint_url: str | None = None,
+        access_key_id: str | None = None,
+        secret_access_key: str | None = None,
+    ):
         self.bucket = bucket
-        self.region = region
-        self.client = boto3.client(
-            "s3",
-            region_name=region,
-            config=BotoConfig(signature_version="s3v4"),
-        )
         settings = get_settings()
         self.upload_expiry = settings.upload_url_expiry_seconds
         self.download_expiry = settings.download_url_expiry_seconds
 
+        creds: dict[str, str] = {}
+        if access_key_id and secret_access_key:
+            creds = {
+                "aws_access_key_id": access_key_id,
+                "aws_secret_access_key": secret_access_key,
+            }
+
+        # Presigned-URL client — uses the public endpoint so generated URLs are
+        # browser-accessible.  Path-style addressing is required for custom endpoints.
+        self._presigned_client = boto3.client(
+            "s3",
+            region_name=region,
+            endpoint_url=endpoint_url,
+            config=BotoConfig(
+                signature_version="s3v4",
+                s3={"addressing_style": "path" if endpoint_url else "auto"},
+            ),
+            **creds,  # type: ignore[arg-type]
+        )
+
+        # Operations client — uses the internal Docker endpoint when available so
+        # head_object / delete_object don't have to traverse the public DNS path
+        # (which resolves to 127.0.0.1 from inside a container).
+        ops_endpoint = internal_endpoint_url or endpoint_url
+        self._ops_client = boto3.client(
+            "s3",
+            region_name=region,
+            endpoint_url=ops_endpoint,
+            config=BotoConfig(
+                signature_version="s3v4",
+                s3={"addressing_style": "path" if ops_endpoint else "auto"},
+            ),
+            **creds,  # type: ignore[arg-type]
+        )
+
     def generate_upload_url(self, path: str, content_type: str) -> str:
         """Generate S3 presigned upload URL."""
-        url = self.client.generate_presigned_url(
+        url = self._presigned_client.generate_presigned_url(
             "put_object",
             Params={
                 "Bucket": self.bucket,
@@ -101,7 +138,7 @@ class S3StorageAdapter(StorageAdapter):
 
     def generate_download_url(self, path: str) -> str:
         """Generate S3 presigned download URL."""
-        url = self.client.generate_presigned_url(
+        url = self._presigned_client.generate_presigned_url(
             "get_object",
             Params={
                 "Bucket": self.bucket,
@@ -114,14 +151,14 @@ class S3StorageAdapter(StorageAdapter):
     def file_exists(self, path: str) -> bool:
         """Check if file exists in S3."""
         try:
-            self.client.head_object(Bucket=self.bucket, Key=path)
+            self._ops_client.head_object(Bucket=self.bucket, Key=path)
             return True
-        except self.client.exceptions.ClientError:
+        except self._ops_client.exceptions.ClientError:
             return False
 
     def delete_file(self, path: str) -> None:
         """Delete file from S3."""
-        self.client.delete_object(Bucket=self.bucket, Key=path)
+        self._ops_client.delete_object(Bucket=self.bucket, Key=path)
         logger.info("s3.file_deleted", extra={"path": path})
 
 
@@ -135,6 +172,10 @@ def get_storage_adapter() -> StorageAdapter:
         return S3StorageAdapter(
             bucket=settings.s3_media_bucket,
             region=settings.aws_region,
+            endpoint_url=settings.s3_endpoint_url,
+            internal_endpoint_url=settings.s3_internal_endpoint_url,
+            access_key_id=settings.s3_access_key_id,
+            secret_access_key=settings.s3_secret_access_key,
         )
     else:
         return LocalStorageAdapter(

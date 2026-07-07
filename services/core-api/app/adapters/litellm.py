@@ -44,9 +44,15 @@ def _http_status_to_error(status_code: int) -> tuple[str, bool]:
 class LiteLLMAdapter:
     """Adapter for LiteLLM proxy using OpenAI-compatible API."""
 
-    def __init__(self, base_url: str, api_key: str):
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str,
+        default_embedding_model: str = "titan-embed-text-v2",
+    ):
         self.base_url = base_url.rstrip("/")
         self.api_key = api_key
+        self.default_embedding_model = default_embedding_model
 
     @asynccontextmanager
     async def _client(self) -> AsyncGenerator[httpx.AsyncClient, None]:
@@ -63,14 +69,15 @@ class LiteLLMAdapter:
 
     async def _read_error_message(self, response: httpx.Response) -> str:
         try:
+            await response.aread()
             payload = response.json()
             error = payload.get("error", {})
             message = error.get("message")
             if isinstance(message, str) and message:
                 return message
+            return response.text or "LiteLLM request failed"
         except Exception:
-            pass
-        return response.text or "LiteLLM request failed"
+            return "LiteLLM request failed"
 
     async def stream_generate(
         self,
@@ -217,9 +224,10 @@ class LiteLLMAdapter:
     async def embed_texts(
         self,
         texts: list[str],
-        model_id: str = "titan-embed-text-v2",
+        model_id: str = "",
         dimensions: int = 1024,
     ) -> list[list[float]]:
+        model_id = model_id or self.default_embedding_model
         started = time.perf_counter()
 
         with tracer.start_as_current_span("ai.litellm.embed") as span:
@@ -306,13 +314,22 @@ class LiteLLMAdapter:
 _adapter: LiteLLMAdapter | None = None
 
 
-def get_litellm_adapter(base_url: str, api_key: str) -> LiteLLMAdapter:
+def get_litellm_adapter(
+    base_url: str,
+    api_key: str,
+    default_embedding_model: str = "titan-embed-text-v2",
+) -> LiteLLMAdapter:
     """Get or create the LiteLLM adapter singleton."""
     global _adapter
     if (
         _adapter is None
         or _adapter.base_url != base_url.rstrip("/")
         or _adapter.api_key != api_key
+        or _adapter.default_embedding_model != default_embedding_model
     ):
-        _adapter = LiteLLMAdapter(base_url=base_url, api_key=api_key)
+        _adapter = LiteLLMAdapter(
+            base_url=base_url,
+            api_key=api_key,
+            default_embedding_model=default_embedding_model,
+        )
     return _adapter

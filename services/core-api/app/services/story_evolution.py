@@ -474,7 +474,7 @@ async def summarize_conversation(
             messages=[{"role": "user", "content": user_message}],
             system_prompt=_SUMMARIZE_SYSTEM_PROMPT,
             model_id=settings.evolution_summarization_model_id,
-            max_tokens=2048,
+            max_tokens=4096,
         ):
             chunks.append(chunk)
 
@@ -981,9 +981,9 @@ async def build_generation_context(
     conv = conv_result.scalar_one_or_none()
     persona_id = conv.persona_id if conv else "biographer"
     persona = get_persona(persona_id)
-    model_id = (
-        persona.model_id if persona else "us.anthropic.claude-sonnet-4-5-20250929-v1:0"
-    )
+    from ..config import get_settings as _get_settings
+
+    model_id = persona.model_id if persona else _get_settings().default_chat_model_id
 
     context: dict[str, Any] = {
         "original_story": original_story,

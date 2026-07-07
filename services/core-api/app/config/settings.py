@@ -14,6 +14,9 @@ class Settings(BaseModel):
     port: int = int(os.getenv("PORT", "8080"))
     log_level: str = os.getenv("LOG_LEVEL", "info")
 
+    # Auth provider: "google" (production) or "keycloak" (local/offline)
+    auth_provider: str = os.getenv("AUTH_PROVIDER", "google")
+
     # Google OAuth Configuration
     google_client_id: str | None = os.getenv("GOOGLE_CLIENT_ID")
     google_client_secret: str | None = os.getenv("GOOGLE_CLIENT_SECRET")
@@ -22,6 +25,16 @@ class Settings(BaseModel):
     google_auth_url: str = "https://accounts.google.com/o/oauth2/v2/auth"
     google_token_url: str = "https://oauth2.googleapis.com/token"
     google_userinfo_url: str = "https://www.googleapis.com/oauth2/v2/userinfo"
+
+    # Keycloak OIDC Configuration
+    keycloak_client_id: str | None = os.getenv("KEYCLOAK_CLIENT_ID")
+    keycloak_client_secret: str | None = os.getenv("KEYCLOAK_CLIENT_SECRET")
+    keycloak_discovery_url: str | None = os.getenv("KEYCLOAK_DISCOVERY_URL")
+    # Internal base URL for server-to-server calls (avoids external DNS from inside Docker).
+    # When set, token/userinfo calls go to e.g. http://keycloak:8080 instead of the
+    # public hostname. X-Forwarded-Host/Proto headers make Keycloak generate correct
+    # public URLs in its responses.
+    keycloak_internal_base_url: str | None = os.getenv("KEYCLOAK_INTERNAL_BASE_URL")
 
     # Application URLs
     app_url: str = os.getenv("APP_URL", "http://localhost:5173")
@@ -46,6 +59,17 @@ class Settings(BaseModel):
     # AWS S3 Configuration (for media uploads)
     s3_media_bucket: str | None = os.getenv("S3_MEDIA_BUCKET")
     aws_region: str = os.getenv("AWS_REGION", "us-east-1")
+    # S3-compatible endpoint overrides — used for local dev with rustfs/MinIO.
+    # s3_endpoint_url: public URL embedded in presigned URLs (browser-accessible).
+    # s3_internal_endpoint_url: container-to-container URL for boto3 API calls
+    #   (head_object, delete_object).  Falls back to s3_endpoint_url when absent.
+    # Neither should be set in production; boto3 will use the standard AWS endpoint.
+    s3_endpoint_url: str | None = os.getenv("S3_ENDPOINT_URL")
+    s3_internal_endpoint_url: str | None = os.getenv("S3_INTERNAL_ENDPOINT_URL")
+    # Explicit S3 credentials — set for local S3-compatible storage so they don't
+    # shadow the ~/.aws credentials used by Bedrock and other AWS services.
+    s3_access_key_id: str | None = os.getenv("S3_ACCESS_KEY_ID")
+    s3_secret_access_key: str | None = os.getenv("S3_SECRET_ACCESS_KEY")
 
     # SES Configuration (for email)
     ses_from_email: str | None = os.getenv("SES_FROM_EMAIL")
@@ -71,6 +95,16 @@ class Settings(BaseModel):
     # LiteLLM provider configuration
     litellm_base_url: str = os.getenv("LITELLM_BASE_URL", "http://localhost:14000")
     litellm_api_key: str | None = os.getenv("LITELLM_API_KEY")
+    litellm_embedding_model: str = os.getenv(
+        "LITELLM_EMBEDDING_MODEL", "titan-embed-text-v2"
+    )
+
+    # Default chat model — fallback when no persona-specific model_id is available.
+    # Set DEFAULT_CHAT_MODEL_ID in .env to switch providers without touching source code.
+    default_chat_model_id: str = os.getenv("DEFAULT_CHAT_MODEL_ID", "claude-sonnet-4-6")
+
+    # Context extraction model (falls back to default_chat_model_id when unset)
+    context_extraction_model_id: str | None = os.getenv("CONTEXT_EXTRACTION_MODEL_ID")
 
     # Storage Configuration
     storage_backend: str = os.getenv("STORAGE_BACKEND", "local")
