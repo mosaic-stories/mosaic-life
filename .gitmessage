@@ -1,0 +1,21 @@
+
+# ── Subject (line above): type(scope): imperative summary, <= 72 chars ─────
+#   types:  feat fix refactor test docs chore ops ci perf
+#   scopes: the area, not the file — auth story media search graph ai web
+#           core-api infra compose helm ci docs
+#
+# ── Body — answer "why is this safe to merge?" ─────────────────────────────
+#   Why:   the problem or motivation. What was broken or missing, and why it
+#          matters. Lead with this — the diff already shows the "what".
+#   How:   the approach at decision level, plus anything in the diff that
+#          would surprise a reviewer (renames, moved code, config changes,
+#          behavior changes hiding in "cleanup").
+#   Proof: for behavior changes, what you exercised and what you observed.
+#
+#   Skip the body only when the subject truly says it all (typo, dep bump).
+#   Wrap at 72. Never recap files changed — `git show --stat` does that.
+#
+# ── Trailers (last lines, one per line) ────────────────────────────────────
+#   Fixes #<issue>                       auto-closes the issue on merge
+#   Refs: openspec/changes/<change-id>   for spec-driven work
+#   Co-Authored-By: <AI model> <noreply@anthropic.com>

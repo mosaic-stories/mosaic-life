@@ -173,7 +173,7 @@
 ## 9) Branching, Commits, Reviews
 
 * **Branching:** trunk‑based with short‑lived feature branches.
-* **Commits:** **Conventional Commits** (`feat:`, `fix:`, `chore:`, `docs:`, etc.).
+* **Commits:** **Conventional Commits** (`feat:`, `fix:`, `chore:`, `docs:`, etc.). Body leads with *why*, then the approach at decision level; template in `.gitmessage` — activate once with `git config commit.template .gitmessage`. The same structure applies when committing with `-m`.
 * **PR size:** target < 400 LOC; split if larger.
 * **Reviews:** min 1 approval (the other dev); pair on risky changes. Required checklist (see §16).
 * **Merging:** squash‑merge; auto‑close linked Issues.
@@ -245,31 +245,16 @@ See **[Local Development Setup](/docs/developer/LOCAL.md)** for complete setup i
 
 ## 16) PR Template (Definition of Ready/Done)
 
-**Link Issue:** #
+The canonical PR template lives at `.github/PULL_REQUEST_TEMPLATE.md` — GitHub applies it to every new PR. Do not restate it here; edit it there.
 
-**What & Why**
+A PR is **ready** when it has:
 
-* Summary of change and intended outcome.
-
-**Scope**
-
-*
-
-**Tests**
-
-*
-
-**Observability**
-
-*
-
-**Security**
-
-*
-
-**Docs**
-
-*
+* Conventional‑Commit title (it becomes the squash‑merge commit subject on main)
+* Linked Issue and OpenSpec change reference (or a stated reason none applies)
+* Decision‑level summary — approach and surprises, not a file‑by‑file diff recap
+* Verification **evidence** (what was exercised, what was observed), not assertions
+* Migration/rollback notes when schema, config, or operator actions are involved
+* Reviewer notes: where to start, riskiest part, known gaps
 
 ---
 

@@ -250,7 +250,7 @@ Files: services/search-indexer/*
 
 * **Source of truth:** GitHub Projects + GitHub Issues (SHARED-SERVICES §10 Option B).
 * Link every PR to an Issue and reference the OpenSpec change ID. Use Conventional Commits in titles.
-* Use the PR template from CODING-STANDARDS §16.
+* Use the PR template at `.github/PULL_REQUEST_TEMPLATE.md` (GitHub applies it automatically; definition of ready/done in CODING-STANDARDS §16). Commit messages follow `.gitmessage`.
 
 ---
 
