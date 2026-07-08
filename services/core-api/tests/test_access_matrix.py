@@ -5,7 +5,9 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.associations import StoryLegacy
 from app.models.legacy import Legacy, LegacyMember
@@ -15,7 +17,7 @@ from app.models.story import Story
 from app.models.user import User
 from app.services.retrieval import resolve_visibility_filter
 from app.services.story import list_legacy_stories
-from app.services.story_access import require_story_read_access
+from app.services.story_access import can_read_story, require_story_read_access
 from tests.conftest import create_auth_headers_for_user
 
 
@@ -221,6 +223,44 @@ async def test_shared_story_read_helper_hides_drafts_from_non_authors(
     with pytest.raises(HTTPException) as exc:
         await require_story_read_access(db_session, story.id, users["admirer"].id)
     assert exc.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_private_story_read_allows_member_of_multiple_associated_legacies(
+    db_session: AsyncSession,
+) -> None:
+    legacy, users = await _matrix_context(db_session)
+    second_legacy = await _legacy(db_session, "Second Matrix Legacy", users["creator"])
+    await _member(db_session, second_legacy, users["admirer"], "admirer")
+    story = await _story(
+        db_session,
+        author=users["author"],
+        legacy=legacy,
+        visibility="private",
+    )
+    db_session.add(
+        StoryLegacy(
+            story_id=story.id,
+            legacy_id=second_legacy.id,
+            role="related",
+            position=1,
+        )
+    )
+    await db_session.commit()
+    loaded_story = (
+        await db_session.execute(
+            select(Story)
+            .options(selectinload(Story.legacy_associations))
+            .where(Story.id == story.id)
+        )
+    ).scalar_one()
+
+    allowed, reason = await can_read_story(
+        db_session, loaded_story, users["admirer"].id
+    )
+
+    assert allowed is True
+    assert reason == "member"
 
 
 @pytest.mark.asyncio

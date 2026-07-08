@@ -170,7 +170,7 @@ async def _can_read_story(
                 LegacyMember.role.in_(ACTIVE_ROLES),
             )
         )
-        if result.scalar_one_or_none() is not None:
+        if result.scalars().first() is not None:
             return True, "member"
 
         user_legacy_result = await db.execute(
