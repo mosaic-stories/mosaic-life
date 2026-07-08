@@ -19,13 +19,13 @@ This repository uses an AI coding assistant to accelerate delivery while preserv
 
 ## 1) Operating Principles
 
-1. **Plan first.** For any non-trivial task, propose **1–3 approaches** with pros/cons, risks, and the exact files to touch. Wait for human approval before coding.
+1. **Spec first.** Non-trivial work flows through the OpenSpec pipeline — propose → approve → apply → archive. See **docs/developer/SPEC-DRIVEN-WORKFLOW.md** (canonical) and §5 below. Do not start implementing until a human has approved the proposal and answered its open questions.
 2. **Follow the docs.** Implementations must conform to MVP-SIMPLIFIED-ARCHITECTURE.md and CODING-STANDARDS.md. If conflicts arise, use the precedence order in §2.
 3. **Security and privacy first.** Never introduce insecure patterns (no plaintext secrets, unsafe HTML, eval, etc.).
-4. **Keep changes small and testable.** Prefer incremental PRs with clear tests and telemetry.
+4. **Keep changes small and testable.** Prefer incremental PRs (< 400 LOC) with clear tests and telemetry.
 5. **Make it observable.** Add OTel spans/metrics/logs for meaningful actions.
 6. **Use correct tools.** Always use `docker compose` (not standalone `docker`) and `uv` (not `pip`) for Python operations.
-7. **Validate all changes.** Run `just validate-backend` before completing any backend work. All code must pass ruff and mypy checks.
+7. **Validate and verify all changes.** Run `just validate-backend` / `just validate-frontend` before completing work, add tests for new behavior, and verify by driving the affected flow in the running compose stack — code that merely compiles is not done.
 
 ---
 
@@ -35,9 +35,12 @@ When guidance conflicts, apply this precedence (highest first):
 
 1. **CLAUDE.md** - Official instructions for how agents should behave
 2. **AGENTS.md** (this file) - Engineering assistant playbook
-3. **MVP-SIMPLIFIED-ARCHITECTURE.md** - Current active architecture
-4. **CODING-STANDARDS.md** - Code style and standards
-5. **MVP-SIMPLIFIED-EXECUTION-PLAN.md** - Implementation roadmap
+3. **docs/developer/SPEC-DRIVEN-WORKFLOW.md** - How changes move from idea to production (OpenSpec)
+4. **MVP-SIMPLIFIED-ARCHITECTURE.md** - Current active architecture
+5. **CODING-STANDARDS.md** - Code style and standards
+6. **MVP-SIMPLIFIED-EXECUTION-PLAN.md** - Implementation roadmap
+
+Living capability specs live in `openspec/specs/` (updated only via OpenSpec archive). In-flight changes are managed by the OpenSpec CLI. `docs/plans/` is legacy and read-only.
 
 If a document is missing or outdated, prefer newer decisions captured in CLAUDE.md and open an issue to reconcile.
 
@@ -53,14 +56,14 @@ If a document is missing or outdated, prefer newer decisions captured in CLAUDE.
 - **Web App** (React/TypeScript/Vite): SPA with TanStack Query, Zustand, React Router
 - **PostgreSQL**: Primary database for all data (users, legacies, stories, media references)
 - **S3**: Media storage (images, videos)
-- **Google OAuth**: User authentication (no Cognito for MVP)
+- **Neptune** (graph database): Social relationships and story-extracted entity connections
+- **LiteLLM proxy**: AI model access (deployed in `aiservices` namespace, Bedrock models configured)
+- **OIDC auth**: Google OAuth in production; Keycloak locally (`AUTH_PROVIDER` selects; no Cognito)
 
 ### What We're NOT Using (Deferred)
 
 - ❌ OpenSearch / Elasticsearch (using Postgres search)
-- ❌ Neo4j graph database (using Postgres foreign keys)
 - ❌ SNS/SQS event bus (direct database writes)
-- ❌ LiteLLM proxy (direct OpenAI/Anthropic calls in Phase 3)
 - ❌ Module Federation plugins (deferred)
 - ❌ Microservices decomposition (single service)
 
@@ -133,42 +136,24 @@ Production changes flow through GitOps:
 
 ---
 
-## 5) Planning Template (use before coding)
+## 5) Planning: the OpenSpec Pipeline (use before coding)
 
-For any **complex task** (new API, schema change, feature slice, infra change), respond with the following plan in the PR or issue comment **before** generating code:
+For any **complex task** (new API, schema change, feature slice, infra change), create an OpenSpec change **before** generating code. Canonical reference: **docs/developer/SPEC-DRIVEN-WORKFLOW.md**.
 
-**Title:** <short description>
+```
+/opsx:propose  →  human approval  →  /opsx:apply  →  quality gates  →  PR  →  /opsx:archive
+```
 
-**Goal & Success Criteria**
+The change's artifacts carry the planning content that used to live in ad-hoc templates:
 
-* What user impact or system behavior will change?
+* **proposal.md** — goal & success criteria, constraints & inputs, **non-goals**, **open questions** (must be answered by a human before apply).
+* **design.md** — for anything non-obvious, **1–3 approach options** with pros/cons/risks and touched files, plus a recommendation. End with **"Request for Approval: Select Option A/B/C"** and wait. Include telemetry (OTel spans/metrics/log fields) and migration/backout (data migrations, feature flags, rollback steps).
+* **tasks.md** — implementation steps sized to < 400 LOC PRs, each ending with its validation gate; the final task is end-to-end verification in the running compose stack.
+* **spec deltas** — ADDED/MODIFIED/REMOVED requirements against `openspec/specs/`.
 
-**Constraints & Inputs**
+Run `openspec validate` before requesting review. Requirement sources (design reviews under `docs/design/`, GitHub issues) are referenced, not restated.
 
-* Dependencies (APIs, schemas, tokens), performance budgets, security rules.
-
-**Approach Options (1–3)**
-
-1. **Option A:** <summary>
-
-   * *Pros:* <list>
-   * *Cons/Risks:* <list>
-   * *Touched files:* <paths>
-2. **Option B:** …
-3. **Option C:** …
-
-**Telemetry & Tests**
-
-* OTel spans/metrics, log fields.
-* Unit + integration + E2E notes.
-
-**Migration/Backout**
-
-* Data migrations, feature flags, rollback steps.
-
-**Request for Approval:** *Select Option A/B/C*.
-
-> Do not start implementing until a human selects the option.
+> Do not start implementing until a human approves the proposal and selects an option where options are offered.
 
 ---
 
@@ -177,8 +162,8 @@ For any **complex task** (new API, schema change, feature slice, infra change), 
 * **Languages & frameworks** per CODING-STANDARDS.md:
 
   * Frontend: React + TS + **Vite**, **React Router**, **TanStack Query**, **Zustand**, **TipTap** editor; **SSE** for streaming.
-  * Backend: **FastAPI**, Pydantic v2, Postgres (SQLAlchemy/Alembic). MVP uses direct OpenAI/Anthropic calls; future phases may add OpenSearch, Neo4j, SNS/SQS, LiteLLM proxy.
-* **Auth:** Google OAuth for MVP; future OIDC via AWS Cognito with BFF-managed httpOnly cookies.
+  * Backend: **FastAPI**, Pydantic v2, Postgres (SQLAlchemy/Alembic), Neptune via adapters. AI calls go through the **LiteLLM proxy**; future phases may add OpenSearch, SNS/SQS.
+* **Auth:** OIDC with BFF-managed httpOnly cookies — Google OAuth in production, Keycloak locally (`AUTH_PROVIDER`).
 * **Plugins:** Deferred to post-MVP. Future: UI via **Module Federation** (Pattern A); backend plugins deploy via **Helm-only** (Pattern 1).
 * **Search:** Postgres full-text search for MVP. Future: **OpenSearch** with k-NN vectors for hybrid search.
 * **Tenancy:** Single-tenant by default. Do not add tenant selectors in UI. Keep APIs forward-compatible with a future `tenant_id` parameter.
@@ -204,8 +189,10 @@ For any **complex task** (new API, schema change, feature slice, infra change), 
   * `ruff check app/` - Linting with consistent style rules
   * `ruff format --check app/` - Format checking (matches CI)
   * `mypy app/` - Strict type checking
-* Frontend changes should pass `just validate-frontend` (ESLint + TypeScript)
+* Frontend changes must pass `just validate-frontend` (ESLint + TypeScript)
 * Use `just validate-all` to check both backend and frontend together
+* **Tests are part of the gate:** `uv run pytest` / `npm run test` for new behavior (≥80% coverage on new code); Playwright E2E for user-facing flows touched
+* **Verification is part of the gate:** drive the affected flow in the running compose stack and record what was observed (in tasks.md or the PR description) — see SPEC-DRIVEN-WORKFLOW.md §4
 
 ---
 
@@ -259,35 +246,37 @@ Files: services/search-indexer/*
 
 ---
 
-## 10) Issue Tracking & Project Flow
+## 11) Issue Tracking & Project Flow
 
 * **Source of truth:** GitHub Projects + GitHub Issues (SHARED-SERVICES §10 Option B).
-* Link every PR to an Issue. Use Conventional Commits in titles.
+* Link every PR to an Issue and reference the OpenSpec change ID. Use Conventional Commits in titles.
 * Use the PR template from CODING-STANDARDS §16.
 
 ---
 
-## 11) Known Consistency Decisions (Latest)
+## 12) Known Consistency Decisions (Latest)
 
-* **Postgres-first for MVP:** Using Postgres for search and relationships. OpenSearch and Neo4j are deferred to future phases when proven necessary.
-* **Google OAuth for MVP:** Using Google OAuth directly; AWS Cognito integration deferred to post-MVP.
+* **Spec-driven workflow:** OpenSpec is the backbone for non-trivial changes (docs/developer/SPEC-DRIVEN-WORKFLOW.md). Spec Kit was evaluated and not adopted; its constitution/clarify ideas are folded into our docs and proposal rules. `docs/plans/` is legacy.
+* **Postgres + Neptune:** Postgres for primary data and search; Neptune (graph) for social relationships and story-entity connections. OpenSearch deferred until proven necessary.
+* **OIDC dual-provider:** Google OAuth in production, Keycloak for offline-capable local dev (`AUTH_PROVIDER`); no Cognito.
+* **LiteLLM proxy** for all AI model access (Bedrock models configured); no direct provider SDK calls.
 * **Single-tenant** product. Multi-tenancy may be added later; design APIs to accept a tenant_id without exposing it in UI now.
 * **Vite + React Router** for the web app shell. Next.js may be used only for a separate marketing site later.
 * **SSE-first** streaming for AI chat; WebSockets are optional later.
-* **Direct API calls:** No LiteLLM proxy, SNS/SQS, or microservices for MVP. These are deferred to post-MVP when complexity is justified.
+* **No SNS/SQS or microservices for MVP.** Deferred to post-MVP when complexity is justified.
 
 If you find another inconsistency, **open an issue** and propose a short patch to the relevant doc.
 
 ---
 
-## 12) When to Ask for Approval vs. When to Proceed
+## 13) When to Ask for Approval vs. When to Proceed
 
-* **Ask for approval first** (plan with options) when:
+* **Ask for approval first** (OpenSpec proposal with design options) when:
 
   * Changing schemas or contracts, adding endpoints, modifying auth/session flows.
   * Adding new dependencies or altering build/deploy tooling.
   * Touching cross-cutting concerns (observability, security, plugin contracts).
-* **Proceed without approval** when:
+* **Proceed without approval** (no OpenSpec change needed) when:
 
   * Internal refactors with no external behavior change.
   * Test additions or fixes.
@@ -295,7 +284,7 @@ If you find another inconsistency, **open an issue** and propose a short patch t
 
 ---
 
-## 13) Output Format for Plans & Changes
+## 14) Output Format for Plans & Changes
 
 * Prefer **diffs** or **file lists** with proposed insertions/deletions.
 * Include snippets for Helm values, Kubernetes manifests, and code when helpful.
@@ -303,7 +292,7 @@ If you find another inconsistency, **open an issue** and propose a short patch t
 
 ---
 
-## 14) Contacts
+## 15) Contacts
 
 * **Owners:** @hewjoe and @drunkie-tech
 * **Where to ask:** Open a GitHub Discussion or Issue tagged `question`.
