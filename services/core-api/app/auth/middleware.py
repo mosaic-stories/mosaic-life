@@ -203,6 +203,15 @@ def create_session_cookie(
     return settings.session_cookie_name, signed_session
 
 
+def is_request_secure(request: Request) -> bool:
+    """Return whether a request should be treated as HTTPS behind proxies."""
+    forwarded_proto = request.headers.get("x-forwarded-proto")
+    if forwarded_proto:
+        first_proto = forwarded_proto.split(",", 1)[0].strip().lower()
+        return first_proto == "https"
+    return request.url.scheme == "https"
+
+
 def get_current_session(request: Request) -> SessionData | None:
     """Get the current session from request state.
 

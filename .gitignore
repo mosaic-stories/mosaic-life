@@ -126,3 +126,7 @@ infra/cdk/cdk.out/
 
 # Storybook build output
 storybook-static/
+
+# AI assistant local state (shared commands/skills in .claude/, .codex/, .github/ ARE committed)
+.claude/settings.local.json
+.claude/scheduled_tasks.lock

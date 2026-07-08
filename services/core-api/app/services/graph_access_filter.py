@@ -9,10 +9,12 @@ from fastapi import HTTPException
 from opentelemetry import trace
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from ..models.story import Story
 from ..schemas.retrieval import VisibilityFilter
-from .retrieval import get_linked_legacy_filters, resolve_visibility_filter
+from .retrieval import resolve_visibility_filter
+from .story_access import get_linked_legacy_filters
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.graph_access_filter")
@@ -74,22 +76,24 @@ class GraphAccessFilter:
                 span.set_attribute("permission_denied", True)
                 return []
 
-            # 2. Fetch the linked-legacy access rules for the primary legacy.
-            linked_legacy_filters = await get_linked_legacy_filters(
-                db, primary_legacy_id
-            )
-
-            # Build a fast lookup: linked_legacy_id -> LinkedLegacyFilter
-            linked_map = {lf.legacy_id: lf for lf in linked_legacy_filters}
-
-            # 3. Batch-fetch all story rows at once to avoid N+1 queries.
+            # 2. Batch-fetch all story rows at once to avoid N+1 queries.
             all_story_ids = [s[0] for s in story_ids_with_sources]
-            result = await db.execute(select(Story).where(Story.id.in_(all_story_ids)))
+            result = await db.execute(
+                select(Story)
+                .options(selectinload(Story.legacy_associations))
+                .where(Story.id.in_(all_story_ids))
+            )
             stories_in_db = {s.id: s for s in result.scalars().all()}
 
             span.set_attribute("db_stories_found", len(stories_in_db))
 
-            # 4. Apply access rules per story.
+            # Build a fast lookup: linked_legacy_id -> LinkedLegacyFilter
+            linked_legacy_filters = await get_linked_legacy_filters(
+                db, primary_legacy_id
+            )
+            linked_map = {lf.legacy_id: lf for lf in linked_legacy_filters}
+
+            # 3. Apply access rules per story.
             allowed: list[tuple[UUID, float]] = []
 
             for story_id, source_legacy_id, score in story_ids_with_sources:
@@ -102,8 +106,14 @@ class GraphAccessFilter:
                     )
                     continue
 
+                if getattr(story, "status", "published") != "published":
+                    logger.debug(
+                        "graph_access_filter.draft_story_filtered",
+                        extra={"story_id": str(story_id)},
+                    )
+                    continue
+
                 if source_legacy_id == primary_legacy_id:
-                    # Primary legacy story: apply visibility filter.
                     if _is_visible(story, visibility_filter):
                         allowed.append((story_id, score))
                     else:
@@ -114,11 +124,9 @@ class GraphAccessFilter:
                                 "visibility": story.visibility,
                             },
                         )
-                else:
-                    # Cross-legacy story: apply linked-legacy access rules.
+                elif story.visibility in {"public", "private"}:
                     linked_filter = linked_map.get(source_legacy_id)
                     if linked_filter is None:
-                        # Legacy is not linked to primary - drop entirely.
                         logger.debug(
                             "graph_access_filter.unlinked_legacy_story_dropped",
                             extra={
@@ -130,17 +138,16 @@ class GraphAccessFilter:
 
                     if linked_filter.share_mode == "all":
                         allowed.append((story_id, score))
-                    elif linked_filter.share_mode == "selective":
-                        if story_id in linked_filter.story_ids:
-                            allowed.append((story_id, score))
-                        else:
-                            logger.debug(
-                                "graph_access_filter.selective_story_excluded",
-                                extra={
-                                    "story_id": str(story_id),
-                                    "source_legacy_id": str(source_legacy_id),
-                                },
-                            )
+                    elif story_id in linked_filter.story_ids:
+                        allowed.append((story_id, score))
+                else:
+                    logger.debug(
+                        "graph_access_filter.story_filtered",
+                        extra={
+                            "story_id": str(story_id),
+                            "visibility": story.visibility,
+                        },
+                    )
 
             logger.info(
                 "graph_access_filter.filter_complete",
@@ -157,18 +164,7 @@ class GraphAccessFilter:
 
 
 def _is_visible(story: Story, visibility_filter: VisibilityFilter) -> bool:
-    """Check whether a story satisfies the given visibility filter.
-
-    For 'personal' visibility the story must also be authored by the requesting
-    user (personal_author_id on the filter).
-
-    Args:
-        story: The Story ORM object.
-        visibility_filter: The resolved visibility permissions for the user.
-
-    Returns:
-        True if the story should be surfaced to the user.
-    """
+    """Check whether a story satisfies the resolved visibility filter."""
     if story.visibility not in visibility_filter.allowed_visibilities:
         return False
 

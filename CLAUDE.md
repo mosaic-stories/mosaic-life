@@ -253,12 +253,15 @@ just docs-docker-up       # Run in Docker
 Read these documents in order of precedence when guidance conflicts:
 
 1. **AGENTS.md** - Engineering assistant playbook and operating principles
-2. **docs/project/PROJECT-ASSESSMENT.md** - Why we simplified the architecture
-3. **docs/architecture/MVP-SIMPLIFIED-ARCHITECTURE.md** - Current active architecture (READ THIS)
-4. **docs/project/MVP-SIMPLIFIED-EXECUTION-PLAN.md** - 9-week implementation plan
-5. **docs/developer/CODING-STANDARDS.md** - Style, testing, libraries, security
-6. **docs/developer/LOCAL.md** - Local development setup
-7. **docs/architecture/target/** - Future complex architecture (archived, not active)
+2. **docs/developer/SPEC-DRIVEN-WORKFLOW.md** - How changes move from idea to production (OpenSpec)
+3. **docs/project/PROJECT-ASSESSMENT.md** - Why we simplified the architecture
+4. **docs/architecture/MVP-SIMPLIFIED-ARCHITECTURE.md** - Current active architecture (READ THIS)
+5. **docs/project/MVP-SIMPLIFIED-EXECUTION-PLAN.md** - 9-week implementation plan
+6. **docs/developer/CODING-STANDARDS.md** - Style, testing, libraries, security
+7. **docs/developer/LOCAL.md** - Local development setup
+8. **docs/architecture/target/** - Future complex architecture (archived, not active)
+
+Living capability specs (current system behavior) live in **openspec/specs/** and are updated only by archiving OpenSpec changes.
 
 ## Technology Stack
 
@@ -291,13 +294,22 @@ Read these documents in order of precedence when guidance conflicts:
 
 ## Development Workflow
 
-### Before Writing Code
+### Spec-Driven Development (OpenSpec)
 
-For non-trivial changes, use the planning template from AGENTS.md:
+**Canonical reference: [docs/developer/SPEC-DRIVEN-WORKFLOW.md](docs/developer/SPEC-DRIVEN-WORKFLOW.md)** — read it before starting non-trivial work.
 
-1. **Propose 1-3 approaches** with pros/cons, risks, and exact files to touch
-2. **Wait for approval** before implementing
-3. **Use TodoWrite tool** to track progress on multi-step tasks
+All non-trivial changes flow through [OpenSpec](https://openspec.dev):
+
+1. **Propose** (`/opsx:propose`) — create a change with proposal.md (what/why, non-goals, open questions), design.md (how; 1–3 approach options with trade-offs for anything non-obvious), tasks.md (steps sized to < 400 LOC PRs), and spec deltas against `openspec/specs/`.
+2. **Approve** — a human answers every open question and selects an approach **before** implementation starts.
+3. **Apply** (`/opsx:apply`) — implement tasks in order; each task ends with its validation gate.
+4. **Archive** (`/opsx:archive`) — after merge, fold spec deltas into the living specs in `openspec/specs/`.
+
+Skip the proposal only for: internal refactors with no behavior change, test additions, doc fixes, CI fixes that don't affect deploy behavior.
+
+`docs/plans/` is legacy (read-only history from the pre-OpenSpec workflow). Do not add new documents there. `docs/design/` holds design reviews that feed requirements into proposals.
+
+Use the **TodoWrite tool** to track progress on multi-step tasks.
 
 ### Code Standards
 
@@ -419,10 +431,13 @@ OpenSearch indexes with tenant isolation:
 │   └── cdk/              # AWS CDK infrastructure (future)
 ├── packages/
 │   └── shared-types/     # Shared TypeScript types
+├── openspec/             # OpenSpec: living specs + in-flight changes (see SPEC-DRIVEN-WORKFLOW.md)
 ├── docs/
 │   ├── architecture/     # Architecture documentation
-│   ├── developer/        # Developer guides
+│   ├── developer/        # Developer guides (incl. SPEC-DRIVEN-WORKFLOW.md)
+│   ├── design/           # Design reviews & research (requirement sources)
 │   ├── adr/              # Architecture Decision Records
+│   ├── plans/            # LEGACY pre-OpenSpec plans (read-only; do not add)
 │   └── project/          # Project planning documents
 ├── AGENTS.md             # Engineering assistant playbook
 └── CLAUDE.md             # This file
@@ -489,7 +504,7 @@ When working with this codebase:
 
 ### Architecture Guidelines
 
-5. **Always check AGENTS.md** for approval requirements and planning templates
+5. **Spec-driven first** - Non-trivial work flows through OpenSpec (`/opsx:propose` → approve → `/opsx:apply` → `/opsx:archive`); see docs/developer/SPEC-DRIVEN-WORKFLOW.md and AGENTS.md for approval rules
 6. **Follow adapter patterns** even in MVP - this enables future service extraction
 7. **Use OpenSearch** (not Elasticsearch) - this is a key architectural anchor
 8. **Prefer SSE for streaming** - WebSockets are deferred
@@ -500,9 +515,10 @@ When working with this codebase:
 
 11. **Never commit secrets** - use AWS Secrets Manager references
 12. **Sanitize user content** before rendering
-13. **Validate before completing** - Run `just validate-backend` (or `just validate-all`) as final step
-14. **Use TodoWrite** for multi-step tasks
-15. **Target < 400 LOC per PR** - split larger changes
+13. **Validate before completing** - `just validate-backend` / `just validate-frontend` (or `just validate-all`), plus tests for new behavior
+14. **Verify, don't just validate** - drive the affected flow in the running compose stack and observe the behavior before calling work done
+15. **Use TodoWrite** for multi-step tasks
+16. **Target < 400 LOC per PR** - split larger changes; reference the OpenSpec change ID in the PR
 
 ### Infrastructure Context
 

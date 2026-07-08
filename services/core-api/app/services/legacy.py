@@ -46,18 +46,6 @@ ROLE_LEVELS: dict[str, int] = {
     "admirer": 1,
 }
 
-# Legacy role hierarchy (deprecated, kept for backwards compatibility during migration)
-ROLE_HIERARCHY = {
-    "creator": 4,
-    "admin": 3,
-    "advocate": 2,
-    "admirer": 1,
-    # Old role names mapped to new levels for transition period
-    "editor": 3,  # editor -> admin
-    "member": 2,  # member -> advocate
-    "pending": 0,
-}
-
 
 def can_manage_role(actor_role: str, target_role: str) -> bool:
     """Check if actor can manage (invite, demote, remove) target role.
@@ -129,7 +117,7 @@ async def check_legacy_access(
     db: AsyncSession,
     user_id: UUID,
     legacy_id: UUID,
-    required_role: str = "member",
+    required_role: str = "advocate",
 ) -> LegacyMember:
     """Check if user has required role for legacy.
 
@@ -137,7 +125,7 @@ async def check_legacy_access(
         db: Database session
         user_id: User ID to check
         legacy_id: Legacy ID to check access for
-        required_role: Minimum required role (default: "member")
+        required_role: Minimum required role (default: "advocate")
 
     Returns:
         LegacyMember if authorized
@@ -181,8 +169,8 @@ async def check_legacy_access(
         )
 
     # Check role hierarchy
-    user_role_level = ROLE_HIERARCHY.get(member.role, 0)
-    required_role_level = ROLE_HIERARCHY.get(required_role, 0)
+    user_role_level = ROLE_LEVELS.get(member.role, 0)
+    required_role_level = ROLE_LEVELS.get(required_role, 0)
 
     if user_role_level < required_role_level:
         logger.warning(
@@ -774,7 +762,7 @@ async def get_legacy_detail(
         HTTPException: 404 if not found, 403 if not authorized
     """
     # Check access (must be member)
-    await check_legacy_access(db, user_id, legacy_id, required_role="member")
+    await check_legacy_access(db, user_id, legacy_id, required_role="admirer")
 
     # Load legacy with creator and members
     result = await db.execute(
@@ -856,139 +844,6 @@ async def get_legacy_detail(
         favorite_count=legacy.favorite_count or 0,
         story_count=story_count,
     )
-
-
-async def request_join_legacy(
-    db: AsyncSession,
-    user_id: UUID,
-    legacy_id: UUID,
-) -> dict[str, str]:
-    """Request to join a legacy.
-
-    Creates pending membership.
-
-    Args:
-        db: Database session
-        user_id: User requesting to join
-        legacy_id: Legacy ID
-
-    Returns:
-        Success message
-
-    Raises:
-        HTTPException: 404 if legacy not found, 400 if already a member
-    """
-    # Check if legacy exists
-    result = await db.execute(select(Legacy).where(Legacy.id == legacy_id))
-    legacy = result.scalar_one_or_none()
-
-    if not legacy:
-        raise HTTPException(
-            status_code=404,
-            detail="Legacy not found",
-        )
-
-    # Check if already a member
-    member_result = await db.execute(
-        select(LegacyMember).where(
-            LegacyMember.legacy_id == legacy_id,
-            LegacyMember.user_id == user_id,
-        )
-    )
-    existing_member: LegacyMember | None = member_result.scalar_one_or_none()
-
-    if existing_member:
-        if existing_member.role == "pending":
-            raise HTTPException(
-                status_code=400,
-                detail="Join request already pending",
-            )
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail="Already a member of this legacy",
-            )
-
-    # Create pending membership
-    member = LegacyMember(
-        legacy_id=legacy_id,
-        user_id=user_id,
-        role="pending",
-    )
-    db.add(member)
-    await db.commit()
-
-    logger.info(
-        "legacy.join_request",
-        extra={
-            "legacy_id": str(legacy_id),
-            "user_id": str(user_id),
-        },
-    )
-
-    return {"message": "Join request submitted"}
-
-
-async def approve_legacy_member(
-    db: AsyncSession,
-    approver_user_id: UUID,
-    legacy_id: UUID,
-    user_id: UUID,
-) -> dict[str, str]:
-    """Approve a pending join request.
-
-    Only creators can approve.
-
-    Args:
-        db: Database session
-        approver_user_id: User approving the request (must be creator)
-        legacy_id: Legacy ID
-        user_id: User being approved
-
-    Returns:
-        Success message
-
-    Raises:
-        HTTPException: 403 if not authorized, 404 if request not found
-    """
-    # Check approver has creator role
-    await check_legacy_access(db, approver_user_id, legacy_id, required_role="creator")
-
-    # Find pending membership
-    result = await db.execute(
-        select(LegacyMember).where(
-            LegacyMember.legacy_id == legacy_id,
-            LegacyMember.user_id == user_id,
-        )
-    )
-    member = result.scalar_one_or_none()
-
-    if not member:
-        raise HTTPException(
-            status_code=404,
-            detail="Join request not found",
-        )
-
-    if member.role != "pending":
-        raise HTTPException(
-            status_code=400,
-            detail="User is not pending approval",
-        )
-
-    # Update role to member
-    member.role = "member"
-    await db.commit()
-
-    logger.info(
-        "legacy.member_approved",
-        extra={
-            "legacy_id": str(legacy_id),
-            "user_id": str(user_id),
-            "approver_id": str(approver_user_id),
-        },
-    )
-
-    return {"message": "Member approved"}
 
 
 async def update_legacy(

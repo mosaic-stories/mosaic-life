@@ -293,63 +293,38 @@ class TestRequestJoin:
     """Tests for POST /api/legacies/{legacy_id}/join."""
 
     @pytest.mark.asyncio
-    async def test_request_join_success(
+    async def test_request_join_removed(
         self,
         client: AsyncClient,
         test_legacy: Legacy,
         test_user_2: User,
     ):
-        """Test requesting to join a legacy."""
-        # Create auth headers for user_2
-        from app.auth.middleware import create_session_cookie
-        from app.auth.models import SessionData
-        from app.config import get_settings
-
-        settings = get_settings()
-        now = datetime.now(timezone.utc)
-        session_data = SessionData(
-            user_id=test_user_2.id,
-            provider=test_user_2.provider,
-            provider_id=test_user_2.provider_id,
-            email=test_user_2.email,
-            name=test_user_2.name,
-            avatar_url=test_user_2.avatar_url,
-            created_at=now,
-            expires_at=now + timedelta(hours=24),
-        )
-        cookie_name, cookie_value = create_session_cookie(settings, session_data)
-        headers = {"Cookie": f"{cookie_name}={cookie_value}"}
-
+        """Test obsolete join endpoint is removed."""
         response = await client.post(
             f"/api/legacies/{test_legacy.id}/join",
-            headers=headers,
         )
 
-        assert response.status_code == 201
-        result = response.json()
-        assert "message" in result
+        assert response.status_code == 404
 
 
 class TestApproveMember:
     """Tests for POST /api/legacies/{legacy_id}/members/{user_id}/approve."""
 
     @pytest.mark.asyncio
-    async def test_approve_member_success(
+    async def test_approve_member_removed(
         self,
         client: AsyncClient,
         auth_headers: dict[str, str],
         test_legacy_with_pending: Legacy,
         test_user_2: User,
     ):
-        """Test approving a pending member as creator."""
+        """Test obsolete pending-member approval endpoint is removed."""
         response = await client.post(
             f"/api/legacies/{test_legacy_with_pending.id}/members/{test_user_2.id}/approve",
             headers=auth_headers,
         )
 
-        assert response.status_code == 200
-        result = response.json()
-        assert "message" in result
+        assert response.status_code == 404
 
 
 class TestRemoveMember:
@@ -414,7 +389,7 @@ class TestJoinApprovalFlow:
         assert create_response.status_code == 201
         legacy_id = create_response.json()["id"]
 
-        # User 2 requests to join
+        # User 2 requests access through the canonical access-request flow
         session_data_2 = SessionData(
             user_id=test_user_2.id,
             provider=test_user_2.provider,
@@ -428,11 +403,13 @@ class TestJoinApprovalFlow:
         cookie_name, cookie_value = create_session_cookie(settings, session_data_2)
         headers_2 = {"Cookie": f"{cookie_name}={cookie_value}"}
 
-        join_response = await client.post(
-            f"/api/legacies/{legacy_id}/join",
+        request_response = await client.post(
+            f"/api/legacies/{legacy_id}/access-requests",
+            json={"requested_role": "advocate"},
             headers=headers_2,
         )
-        assert join_response.status_code == 201
+        assert request_response.status_code == 200
+        request_id = request_response.json()["id"]
 
         # User 2 cannot access legacy yet (pending)
         get_response_pending = await client.get(
@@ -444,6 +421,13 @@ class TestJoinApprovalFlow:
         # User 1 approves user 2
         approve_response = await client.post(
             f"/api/legacies/{legacy_id}/members/{test_user_2.id}/approve",
+            headers=headers_1,
+        )
+        assert approve_response.status_code == 404
+
+        approve_response = await client.patch(
+            f"/api/legacies/{legacy_id}/access-requests/{request_id}/approve",
+            json={},
             headers=headers_1,
         )
         assert approve_response.status_code == 200
@@ -477,6 +461,41 @@ class TestMemberManagement:
         assert response.status_code == 200
         data = response.json()
         assert len(data) >= 1  # At least the creator
+
+    @pytest.mark.asyncio
+    async def test_admirer_can_list_members(
+        self,
+        client: AsyncClient,
+        test_legacy: Legacy,
+        db_session: AsyncSession,
+    ):
+        """Admirers are members and can view the member list."""
+        admirer = User(
+            email="admirer-list@example.com",
+            google_id="google_admirer_list",
+            provider="google",
+            provider_id="google_admirer_list",
+            name="Admirer List",
+            username="admirer-list",
+        )
+        db_session.add(admirer)
+        await db_session.flush()
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id,
+                user_id=admirer.id,
+                role="admirer",
+            )
+        )
+        await db_session.commit()
+
+        response = await client.get(
+            f"/api/legacies/{test_legacy.id}/members",
+            headers=create_auth_headers_for_user(admirer),
+        )
+
+        assert response.status_code == 200
+        assert any(member["user_id"] == str(admirer.id) for member in response.json())
 
     @pytest.mark.asyncio
     async def test_change_member_role(

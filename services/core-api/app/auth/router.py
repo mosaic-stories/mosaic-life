@@ -29,7 +29,12 @@ from .session_tokens import (
 )
 from .google import GoogleOAuthError, get_google_client
 from .keycloak import KeycloakOIDCError, get_keycloak_client
-from .middleware import create_session_cookie, get_current_session, require_auth
+from .middleware import (
+    create_session_cookie,
+    get_current_session,
+    is_request_secure,
+    require_auth,
+)
 from .models import GoogleUser, MeResponse, OIDCUser, SessionData
 
 router = APIRouter()
@@ -170,12 +175,13 @@ async def _build_and_set_session(
         expires_at=now + timedelta(seconds=settings.session_cookie_max_age),
     )
     cookie_name, cookie_value = create_session_cookie(settings, session_data)
+    is_secure = settings.session_cookie_secure or is_request_secure(request)
     response.set_cookie(
         key=cookie_name,
         value=cookie_value,
         max_age=settings.session_cookie_max_age,
         httponly=True,
-        secure=settings.session_cookie_secure,
+        secure=is_secure,
         samesite="lax",
         path="/",
         domain=settings.session_cookie_domain,
@@ -349,14 +355,15 @@ async def login_keycloak(request: Request) -> RedirectResponse:
     # domain must match session_cookie_domain so the cookie is sent back when
     # Keycloak redirects to mosaicapi.* even if the login was initiated through
     # the frontend proxy on mosaic.*.
+    is_secure = settings.session_cookie_secure or is_request_secure(request)
     response.set_cookie(
         key=_PKCE_COOKIE,
         value=_sign_pkce_value(code_verifier, settings.session_secret_key),
         max_age=STATE_TOKEN_MAX_AGE,
         httponly=True,
-        secure=settings.session_cookie_secure,
+        secure=is_secure,
         samesite="lax",
-        path="/api/auth/keycloak/callback",
+        path="/",
         domain=settings.session_cookie_domain,
     )
     return response
@@ -435,7 +442,7 @@ async def callback_keycloak(
         # Clear the PKCE cookie — it's consumed
         response.delete_cookie(
             key=_PKCE_COOKIE,
-            path="/api/auth/keycloak/callback",
+            path="/",
             domain=settings.session_cookie_domain,
         )
         return response
@@ -488,11 +495,12 @@ async def logout(
             await db.commit()
 
     response = Response(status_code=200)
+    is_secure = settings.session_cookie_secure or is_request_secure(request)
     response.delete_cookie(
         key=settings.session_cookie_name,
         path="/",
         httponly=True,
-        secure=settings.session_cookie_secure,
+        secure=is_secure,
         samesite="lax",
         domain=settings.session_cookie_domain,
     )

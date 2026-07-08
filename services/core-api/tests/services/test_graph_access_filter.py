@@ -29,6 +29,7 @@ def _make_story_row(
     row.legacy_id = legacy_id
     row.visibility = visibility
     row.author_id = author_id
+    row.status = "published"
     return row
 
 
@@ -139,8 +140,8 @@ class TestGraphAccessFilterPrimaryLegacy:
         assert result[0][0] == story_id
 
     @pytest.mark.asyncio
-    async def test_private_story_filtered_out_for_admirer(self) -> None:
-        """Private story is excluded when user (admirer) lacks 'private' visibility."""
+    async def test_private_story_included_for_admirer(self) -> None:
+        """Private story is included when admirer has private visibility."""
         user_id = uuid4()
         primary_legacy_id = uuid4()
         story_id = uuid4()
@@ -148,8 +149,7 @@ class TestGraphAccessFilterPrimaryLegacy:
         story = _make_story_row(story_id, primary_legacy_id, "private", uuid4())
         db = _make_db_session([story])
 
-        # Admirer only sees public + personal
-        vis_filter = _visibility_filter(["public", "personal"], user_id)
+        vis_filter = _visibility_filter(["public", "private", "personal"], user_id)
 
         with (
             patch(
@@ -169,7 +169,7 @@ class TestGraphAccessFilterPrimaryLegacy:
                 db=db,
             )
 
-        assert result == []
+        assert result == [(story_id, 0.8)]
 
     @pytest.mark.asyncio
     async def test_personal_story_included_when_author_matches_user(self) -> None:

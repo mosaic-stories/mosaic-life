@@ -1,0 +1,34 @@
+schema: spec-driven
+
+# Shown to AI assistants when creating OpenSpec artifacts.
+context: |
+  Mosaic Life — memorial stories platform (people preserve and share memories
+  of loved ones; grief-sensitive audience, warm/human register in all UI copy).
+
+  Stack: FastAPI + Pydantic v2 + SQLAlchemy/Alembic on PostgreSQL (services/core-api);
+  React 18 + TypeScript strict + Vite + TanStack Query + Zustand + TipTap (apps/web);
+  Neptune (graph, via adapters), S3 media, LiteLLM proxy for AI, Keycloak/Google OIDC auth.
+  Local dev runs via docker compose (infra/compose/docker-compose.yml) only; Python via uv only.
+  Deploys: Helm + ArgoCD GitOps to EKS. Conventional Commits; PRs < 400 LOC, squash-merge.
+
+  Canonical docs (do not restate in artifacts; reference them):
+  - docs/developer/SPEC-DRIVEN-WORKFLOW.md  (this workflow)
+  - docs/developer/CODING-STANDARDS.md      (style, testing, security)
+  - docs/architecture/MVP-SIMPLIFIED-ARCHITECTURE.md (current architecture)
+  - AGENTS.md (operating principles, approval rules)
+
+rules:
+  proposal:
+    - Always include a "Non-goals" section
+    - Always include an "Open Questions" section; questions must be answered by a human before apply
+    - Reference requirement sources (design-review docs, GitHub issues) rather than restating them
+  design:
+    - For schema/contract changes, new dependencies, auth flows, or cross-cutting concerns, present 1-3 approach options with trade-offs and a recommendation; the human selects
+    - State migration and rollback approach for any data change
+    - Name the OTel spans/metrics/log fields the change will emit
+  tasks:
+    - Size each task so its PR stays under 400 LOC
+    - Every task ends with its validation step (just validate-backend / validate-frontend, tests, e2e where user-facing)
+    - Final task is always end-to-end verification: drive the affected flow in the running compose stack and record what was observed
+  specs:
+    - Write requirements as observable behavior (user- or API-visible), not implementation detail

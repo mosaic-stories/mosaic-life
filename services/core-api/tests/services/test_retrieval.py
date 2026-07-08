@@ -71,7 +71,7 @@ class TestResolveVisibilityFilter:
             legacy_id=test_legacy.id,
         )
 
-        assert result.allowed_visibilities == ["public", "personal"]
+        assert result.allowed_visibilities == ["public", "private", "personal"]
         assert result.personal_author_id == admirer.id
 
     @pytest.mark.asyncio

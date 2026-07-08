@@ -26,7 +26,7 @@ async def list_members(
     All members can view the member list.
     """
     # Verify requester is a member
-    await check_legacy_access(db, requester_id, legacy_id)
+    await check_legacy_access(db, requester_id, legacy_id, required_role="admirer")
 
     result = await db.execute(
         select(LegacyMember, User)

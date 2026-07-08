@@ -362,10 +362,10 @@ class TestListLegacyStoriesWithSharing:
         shared = next(r for r in results if r.id == story.id)
         assert shared.shared_from is not None
 
-    async def test_private_shared_stories_are_excluded(
+    async def test_private_shared_stories_are_included(
         self, db_session: AsyncSession, test_user: User, test_user_2: User
     ):
-        """Private stories shared via a link must NOT appear in the list."""
+        """Private stories shared via a link appear in the receiving list."""
         person, legacy_a, legacy_b, link = await _setup_linked_legacies(
             db_session, test_user, test_user_2
         )
@@ -395,7 +395,7 @@ class TestListLegacyStoriesWithSharing:
             db_session, test_user.id, legacy_id=legacy_a.id
         )
         story_ids = [r.id for r in results]
-        assert story.id not in story_ids
+        assert story.id in story_ids
 
     async def test_own_stories_not_duplicated(
         self, db_session: AsyncSession, test_user: User, test_user_2: User
