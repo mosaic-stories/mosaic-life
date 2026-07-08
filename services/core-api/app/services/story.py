@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -17,9 +17,6 @@ from ..models.legacy import Legacy, LegacyMember
 from ..models.story import Story
 from ..models.story_version import StoryVersion
 from ..schemas.associations import LegacyAssociationResponse
-from .change_summary import generate_change_summary
-from .story_version import create_version as create_story_version
-from .story_version import get_draft_version
 from ..schemas.story import (
     StoryCreate,
     StoryDetail,
@@ -27,6 +24,15 @@ from ..schemas.story import (
     StorySummary,
     StoryUpdate,
 )
+from .change_summary import generate_change_summary
+from .story_access import (
+    ACTIVE_ROLES,
+    can_read_story,
+    get_linked_legacy_filters,
+    visible_stories_criteria,
+)
+from .story_version import create_version as create_story_version
+from .story_version import get_draft_version
 
 logger = logging.getLogger(__name__)
 
@@ -139,49 +145,45 @@ async def _get_legacy_names(
     return {row[0]: row[1] for row in result.all()}
 
 
-async def _get_highest_story_member_role(
+async def _ensure_contributor_access(
     db: AsyncSession,
     user_id: UUID,
     legacy_ids: list[UUID],
-) -> str | None:
-    """Get user's highest role across a story's linked legacies."""
+) -> None:
+    """Require advocate-or-higher membership in every target legacy."""
     if not legacy_ids:
-        return None
+        raise HTTPException(
+            status_code=403,
+            detail="Must select at least one legacy to create a story",
+        )
 
     result = await db.execute(
-        select(LegacyMember.role).where(
+        select(LegacyMember.legacy_id, LegacyMember.role).where(
             LegacyMember.user_id == user_id,
             LegacyMember.legacy_id.in_(legacy_ids),
-            LegacyMember.role != "pending",
+            LegacyMember.role.in_(ACTIVE_ROLES),
         )
     )
-    roles = result.scalars().all()
-    if not roles:
-        return None
+    roles_by_legacy = {row[0]: row[1] for row in result.all()}
 
-    return max(roles, key=lambda role: ROLE_LEVELS.get(role, 0))
-
-
-def _can_edit_story(
-    story: Story,
-    user_id: UUID,
-    member_role: str | None,
-) -> bool:
-    """Check whether a user can edit a story.
-
-    Rules:
-    - Author can always edit
-    - Creator/Admin can edit any story in linked legacies
-    - Advocate can edit private stories
-    """
-    if story.author_id == user_id:
-        return True
-
-    level = ROLE_LEVELS.get(member_role or "", 0)
-    if level >= ROLE_LEVELS["admin"]:
-        return True
-
-    return story.visibility == "private" and level >= ROLE_LEVELS["advocate"]
+    missing_or_readonly = [
+        legacy_id
+        for legacy_id in legacy_ids
+        if ROLE_LEVELS.get(roles_by_legacy.get(legacy_id, ""), 0)
+        < ROLE_LEVELS["advocate"]
+    ]
+    if missing_or_readonly:
+        logger.warning(
+            "story.contributor_access_denied",
+            extra={
+                "user_id": str(user_id),
+                "legacy_ids": [str(lid) for lid in missing_or_readonly],
+            },
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Must be an advocate or higher for every target legacy",
+        )
 
 
 async def create_story(
@@ -207,28 +209,7 @@ async def create_story(
     # Extract legacy IDs from the legacies list
     legacy_ids = [leg.legacy_id for leg in data.legacies]
 
-    # Verify user is a member of at least one legacy
-    member_result = await db.execute(
-        select(LegacyMember).where(
-            LegacyMember.user_id == user_id,
-            LegacyMember.legacy_id.in_(legacy_ids),
-            LegacyMember.role != "pending",
-        )
-    )
-    member = member_result.scalar_one_or_none()
-
-    if not member:
-        logger.warning(
-            "story.create_denied",
-            extra={
-                "user_id": str(user_id),
-                "legacy_ids": [str(lid) for lid in legacy_ids],
-            },
-        )
-        raise HTTPException(
-            status_code=403,
-            detail="Must be a member of at least one legacy to create a story",
-        )
+    await _ensure_contributor_access(db, user_id, legacy_ids)
 
     # Create story (without legacy_id - using many-to-many)
     story = Story(
@@ -322,39 +303,16 @@ async def get_shared_story_ids(
           - ``story_ids`` – set of UUIDs for stories shared into this legacy
           - ``source_map`` – mapping of story_id → human-readable source name
     """
-    from ..models.associations import StoryLegacy as _StoryLegacy
-    from ..models.legacy_link import LegacyLink, LegacyLinkShare
-
-    # 1. Find all active links where this legacy participates
-    links_result = await db.execute(
-        select(LegacyLink).where(
-            LegacyLink.status == "active",
-            or_(
-                LegacyLink.requester_legacy_id == legacy_id,
-                LegacyLink.target_legacy_id == legacy_id,
-            ),
-        )
-    )
-    links = links_result.scalars().all()
-
-    if not links:
+    link_filters = await get_linked_legacy_filters(db, legacy_id)
+    if not link_filters:
         return set(), {}
 
     story_ids: set[UUID] = set()
     source_map: dict[UUID, str] = {}
 
-    for link in links:
-        # Determine which side "we" are and which side is the "other"
-        if link.requester_legacy_id == legacy_id:
-            other_legacy_id = link.target_legacy_id
-            other_share_mode = link.target_share_mode
-        else:
-            other_legacy_id = link.requester_legacy_id
-            other_share_mode = link.requester_share_mode
-
-        # Fetch the other legacy to resolve its name and visibility
+    for link_filter in link_filters:
         other_legacy_result = await db.execute(
-            select(Legacy).where(Legacy.id == other_legacy_id)
+            select(Legacy).where(Legacy.id == link_filter.legacy_id)
         )
         other_legacy = other_legacy_result.scalar_one_or_none()
         if other_legacy is None:
@@ -366,28 +324,19 @@ async def get_shared_story_ids(
             else "another legacy"
         )
 
-        if other_share_mode == "all":
-            # Collect all story IDs belonging to the other legacy
+        if link_filter.share_mode == "all":
             sl_result = await db.execute(
-                select(_StoryLegacy.story_id).where(
-                    _StoryLegacy.legacy_id == other_legacy_id
+                select(StoryLegacy.story_id).where(
+                    StoryLegacy.legacy_id == link_filter.legacy_id
                 )
             )
             for (sid,) in sl_result.all():
                 story_ids.add(sid)
                 source_map[sid] = source_name
         else:
-            # "selective" – only explicitly shared stories
-            shares_result = await db.execute(
-                select(LegacyLinkShare).where(
-                    LegacyLinkShare.legacy_link_id == link.id,
-                    LegacyLinkShare.source_legacy_id == other_legacy_id,
-                    LegacyLinkShare.resource_type == "story",
-                )
-            )
-            for share in shares_result.scalars().all():
-                story_ids.add(share.resource_id)
-                source_map[share.resource_id] = source_name
+            for story_id in link_filter.story_ids:
+                story_ids.add(story_id)
+                source_map[story_id] = source_name
 
     return story_ids, source_map
 
@@ -431,7 +380,7 @@ async def list_legacy_stories(
             select(LegacyMember).where(
                 LegacyMember.legacy_id == legacy_id,
                 LegacyMember.user_id == user_id,
-                LegacyMember.role != "pending",
+                LegacyMember.role.in_(ACTIVE_ROLES),
             )
         )
         member = member_result.scalar_one_or_none()
@@ -441,18 +390,14 @@ async def list_legacy_stories(
             StoryLegacy.legacy_id == legacy_id
         )
 
-        if member:
-            # Member sees: public + private + own personal stories
-            query = query.where(
-                or_(
-                    Story.visibility == "public",
-                    Story.visibility == "private",
-                    and_(Story.visibility == "personal", Story.author_id == user_id),
-                )
+        query = query.where(
+            visible_stories_criteria(
+                user_id,
+                legacy_id=legacy_id,
+                membership_role=member.role if member else None,
+                link_filters=[],
             )
-        else:
-            # Non-member sees only public stories
-            query = query.where(Story.visibility == "public")
+        )
 
         # Filter drafts: only the author sees their own drafts
         query = query.where(
@@ -510,7 +455,7 @@ async def list_legacy_stories(
     ]
 
     # Append shared stories from linked legacies (only when listing by legacy_id)
-    if legacy_id and not orphaned:
+    if legacy_id and not orphaned and member:
         shared_ids, source_map = await get_shared_story_ids(db, legacy_id)
 
         # Exclude stories already present in the main result and non-public stories
@@ -524,7 +469,7 @@ async def list_legacy_stories(
                 )
                 .where(
                     Story.id.in_(new_shared_ids),
-                    Story.visibility == "public",
+                    Story.visibility.in_(["public", "private"]),
                     Story.status == "published",
                 )
                 .order_by(Story.created_at.desc())
@@ -758,7 +703,7 @@ async def list_stories_scoped(
     # Query shared stories (by others on legacies user is a member of)
     user_legacy_ids = select(LegacyMember.legacy_id).where(
         LegacyMember.user_id == user_id,
-        LegacyMember.role != "pending",
+        LegacyMember.role.in_(ACTIVE_ROLES),
     )
     shared_result = await db.execute(
         select(Story)
@@ -771,9 +716,11 @@ async def list_stories_scoped(
             StoryLegacy.legacy_id.in_(user_legacy_ids),
             Story.author_id != user_id,
             Story.status == "published",
-            or_(
-                Story.visibility == "public",
-                Story.visibility == "private",
+            visible_stories_criteria(
+                user_id,
+                legacy_id=None,
+                membership_role="admirer",
+                link_filters=[],
             ),
         )
         .order_by(Story.created_at.desc())
@@ -967,7 +914,7 @@ async def get_story_detail(
         )
 
     # Check visibility
-    authorized = await _check_story_visibility(db, user_id, story)
+    authorized, _reason = await can_read_story(db, story, user_id)
 
     if not authorized:
         logger.warning(
@@ -1137,30 +1084,9 @@ async def update_story(
 
     # Update legacy associations if provided
     if data.legacies is not None:
-        # Verify user is member of at least one new legacy
+        # Verify user can contribute to every new legacy
         legacy_ids = [leg.legacy_id for leg in data.legacies]
-        member_result = await db.execute(
-            select(LegacyMember).where(
-                LegacyMember.user_id == user_id,
-                LegacyMember.legacy_id.in_(legacy_ids),
-                LegacyMember.role != "pending",
-            )
-        )
-        member = member_result.scalar_one_or_none()
-
-        if not member:
-            logger.warning(
-                "story.update_denied",
-                extra={
-                    "story_id": str(story_id),
-                    "user_id": str(user_id),
-                    "legacy_ids": [str(lid) for lid in legacy_ids],
-                },
-            )
-            raise HTTPException(
-                status_code=403,
-                detail="Must be a member of at least one legacy",
-            )
+        await _ensure_contributor_access(db, user_id, legacy_ids)
 
         # Delete existing associations
         await db.execute(select(StoryLegacy).where(StoryLegacy.story_id == story_id))
@@ -1296,52 +1222,3 @@ async def delete_story(
     )
 
     return {"message": "Story deleted", "title": story_title}
-
-
-async def _check_story_visibility(
-    db: AsyncSession,
-    user_id: UUID,
-    story: Story,
-) -> bool:
-    """Check if user can view a story based on visibility rules.
-
-    Union access: User can view if member of ANY linked legacy.
-
-    Args:
-        db: Database session
-        user_id: Requesting user ID
-        story: Story to check (must have legacy_associations loaded)
-
-    Returns:
-        True if authorized, False otherwise
-    """
-    # Public stories are visible to everyone
-    if story.visibility == "public":
-        return True
-
-    # Personal stories are only visible to author
-    if story.visibility == "personal":
-        return story.author_id == user_id
-
-    # Private stories are visible to members of ANY linked legacy (union access)
-    if story.visibility == "private":
-        # Get legacy IDs from story associations
-        story_legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
-
-        if not story_legacy_ids:
-            # Story has no legacy associations - only author can view
-            return story.author_id == user_id
-
-        # Check if user is a member of ANY linked legacy
-        result = await db.execute(
-            select(LegacyMember).where(
-                LegacyMember.user_id == user_id,
-                LegacyMember.legacy_id.in_(story_legacy_ids),
-                LegacyMember.role != "pending",
-            )
-        )
-        member = result.scalar_one_or_none()
-        return member is not None
-
-    # Unknown visibility (shouldn't happen)
-    return False

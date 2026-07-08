@@ -82,3 +82,11 @@ NEPTUNE_QUERY_LATENCY = Histogram(
     ["query_type"],
     buckets=GRAPH_LATENCY_BUCKETS,
 )
+
+# --- Authorization metrics ---
+
+AUTHZ_DECISIONS = Counter(
+    "authz_decisions_total",
+    "Story authorization decisions",
+    ["decision", "reason", "service"],
+)

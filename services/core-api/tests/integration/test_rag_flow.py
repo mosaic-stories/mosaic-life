@@ -219,14 +219,14 @@ class TestRAGFlow:
         db_session.add(admirer_membership)
         await db_session.commit()
 
-        # Admirer should only see public and personal
+        # Admirer can read member-scoped private stories.
         admirer_filter = await resolve_visibility_filter(
             db=db_session,
             user_id=admirer.id,
             legacy_id=test_legacy.id,
         )
-        assert admirer_filter.allowed_visibilities == ["public", "personal"]
-        assert "private" not in admirer_filter.allowed_visibilities
+        assert admirer_filter.allowed_visibilities == ["public", "private", "personal"]
+        assert "private" in admirer_filter.allowed_visibilities
         assert admirer_filter.personal_author_id == admirer.id
 
         # Non-member should be denied

@@ -7,22 +7,20 @@ from uuid import UUID
 
 from fastapi import HTTPException
 from opentelemetry import trace
-from sqlalchemy import delete, func, or_, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.engine import Result
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.knowledge import StoryChunk
 from ..models.legacy import LegacyMember
-from ..models.legacy_link import LegacyLink, LegacyLinkShare
 from ..observability.metrics import AI_RETRIEVAL_DURATION
 from ..providers.registry import get_provider_registry
 from ..schemas.retrieval import ChunkResult, LinkedLegacyFilter, VisibilityFilter
+from .story_access import allowed_visibilities
+from .story_access import get_linked_legacy_filters as _get_linked_legacy_filters
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.retrieval")
-
-# Roles that can see private content
-PRIVATE_ACCESS_ROLES = {"creator", "admin", "advocate"}
 
 
 async def resolve_visibility_filter(
@@ -70,12 +68,7 @@ async def resolve_visibility_filter(
         role = membership.role
         span.set_attribute("role", role)
 
-        # Determine allowed visibilities based on role
-        if role in PRIVATE_ACCESS_ROLES:
-            allowed = ["public", "private", "personal"]
-        else:
-            # Admirers can see public + their own personal
-            allowed = ["public", "personal"]
+        allowed = allowed_visibilities(role)
 
         logger.debug(
             "retrieval.visibility_resolved",
@@ -219,65 +212,7 @@ async def get_linked_legacy_filters(
     Returns:
         List of :class:`LinkedLegacyFilter` objects, one per active linked legacy.
     """
-    # Find active links where this legacy is either the requester or target
-    result = await db.execute(
-        select(LegacyLink).where(
-            LegacyLink.status == "active",
-            or_(
-                LegacyLink.requester_legacy_id == legacy_id,
-                LegacyLink.target_legacy_id == legacy_id,
-            ),
-        )
-    )
-    links = result.scalars().all()
-
-    if not links:
-        return []
-
-    filters: list[LinkedLegacyFilter] = []
-
-    for link in links:
-        # Determine which side is "ours" and which is the linked legacy
-        if link.requester_legacy_id == legacy_id:
-            linked_legacy_id = link.target_legacy_id
-            # The target's share mode governs what the target shares with us
-            share_mode = link.target_share_mode
-        else:
-            linked_legacy_id = link.requester_legacy_id
-            # The requester's share mode governs what the requester shares with us
-            share_mode = link.requester_share_mode
-
-        if share_mode == "all":
-            filters.append(
-                LinkedLegacyFilter(
-                    legacy_id=linked_legacy_id,
-                    share_mode="all",
-                    story_ids=[],
-                )
-            )
-        else:
-            # selective: collect the story IDs explicitly shared by the linked legacy
-            shares_result = await db.execute(
-                select(LegacyLinkShare).where(
-                    LegacyLinkShare.legacy_link_id == link.id,
-                    LegacyLinkShare.source_legacy_id == linked_legacy_id,
-                    LegacyLinkShare.resource_type == "story",
-                )
-            )
-            shares = shares_result.scalars().all()
-            story_ids = [share.resource_id for share in shares]
-
-            # Only add a filter entry if there are shared stories to include
-            if story_ids:
-                filters.append(
-                    LinkedLegacyFilter(
-                        legacy_id=linked_legacy_id,
-                        share_mode="selective",
-                        story_ids=story_ids,
-                    )
-                )
-
-    return filters
+    return await _get_linked_legacy_filters(db, legacy_id)
 
 
 async def retrieve_context(

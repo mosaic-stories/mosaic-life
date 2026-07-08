@@ -25,7 +25,7 @@ class TestCheckLegacyAccess:
             db=db_session,
             user_id=test_user.id,
             legacy_id=test_legacy.id,
-            required_role="member",
+            required_role="advocate",
         )
         assert member is not None
         assert member.role == "creator"  # Creator has >= member permissions
@@ -72,7 +72,7 @@ class TestCheckLegacyAccess:
         test_legacy: Legacy,
     ):
         """Test access denied when role is insufficient."""
-        # First, remove existing creator role and update to member
+        # First, remove existing creator role and update to advocate
         from sqlalchemy import select
 
         result = await db_session.execute(
@@ -82,7 +82,7 @@ class TestCheckLegacyAccess:
             )
         )
         existing = result.scalar_one()
-        existing.role = "member"
+        existing.role = "advocate"
         await db_session.commit()
 
         # Now test that member cannot do creator actions
@@ -263,106 +263,6 @@ class TestGetLegacyDetail:
                 db=db_session,
                 user_id=test_user_2.id,
                 legacy_id=test_legacy.id,
-            )
-        assert exc.value.status_code == 403
-
-
-class TestRequestJoinLegacy:
-    """Tests for request_join_legacy function."""
-
-    @pytest.mark.asyncio
-    async def test_request_join_success(
-        self,
-        db_session: AsyncSession,
-        test_user_2: User,
-        test_legacy: Legacy,
-    ):
-        """Test successful join request."""
-        result = await legacy_service.request_join_legacy(
-            db=db_session,
-            user_id=test_user_2.id,
-            legacy_id=test_legacy.id,
-        )
-
-        assert result["message"] == "Join request submitted"
-
-        # Verify pending membership created
-        from sqlalchemy import select
-
-        member_result = await db_session.execute(
-            select(LegacyMember).where(
-                LegacyMember.legacy_id == test_legacy.id,
-                LegacyMember.user_id == test_user_2.id,
-            )
-        )
-        member = member_result.scalar_one()
-        assert member.role == "pending"
-
-    @pytest.mark.asyncio
-    async def test_request_join_already_member(
-        self,
-        db_session: AsyncSession,
-        test_user: User,
-        test_legacy: Legacy,
-    ):
-        """Test join request when already a member."""
-        with pytest.raises(HTTPException) as exc:
-            await legacy_service.request_join_legacy(
-                db=db_session,
-                user_id=test_user.id,
-                legacy_id=test_legacy.id,
-            )
-        assert exc.value.status_code == 400
-        assert "Already a member" in exc.value.detail
-
-
-class TestApproveLegacyMember:
-    """Tests for approve_legacy_member function."""
-
-    @pytest.mark.asyncio
-    async def test_approve_member_success(
-        self,
-        db_session: AsyncSession,
-        test_user: User,
-        test_user_2: User,
-        test_legacy_with_pending: Legacy,
-    ):
-        """Test successful member approval."""
-        result = await legacy_service.approve_legacy_member(
-            db=db_session,
-            approver_user_id=test_user.id,
-            legacy_id=test_legacy_with_pending.id,
-            user_id=test_user_2.id,
-        )
-
-        assert result["message"] == "Member approved"
-
-        # Verify role changed to member
-        from sqlalchemy import select
-
-        member_result = await db_session.execute(
-            select(LegacyMember).where(
-                LegacyMember.legacy_id == test_legacy_with_pending.id,
-                LegacyMember.user_id == test_user_2.id,
-            )
-        )
-        member = member_result.scalar_one()
-        assert member.role == "member"
-
-    @pytest.mark.asyncio
-    async def test_approve_member_not_creator(
-        self,
-        db_session: AsyncSession,
-        test_user_2: User,
-        test_legacy_with_pending: Legacy,
-    ):
-        """Test approval fails when approver is not creator."""
-        with pytest.raises(HTTPException) as exc:
-            await legacy_service.approve_legacy_member(
-                db=db_session,
-                approver_user_id=test_user_2.id,
-                legacy_id=test_legacy_with_pending.id,
-                user_id=test_user_2.id,
             )
         assert exc.value.status_code == 403
 

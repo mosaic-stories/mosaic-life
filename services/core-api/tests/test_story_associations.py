@@ -31,6 +31,14 @@ async def test_create_story_with_multiple_legacy_associations(
         person_id=person.id,
     )
     db_session.add(second_legacy)
+    await db_session.flush()
+    db_session.add(
+        LegacyMember(
+            legacy_id=second_legacy.id,
+            user_id=test_user.id,
+            role="creator",
+        )
+    )
     await db_session.commit()
 
     created = await story_service.create_story(

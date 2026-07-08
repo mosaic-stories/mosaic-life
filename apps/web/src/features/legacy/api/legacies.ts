@@ -124,10 +124,6 @@ export async function searchLegacies(query: string): Promise<LegacySearchResult[
   return apiGet<LegacySearchResult[]>(`/api/legacies/search?q=${encodeURIComponent(query)}`);
 }
 
-export async function joinLegacy(id: string): Promise<{ message: string }> {
-  return apiPost<{ message: string }>(`/api/legacies/${id}/join`);
-}
-
 export type VisibilityFilter = 'all' | 'public' | 'private';
 
 // Public endpoint - no authentication required for public legacies

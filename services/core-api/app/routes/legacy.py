@@ -287,30 +287,6 @@ async def delete_legacy(
     )
 
 
-@router.post(
-    "/{legacy_id}/join",
-    status_code=status.HTTP_201_CREATED,
-    summary="Request to join legacy",
-    description="Submit a request to join a legacy. Creates pending membership.",
-)
-async def request_join(
-    legacy_id: UUID,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-) -> dict[str, str]:
-    """Request to join a legacy.
-
-    Creates a pending membership that requires creator approval.
-    """
-    session = require_auth(request)
-
-    return await legacy_service.request_join_legacy(
-        db=db,
-        user_id=session.user_id,
-        legacy_id=legacy_id,
-    )
-
-
 @router.get(
     "/{legacy_id}/members",
     summary="List legacy members",
@@ -357,32 +333,6 @@ async def change_member_role(
         target_user_id=user_id,
         new_role=data.role,
         actor_id=session.user_id,
-    )
-
-
-@router.post(
-    "/{legacy_id}/members/{user_id}/approve",
-    summary="Approve member",
-    description="Approve a pending join request. Only creator can approve.",
-)
-async def approve_member(
-    legacy_id: UUID,
-    user_id: UUID,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-) -> dict[str, str]:
-    """Approve a pending join request.
-
-    Only the legacy creator can approve members.
-    Changes role from 'pending' to 'member'.
-    """
-    session = require_auth(request)
-
-    return await legacy_service.approve_legacy_member(
-        db=db,
-        approver_user_id=session.user_id,
-        legacy_id=legacy_id,
-        user_id=user_id,
     )
 
 
