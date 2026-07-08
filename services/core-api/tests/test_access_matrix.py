@@ -3,6 +3,7 @@
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,6 +15,7 @@ from app.models.story import Story
 from app.models.user import User
 from app.services.retrieval import resolve_visibility_filter
 from app.services.story import list_legacy_stories
+from app.services.story_access import require_story_read_access
 from tests.conftest import create_auth_headers_for_user
 
 
@@ -197,6 +199,28 @@ async def test_draft_story_is_404_to_non_author(
         db_session, users["admirer"].id, legacy_id=legacy.id
     )
     assert story.id not in {summary.id for summary in summaries}
+
+
+@pytest.mark.asyncio
+async def test_shared_story_read_helper_hides_drafts_from_non_authors(
+    db_session: AsyncSession,
+) -> None:
+    legacy, users = await _matrix_context(db_session)
+    story = await _story(
+        db_session,
+        author=users["author"],
+        legacy=legacy,
+        visibility="private",
+        status="draft",
+    )
+    await db_session.commit()
+
+    loaded = await require_story_read_access(db_session, story.id, users["author"].id)
+    assert loaded.id == story.id
+
+    with pytest.raises(HTTPException) as exc:
+        await require_story_read_access(db_session, story.id, users["admirer"].id)
+    assert exc.value.status_code == 404
 
 
 @pytest.mark.asyncio

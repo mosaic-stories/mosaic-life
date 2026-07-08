@@ -463,6 +463,41 @@ class TestMemberManagement:
         assert len(data) >= 1  # At least the creator
 
     @pytest.mark.asyncio
+    async def test_admirer_can_list_members(
+        self,
+        client: AsyncClient,
+        test_legacy: Legacy,
+        db_session: AsyncSession,
+    ):
+        """Admirers are members and can view the member list."""
+        admirer = User(
+            email="admirer-list@example.com",
+            google_id="google_admirer_list",
+            provider="google",
+            provider_id="google_admirer_list",
+            name="Admirer List",
+            username="admirer-list",
+        )
+        db_session.add(admirer)
+        await db_session.flush()
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id,
+                user_id=admirer.id,
+                role="admirer",
+            )
+        )
+        await db_session.commit()
+
+        response = await client.get(
+            f"/api/legacies/{test_legacy.id}/members",
+            headers=create_auth_headers_for_user(admirer),
+        )
+
+        assert response.status_code == 200
+        assert any(member["user_id"] == str(admirer.id) for member in response.json())
+
+    @pytest.mark.asyncio
     async def test_change_member_role(
         self,
         client: AsyncClient,

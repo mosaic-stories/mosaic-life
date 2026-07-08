@@ -41,6 +41,9 @@ async def require_story_read_access(
     if not story:
         raise HTTPException(status_code=404, detail="Story not found")
 
+    if story.status == "draft" and story.author_id != user_id:
+        raise HTTPException(status_code=404, detail="Story not found")
+
     allowed, _reason = await can_read_story(db=db, story=story, user_id=user_id)
     if allowed:
         return story

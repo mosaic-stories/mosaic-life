@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..auth.middleware import require_auth
+from ..auth.middleware import is_request_secure, require_auth
 from ..auth.session_tokens import (
     extract_client_ip,
     extract_device_info,
@@ -208,10 +208,7 @@ async def delete_account(
         raise HTTPException(status_code=400, detail=str(e))
 
     settings = get_settings()
-    is_secure = (
-        settings.session_cookie_secure
-        or request.headers.get("x-forwarded-proto", request.url.scheme) == "https"
-    )
+    is_secure = settings.session_cookie_secure or is_request_secure(request)
     response.delete_cookie(
         key=settings.session_cookie_name,
         path="/",

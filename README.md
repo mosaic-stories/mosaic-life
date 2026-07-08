@@ -62,7 +62,7 @@ uv sync
 uv run alembic upgrade head
 
 # Seed sample data (optional)
-DB_URL="postgresql+psycopg://postgres:postgres@localhost:25432/core" uv run python scripts/seed.py
+DB_URL="postgresql+psycopg://postgres:postgres@localhost:25432/mosaic" uv run python scripts/seed.py
 cd ../..
 
 # Start the frontend dev server
@@ -78,7 +78,7 @@ The app is now running:
 | Frontend | http://localhost:5173 |
 | Backend API | http://localhost:8080 |
 | API Docs (Swagger) | http://localhost:8080/docs |
-| PostgreSQL | localhost:25432 (user: `postgres`, password: `postgres`, db: `core`) |
+| PostgreSQL | localhost:25432 (user: `postgres`, password: `postgres`, db: `mosaic`) |
 
 Or use `just` for a streamlined setup:
 
