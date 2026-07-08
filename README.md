@@ -60,10 +60,10 @@ docker compose -f infra/compose/docker-compose.yml up -d
 cd services/core-api
 uv sync
 uv run alembic upgrade head
-cd ../..
 
 # Seed sample data (optional)
-just seed
+DB_URL="postgresql+psycopg://postgres:postgres@localhost:25432/core" uv run python scripts/seed.py
+cd ../..
 
 # Start the frontend dev server
 cd apps/web
@@ -78,13 +78,12 @@ The app is now running:
 | Frontend | http://localhost:5173 |
 | Backend API | http://localhost:8080 |
 | API Docs (Swagger) | http://localhost:8080/docs |
-| Jaeger (tracing) | http://localhost:16686 |
-| PostgreSQL | localhost:15432 (user: `postgres`, password: `postgres`, db: `core`) |
+| PostgreSQL | localhost:25432 (user: `postgres`, password: `postgres`, db: `core`) |
 
 Or use `just` for a streamlined setup:
 
 ```bash
-just setup    # Start services, run migrations, seed data
+just start    # Start the full stack (migrations run automatically on API startup)
 just dev      # Start the frontend dev server
 ```
 
@@ -157,9 +156,10 @@ just lint-fix-backend
 
 ### Building Docker Images
 
+Production images are built and pushed to ECR by CI (`.github/workflows/build-push.yml`). For local containers:
+
 ```bash
-just build-web           # Build frontend image
-just build-core-api      # Build backend image
+just rebuild-docker      # Rebuild the local compose stack from scratch (no cache)
 ```
 
 ### Node Version Management
