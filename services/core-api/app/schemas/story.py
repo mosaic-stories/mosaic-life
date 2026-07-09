@@ -8,6 +8,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .associations import LegacyAssociationCreate, LegacyAssociationResponse
+from .story_reaction import ReactionType
 
 
 class StoryCreate(BaseModel):
@@ -107,6 +108,18 @@ class StorySummary(BaseModel):
     favorite_count: int = Field(
         default=0, description="Number of times this story has been favorited"
     )
+    response_count: int = Field(
+        default=0, description="Number of responses on this story"
+    )
+    reaction_heart_count: int = Field(
+        default=0, description="Number of 'heart' (Love this) reactions"
+    )
+    reaction_candle_count: int = Field(
+        default=0, description="Number of 'candle' (Lighting a candle) reactions"
+    )
+    reaction_smile_count: int = Field(
+        default=0, description="Number of 'smile' (This made me smile) reactions"
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -165,6 +178,26 @@ class StoryDetail(BaseModel):
     source_conversation_id: UUID | None = None
     favorite_count: int = Field(
         default=0, description="Number of times this story has been favorited"
+    )
+    response_count: int = Field(
+        default=0, description="Number of responses on this story"
+    )
+    reaction_heart_count: int = Field(
+        default=0, description="Number of 'heart' (Love this) reactions"
+    )
+    reaction_candle_count: int = Field(
+        default=0, description="Number of 'candle' (Lighting a candle) reactions"
+    )
+    reaction_smile_count: int = Field(
+        default=0, description="Number of 'smile' (This made me smile) reactions"
+    )
+    my_reactions: list[ReactionType] = Field(
+        default_factory=list,
+        description=(
+            "Reaction types the requesting user has already made on this story "
+            "(subset of heart/candle/smile), used to render toggled-on state "
+            "without waiting for an in-session toggle response."
+        ),
     )
     created_at: datetime
     updated_at: datetime

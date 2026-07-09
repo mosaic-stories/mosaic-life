@@ -30,6 +30,8 @@ from app.models import (  # noqa: F401
     StoryContext,
     StoryEvolutionSession,
     StoryPrompt,
+    StoryReaction,
+    StoryResponse,
     StoryVersion,
     SupportRequest,
     User,
