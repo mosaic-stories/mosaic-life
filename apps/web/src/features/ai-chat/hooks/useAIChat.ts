@@ -32,6 +32,14 @@ interface UseAIChatOptions {
   legacyId: string;
   personaId: string;
   conversationId?: string | null;
+  /**
+   * When false, no conversation is created (or loaded via get-or-create)
+   * until `sendMessage` is called and no conversationId is available yet —
+   * at which point `ensureConversationId` (if provided) is awaited to
+   * obtain one. Defaults to true (auto-create on mount).
+   */
+  autoCreate?: boolean;
+  ensureConversationId?: () => Promise<string>;
 }
 
 interface UseAIChatReturn {
@@ -104,6 +112,8 @@ export function useAIChat({
   legacyId,
   personaId,
   conversationId,
+  autoCreate = true,
+  ensureConversationId,
 }: UseAIChatOptions): UseAIChatReturn {
   const queryClient = useQueryClient();
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -133,6 +143,10 @@ export function useAIChat({
 
   // Initialize conversation
   useEffect(() => {
+    // Lazy mode: no conversation yet and we're not allowed to auto-create
+    // one — wait for sendMessage to ensure one via ensureConversationId.
+    if (!conversationId && !autoCreate) return;
+
     let mounted = true;
 
     async function initConversation() {
@@ -203,14 +217,36 @@ export function useAIChat({
       // Cancel any in-flight stream
       abortControllerRef.current?.abort();
     };
-  }, [legacyId, personaId, conversationId, setActiveConversation, setConversation, setMessages, setConversationLoading, setError]);
+  }, [legacyId, personaId, conversationId, autoCreate, setActiveConversation, setConversation, setMessages, setConversationLoading, setError]);
 
   // Send message
   const sendMessage = useCallback(
     async (content: string) => {
-      if (!activeConversationId || isStreaming) return;
+      if (isStreaming) return;
 
-      const conversationId = activeConversationId;
+      let conversationId = activeConversationId;
+      if (!conversationId) {
+        if (!ensureConversationId) return;
+        try {
+          conversationId = await ensureConversationId();
+        } catch (err) {
+          console.error('Failed to ensure conversation:', err);
+          setError('Failed to start conversation. Please try again.');
+          return;
+        }
+        setActiveConversation(conversationId);
+        try {
+          // Load any server-generated messages already in the new
+          // conversation (e.g. the persona's opening message) before
+          // appending the user's own message below.
+          const { messages: existingMessages } = await getMessages(conversationId);
+          setMessages(conversationId, existingMessages);
+        } catch (err) {
+          console.error('Failed to load conversation messages:', err);
+        }
+        setConversationLoading(conversationId, false);
+      }
+
       lastUserMessageRef.current = content;
       setError(null);
 
@@ -275,7 +311,20 @@ export function useAIChat({
         }
       );
     },
-    [activeConversationId, isStreaming, addMessage, appendToLastMessage, updateLastMessage, setStreaming, setError, setEvolveSuggestion]
+    [
+      activeConversationId,
+      isStreaming,
+      ensureConversationId,
+      addMessage,
+      appendToLastMessage,
+      updateLastMessage,
+      setStreaming,
+      setError,
+      setEvolveSuggestion,
+      setActiveConversation,
+      setConversationLoading,
+      setMessages,
+    ]
   );
 
   // Retry last message

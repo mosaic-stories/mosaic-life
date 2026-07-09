@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Globe, Lock, Users, ChevronRight, Share2, MoreVertical, Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Globe, Lock, Users, ChevronRight, Share2, MoreVertical, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,7 +22,6 @@ export interface ProfileHeaderProps {
   canManageLegacy?: boolean;
   onAddStory: () => void;
   onRequestAccess?: () => void;
-  isCreatingStory: boolean;
   onShare: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -38,7 +37,6 @@ export default function ProfileHeader({
   canManageLegacy = false,
   onAddStory,
   onRequestAccess,
-  isCreatingStory,
   onShare,
   onEdit,
   onDelete,
@@ -139,13 +137,8 @@ export default function ProfileHeader({
                   size="sm"
                   className="bg-white text-theme-primary-dark hover:bg-white/90 shadow-md"
                   onClick={onAddStory}
-                  disabled={isCreatingStory}
                 >
-                  {isCreatingStory ? (
-                    <Loader2 className="size-4 mr-1.5 animate-spin" />
-                  ) : (
-                    <Plus className="size-4 mr-1.5" />
-                  )}
+                  <Plus className="size-4 mr-1.5" />
                   <span className="hidden sm:inline">Add Story</span>
                 </Button>
               ) : null}

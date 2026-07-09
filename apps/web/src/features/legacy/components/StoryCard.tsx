@@ -1,5 +1,6 @@
 import { Globe, Lock } from 'lucide-react';
 import type { StorySummary } from '@/features/story/api/stories';
+import { getStoryDisplayTitle } from '@/features/story/utils/displayTitle';
 import FavoriteButton from '@/features/favorites/components/FavoriteButton';
 import UserLink from '@/components/UserLink';
 
@@ -29,7 +30,7 @@ export default function StoryCard({ story, onClick, isFavorited = false }: Story
         {/* Title + favorite */}
         <div className="flex items-start justify-between gap-2 mb-2">
           <h3 className="font-serif text-[17px] font-semibold text-neutral-900 leading-snug line-clamp-2">
-            {story.title}
+            {getStoryDisplayTitle(story.title, story.created_at)}
           </h3>
           {!story.shared_from && (
             <FavoriteButton

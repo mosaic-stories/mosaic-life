@@ -34,7 +34,6 @@ describe('ProfileHeader', () => {
           legacyId="legacy-1"
           isAuthenticated={true}
           onAddStory={() => {}}
-          isCreatingStory={false}
           onShare={() => {}}
           onEdit={() => {}}
           onDelete={() => {}}
@@ -56,7 +55,6 @@ describe('ProfileHeader', () => {
           legacyId="legacy-1"
           isAuthenticated={false}
           onAddStory={() => {}}
-          isCreatingStory={false}
           onShare={() => {}}
           onEdit={() => {}}
           onDelete={() => {}}
@@ -76,7 +74,6 @@ describe('ProfileHeader', () => {
           legacyId="legacy-1"
           isAuthenticated={false}
           onAddStory={() => {}}
-          isCreatingStory={false}
           onShare={() => {}}
           onEdit={() => {}}
           onDelete={() => {}}
@@ -96,7 +93,6 @@ describe('ProfileHeader', () => {
           legacyId="legacy-1"
           isAuthenticated={false}
           onAddStory={() => {}}
-          isCreatingStory={false}
           onShare={() => {}}
           onEdit={() => {}}
           onDelete={() => {}}
@@ -120,7 +116,6 @@ describe('ProfileHeader', () => {
           canRequestAccess={true}
           onAddStory={() => {}}
           onRequestAccess={() => {}}
-          isCreatingStory={false}
           onShare={() => {}}
           onEdit={() => {}}
           onDelete={() => {}}
@@ -142,7 +137,6 @@ describe('ProfileHeader', () => {
           isAuthenticated={true}
           canManageLegacy={false}
           onAddStory={() => {}}
-          isCreatingStory={false}
           onShare={() => {}}
           onEdit={() => {}}
           onDelete={() => {}}

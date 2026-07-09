@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from opentelemetry import trace
+from prometheus_client import Counter
 
 from fastapi import HTTPException
 from sqlalchemy import select
@@ -27,6 +28,12 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.story_evolution")
+
+EVOLVE_SESSIONS_STARTED = Counter(
+    "evolve_sessions_started_total",
+    "Evolution sessions created, labeled by the trigger that created them",
+    ["trigger"],
+)
 
 
 @dataclass
@@ -82,12 +89,23 @@ async def start_session(
     story_id: uuid.UUID,
     user_id: uuid.UUID,
     persona_id: str,
+    trigger: str | None = None,
 ) -> StoryEvolutionSession:
-    """Start a new evolution session for a story."""
-    with tracer.start_as_current_span("story_evolution.start_session") as span:
+    """Start a new evolution session for a story.
+
+    ``trigger`` records which first AI action (chat, context, rewrite,
+    manual_save) caused the session to be lazily created, for observability.
+    """
+    with (
+        tracer.start_as_current_span("story_evolution.start_session") as span,
+        tracer.start_as_current_span("evolve.session.ensure") as ensure_span,
+    ):
         span.set_attribute("story_id", str(story_id))
         span.set_attribute("user_id", str(user_id))
         span.set_attribute("persona_id", persona_id)
+        ensure_span.set_attribute("trigger", trigger or "unknown")
+        ensure_span.set_attribute("created", True)
+        EVOLVE_SESSIONS_STARTED.labels(trigger=trigger or "unknown").inc()
         story = await _require_story_author(db, story_id, user_id)
 
         # Check for existing non-terminal session
@@ -167,7 +185,12 @@ async def start_session(
                 "story_id": str(story_id),
                 "user_id": str(user_id),
                 "persona_id": persona_id,
+                "trigger": trigger or "unknown",
             },
+        )
+        logger.info(
+            "evolve.session.ensure",
+            extra={"trigger": trigger or "unknown", "created": True},
         )
 
         return session

@@ -1,6 +1,7 @@
 import { ChevronRight, Globe, Lock } from 'lucide-react';
 import FavoriteButton from '@/features/favorites/components/FavoriteButton';
 import type { StorySummary } from '@/features/story/api/stories';
+import { getStoryDisplayTitle } from '@/features/story/utils/displayTitle';
 
 export interface StoryCardListProps {
   story: StorySummary;
@@ -30,7 +31,7 @@ export default function StoryCardList({ story, onClick, isFavorited = false }: S
       </div>
 
       <div className="flex-1 min-w-0">
-        <h3 className="font-serif text-base font-semibold text-neutral-900 truncate">{story.title}</h3>
+        <h3 className="font-serif text-base font-semibold text-neutral-900 truncate">{getStoryDisplayTitle(story.title, story.created_at)}</h3>
         <div className="text-xs text-neutral-400 mt-0.5">
           {story.legacies[0]?.legacy_name ?? 'Unknown'} · {story.author_name} · {formattedDate}
         </div>

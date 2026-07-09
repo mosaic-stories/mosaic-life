@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAIChat } from '@/features/ai-chat/hooks/useAIChat';
 import { useConversationSeed } from '../hooks/useConversationSeed';
+import { useEnsureEvolveSession } from '../hooks/useEnsureEvolveSession';
 import { PersonaSelector } from '../components/PersonaSelector';
 import { useEvolveWorkspaceStore } from '../store/useEvolveWorkspaceStore';
 import { Streamdown } from 'streamdown';
@@ -20,6 +21,12 @@ export function AIChatTool({ legacyId, storyId, conversationId }: AIChatToolProp
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const activePersonaId = useEvolveWorkspaceStore((s) => s.activePersonaId);
   const seedMode = useEvolveWorkspaceStore((s) => s.seedMode);
+  const ensureSession = useEnsureEvolveSession(storyId, legacyId);
+
+  const ensureConversationId = useCallback(async () => {
+    const { conversationId: id } = await ensureSession('chat');
+    return id;
+  }, [ensureSession]);
 
   const {
     messages,
@@ -32,6 +39,8 @@ export function AIChatTool({ legacyId, storyId, conversationId }: AIChatToolProp
     legacyId,
     personaId: activePersonaId,
     conversationId,
+    autoCreate: false,
+    ensureConversationId,
   });
 
   // Stream opening message when conversation is empty
@@ -65,7 +74,7 @@ export function AIChatTool({ legacyId, storyId, conversationId }: AIChatToolProp
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {messages.length === 0 && !isStreaming && (
           <p className="text-sm text-neutral-400 text-center py-8">
-            Preparing your AI companion...
+            Send a message to start chatting with this persona.
           </p>
         )}
         {messages.map((msg, i) => (

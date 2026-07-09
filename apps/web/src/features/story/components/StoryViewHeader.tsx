@@ -7,6 +7,8 @@ interface StoryViewHeaderProps {
   createdAt?: string;
   associatedLegaciesLabel: string | null;
   title: string;
+  hasActiveEvolution?: boolean;
+  onResumeDraft?: () => void;
 }
 
 export default function StoryViewHeader({
@@ -16,9 +18,11 @@ export default function StoryViewHeader({
   createdAt,
   associatedLegaciesLabel,
   title,
+  hasActiveEvolution = false,
+  onResumeDraft,
 }: StoryViewHeaderProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center gap-2 text-sm text-neutral-500">
         <VisibilityIcon className="size-4" />
         <span>{visibilityLabel}</span>
@@ -42,7 +46,16 @@ export default function StoryViewHeader({
           About: {associatedLegaciesLabel}
         </p>
       )}
-      <h1 className="text-3xl font-semibold text-neutral-900">{title}</h1>
+      <h1 className="font-serif text-3xl font-semibold text-neutral-900">{title}</h1>
+      {hasActiveEvolution && onResumeDraft && (
+        <button
+          type="button"
+          onClick={onResumeDraft}
+          className="text-sm text-theme-primary hover:underline"
+        >
+          You have an unfinished draft — continue editing
+        </button>
+      )}
     </div>
   );
 }

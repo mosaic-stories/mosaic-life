@@ -4,7 +4,7 @@ import { Loader2, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { useLegacyWithFallback, useDeleteLegacy } from '@/features/legacy/hooks/useLegacies';
-import { useStoriesWithFallback, useCreateStory } from '@/features/story/hooks/useStories';
+import { useStoriesWithFallback } from '@/features/story/hooks/useStories';
 import { formatLegacyDates } from '@/features/legacy/api/legacies';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 import MemberDrawer from '@/features/members/components/MemberDrawer';
@@ -60,8 +60,6 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
   const storiesQuery = useStoriesWithFallback(legacyId, !!user);
   const deleteLegacy = useDeleteLegacy();
 
-  const createStory = useCreateStory();
-
   const legacy = legacyQuery.data;
   const legacyLoading = legacyQuery.isLoading;
   const legacyError = legacyQuery.error;
@@ -87,25 +85,9 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
     setActiveSection(resolveActiveSection(tabParam, canAccessAI));
   }, [tabParam, canAccessAI]);
 
-  const handleAddStory = useCallback(async () => {
-    try {
-      const title = `Untitled Story - ${new Date().toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })}`;
-      const newStory = await createStory.mutateAsync({
-        title,
-        content: '',
-        visibility: 'private',
-        status: 'draft',
-        legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
-      });
-      navigate(`/legacy/${legacyId}/story/${newStory.id}/evolve`);
-    } catch (err) {
-      console.error('Failed to create story:', err);
-    }
-  }, [legacyId, createStory, navigate]);
+  const handleAddStory = useCallback(() => {
+    navigate(`/legacy/${legacyId}/story/new`);
+  }, [legacyId, navigate]);
 
   const handleDeleteLegacy = async () => {
     try {
@@ -205,7 +187,6 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         canManageLegacy={canManageLegacy}
         onAddStory={handleAddStory}
         onRequestAccess={() => setShowAccessRequestDialog(true)}
-        isCreatingStory={createStory.isPending}
         onShare={() => setShowMemberDrawer(true)}
         onEdit={() => navigate(`/legacy/${legacyId}/edit`)}
         onDelete={() => setShowDeleteDialog(true)}
@@ -234,7 +215,6 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
               onStoryClick={(storyId) => navigate(`/legacy/${legacyId}/story/${storyId}`)}
               onAddStory={handleAddStory}
               canAddStory={isMember}
-              isCreatingStory={createStory.isPending}
             />
           )}
 

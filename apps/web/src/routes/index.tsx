@@ -16,7 +16,8 @@ const About = lazy(() => import('@/pages/About'));
 const HowItWorks = lazy(() => import('@/pages/HowItWorks'));
 const Community = lazy(() => import('@/features/community/components/Community'));
 const LegacyProfile = lazy(() => import('@/features/legacy/components/LegacyProfile'));
-const StoryCreation = lazy(() => import('@/features/story/components/StoryCreation'));
+const StoryReadPage = lazy(() => import('@/features/story/components/StoryReadPage'));
+const StoryEditPage = lazy(() => import('@/features/story/components/StoryEditPage'));
 const LegacyCreation = lazy(() => import('@/features/legacy/components/LegacyCreation'));
 const LegacyEdit = lazy(() => import('@/features/legacy/components/LegacyEdit'));
 const MediaGallery = lazy(() => import('@/features/media/components/MediaGallery'));
@@ -197,7 +198,23 @@ export const router = createBrowserRouter([
         path: 'legacy/:legacyId/story/:storyId',
         element: (
           <ProtectedRoute>
-            <LazyPage><WithStoryProps Component={StoryCreation} /></LazyPage>
+            <LazyPage><WithStoryProps Component={StoryReadPage} /></LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'legacy/:legacyId/story/new',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><WithStoryProps Component={StoryEditPage} /></LazyPage>
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: 'legacy/:legacyId/story/:storyId/edit',
+        element: (
+          <ProtectedRoute>
+            <LazyPage><WithStoryProps Component={StoryEditPage} /></LazyPage>
           </ProtectedRoute>
         ),
       },

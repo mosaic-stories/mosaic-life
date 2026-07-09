@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 WritingStyle = Literal["vivid", "emotional", "conversational", "concise", "documentary"]
@@ -22,10 +22,17 @@ EvolutionPhase = Literal[
 ]
 
 
+EnsureSessionTrigger = Literal["chat", "context", "rewrite", "manual_save"]
+
+
 class EvolutionSessionCreate(BaseModel):
     """Request to start a new evolution session."""
 
     persona_id: str
+    trigger: EnsureSessionTrigger | None = Field(
+        default=None,
+        description="Which first AI action created this session (for observability)",
+    )
 
 
 class PhaseAdvanceRequest(BaseModel):

@@ -53,7 +53,7 @@ export interface StoryDetail {
 
 export interface CreateStoryInput {
   legacies: LegacyAssociationInput[];
-  title: string;
+  title?: string;
   content: string;
   visibility?: 'public' | 'private' | 'personal';
   status?: 'draft' | 'published';

@@ -116,10 +116,33 @@ class TestCreateStory:
         auth_headers: dict[str, str],
         test_legacy: Legacy,
     ):
-        """Test validation error on invalid data."""
+        """Test validation error on invalid data (no legacies)."""
         data = {
-            "title": "",  # Empty title
+            "title": "A Story",
             "content": "Content",
+            "legacies": [],
+        }
+
+        response = await client.post(
+            "/api/stories/",
+            json=data,
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_create_story_blank_title_derives_from_content(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+    ):
+        """An empty title is accepted and a working title is derived from content."""
+        data = {
+            "title": "",
+            "content": "A memory worth writing down.",
+            "status": "draft",
             "legacies": [
                 {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
             ],
@@ -131,7 +154,9 @@ class TestCreateStory:
             headers=auth_headers,
         )
 
-        assert response.status_code == 422
+        assert response.status_code == 201
+        result = response.json()
+        assert result["title"] == "A memory worth writing down."
 
 
 class TestListStories:

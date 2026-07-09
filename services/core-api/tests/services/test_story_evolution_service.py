@@ -35,6 +35,31 @@ class TestStartEvolutionSession:
         assert session.created_by == test_user.id
 
     @pytest.mark.asyncio
+    async def test_start_session_records_trigger_metric(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        before = evolution_service.EVOLVE_SESSIONS_STARTED.labels(
+            trigger="chat"
+        )._value.get()
+
+        await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+            trigger="chat",
+        )
+
+        after = evolution_service.EVOLVE_SESSIONS_STARTED.labels(
+            trigger="chat"
+        )._value.get()
+        assert after == before + 1
+
+    @pytest.mark.asyncio
     async def test_start_session_non_author_forbidden(
         self,
         db_session: AsyncSession,

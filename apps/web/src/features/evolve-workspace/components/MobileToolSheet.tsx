@@ -41,7 +41,7 @@ export function MobileToolSheet({
           {activeTool === 'ai-chat' && (
             <AIChatTool key={conversationId} legacyId={legacyId} storyId={storyId} conversationId={conversationId} />
           )}
-          {activeTool === 'context' && <ContextTool storyId={storyId} />}
+          {activeTool === 'context' && <ContextTool storyId={storyId} legacyId={legacyId} />}
           {activeTool === 'versions' && <VersionsTool storyId={storyId} currentContent={currentContent} />}
           {activeTool === 'media' && <MediaTool legacyId={legacyId} />}
           {activeTool === 'rewrite' && (

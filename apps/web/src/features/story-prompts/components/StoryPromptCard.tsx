@@ -13,16 +13,10 @@ export default function StoryPromptCard() {
 
   if (isLoading || !prompt) return null;
 
-  const handleWriteStory = async () => {
-    const result = await act.mutateAsync({
-      promptId: prompt.id,
-      action: 'write_story',
+  const handleWriteStory = () => {
+    navigate(`/legacy/${prompt.legacy_id}/story/new`, {
+      state: { seedQuote: prompt.prompt_text },
     });
-    if (result.story_id) {
-      navigate(
-        `/legacy/${result.legacy_id}/story/${result.story_id}/evolve?conversation_id=${result.conversation_id}`,
-      );
-    }
   };
 
   const handleDiscuss = async () => {
@@ -84,7 +78,7 @@ export default function StoryPromptCard() {
             <MessageSquare className="h-4 w-4 mr-1.5" />
             Discuss
           </Button>
-          <Button size="sm" onClick={handleWriteStory} disabled={act.isPending}>
+          <Button size="sm" onClick={handleWriteStory}>
             <PenLine className="h-4 w-4 mr-1.5" />
             Write a Story
           </Button>

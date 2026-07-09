@@ -75,6 +75,58 @@ class TestCreateStory:
             )
         assert exc.value.status_code == 403
 
+    @pytest.mark.asyncio
+    async def test_create_story_derives_title_when_omitted(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+    ):
+        """Omitting title derives one from the first line of content."""
+        data = StoryCreate(
+            content="I remember the lunch we had at the lake that summer.\n\nMore.",
+            status="draft",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
+        )
+
+        story = await story_service.create_story(
+            db=db_session,
+            user_id=test_user.id,
+            data=data,
+        )
+
+        assert story.title == "I remember the lunch we had at the lake that summer."
+
+    @pytest.mark.asyncio
+    async def test_create_story_blank_title_and_content_stores_empty(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_legacy: Legacy,
+    ):
+        """No title and no content stores an empty title, not a placeholder."""
+        data = StoryCreate(
+            content="",
+            status="draft",
+            legacies=[
+                LegacyAssociationCreate(
+                    legacy_id=test_legacy.id, role="primary", position=0
+                )
+            ],
+        )
+
+        story = await story_service.create_story(
+            db=db_session,
+            user_id=test_user.id,
+            data=data,
+        )
+
+        assert story.title == ""
+
 
 class TestListLegacyStories:
     """Tests for list_legacy_stories function with visibility filtering."""
@@ -416,6 +468,49 @@ class TestUpdateStory:
         )
         updated_story = result.scalar_one()
         assert updated_story.content == original_content
+
+    @pytest.mark.asyncio
+    async def test_update_blank_title_derives_from_content(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """Explicitly blanking the title re-derives it from content."""
+        data = StoryUpdate(
+            title="",
+            content="A fresh opening line for this story.\n\nRest of it.",
+        )
+
+        story = await story_service.update_story(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            data=data,
+        )
+
+        assert story.title == "A fresh opening line for this story."
+
+    @pytest.mark.asyncio
+    async def test_update_omitted_title_leaves_it_untouched(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """Omitting title in a partial update preserves the stored title."""
+        original_title = test_story_public.title
+
+        data = StoryUpdate(content="Only the content changes here.")
+
+        story = await story_service.update_story(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            data=data,
+        )
+
+        assert story.title == original_title
 
 
 class TestDeleteStory:
