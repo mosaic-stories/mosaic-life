@@ -143,6 +143,19 @@ class TestListResponsesRoute:
         assert data["next_cursor"] is not None
 
     @pytest.mark.asyncio
+    async def test_list_rejects_malformed_cursor(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_story: Story,
+    ):
+        response = await client.get(
+            f"/api/stories/{test_story.id}/responses?cursor=not-a-date",
+            headers=auth_headers,
+        )
+        assert response.status_code == 422
+
+    @pytest.mark.asyncio
     async def test_list_denied_for_non_member(
         self,
         client: AsyncClient,

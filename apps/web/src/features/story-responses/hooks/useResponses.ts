@@ -27,6 +27,7 @@ export const responseKeys = {
 
 type ResponsesPageData = InfiniteData<StoryResponseListResponse, string | undefined>;
 
+/** Applies `transform` to every loaded page — for edits/removals, which may target any page. */
 function updateCachedPages(
   old: ResponsesPageData | undefined,
   transform: (items: StoryResponseItem[]) => StoryResponseItem[],
@@ -34,10 +35,20 @@ function updateCachedPages(
   if (!old) return old;
   return {
     ...old,
+    pages: old.pages.map((page) => ({ ...page, items: transform(page.items) })),
+  };
+}
+
+/** Appends a newly-created item to the last page only, matching cursor-pagination order. */
+function appendToLastPage(
+  old: ResponsesPageData | undefined,
+  item: StoryResponseItem,
+): ResponsesPageData | undefined {
+  if (!old) return old;
+  return {
+    ...old,
     pages: old.pages.map((page, index) =>
-      index === old.pages.length - 1
-        ? { ...page, items: transform(page.items) }
-        : page,
+      index === old.pages.length - 1 ? { ...page, items: [...page.items, item] } : page,
     ),
   };
 }
@@ -94,7 +105,7 @@ export function useCreateResponse(storyId: string) {
             pageParams: [undefined],
           };
         }
-        return updateCachedPages(old, (items) => [...items, optimisticItem]);
+        return appendToLastPage(old, optimisticItem);
       });
 
       return { previousData, tempId };

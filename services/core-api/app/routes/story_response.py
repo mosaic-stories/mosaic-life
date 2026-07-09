@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import require_auth
@@ -67,7 +67,10 @@ async def list_responses(
 
     cursor_dt = None
     if cursor:
-        cursor_dt = datetime.fromisoformat(cursor)
+        try:
+            cursor_dt = datetime.fromisoformat(cursor)
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Invalid cursor: {cursor}")
 
     result = await story_response_service.list_responses(
         db=db,

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -8,12 +8,13 @@ import type { StoryResponseListResponse } from '@/features/story-responses/api/r
 
 const apiGet = vi.fn();
 const apiPost = vi.fn();
+const apiDelete = vi.fn();
 
 vi.mock('@/lib/api/client', () => ({
   apiGet: (...args: unknown[]) => apiGet(...args),
   apiPost: (...args: unknown[]) => apiPost(...args),
   apiPatch: vi.fn(),
-  apiDelete: vi.fn(),
+  apiDelete: (...args: unknown[]) => apiDelete(...args),
   ApiError: class ApiError extends Error {},
 }));
 
@@ -156,6 +157,73 @@ describe('ResponsesSection', () => {
       expect(apiGet).toHaveBeenCalledTimes(2);
     });
     expect(await screen.findByText('Brand new memory')).toBeInTheDocument();
+  });
+
+  it('removes a deleted response from an earlier page, not just the most recently loaded one', async () => {
+    const user = userEvent.setup();
+
+    const pageOneItem = {
+      id: 'r1',
+      story_id: 'story-1',
+      user_id: 'user-1',
+      user_name: 'Me',
+      user_username: 'me',
+      user_avatar_url: null,
+      body: 'From the first page',
+      created_at: '2026-01-01T00:00:00Z',
+      edited_at: null,
+    };
+    const pageTwoItem = {
+      id: 'r2',
+      story_id: 'story-1',
+      user_id: 'user-2',
+      user_name: 'Someone Else',
+      user_username: 'someone-else',
+      user_avatar_url: null,
+      body: 'From the second page',
+      created_at: '2026-01-02T00:00:00Z',
+      edited_at: null,
+    };
+
+    apiGet.mockResolvedValueOnce({
+      items: [pageOneItem],
+      next_cursor: 'cursor-1',
+      has_more: true,
+    });
+
+    renderSection();
+    await screen.findByText('From the first page');
+
+    apiGet.mockResolvedValueOnce({
+      items: [pageTwoItem],
+      next_cursor: null,
+      has_more: false,
+    });
+    await user.click(screen.getByRole('button', { name: /show more responses/i }));
+    await screen.findByText('From the second page');
+
+    // Keep the DELETE request pending so we observe the *optimistic* cache
+    // update in isolation, before onSettled's invalidateQueries can reconcile
+    // it via a refetch — that reconciliation would eventually paper over a
+    // page-targeting bug, so it must not be what makes this assertion pass.
+    let resolveDelete: () => void = () => {};
+    apiDelete.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveDelete = resolve;
+      }),
+    );
+
+    const items = screen.getAllByTestId('response-item');
+    const firstItem = items.find((el) => el.textContent?.includes('From the first page'))!;
+    await user.click(within(firstItem).getByRole('button', { name: /delete response/i }));
+    await user.click(screen.getByRole('button', { name: /^delete$/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('From the first page')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('From the second page')).toBeInTheDocument();
+
+    resolveDelete();
   });
 
   it('does not render the input for a viewer without an id (unauthenticated)', async () => {
