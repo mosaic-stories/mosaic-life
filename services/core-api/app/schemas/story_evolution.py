@@ -102,6 +102,7 @@ class EvolutionSessionResponse(BaseModel):
     story_id: uuid.UUID
     base_version_number: int
     conversation_id: uuid.UUID
+    persona_id: str
     draft_version_id: uuid.UUID | None
     phase: EvolutionPhase
     summary_text: str | None

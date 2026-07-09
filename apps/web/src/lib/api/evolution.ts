@@ -25,6 +25,7 @@ export interface EvolutionSession {
   story_id: string;
   base_version_number: number;
   conversation_id: string;
+  persona_id: string;
   draft_version_id: string | null;
   phase: EvolutionPhase;
   summary_text: string | null;

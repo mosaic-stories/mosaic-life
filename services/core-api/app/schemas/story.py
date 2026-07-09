@@ -62,7 +62,7 @@ class StoryUpdate(BaseModel):
         None, max_length=500, description="Story title (derived from content if blank)"
     )
     content: str | None = Field(
-        None, min_length=1, max_length=50000, description="Story content in Markdown"
+        None, max_length=50000, description="Story content in Markdown"
     )
     visibility: Literal["public", "private", "personal"] | None = Field(
         None,

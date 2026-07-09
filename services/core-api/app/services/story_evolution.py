@@ -104,8 +104,6 @@ async def start_session(
         span.set_attribute("user_id", str(user_id))
         span.set_attribute("persona_id", persona_id)
         ensure_span.set_attribute("trigger", trigger or "unknown")
-        ensure_span.set_attribute("created", True)
-        EVOLVE_SESSIONS_STARTED.labels(trigger=trigger or "unknown").inc()
         story = await _require_story_author(db, story_id, user_id)
 
         # Check for existing non-terminal session
@@ -177,6 +175,12 @@ async def start_session(
         db.add(session)
         await db.commit()
         await db.refresh(session)
+
+        # Only record "a session was created" telemetry once creation has
+        # actually succeeded — recording it earlier would inflate the
+        # counter/span on every 403/404/409/422 short-circuit above.
+        ensure_span.set_attribute("created", True)
+        EVOLVE_SESSIONS_STARTED.labels(trigger=trigger or "unknown").inc()
 
         logger.info(
             "evolution.session.started",

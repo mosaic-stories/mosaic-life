@@ -77,7 +77,9 @@ export function ContextTool({ storyId, legacyId }: ContextToolProps) {
   // Auto-trigger extraction on first visit if no context exists
   useEffect(() => {
     if (context === null && !extractMutation.isPending) {
-      void ensureSession('context');
+      ensureSession('context').catch((err) => {
+        console.error('Failed to ensure evolve session for context extraction:', err);
+      });
       extractMutation.mutate(false);
     }
   }, [context]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -92,7 +94,9 @@ export function ContextTool({ storyId, legacyId }: ContextToolProps) {
   };
 
   const handleRefresh = () => {
-    void ensureSession('context');
+    ensureSession('context').catch((err) => {
+      console.error('Failed to ensure evolve session for context extraction:', err);
+    });
     extractMutation.mutate(true);
   };
 

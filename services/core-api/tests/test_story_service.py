@@ -512,6 +512,31 @@ class TestUpdateStory:
 
         assert story.title == original_title
 
+    @pytest.mark.asyncio
+    async def test_update_accepts_empty_content(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """Autosave on a title-only draft must be able to PATCH content=""."""
+        data = StoryUpdate(title="Draft in progress", content="")
+
+        story = await story_service.update_story(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            data=data,
+        )
+
+        assert story.title == "Draft in progress"
+
+        result = await db_session.execute(
+            select(Story).where(Story.id == test_story_public.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.content == ""
+
 
 class TestDeleteStory:
     """Tests for delete_story function."""

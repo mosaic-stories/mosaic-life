@@ -58,11 +58,19 @@ export function useEnsureEvolveSession(storyId: string, legacyId: string) {
 
         let conversationId = useEvolveWorkspaceStore.getState().conversationIds[personaId];
         if (!conversationId) {
-          const conversation = await createNewConversation({
-            persona_id: personaId,
-            legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
-          });
-          conversationId = conversation.id;
+          // The store's persona->conversation map is in-memory only (reset
+          // on unmount/refresh). Before creating a new conversation, check
+          // whether the session's own canonical conversation already
+          // belongs to this persona — reuse it instead of orphaning it.
+          if (session.persona_id === personaId) {
+            conversationId = session.conversation_id;
+          } else {
+            const conversation = await createNewConversation({
+              persona_id: personaId,
+              legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
+            });
+            conversationId = conversation.id;
+          }
           useEvolveWorkspaceStore.getState().setConversationForPersona(personaId, conversationId);
         }
 

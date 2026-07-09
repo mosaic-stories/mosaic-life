@@ -84,7 +84,7 @@ async def cleanup_orphaned_ai_data(dry_run: bool, min_age_days: int) -> None:
     try:
         db_url = normalize_async_db_url(settings.db_url)
     except ValueError:
-        logger.error(f"Unsupported DB_URL format: {settings.db_url}")
+        logger.error("Unsupported DB_URL format (scheme not recognized)")
         sys.exit(1)
 
     engine = create_async_engine(db_url, echo=False)

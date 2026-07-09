@@ -45,6 +45,7 @@ describe('useEnsureEvolveSession', () => {
           story_id: STORY_ID,
           base_version_number: 1,
           conversation_id: 'conv-from-session',
+          persona_id: 'biographer',
           draft_version_id: null,
           phase: 'elicitation',
           summary_text: null,
@@ -87,6 +88,7 @@ describe('useEnsureEvolveSession', () => {
           story_id: STORY_ID,
           base_version_number: 1,
           conversation_id: 'existing-conv',
+          persona_id: 'biographer',
           draft_version_id: null,
           phase: 'elicitation',
           summary_text: null,
@@ -123,6 +125,52 @@ describe('useEnsureEvolveSession', () => {
     expect(ensured?.conversationId).toBe('existing-conv');
   });
 
+  it('reuses the session\'s canonical conversation after a refresh clears the local store, without creating a duplicate', async () => {
+    // Simulate a page refresh: the session already exists server-side, but
+    // the in-memory persona->conversation map is empty (store was reset).
+    server.use(
+      http.get(`/api/stories/${STORY_ID}/evolution/active`, () => {
+        return HttpResponse.json({
+          id: 'session-existing',
+          story_id: STORY_ID,
+          base_version_number: 1,
+          conversation_id: 'session-canonical-conv',
+          persona_id: 'biographer',
+          draft_version_id: null,
+          phase: 'elicitation',
+          summary_text: null,
+          writing_style: null,
+          length_preference: null,
+          revision_count: 0,
+          created_by: 'user-1',
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: '2026-01-01T00:00:00Z',
+        });
+      }),
+      http.post('/api/ai/conversations/new', () => {
+        createConversationCalls += 1;
+        return HttpResponse.json({}, { status: 500 });
+      }),
+    );
+
+    const { result } = renderHook(() => useEnsureEvolveSession(STORY_ID, LEGACY_ID), {
+      wrapper: createWrapper(),
+    });
+
+    let ensured: Awaited<ReturnType<typeof result.current>> | undefined;
+    await act(async () => {
+      ensured = await result.current('chat');
+    });
+
+    expect(createConversationCalls).toBe(0);
+    expect(ensured?.conversationId).toBe('session-canonical-conv');
+
+    await waitFor(() => {
+      const state = useEvolveWorkspaceStore.getState();
+      expect(state.conversationIds['biographer']).toBe('session-canonical-conv');
+    });
+  });
+
   it('creates a conversation for a second persona when a session already exists', async () => {
     useEvolveWorkspaceStore.getState().setActivePersona('friend');
 
@@ -133,6 +181,7 @@ describe('useEnsureEvolveSession', () => {
           story_id: STORY_ID,
           base_version_number: 1,
           conversation_id: 'biographer-conv',
+          persona_id: 'biographer',
           draft_version_id: null,
           phase: 'elicitation',
           summary_text: null,
@@ -177,6 +226,7 @@ describe('useEnsureEvolveSession', () => {
           story_id: STORY_ID,
           base_version_number: 1,
           conversation_id: 'conv-1',
+          persona_id: 'biographer',
           draft_version_id: null,
           phase: 'elicitation',
           summary_text: null,

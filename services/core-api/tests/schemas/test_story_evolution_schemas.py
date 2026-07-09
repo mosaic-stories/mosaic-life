@@ -76,6 +76,7 @@ class TestEvolutionSessionResponse:
             story_id=uuid.uuid4(),
             base_version_number=1,
             conversation_id=uuid.uuid4(),
+            persona_id="biographer",
             draft_version_id=None,
             phase="elicitation",
             summary_text=None,
