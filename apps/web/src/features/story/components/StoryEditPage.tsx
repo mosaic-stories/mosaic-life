@@ -49,6 +49,8 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
   const hasCreatedRef = useRef(!isNew);
   const creatingRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSavingRef = useRef(false);
+  const pendingSaveRef = useRef(false);
   const fieldsRef = useRef({ title, content, visibility });
   fieldsRef.current = { title, content, visibility };
 
@@ -75,6 +77,17 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
   const runAutosave = useCallback(async () => {
     const id = effectiveIdRef.current;
     if (!id) return;
+    if (isSavingRef.current) {
+      // A save is already in flight. Don't fire an overlapping request —
+      // saves are slow enough (see backend issue on update_story latency)
+      // that two in-flight PUTs can resolve out of order and let an
+      // older snapshot silently overwrite newer content. Queue instead:
+      // the in-flight save's `finally` below will pick up the latest
+      // fields once it completes.
+      pendingSaveRef.current = true;
+      return;
+    }
+    isSavingRef.current = true;
     setSaveState('saving');
     try {
       await updateStory.mutateAsync({
@@ -85,6 +98,12 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
     } catch (err) {
       console.error('Failed to autosave story:', err);
       setSaveState('error');
+    } finally {
+      isSavingRef.current = false;
+      if (pendingSaveRef.current) {
+        pendingSaveRef.current = false;
+        void runAutosave();
+      }
     }
   }, [updateStory]);
 

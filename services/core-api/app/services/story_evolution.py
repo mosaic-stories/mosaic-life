@@ -104,6 +104,7 @@ async def start_session(
         span.set_attribute("user_id", str(user_id))
         span.set_attribute("persona_id", persona_id)
         ensure_span.set_attribute("trigger", trigger or "unknown")
+        ensure_span.set_attribute("created", False)
         story = await _require_story_author(db, story_id, user_id)
 
         # Check for existing non-terminal session

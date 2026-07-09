@@ -53,6 +53,10 @@ vi.mock('./VersionHistoryDrawer', () => ({
         'data-testid': 'select-v2',
         onClick: () => (props.onSelectVersion as (n: number) => void)(2),
       }, 'Select v2'),
+      createElement('button', {
+        'data-testid': 'select-v3',
+        onClick: () => (props.onSelectVersion as (n: number) => void)(3),
+      }, 'Select v3'),
     );
   },
 }));
@@ -177,14 +181,31 @@ const mockVersionDetail2 = {
   created_by: 'user-1',
   created_at: '2026-02-15T10:00:00Z',
 };
+const mockVersionDetail3 = {
+  version_number: 3,
+  title: '',
+  content: '',
+  status: 'inactive' as const,
+  source: 'edit',
+  source_version: null,
+  change_summary: null,
+  stale: false,
+  created_by: 'user-1',
+  created_at: '2026-02-16T12:00:00Z',
+};
 const mockVersionsResult = { data: mockVersionsData, isLoading: false };
 const mockVersionDetailResult2 = { data: mockVersionDetail2, isLoading: false };
+const mockVersionDetailResult3 = { data: mockVersionDetail3, isLoading: false };
 const mockVersionDetailResultEmpty = { data: undefined, isLoading: false };
 
 vi.mock('@/features/story/hooks/useVersions', () => ({
   useVersions: () => mockVersionsResult,
   useVersionDetail: (_storyId: string, versionNumber: number | null) =>
-    versionNumber === 2 ? mockVersionDetailResult2 : mockVersionDetailResultEmpty,
+    versionNumber === 2
+      ? mockVersionDetailResult2
+      : versionNumber === 3
+        ? mockVersionDetailResult3
+        : mockVersionDetailResultEmpty,
   useRestoreVersion: () => ({ mutate: vi.fn(), isPending: false }),
   useApproveDraft: () => ({ mutate: vi.fn(), isPending: false }),
   useDiscardDraft: () => ({ mutate: vi.fn(), isPending: false }),
@@ -346,6 +367,21 @@ describe('StoryReadPage - Version History integration', () => {
     await waitFor(() => {
       expect(screen.getByText('Old Title')).toBeInTheDocument();
       expect(screen.getByText('Old content from version 2')).toBeInTheDocument();
+    });
+  });
+
+  it('shows the render-time placeholder title when previewing a version with an empty stored title', async () => {
+    const user = userEvent.setup();
+    renderStoryReadPage();
+
+    await openHistoryFromOverflowMenu(user);
+    await waitFor(() => {
+      expect(screen.getByTestId('version-drawer')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('select-v3'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/draft story/i)).toBeInTheDocument();
     });
   });
 

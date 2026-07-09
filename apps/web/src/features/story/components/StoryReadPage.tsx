@@ -65,7 +65,7 @@ export default function StoryReadPage({ legacyId, storyId }: StoryReadPageProps)
   // When previewing a version, use its content instead of the story's
   const previewData = versionDetailQuery.data;
   const displayTitle = previewData
-    ? previewData.title
+    ? getStoryDisplayTitle(previewData.title, previewData.created_at)
     : existingStory
       ? getStoryDisplayTitle(existingStory.title, existingStory.created_at)
       : '';

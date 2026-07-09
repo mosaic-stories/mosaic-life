@@ -234,6 +234,10 @@ export function useAIChat({
           setError('Failed to start conversation. Please try again.');
           return;
         }
+        // Create the store entry for this conversation before loading
+        // messages into it — setMessages() is a no-op when no entry
+        // exists yet, and setActiveConversation() alone doesn't create one.
+        setConversationLoading(conversationId, true);
         setActiveConversation(conversationId);
         try {
           // Load any server-generated messages already in the new

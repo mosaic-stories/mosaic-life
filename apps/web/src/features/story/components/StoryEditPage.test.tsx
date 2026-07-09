@@ -144,6 +144,50 @@ describe('StoryEditPage', () => {
     );
   });
 
+  it('never fires an overlapping autosave while one is in flight, and saves the latest content once it frees up', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const user = userEvent.setup({ delay: null });
+    storyQueryResult = { data: mockExistingStory, isLoading: false };
+
+    let resolveFirstSave: (() => void) | undefined;
+    mocks.updateStory.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveFirstSave = () => resolve({ id: 'story-1' });
+        }),
+    );
+
+    renderEditPage({ storyId: 'story-1' });
+
+    const titleInput = screen.getByLabelText(/story title/i);
+    await user.type(titleInput, 'A');
+    await vi.advanceTimersByTimeAsync(1500);
+
+    // First autosave fired and is now stuck in flight (simulating a slow save).
+    expect(mocks.updateStory).toHaveBeenCalledTimes(1);
+
+    // User keeps typing while that save is still pending.
+    await user.type(titleInput, 'B');
+    await vi.advanceTimersByTimeAsync(1500);
+
+    // The debounce fired again, but must NOT issue a second overlapping
+    // request — only queue it — while the first is still unresolved.
+    expect(mocks.updateStory).toHaveBeenCalledTimes(1);
+
+    // Once the in-flight save resolves, the queued save (with the latest
+    // content) should fire automatically.
+    resolveFirstSave?.();
+    await waitFor(() => {
+      expect(mocks.updateStory).toHaveBeenCalledTimes(2);
+    });
+    expect(mocks.updateStory).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        storyId: 'story-1',
+        data: expect.objectContaining({ title: 'Existing titleAB' }),
+      }),
+    );
+  });
+
   it('does not let a slow initial fetch clobber content the user already typed', async () => {
     const user = userEvent.setup();
     storyQueryResult = { data: undefined, isLoading: false }; // fetch still pending

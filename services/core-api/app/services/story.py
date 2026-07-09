@@ -36,7 +36,6 @@ from .story_version import create_version as create_story_version
 from .story_version import get_draft_version
 
 logger = logging.getLogger(__name__)
-tracer = trace.get_tracer("core-api.story")
 
 # Maximum length for content preview
 PREVIEW_MAX_LENGTH = 200
