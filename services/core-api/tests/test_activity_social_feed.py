@@ -362,10 +362,14 @@ class TestSocialFeedNoMembership:
         assert result["items"][0]["entity_id"] == conv_id
 
     @pytest.mark.asyncio
-    async def test_own_media_activity_appears_with_no_memberships(
+    async def test_own_media_activity_dropped_no_template(
         self, db_session: AsyncSession, user_eve: User
     ):
-        """A user with no LegacyMember rows should still see their own media activity."""
+        """Media CRUD events have no sentence template (activity-feed-language),
+        since their metadata carries a raw filename (see `app/routes/media.py`).
+        They must be dropped from the feed entirely, even for the user's own
+        in-scope activity, rather than leak the filename verbatim.
+        """
         media_id = uuid4()
         await activity_service.record_activity(
             db=db_session,
@@ -378,11 +382,9 @@ class TestSocialFeedNoMembership:
         result = await activity_service.get_social_feed(
             db=db_session, user_id=user_eve.id
         )
-        assert result["items"], (
-            "Expected own media activity for user with no memberships"
+        assert result["items"] == [], (
+            "Expected untemplated media activity to be dropped from the feed"
         )
-        assert result["items"][0]["entity_type"] == "media"
-        assert result["items"][0]["entity_id"] == media_id
 
     @pytest.mark.asyncio
     async def test_viewed_actions_excluded_even_with_no_memberships(

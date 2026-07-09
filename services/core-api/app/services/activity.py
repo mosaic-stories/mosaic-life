@@ -1,11 +1,12 @@
 """Activity tracking service — record, query, and cleanup user activity."""
 
 import logging
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from typing import Any, cast
 from uuid import UUID
 
-from sqlalchemy import delete, func, or_, select
+from sqlalchemy import and_, delete, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..adapters.storage import get_storage_adapter
@@ -31,6 +32,8 @@ RETENTION_TIERS: dict[str, int] = {
     "invited": 90,
     "ai_conversation_started": 90,
     "ai_story_evolved": 90,
+    "responded": 90,
+    "reacted": 90,
     # Durable
     "created": 365,
     "updated": 365,
@@ -47,8 +50,276 @@ STANDARD_ACTIONS = [
     "invited",
     "ai_conversation_started",
     "ai_story_evolved",
+    "responded",
+    "reacted",
 ]
 DURABLE_ACTIONS = ["created", "updated", "deleted"]
+
+
+# --- Activity feed sentence templates (activity-feed-language) ---------------
+#
+# Each activity event is keyed by (action, entity_type). Only pairs with an
+# entry below are rendered into the feed; everything else (e.g. all `media`
+# CRUD actions, which would otherwise leak a raw filename via `metadata`) is
+# dropped from `get_activity_feed`/`get_social_feed` before pagination — see
+# `TEMPLATED_ACTIVITY_PAIRS` and `_templated_pairs_clause`.
+#
+# Renderers receive (actor_name, metadata, entity) where `entity` is the
+# enriched entity summary (see `enrich_entities`) when available — populated
+# for `get_social_feed`, `None` for the personal `get_activity_feed` — and
+# `metadata` is the raw `UserActivity.metadata_` recorded at write time.
+SentenceRenderer = Callable[[str, dict[str, Any] | None, dict[str, Any] | None], str]
+
+
+def _story_title(
+    metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str | None:
+    if entity and entity.get("title"):
+        return cast(str, entity["title"])
+    if metadata and metadata.get("title"):
+        return cast(str, metadata["title"])
+    return None
+
+
+def _story_legacy_name(entity: dict[str, Any] | None) -> str | None:
+    """Only available via entity enrichment (join to the story's legacy)."""
+    if entity and entity.get("legacy_name"):
+        return cast(str, entity["legacy_name"])
+    return None
+
+
+def _legacy_display_name(
+    metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str | None:
+    if entity and entity.get("name"):
+        return cast(str, entity["name"])
+    if metadata and metadata.get("name"):
+        return cast(str, metadata["name"])
+    return None
+
+
+def _conversation_title(
+    metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str | None:
+    if entity and entity.get("title"):
+        return cast(str, entity["title"])
+    if metadata and metadata.get("title"):
+        return cast(str, metadata["title"])
+    return None
+
+
+def _tmpl_story_created(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    legacy_name = _story_legacy_name(entity)
+    if legacy_name:
+        return f"{actor} added a memory to {legacy_name}'s legacy"
+    title = _story_title(metadata, entity)
+    if title:
+        return f'{actor} added a new memory: "{title}"'
+    return f"{actor} added a new memory"
+
+
+def _tmpl_story_updated(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    title = _story_title(metadata, entity)
+    if title:
+        return f'{actor} updated the memory "{title}"'
+    return f"{actor} updated a memory"
+
+
+def _tmpl_story_deleted(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    title = _story_title(metadata, entity)
+    if title:
+        return f'{actor} removed the memory "{title}"'
+    return f"{actor} removed a memory"
+
+
+def _tmpl_story_viewed(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    title = _story_title(metadata, entity)
+    if title:
+        return f'{actor} viewed "{title}"'
+    return f"{actor} viewed a memory"
+
+
+def _tmpl_story_favorited(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    title = _story_title(metadata, entity)
+    if title:
+        return f'{actor} favorited "{title}"'
+    return f"{actor} favorited a memory"
+
+
+def _tmpl_story_responded(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    legacy_name = _story_legacy_name(entity)
+    if legacy_name:
+        return f"{actor} responded to a memory about {legacy_name}'s legacy"
+    title = _story_title(metadata, entity)
+    if title:
+        return f'{actor} responded to "{title}"'
+    return f"{actor} responded to a memory"
+
+
+def _tmpl_story_reacted(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    reaction_type = metadata.get("reaction_type") if metadata else None
+    if reaction_type:
+        return f"{actor} reacted with a {reaction_type} to a memory"
+    return f"{actor} reacted to a memory"
+
+
+def _tmpl_legacy_created(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    name = _legacy_display_name(metadata, entity)
+    if name:
+        return f"{actor} created {name}'s legacy"
+    return f"{actor} created a new legacy"
+
+
+def _tmpl_legacy_updated(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    name = _legacy_display_name(metadata, entity)
+    if name:
+        return f"{actor} updated {name}'s legacy"
+    return f"{actor} updated a legacy"
+
+
+def _tmpl_legacy_deleted(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    name = _legacy_display_name(metadata, entity)
+    if name:
+        return f"{actor} deleted {name}'s legacy"
+    return f"{actor} deleted a legacy"
+
+
+def _tmpl_legacy_viewed(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    name = _legacy_display_name(metadata, entity)
+    if name:
+        return f"{actor} viewed {name}'s legacy"
+    return f"{actor} viewed a legacy"
+
+
+def _tmpl_legacy_favorited(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    name = _legacy_display_name(metadata, entity)
+    if name:
+        return f"{actor} favorited {name}'s legacy"
+    return f"{actor} favorited a legacy"
+
+
+def _tmpl_legacy_joined(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    name = _legacy_display_name(metadata, entity)
+    if name:
+        return f"{actor} joined {name}'s legacy"
+    return f"{actor} joined a legacy"
+
+
+def _tmpl_legacy_invited(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    name = _legacy_display_name(metadata, entity)
+    if name:
+        return f"{actor} invited a new member to {name}'s legacy"
+    return f"{actor} invited a new member"
+
+
+def _tmpl_conversation_started(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    title = _conversation_title(metadata, entity)
+    if title:
+        return f'{actor} started a conversation: "{title}"'
+    return f"{actor} started a conversation"
+
+
+def _tmpl_story_evolved(
+    actor: str, metadata: dict[str, Any] | None, entity: dict[str, Any] | None
+) -> str:
+    return f"{actor} evolved a memory with AI assistance"
+
+
+# The (action, entity_type) -> sentence-template map (design §5). Deliberately
+# excludes every `media` action: media CRUD metadata carries the raw uploaded
+# filename (see `app/routes/media.py`), and the spec requires that a filename
+# never be shown verbatim in the feed — the simplest way to guarantee that is
+# to never template media events at all, so they're dropped entirely rather
+# than risk a future metadata field leaking through.
+_SENTENCE_TEMPLATES: dict[tuple[str, str], SentenceRenderer] = {
+    ("created", "story"): _tmpl_story_created,
+    ("updated", "story"): _tmpl_story_updated,
+    ("deleted", "story"): _tmpl_story_deleted,
+    ("viewed", "story"): _tmpl_story_viewed,
+    ("favorited", "story"): _tmpl_story_favorited,
+    ("responded", "story"): _tmpl_story_responded,
+    ("reacted", "story"): _tmpl_story_reacted,
+    ("created", "legacy"): _tmpl_legacy_created,
+    ("updated", "legacy"): _tmpl_legacy_updated,
+    ("deleted", "legacy"): _tmpl_legacy_deleted,
+    ("viewed", "legacy"): _tmpl_legacy_viewed,
+    ("favorited", "legacy"): _tmpl_legacy_favorited,
+    ("joined", "legacy"): _tmpl_legacy_joined,
+    ("invited", "legacy"): _tmpl_legacy_invited,
+    ("ai_conversation_started", "conversation"): _tmpl_conversation_started,
+    ("ai_story_evolved", "conversation"): _tmpl_story_evolved,
+}
+
+# The set of (action, entity_type) pairs that have a sentence template —
+# exposed for the SQL-level pre-pagination filter in `get_activity_feed`/
+# `get_social_feed`.
+TEMPLATED_ACTIVITY_PAIRS: frozenset[tuple[str, str]] = frozenset(_SENTENCE_TEMPLATES)
+
+
+def render_activity_sentence(
+    action: str,
+    entity_type: str,
+    actor_name: str,
+    metadata: dict[str, Any] | None = None,
+    entity: dict[str, Any] | None = None,
+) -> str | None:
+    """Render a human sentence for a templated (action, entity_type) pair.
+
+    Returns `None` when no template is defined for the pair — callers use
+    this both to render the feed-facing `summary` field and (via
+    `TEMPLATED_ACTIVITY_PAIRS`) to decide which events are feed-worthy at
+    all. Never falls back to a generic/raw string: an untemplated event is
+    simply absent from the feed rather than rendered some other way.
+    """
+    renderer = _SENTENCE_TEMPLATES.get((action, entity_type))
+    if renderer is None:
+        return None
+    return renderer(actor_name, metadata, entity)
+
+
+def _templated_pairs_clause() -> Any:
+    """SQL clause matching only (action, entity_type) pairs with a template.
+
+    Applied as part of the query's WHERE clause — i.e. before the
+    `limit`/`limit + 1` pagination logic — so that `limit` reflects only
+    feed-worthy (templated) items, per the activity-feed-language design.
+    """
+    return or_(
+        *[
+            and_(UserActivity.action == action, UserActivity.entity_type == entity_type)
+            for action, entity_type in TEMPLATED_ACTIVITY_PAIRS
+        ]
+    )
 
 
 async def record_activity(
@@ -143,7 +414,7 @@ async def get_activity_feed(
             "tracking_enabled": False,
         }
 
-    filters = [UserActivity.user_id == user_id]
+    filters = [UserActivity.user_id == user_id, _templated_pairs_clause()]
     if entity_type:
         filters.append(UserActivity.entity_type == entity_type)
     if action:
@@ -515,6 +786,7 @@ async def get_social_feed(
     filters = [
         or_(*scope_filters),
         UserActivity.action != "viewed",  # Exclude ephemeral
+        _templated_pairs_clause(),
     ]
     if cursor:
         filters.append(UserActivity.created_at < cursor)
@@ -562,6 +834,37 @@ async def get_social_feed(
     items = []
     for a in activities:
         entity_data = entity_map.get((a.entity_type, a.entity_id))
+        actor_info = actor_map.get(
+            a.user_id,
+            {"id": a.user_id, "name": "", "username": "", "avatar_url": None},
+        )
+        # The actor's own actions are phrased as "You ..." rather than their
+        # own name, matching how the feed is presented to that same user.
+        if a.user_id == user_id:
+            actor_display_name = "You"
+        else:
+            actor_display_name = actor_info.get("name") or actor_info.get(
+                "username", ""
+            )
+            actor_display_name = actor_display_name or "Someone"
+
+        summary = render_activity_sentence(
+            action=a.action,
+            entity_type=a.entity_type,
+            actor_name=actor_display_name,
+            metadata=a.metadata_,
+            entity=entity_data,
+        )
+        if summary is None:
+            # Unreachable in practice: `_templated_pairs_clause()` above
+            # already restricts the query to templated (action, entity_type)
+            # pairs. Skip defensively rather than ever emit a raw fallback.
+            logger.warning(
+                "activity.social_feed.missing_template",
+                extra={"action": a.action, "entity_type": a.entity_type},
+            )
+            continue
+
         items.append(
             {
                 "id": a.id,
@@ -570,16 +873,9 @@ async def get_social_feed(
                 "entity_id": a.entity_id,
                 "created_at": a.created_at,
                 "metadata": a.metadata_,
-                "actor": actor_map.get(
-                    a.user_id,
-                    {
-                        "id": a.user_id,
-                        "name": "",
-                        "username": "",
-                        "avatar_url": None,
-                    },
-                ),
+                "actor": actor_info,
                 "entity": entity_data,
+                "summary": summary,
             }
         )
 

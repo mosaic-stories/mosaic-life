@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
         actor: { id: 'user-1', name: 'Joe', username: 'joe-x1y2', avatar_url: null },
         entity: { title: 'Sunday Supper', legacy_id: 'legacy-1' },
         metadata: null,
+        summary: 'You updated the memory "Sunday Supper"',
       },
     ],
     next_cursor: null,
@@ -81,6 +82,7 @@ describe('SidebarActivity', () => {
           actor: { id: 'user-1', name: 'Joe', username: 'joe-x1y2', avatar_url: null },
           entity: { title: 'Sunday Supper Chat', legacy_id: 'legacy-7' },
           metadata: { legacy_id: 'legacy-7' },
+          summary: 'You started a conversation: "Sunday Supper Chat"',
         },
       ],
       next_cursor: null,
@@ -88,7 +90,7 @@ describe('SidebarActivity', () => {
     };
 
     renderActivity();
-    await userEvent.click(screen.getByRole('button', { name: /you started a conversation about/i }));
+    await userEvent.click(screen.getByRole('button', { name: /you started a conversation/i }));
     expect(mocks.navigate).toHaveBeenCalledWith('/legacy/legacy-7?tab=ai&conversation=conversation-1');
   });
 
@@ -104,6 +106,7 @@ describe('SidebarActivity', () => {
           actor: { id: 'user-1', name: 'Joe', username: 'joe-x1y2', avatar_url: null },
           entity: { title: 'Route Missing', legacy_id: null },
           metadata: null,
+          summary: 'You updated the memory "Route Missing"',
         },
       ],
       next_cursor: null,

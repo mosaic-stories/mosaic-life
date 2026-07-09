@@ -51,18 +51,31 @@ async def get_activity_feed(
         cursor=cursor_dt,
         limit=limit,
     )
-    # Convert ORM objects to ActivityItem, mapping metadata_ -> metadata
-    items = [
-        ActivityItem(
-            id=item.id,
+    # Convert ORM objects to ActivityItem, mapping metadata_ -> metadata.
+    # This is the requesting user's own feed, so the actor is always "You";
+    # `get_activity_feed` already restricts rows to templated (action,
+    # entity_type) pairs, so `summary` is guaranteed non-None here.
+    items = []
+    for item in result["items"]:
+        summary = activity_service.render_activity_sentence(
             action=item.action,
             entity_type=item.entity_type,
-            entity_id=item.entity_id,
+            actor_name="You",
             metadata=item.metadata_,
-            created_at=item.created_at,
         )
-        for item in result["items"]
-    ]
+        if summary is None:
+            continue
+        items.append(
+            ActivityItem(
+                id=item.id,
+                action=item.action,
+                entity_type=item.entity_type,
+                entity_id=item.entity_id,
+                metadata=item.metadata_,
+                created_at=item.created_at,
+                summary=summary,
+            )
+        )
     return ActivityFeedResponse(
         items=items,
         next_cursor=result["next_cursor"],

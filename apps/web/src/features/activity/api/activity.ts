@@ -32,6 +32,16 @@ export interface SocialFeedItem {
   metadata: Record<string, unknown> | null;
   actor: ActorSummary;
   entity: EntitySummary | null;
+  /**
+   * Server-rendered human sentence naming the actor ("You" for the
+   * requesting user's own actions) and the affected legacy/story — e.g.
+   * "Sue added a memory to Karen's legacy". The backend only ever returns
+   * items that have a template (see `activity-feed-language`), so this is
+   * always populated. Render it as-is; do not reconstruct a sentence from
+   * `metadata`/`entity` on the client (metadata may contain fields, like a
+   * raw filename, that must never be shown verbatim).
+   */
+  summary: string;
 }
 
 export interface SocialFeedResponse {
