@@ -72,3 +72,10 @@ class TestDeriveTitleFromContent:
         )
         title = derive_title_from_content(content)
         assert not title.endswith("...")
+
+    def test_strips_inline_html(self):
+        assert derive_title_from_content("<b>Hello</b> world!") == "Hello world!"
+
+    def test_strips_fenced_code_block_markers(self):
+        content = "```python\nprint('hello')\n```"
+        assert derive_title_from_content(content) == "print('hello')"

@@ -130,6 +130,13 @@ def create_content_preview(content: str, max_length: int = PREVIEW_MAX_LENGTH) -
 
 def _strip_markdown_line(text: str) -> str:
     """Strip common Markdown syntax from a single line of text."""
+    # Strip HTML tags
+    text = re.sub(r"<[^>]+>", "", text)
+    # Check if this line is just a fenced code block or tilde block marker
+    if re.match(r"^`{3,}[a-zA-Z0-9+-]*\s*$", text) or re.match(
+        r"^~{3,}[a-zA-Z0-9+-]*\s*$", text
+    ):
+        return ""
     text = re.sub(r"^#{1,6}\s+", "", text)
     text = re.sub(r"\*{1,3}([^*]+)\*{1,3}", r"\1", text)
     text = re.sub(r"_{1,3}([^_]+)_{1,3}", r"\1", text)

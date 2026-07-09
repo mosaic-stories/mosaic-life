@@ -152,12 +152,13 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
     if (creatingRef.current) return;
     creatingRef.current = true;
     setSaveState('saving');
+    const snapshot = { ...fieldsRef.current };
+    const trimmedTitle = snapshot.title.trim();
     try {
-      const { title: t, content: c, visibility: v } = fieldsRef.current;
       const newStory = await createStory.mutateAsync({
-        title: t || undefined,
-        content: c,
-        visibility: v,
+        title: trimmedTitle || undefined,
+        content: snapshot.content,
+        visibility: snapshot.visibility,
         status: 'draft',
         legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
       });
@@ -165,12 +166,22 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
       effectiveIdRef.current = newStory.id;
       setSaveState('saved');
       navigate(`/legacy/${legacyId}/story/${newStory.id}/edit`, { replace: true });
+
+      const current = fieldsRef.current;
+      if (
+        current.title !== snapshot.title ||
+        current.content !== snapshot.content ||
+        current.visibility !== snapshot.visibility
+      ) {
+        setSaveState('saving');
+        void runAutosave();
+      }
     } catch (err) {
       console.error('Failed to create story:', err);
       creatingRef.current = false;
       setSaveState('error');
     }
-  }, [createStory, legacyId, navigate]);
+  }, [createStory, legacyId, navigate, runAutosave]);
 
   const handleChange = useCallback(
     (next: Partial<{ title: string; content: string; visibility: Visibility }>) => {
