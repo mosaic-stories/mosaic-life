@@ -3,7 +3,7 @@
 import logging
 import re
 from datetime import datetime, timezone
-from typing import TypedDict
+from typing import TypedDict, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 from ..models.associations import StoryLegacy
 from ..models.legacy import Legacy, LegacyMember
 from ..models.story import Story
+from ..models.story_reaction import StoryReaction as StoryReactionModel
 from ..models.story_version import StoryVersion
 from ..schemas.associations import LegacyAssociationResponse
 from ..schemas.story import (
@@ -25,6 +26,7 @@ from ..schemas.story import (
     StorySummary,
     StoryUpdate,
 )
+from ..schemas.story_reaction import ReactionType
 from .change_summary import generate_change_summary
 from .story_access import (
     ACTIVE_ROLES,
@@ -513,6 +515,10 @@ async def list_legacy_stories(
                 for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
             ],
             favorite_count=story.favorite_count or 0,
+            response_count=story.response_count or 0,
+            reaction_heart_count=story.reaction_heart_count or 0,
+            reaction_candle_count=story.reaction_candle_count or 0,
+            reaction_smile_count=story.reaction_smile_count or 0,
             created_at=story.created_at,
             updated_at=story.updated_at,
         )
@@ -578,6 +584,10 @@ async def list_legacy_stories(
                             )
                         ],
                         favorite_count=story.favorite_count or 0,
+                        response_count=story.response_count or 0,
+                        reaction_heart_count=story.reaction_heart_count or 0,
+                        reaction_candle_count=story.reaction_candle_count or 0,
+                        reaction_smile_count=story.reaction_smile_count or 0,
                         shared_from=source_map.get(story.id),
                         created_at=story.created_at,
                         updated_at=story.updated_at,
@@ -828,6 +838,10 @@ async def list_stories_scoped(
                 for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
             ],
             favorite_count=story.favorite_count or 0,
+            response_count=story.response_count or 0,
+            reaction_heart_count=story.reaction_heart_count or 0,
+            reaction_candle_count=story.reaction_candle_count or 0,
+            reaction_smile_count=story.reaction_smile_count or 0,
             created_at=story.created_at,
             updated_at=story.updated_at,
         )
@@ -927,6 +941,10 @@ async def list_public_stories(
                 for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
             ],
             favorite_count=story.favorite_count or 0,
+            response_count=story.response_count or 0,
+            reaction_heart_count=story.reaction_heart_count or 0,
+            reaction_candle_count=story.reaction_candle_count or 0,
+            reaction_smile_count=story.reaction_smile_count or 0,
             created_at=story.created_at,
             updated_at=story.updated_at,
         )
@@ -1008,6 +1026,20 @@ async def get_story_detail(
     legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
     legacy_names = await _get_legacy_names(db, legacy_ids)
 
+    # Reaction types the requesting user has already made on this story, so
+    # the frontend can render toggled-on state on load rather than only
+    # after an in-session toggle response.
+    my_reactions_result = await db.execute(
+        select(StoryReactionModel.reaction_type).where(
+            StoryReactionModel.story_id == story_id,
+            StoryReactionModel.user_id == user_id,
+        )
+    )
+    # The column is a plain `str` at the SQLAlchemy layer (see StoryReaction
+    # model); values are always one of the three reaction types written by
+    # `toggle_reaction`, so the narrowing cast is safe.
+    my_reactions = cast(list[ReactionType], list(my_reactions_result.scalars().all()))
+
     # Count versions and check for draft (only for author)
     version_count = None
     has_draft = None
@@ -1053,6 +1085,11 @@ async def get_story_detail(
             for assoc in sorted(story.legacy_associations, key=lambda a: a.position)
         ],
         favorite_count=story.favorite_count or 0,
+        response_count=story.response_count or 0,
+        reaction_heart_count=story.reaction_heart_count or 0,
+        reaction_candle_count=story.reaction_candle_count or 0,
+        reaction_smile_count=story.reaction_smile_count or 0,
+        my_reactions=my_reactions,
         version_count=version_count,
         has_draft=has_draft,
         source_conversation_id=story.source_conversation_id,

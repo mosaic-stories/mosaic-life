@@ -254,6 +254,34 @@ async def update_legacy(
     return result
 
 
+@router.patch(
+    "/{legacy_id}/invite-prompt-dismissal",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Dismiss invite-moment prompt",
+    description=(
+        "Dismiss the invite-moment prompt for this legacy. Any non-pending "
+        "member may dismiss. Persists per legacy (not per-user) and cannot "
+        "be un-dismissed."
+    ),
+)
+async def dismiss_invite_prompt(
+    legacy_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Dismiss the invite-moment prompt for a legacy.
+
+    Any non-pending member can dismiss. Once dismissed, the prompt never
+    reappears for any member of this legacy.
+    """
+    session = require_auth(request)
+    await legacy_service.dismiss_invite_prompt(
+        db=db,
+        user_id=session.user_id,
+        legacy_id=legacy_id,
+    )
+
+
 @router.delete(
     "/{legacy_id}",
     status_code=status.HTTP_204_NO_CONTENT,

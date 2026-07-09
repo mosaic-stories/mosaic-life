@@ -35,6 +35,8 @@ from .routes.legacy_link import router as legacy_link_router
 from .routes.rewrite import router as rewrite_router
 from .routes.graph_context import router as graph_context_router
 from .routes.story_context import router as story_context_router
+from .routes.story_response import router as story_response_router
+from .routes.story_reaction import router as story_reaction_router
 from .routes.favorite import router as favorite_router
 from .routes.activity import router as activity_router
 from .routes.activity import internal_router as activity_internal_router
@@ -138,6 +140,8 @@ app.include_router(legacy_link_router)
 app.include_router(rewrite_router)
 app.include_router(graph_context_router)
 app.include_router(story_context_router)
+app.include_router(story_response_router)
+app.include_router(story_reaction_router)
 app.include_router(favorite_router)
 app.include_router(activity_router)
 app.include_router(activity_internal_router)

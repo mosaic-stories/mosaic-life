@@ -76,6 +76,11 @@ class Legacy(Base):
         index=False,
     )
 
+    invite_prompt_dismissed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     profile_image_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("media.id", ondelete="SET NULL"),

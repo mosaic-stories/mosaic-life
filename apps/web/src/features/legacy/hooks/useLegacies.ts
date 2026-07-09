@@ -12,6 +12,7 @@ import {
   changeMemberRole,
   removeMember,
   leaveLegacy,
+  dismissInvitePrompt,
   type CreateLegacyInput,
   type UpdateLegacyInput,
   type VisibilityFilter,
@@ -193,6 +194,18 @@ export function useLeaveLegacy() {
   return useMutation({
     mutationFn: (legacyId: string) => leaveLegacy(legacyId),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: legacyKeys.lists() });
+    },
+  });
+}
+
+export function useDismissInvitePrompt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (legacyId: string) => dismissInvitePrompt(legacyId),
+    onSuccess: (_, legacyId) => {
+      queryClient.invalidateQueries({ queryKey: legacyKeys.detail(legacyId) });
       queryClient.invalidateQueries({ queryKey: legacyKeys.lists() });
     },
   });

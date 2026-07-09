@@ -1,5 +1,6 @@
 import { ChevronRight, Globe, Lock } from 'lucide-react';
 import FavoriteButton from '@/features/favorites/components/FavoriteButton';
+import StoryEngagementStats from '@/features/story-responses/components/StoryEngagementStats';
 import type { StorySummary } from '@/features/story/api/stories';
 import { getStoryDisplayTitle } from '@/features/story/utils/displayTitle';
 
@@ -38,6 +39,13 @@ export default function StoryCardList({ story, onClick, isFavorited = false }: S
         {story.content_preview && (
           <p className="text-sm text-neutral-500 truncate mt-1">{story.content_preview}</p>
         )}
+        <StoryEngagementStats
+          className="mt-1.5"
+          responseCount={story.response_count}
+          reactionHeartCount={story.reaction_heart_count}
+          reactionCandleCount={story.reaction_candle_count}
+          reactionSmileCount={story.reaction_smile_count}
+        />
       </div>
 
       <div className="flex items-center gap-3 shrink-0 pt-1">

@@ -27,6 +27,8 @@ from .story import Story
 from .story_context import ContextFact, StoryContext
 from .story_evolution import StoryEvolutionSession
 from .story_prompt import StoryPrompt
+from .story_reaction import StoryReaction
+from .story_response import StoryResponse
 from .story_version import StoryVersion
 from .support_request import SupportRequest
 from .user import User
@@ -62,6 +64,8 @@ __all__ = [
     "StoryEvolutionSession",
     "StoryLegacy",
     "StoryPrompt",
+    "StoryReaction",
+    "StoryResponse",
     "StoryVersion",
     "SupportRequest",
     "Tag",

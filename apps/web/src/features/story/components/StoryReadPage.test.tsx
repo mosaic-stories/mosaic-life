@@ -77,6 +77,17 @@ vi.mock('@/features/legacy/components/LegacyMultiSelect', () => ({
   default: () => createElement('div', { 'data-testid': 'legacy-multi-select' }),
 }));
 
+// Responses/reactions have their own dedicated unit tests
+// (ResponsesSection.test.tsx, ReactionsRow.test.tsx); mock them here so this
+// suite stays focused on version-history integration and doesn't pull in the
+// TanStack Query hook chain for a feature it isn't testing.
+vi.mock('@/features/story-responses/components/ReactionsRow', () => ({
+  default: () => createElement('div', { 'data-testid': 'reactions-row' }),
+}));
+vi.mock('@/features/story-responses/components/ResponsesSection', () => ({
+  default: () => createElement('div', { 'data-testid': 'responses-section' }),
+}));
+
 // Mock auth context
 let mockAuthUser = { id: 'user-1', email: 'author@test.com', name: 'Author' };
 

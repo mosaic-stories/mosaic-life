@@ -35,6 +35,9 @@ export interface Legacy {
   person_id?: string | null;
   favorite_count?: number;
   story_count: number;
+  published_story_count?: number;
+  member_count?: number;
+  invite_prompt_dismissed_at?: string | null;
 }
 
 export type LegacyScope = 'all' | 'created' | 'connected' | 'favorites';
@@ -97,6 +100,21 @@ export function formatLegacyDates(legacy: Legacy): string {
 // Determine legacy context type based on dates
 export function getLegacyContext(legacy: Legacy): 'memorial' | 'living-tribute' {
   return legacy.death_date ? 'memorial' : 'living-tribute';
+}
+
+// Invite-moment prompt visibility, per legacy-invite-moment spec:
+// show when the legacy has exactly one non-pending member AND at most one
+// published story (covers both "first story just published" and "legacy
+// just created, no stories yet"), and it hasn't been dismissed by any
+// member. Once 2+ members exist, the prompt never shows, regardless of
+// published story count.
+export function shouldShowInvitePrompt(
+  legacy: Pick<Legacy, 'member_count' | 'published_story_count' | 'invite_prompt_dismissed_at'>
+): boolean {
+  if (legacy.invite_prompt_dismissed_at) return false;
+  const memberCount = legacy.member_count ?? 0;
+  const publishedStoryCount = legacy.published_story_count ?? 0;
+  return memberCount === 1 && publishedStoryCount <= 1;
 }
 
 export async function getLegacies(scope: LegacyScope = 'all'): Promise<LegacyScopedResponse> {
@@ -168,4 +186,9 @@ export async function removeMember(
 
 export async function leaveLegacy(legacyId: string): Promise<void> {
   return apiDelete(`/api/legacies/${legacyId}/members/me`);
+}
+
+// Invite-moment prompt
+export async function dismissInvitePrompt(legacyId: string): Promise<void> {
+  return apiPatch<void>(`/api/legacies/${legacyId}/invite-prompt-dismissal`, {});
 }

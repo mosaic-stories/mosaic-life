@@ -21,11 +21,19 @@ Action = Literal[
     "invited",
     "ai_conversation_started",
     "ai_story_evolved",
+    "responded",
+    "reacted",
 ]
 
 
 class ActivityItem(BaseModel):
-    """A single activity entry."""
+    """A single activity entry.
+
+    `summary` is a server-rendered human sentence (see
+    `app.services.activity.render_activity_sentence`) naming the actor and
+    the affected legacy/story — the API only ever returns items that have a
+    template, so this is always populated (never a raw/generic fallback).
+    """
 
     id: UUID
     action: str
@@ -33,6 +41,7 @@ class ActivityItem(BaseModel):
     entity_id: UUID
     metadata: dict[str, Any] | None = None
     created_at: datetime
+    summary: str
 
     model_config = {"from_attributes": True}
 
@@ -101,7 +110,14 @@ class EntitySummary(BaseModel):
 
 
 class SocialFeedItem(BaseModel):
-    """A single item in the social activity feed."""
+    """A single item in the social activity feed.
+
+    `summary` is a server-rendered human sentence (see
+    `app.services.activity.render_activity_sentence`) naming the actor
+    ("You" for the requesting user's own actions) and the affected
+    legacy/story — the API only ever returns items that have a template, so
+    this is always populated (never a raw/generic fallback).
+    """
 
     id: UUID
     action: str
@@ -111,6 +127,7 @@ class SocialFeedItem(BaseModel):
     metadata: dict[str, Any] | None = None
     actor: ActorSummary
     entity: EntitySummary | None = None
+    summary: str
 
 
 class SocialFeedResponse(BaseModel):

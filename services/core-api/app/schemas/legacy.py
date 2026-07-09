@@ -106,6 +106,16 @@ class LegacyResponse(BaseModel):
     story_count: int = Field(
         default=0, description="Number of stories associated with this legacy"
     )
+    published_story_count: int = Field(
+        default=0, description="Number of published stories associated with this legacy"
+    )
+    member_count: int = Field(
+        default=0, description="Number of non-pending members of this legacy"
+    )
+    invite_prompt_dismissed_at: datetime | None = Field(
+        default=None,
+        description="When the invite-moment prompt was dismissed for this legacy (persists for all members once set)",
+    )
 
     model_config = {"from_attributes": True}
 
