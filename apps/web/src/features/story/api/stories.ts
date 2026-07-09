@@ -29,6 +29,10 @@ export interface StorySummary {
   created_at: string;
   updated_at: string;
   favorite_count: number;
+  response_count: number;
+  reaction_heart_count: number;
+  reaction_candle_count: number;
+  reaction_smile_count: number;
 }
 
 export interface StoryDetail {
@@ -49,6 +53,12 @@ export interface StoryDetail {
   created_at: string;
   updated_at: string;
   favorite_count: number;
+  response_count: number;
+  reaction_heart_count: number;
+  reaction_candle_count: number;
+  reaction_smile_count: number;
+  /** Reaction types the requesting user has already made on this story. */
+  my_reactions: ('heart' | 'candle' | 'smile')[];
 }
 
 export interface CreateStoryInput {

@@ -2,6 +2,7 @@ import { Globe, Lock } from 'lucide-react';
 import type { StorySummary } from '@/features/story/api/stories';
 import { getStoryDisplayTitle } from '@/features/story/utils/displayTitle';
 import FavoriteButton from '@/features/favorites/components/FavoriteButton';
+import StoryEngagementStats from '@/features/story-responses/components/StoryEngagementStats';
 import UserLink from '@/components/UserLink';
 
 export interface StoryCardProps {
@@ -49,13 +50,21 @@ export default function StoryCard({ story, onClick, isFavorited = false }: Story
           </p>
         )}
 
-        {/* Status badges */}
-        <div className="flex gap-1.5 mt-3">
-          {story.status === 'draft' && (
-            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
-              Draft
-            </span>
-          )}
+        {/* Status badges + engagement stats */}
+        <div className="flex items-center justify-between gap-2 mt-3">
+          <div className="flex gap-1.5">
+            {story.status === 'draft' && (
+              <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
+                Draft
+              </span>
+            )}
+          </div>
+          <StoryEngagementStats
+            responseCount={story.response_count}
+            reactionHeartCount={story.reaction_heart_count}
+            reactionCandleCount={story.reaction_candle_count}
+            reactionSmileCount={story.reaction_smile_count}
+          />
         </div>
       </div>
 

@@ -18,6 +18,8 @@ import { useActiveEvolution } from '@/lib/hooks/useEvolution';
 import { useAuth } from '@/contexts/AuthContext';
 import { SEOHead } from '@/components/seo';
 import { getStoryDisplayTitle } from '@/features/story/utils/displayTitle';
+import ReactionsRow from '@/features/story-responses/components/ReactionsRow';
+import ResponsesSection from '@/features/story-responses/components/ResponsesSection';
 
 interface StoryReadPageProps {
   legacyId: string;
@@ -56,6 +58,20 @@ export default function StoryReadPage({ legacyId, storyId }: StoryReadPageProps)
 
   const canEdit = !!existingStory && !!user && isAuthor;
   const showHistory = isAuthor && (existingStory?.version_count ?? 0) > 1;
+
+  // Responses/reactions are gated to legacy members (any non-pending role) or
+  // the story's author — see `require_legacy_member_or_story_author` in
+  // services/core-api/app/services/story_response.py. `legacy.current_user_role`
+  // (from useLegacy above) is how the rest of this codebase already surfaces a
+  // viewer's role for the legacy this page is scoped to (see e.g.
+  // features/members/components/InviteMemberModal's `currentUserRole` prop,
+  // features/legacy/components/LegacyEdit.tsx's `isCreator` check).
+  const legacyRole = legacy?.current_user_role;
+  const canRespondOrReact = isAuthor || !!legacyRole;
+  // Delete affordance for *other* members' responses is limited to legacy
+  // creator/admin (advocate/admirer excluded) — mirrors
+  // `DELETE_ADMIN_ROLES` in services/core-api/app/services/story_response.py.
+  const canModerateResponses = legacyRole === 'creator' || legacyRole === 'admin';
   const versionsQuery = useVersions(storyId ?? '', isHistoryOpen && !!storyId);
   const versionDetailQuery = useVersionDetail(storyId ?? '', previewVersionNumber);
   const restoreVersionMutation = useRestoreVersion(storyId ?? '');
@@ -186,6 +202,30 @@ export default function StoryReadPage({ legacyId, storyId }: StoryReadPageProps)
           hasActiveEvolution={!!hasActiveEvolution}
           onResumeDraft={handleNavigateToEvolve}
         />
+
+        {!isPreviewing && existingStory && (
+          <div className="mt-8">
+            <ReactionsRow
+              storyId={existingStory.id}
+              canReact={canRespondOrReact}
+              counts={{
+                heart: existingStory.reaction_heart_count ?? 0,
+                candle: existingStory.reaction_candle_count ?? 0,
+                smile: existingStory.reaction_smile_count ?? 0,
+              }}
+              myReactions={existingStory.my_reactions ?? []}
+            />
+          </div>
+        )}
+
+        {!isPreviewing && existingStory && canRespondOrReact && (
+          <ResponsesSection
+            storyId={existingStory.id}
+            currentUserId={user?.id}
+            canModerate={canModerateResponses}
+            responseCount={existingStory.response_count}
+          />
+        )}
       </main>
 
       {/* Delete Story Dialog */}

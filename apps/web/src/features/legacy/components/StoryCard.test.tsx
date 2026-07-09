@@ -24,6 +24,10 @@ const story: StorySummary = {
     { legacy_id: 'legacy-1', legacy_name: 'Test Legacy', role: 'primary', position: 0 },
   ],
   favorite_count: 0,
+  response_count: 0,
+  reaction_heart_count: 0,
+  reaction_candle_count: 0,
+  reaction_smile_count: 0,
   shared_from: null,
 };
 
@@ -54,5 +58,27 @@ describe('StoryCard', () => {
     render(<MemoryRouter><StoryCard story={privateStory} /></MemoryRouter>);
 
     expect(screen.getByText('Members only')).toBeInTheDocument();
+  });
+
+  it('does not render engagement stats when all counts are zero', () => {
+    render(<MemoryRouter><StoryCard story={story} /></MemoryRouter>);
+
+    expect(screen.queryByLabelText(/responses$/)).not.toBeInTheDocument();
+  });
+
+  it('shows response and reaction counts alongside existing metadata', () => {
+    const engagedStory = {
+      ...story,
+      response_count: 3,
+      reaction_heart_count: 5,
+      reaction_candle_count: 0,
+      reaction_smile_count: 2,
+    };
+    render(<MemoryRouter><StoryCard story={engagedStory} /></MemoryRouter>);
+
+    expect(screen.getByLabelText('3 responses')).toBeInTheDocument();
+    expect(screen.getByLabelText('5 heart reactions')).toBeInTheDocument();
+    expect(screen.getByLabelText('2 smile reactions')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/candle reactions/)).not.toBeInTheDocument();
   });
 });
