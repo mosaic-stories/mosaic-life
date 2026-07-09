@@ -43,16 +43,6 @@ vi.mock('@/components/header', () => ({
 let capturedDrawerProps: Record<string, unknown> = {};
 let capturedBannerProps: Record<string, unknown> = {};
 
-vi.mock('./VersionHistoryButton', () => ({
-  default: (props: { versionCount: number | null; onClick: () => void }) => {
-    if (!props.versionCount || props.versionCount <= 1) return null;
-    return createElement('button', {
-      'aria-label': 'History',
-      onClick: props.onClick,
-    }, 'History');
-  },
-}));
-
 vi.mock('./VersionHistoryDrawer', () => ({
   default: (props: Record<string, unknown>) => {
     capturedDrawerProps = props;
@@ -63,6 +53,10 @@ vi.mock('./VersionHistoryDrawer', () => ({
         'data-testid': 'select-v2',
         onClick: () => (props.onSelectVersion as (n: number) => void)(2),
       }, 'Select v2'),
+      createElement('button', {
+        'data-testid': 'select-v3',
+        onClick: () => (props.onSelectVersion as (n: number) => void)(3),
+      }, 'Select v3'),
     );
   },
 }));
@@ -187,14 +181,31 @@ const mockVersionDetail2 = {
   created_by: 'user-1',
   created_at: '2026-02-15T10:00:00Z',
 };
+const mockVersionDetail3 = {
+  version_number: 3,
+  title: '',
+  content: '',
+  status: 'inactive' as const,
+  source: 'edit',
+  source_version: null,
+  change_summary: null,
+  stale: false,
+  created_by: 'user-1',
+  created_at: '2026-02-16T12:00:00Z',
+};
 const mockVersionsResult = { data: mockVersionsData, isLoading: false };
 const mockVersionDetailResult2 = { data: mockVersionDetail2, isLoading: false };
+const mockVersionDetailResult3 = { data: mockVersionDetail3, isLoading: false };
 const mockVersionDetailResultEmpty = { data: undefined, isLoading: false };
 
 vi.mock('@/features/story/hooks/useVersions', () => ({
   useVersions: () => mockVersionsResult,
   useVersionDetail: (_storyId: string, versionNumber: number | null) =>
-    versionNumber === 2 ? mockVersionDetailResult2 : mockVersionDetailResultEmpty,
+    versionNumber === 2
+      ? mockVersionDetailResult2
+      : versionNumber === 3
+        ? mockVersionDetailResult3
+        : mockVersionDetailResultEmpty,
   useRestoreVersion: () => ({ mutate: vi.fn(), isPending: false }),
   useApproveDraft: () => ({ mutate: vi.fn(), isPending: false }),
   useDiscardDraft: () => ({ mutate: vi.fn(), isPending: false }),
@@ -231,9 +242,9 @@ vi.mock('@/lib/api/client', () => ({
   ApiError: class ApiError extends Error {},
 }));
 
-import StoryCreation from './StoryCreation';
+import StoryReadPage from './StoryReadPage';
 
-function renderStoryCreation(storyId?: string) {
+function renderStoryReadPage(storyId?: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -248,7 +259,7 @@ function renderStoryCreation(storyId?: string) {
         createElement(
           TestHeaderProvider,
           null,
-          createElement(StoryCreation, {
+          createElement(StoryReadPage, {
             legacyId: 'legacy-1',
             storyId: storyId ?? 'story-1',
           })
@@ -258,7 +269,13 @@ function renderStoryCreation(storyId?: string) {
   );
 }
 
-describe('StoryCreation - Version History integration', () => {
+/** Opens the overflow menu and clicks "Version history". */
+async function openHistoryFromOverflowMenu(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /more actions/i }));
+  await user.click(await screen.findByText(/version history/i));
+}
+
+describe('StoryReadPage - Version History integration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     capturedDrawerProps = {};
@@ -266,38 +283,36 @@ describe('StoryCreation - Version History integration', () => {
     mockAuthUser = { id: 'user-1', email: 'author@test.com', name: 'Author' };
   });
 
-  it('shows History button when version_count > 1', () => {
-    renderStoryCreation();
-    expect(
-      screen.getByRole('button', { name: /history/i })
-    ).toBeInTheDocument();
+  it('shows the overflow menu with Version history when version_count > 1', async () => {
+    const user = userEvent.setup();
+    renderStoryReadPage();
+
+    await user.click(screen.getByRole('button', { name: /more actions/i }));
+    expect(await screen.findByText(/version history/i)).toBeInTheDocument();
   });
 
-  it('shows History button when author_id matches but email differs', () => {
+  it('shows author actions when author_id matches but email differs', () => {
     mockAuthUser = { id: 'user-1', email: 'AUTHOR@TEST.COM', name: 'Author' };
 
-    renderStoryCreation();
+    renderStoryReadPage();
 
-    expect(
-      screen.getByRole('button', { name: /history/i })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
   });
 
-  it('does not show Edit Story button for non-author user', () => {
+  it('does not show Edit button or overflow menu for non-author user', () => {
     mockAuthUser = { id: 'user-2', email: 'other@test.com', name: 'Other User' };
 
-    renderStoryCreation();
+    renderStoryReadPage();
 
-    expect(
-      screen.queryByRole('button', { name: /edit story/i })
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /more actions/i })).not.toBeInTheDocument();
   });
 
-  it('opens drawer when History button is clicked', async () => {
+  it('opens drawer when Version history is clicked', async () => {
     const user = userEvent.setup();
-    renderStoryCreation();
+    renderStoryReadPage();
 
-    await user.click(screen.getByRole('button', { name: /history/i }));
+    await openHistoryFromOverflowMenu(user);
 
     await waitFor(() => {
       expect(screen.getByTestId('version-drawer')).toBeInTheDocument();
@@ -307,9 +322,9 @@ describe('StoryCreation - Version History integration', () => {
 
   it('passes version data to drawer', async () => {
     const user = userEvent.setup();
-    renderStoryCreation();
+    renderStoryReadPage();
 
-    await user.click(screen.getByRole('button', { name: /history/i }));
+    await openHistoryFromOverflowMenu(user);
 
     await waitFor(() => {
       expect(capturedDrawerProps.open).toBe(true);
@@ -320,10 +335,10 @@ describe('StoryCreation - Version History integration', () => {
 
   it('shows preview banner when a non-active version is selected', async () => {
     const user = userEvent.setup();
-    renderStoryCreation();
+    renderStoryReadPage();
 
     // Open drawer
-    await user.click(screen.getByRole('button', { name: /history/i }));
+    await openHistoryFromOverflowMenu(user);
     await waitFor(() => {
       expect(screen.getByTestId('version-drawer')).toBeInTheDocument();
     });
@@ -339,10 +354,10 @@ describe('StoryCreation - Version History integration', () => {
 
   it('swaps displayed content when previewing a version', async () => {
     const user = userEvent.setup();
-    renderStoryCreation();
+    renderStoryReadPage();
 
     // Open drawer and select version 2
-    await user.click(screen.getByRole('button', { name: /history/i }));
+    await openHistoryFromOverflowMenu(user);
     await waitFor(() => {
       expect(screen.getByTestId('version-drawer')).toBeInTheDocument();
     });
@@ -355,11 +370,26 @@ describe('StoryCreation - Version History integration', () => {
     });
   });
 
+  it('shows the render-time placeholder title when previewing a version with an empty stored title', async () => {
+    const user = userEvent.setup();
+    renderStoryReadPage();
+
+    await openHistoryFromOverflowMenu(user);
+    await waitFor(() => {
+      expect(screen.getByTestId('version-drawer')).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId('select-v3'));
+
+    await waitFor(() => {
+      expect(screen.getByText(/draft story/i)).toBeInTheDocument();
+    });
+  });
+
   it('passes correct props to preview banner', async () => {
     const user = userEvent.setup();
-    renderStoryCreation();
+    renderStoryReadPage();
 
-    await user.click(screen.getByRole('button', { name: /history/i }));
+    await openHistoryFromOverflowMenu(user);
     await waitFor(() => {
       expect(screen.getByTestId('version-drawer')).toBeInTheDocument();
     });

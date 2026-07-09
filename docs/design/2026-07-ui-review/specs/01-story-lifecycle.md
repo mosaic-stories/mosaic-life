@@ -1,6 +1,6 @@
 # Spec 01: Story Lifecycle — Read, Edit, Evolve
 
-**Status:** SEED — awaiting owner second pass
+**Status:** APPROVED — owner decisions recorded 2026-07-08; planned as OpenSpec change [`story-lifecycle-split`](../../../../openspec/changes/story-lifecycle-split/proposal.md)
 **Priority:** P0 (core loop)
 **Evidence:** [`../00-review-summary.md`](../00-review-summary.md) §A · screenshots `32-story-view.jpg`, `33-evolve-workspace.jpg`, `37-evolve-rewrite.jpg`, `15-my-conversations.jpg`
 **Depends on:** nothing
@@ -44,15 +44,15 @@ Mosaic Life is a memorial-stories platform (React 18 + TS, Vite, React Router in
 ## Open questions (owner second pass)
 
 1. **Quick capture from prompt cards.** The Story Prompt cards ("What's the best advice…?") currently jump to Evolve. Should they open (a) the Edit page seeded with the prompt as a quote, (b) a lightweight modal composer that saves and offers "keep going →  Edit", or (c) keep routing to Evolve?
-   → Decision:
+   → Decision: (a) — prompt cards go directly to the Edit page, seeded with the prompt as a quote.
 2. **Draft persistence on abandon.** If a user opens Edit for a new story and types nothing, today's behavior would still have created a draft. Proposed: create nothing until first input. Acceptable, or do you want explicit "Save draft"?
-   → Decision:
+   → Decision: Create nothing until first input; once there is input, autosave the draft (no manual "Save draft").
 3. **Where does Evolve's entry live on Read?** Overflow menu only, or a visible "Open AI workspace" button for authors?
-   → Decision:
+   → Decision: Overflow menu only.
 4. **Existing orphan cleanup.** Ship a one-time cleanup (delete zero-message conversations + empty untitled drafts older than N days), or leave existing data alone?
-   → Decision:
+   → Decision: Ship the one-time cleanup.
 5. **Component rename.** `StoryCreation.tsx` → `StoryReadPage.tsx` (or similar) as part of this work, or defer to spec 05 hygiene?
-   → Decision:
+   → Decision: Rename now, as part of this work.
 
 ## Acceptance criteria
 

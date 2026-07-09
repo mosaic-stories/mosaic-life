@@ -18,7 +18,7 @@ Distilled output of a full interface review (34 live screens + `apps/web` code a
 
 | Spec | Owner second pass | Plan | Implementation |
 |---|---|---|---|
-| 01 story-lifecycle | ☐ | ☐ | ☐ |
+| 01 story-lifecycle | ☑ | ☑ [`story-lifecycle-split`](../../../openspec/changes/story-lifecycle-split/proposal.md) | ☑ |
 | 02 story-responses | ☐ | ☐ | ☐ |
 | 03 navigation-ia | ☐ | ☐ | ☐ |
 | 04 voice-and-copy | ☐ | ☐ | ☐ |

@@ -89,6 +89,16 @@ class StoryEvolutionSession(Base):
     )
     creator: Mapped["User"] = relationship("User", foreign_keys=[created_by])
 
+    @property
+    def persona_id(self) -> str:
+        """Persona of the session's canonical conversation.
+
+        Exposed so clients can tell whether a rehydrated session's
+        conversation belongs to their currently-active persona before
+        deciding whether to reuse it or start a new conversation.
+        """
+        return self.conversation.persona_id
+
     __table_args__ = (
         # Only one active (non-terminal) session per story
         # Note: postgresql_where is PostgreSQL-specific; ignored by SQLite in tests

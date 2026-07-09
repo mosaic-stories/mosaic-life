@@ -7,7 +7,6 @@ import QuickActions from './QuickActions';
 
 const mocks = vi.hoisted(() => ({
   navigate: vi.fn(),
-  mutateAsync: vi.fn(),
   legacies: {
     items: [
       {
@@ -30,10 +29,6 @@ vi.mock('react-router-dom', async () => {
 
 vi.mock('@/features/legacy/hooks/useLegacies', () => ({
   useLegacies: () => ({ data: mocks.legacies, isLoading: false }),
-}));
-
-vi.mock('@/features/story/hooks/useStories', () => ({
-  useCreateStory: () => ({ mutateAsync: mocks.mutateAsync, isPending: false }),
 }));
 
 vi.mock('@/features/members/components/InviteMemberModal', () => ({
@@ -59,8 +54,6 @@ function renderActions() {
 describe('QuickActions', () => {
   beforeEach(() => {
     mocks.navigate.mockReset();
-    mocks.mutateAsync.mockReset();
-    mocks.mutateAsync.mockResolvedValue({ id: 'story-123', legacies: [] });
     mocks.legacies = {
       items: [
         {
@@ -73,18 +66,10 @@ describe('QuickActions', () => {
     };
   });
 
-  it('creates a draft story and navigates to evolve for a single legacy', async () => {
+  it('navigates straight to the new-story edit page for a single legacy', async () => {
     renderActions();
     await userEvent.click(screen.getByRole('button', { name: /write a story/i }));
-    expect(mocks.mutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        content: '',
-        visibility: 'private',
-        status: 'draft',
-        legacies: [{ legacy_id: 'legacy-1', role: 'primary', position: 0 }],
-      }),
-    );
-    expect(mocks.navigate).toHaveBeenCalledWith('/legacy/legacy-1/story/story-123/evolve');
+    expect(mocks.navigate).toHaveBeenCalledWith('/legacy/legacy-1/story/new');
   });
 
   it('passes the API-provided role into the invite modal for a single legacy', async () => {
@@ -115,12 +100,7 @@ describe('QuickActions', () => {
     await userEvent.click(screen.getByRole('button', { name: /write a story/i }));
     expect(screen.getByText(/choose a legacy to start writing/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: /james torres/i }));
-    expect(mocks.mutateAsync).toHaveBeenCalledWith(
-      expect.objectContaining({
-        legacies: [{ legacy_id: 'legacy-2', role: 'primary', position: 0 }],
-      }),
-    );
-    expect(mocks.navigate).toHaveBeenCalledWith('/legacy/legacy-2/story/story-123/evolve');
+    expect(mocks.navigate).toHaveBeenCalledWith('/legacy/legacy-2/story/new');
   });
 
   it('opens the invite modal with the selected legacy role from inline selection', async () => {

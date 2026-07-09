@@ -1,5 +1,4 @@
 import type { ComponentType } from 'react';
-import { Card } from '@/components/ui/card';
 import { StoryEditor } from '@/features/editor';
 import type { VersionDetail } from '@/features/story/api/versions';
 import VersionPreviewBanner from './VersionPreviewBanner';
@@ -19,6 +18,9 @@ interface StoryViewerProps {
   isPreviewActive: boolean;
   onRestore: () => void;
   isRestoring: boolean;
+  /** Unfinished evolution draft resume affordance */
+  hasActiveEvolution?: boolean;
+  onResumeDraft?: () => void;
 }
 
 export default function StoryViewer({
@@ -34,6 +36,8 @@ export default function StoryViewer({
   isPreviewActive,
   onRestore,
   isRestoring,
+  hasActiveEvolution = false,
+  onResumeDraft,
 }: StoryViewerProps) {
   return (
     <div className="space-y-8">
@@ -57,12 +61,12 @@ export default function StoryViewer({
         createdAt={createdAt}
         associatedLegaciesLabel={associatedLegaciesLabel}
         title={displayTitle}
+        hasActiveEvolution={hasActiveEvolution}
+        onResumeDraft={onResumeDraft}
       />
 
       {/* Story Content */}
-      <Card className="p-8 bg-white">
-        <StoryEditor content={displayContent} readOnly />
-      </Card>
+      <StoryEditor content={displayContent} readOnly />
     </div>
   );
 }

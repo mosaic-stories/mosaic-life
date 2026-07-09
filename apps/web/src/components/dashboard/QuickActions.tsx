@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronUp, Loader2, PenLine, Plus, Users } from 'lucide-react';
+import { ChevronDown, ChevronUp, PenLine, Plus, Users } from 'lucide-react';
 import { useLegacies } from '@/features/legacy/hooks/useLegacies';
-import { useCreateStory } from '@/features/story/hooks/useStories';
 import InviteMemberModal from '@/features/members/components/InviteMemberModal';
 import { rewriteBackendUrlForDev } from '@/lib/url';
 
@@ -11,7 +10,6 @@ type PickerMode = 'story' | 'invite' | null;
 export default function QuickActions() {
   const navigate = useNavigate();
   const { data, isLoading } = useLegacies('all');
-  const createStory = useCreateStory();
 
   const [pickerMode, setPickerMode] = useState<PickerMode>(null);
   const [inviteModalOpen, setInviteModalOpen] = useState(false);
@@ -25,30 +23,14 @@ export default function QuickActions() {
     return legacy?.current_user_role || 'admirer';
   }, [legacies, selectedLegacyId]);
 
-  const createDraftStoryAndNavigate = async (legacyId: string) => {
-    try {
-      const title = `Untitled Story - ${new Date().toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })}`;
-      const newStory = await createStory.mutateAsync({
-        title,
-        content: '',
-        visibility: 'private',
-        status: 'draft',
-        legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
-      });
-      navigate(`/legacy/${legacyId}/story/${newStory.id}/evolve`);
-    } catch (error) {
-      console.error('Failed to create story:', error);
-    }
+  const navigateToNewStory = (legacyId: string) => {
+    navigate(`/legacy/${legacyId}/story/new`);
   };
 
-  const handleWriteStory = async () => {
+  const handleWriteStory = () => {
     if (legacies.length === 0) return;
     if (legacies.length === 1) {
-      await createDraftStoryAndNavigate(legacies[0].id);
+      navigateToNewStory(legacies[0].id);
       return;
     }
     setPickerMode((currentMode) => (currentMode === 'story' ? null : 'story'));
@@ -65,10 +47,10 @@ export default function QuickActions() {
     setPickerMode((currentMode) => (currentMode === 'invite' ? null : 'invite'));
   };
 
-  const handleLegacySelect = async (legacyId: string) => {
+  const handleLegacySelect = (legacyId: string) => {
     if (pickerMode === 'story') {
       setPickerMode(null);
-      await createDraftStoryAndNavigate(legacyId);
+      navigateToNewStory(legacyId);
       return;
     }
 
@@ -95,7 +77,7 @@ export default function QuickActions() {
       icon: PenLine,
       label: 'Write a Story',
       onClick: handleWriteStory,
-      disabled: isLoading || legacies.length === 0 || createStory.isPending,
+      disabled: isLoading || legacies.length === 0,
     },
     {
       icon: Users,
@@ -132,11 +114,7 @@ export default function QuickActions() {
               disabled={action.disabled}
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {action.label === 'Write a Story' && createStory.isPending ? (
-                <Loader2 className="size-4 animate-spin text-neutral-400" />
-              ) : (
-                <action.icon className="size-4 text-neutral-400" />
-              )}
+              <action.icon className="size-4 text-neutral-400" />
               {action.label}
             </button>
           ))}
@@ -156,7 +134,6 @@ export default function QuickActions() {
                   key={legacy.id}
                   type="button"
                   onClick={() => handleLegacySelect(legacy.id)}
-                  disabled={createStory.isPending}
                   className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <div className="size-10 flex-shrink-0 overflow-hidden rounded-full bg-neutral-100">
@@ -177,7 +154,7 @@ export default function QuickActions() {
                       {legacy.name}
                     </p>
                     <p className="text-[11px] text-neutral-500">
-                      {pickerMode === 'story' ? 'Open story draft workspace' : 'Open invitation dialog'}
+                      {pickerMode === 'story' ? 'Start writing' : 'Open invitation dialog'}
                     </p>
                   </div>
                 </button>

@@ -25,6 +25,7 @@ export interface EvolutionSession {
   story_id: string;
   base_version_number: number;
   conversation_id: string;
+  persona_id: string;
   draft_version_id: string | null;
   phase: EvolutionPhase;
   summary_text: string | null;
@@ -69,12 +70,16 @@ type EvolutionSSEEvent =
 
 // --- API Functions ---
 
+export type EnsureSessionTrigger = 'chat' | 'context' | 'rewrite' | 'manual_save';
+
 export function startEvolution(
   storyId: string,
-  personaId: string
+  personaId: string,
+  trigger?: EnsureSessionTrigger
 ): Promise<EvolutionSession> {
   return apiPost(`/api/stories/${storyId}/evolution`, {
     persona_id: personaId,
+    trigger,
   });
 }
 

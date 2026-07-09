@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ApiError } from '@/lib/api/client';
 
 const mocks = vi.hoisted(() => ({
   searchParams: new URLSearchParams(),
@@ -19,7 +18,6 @@ const mocks = vi.hoisted(() => ({
   activeEvolution: null,
   activeEvolutionError: null as Error | null,
   activeEvolutionLoading: false,
-  startEvolution: { mutateAsync: vi.fn(), isPending: false },
   saveDraft: { mutateAsync: vi.fn(), isPending: false },
   triggerRewrite: vi.fn(),
   abortRewrite: vi.fn(),
@@ -59,7 +57,6 @@ vi.mock('@/lib/hooks/useEvolution', () => ({
     error: mocks.activeEvolutionError,
     isLoading: mocks.activeEvolutionLoading,
   }),
-  useStartEvolution: () => mocks.startEvolution,
   useSaveManualDraft: () => mocks.saveDraft,
 }));
 
@@ -148,11 +145,6 @@ describe('EvolveWorkspace conversation handoff', () => {
     mocks.activeEvolution = null;
     mocks.activeEvolutionError = null;
     mocks.activeEvolutionLoading = false;
-    mocks.startEvolution.mutateAsync.mockReset();
-    mocks.startEvolution.mutateAsync.mockResolvedValue({
-      id: 'session-1',
-      draft_version_id: null,
-    });
     mocks.saveDraft.mutateAsync.mockReset();
     mocks.triggerRewrite.mockReset();
     mocks.abortRewrite.mockReset();
@@ -174,37 +166,28 @@ describe('EvolveWorkspace conversation handoff', () => {
     expect(mocks.createNewConversation).not.toHaveBeenCalled();
   });
 
-  it('keeps default seed mode when creating a new conversation without route handoff', async () => {
+  it('does not create a conversation on mount without a route handoff', async () => {
     renderWithProviders();
 
+    // Let effects settle, then assert nothing was created.
     await waitFor(() => {
-      const state = useEvolveWorkspaceStore.getState();
-      expect(state.conversationIds[state.activePersonaId]).toBe('new-conv');
+      expect(useEvolveWorkspaceStore.getState().seedMode).toBe('default');
     });
 
-    expect(useEvolveWorkspaceStore.getState().seedMode).toBe('default');
-    expect(mocks.createNewConversation).toHaveBeenCalledOnce();
+    const state = useEvolveWorkspaceStore.getState();
+    expect(state.conversationIds[state.activePersonaId]).toBeUndefined();
+    expect(mocks.createNewConversation).not.toHaveBeenCalled();
   });
 
-  it('bootstraps an evolution session when the active-session lookup returns 404', async () => {
-    mocks.activeEvolutionError = new ApiError(404, 'API Error: 404 Not Found');
+  it('does not bootstrap a session on mount even when the active-session lookup 404s', async () => {
+    mocks.activeEvolutionError = { status: 404 } as unknown as Error;
 
     renderWithProviders();
 
     await waitFor(() => {
-      expect(mocks.startEvolution.mutateAsync).toHaveBeenCalledWith('biographer');
-    });
-  });
-
-  it('does not bootstrap a session for non-404 active-session errors', async () => {
-    mocks.activeEvolutionError = new ApiError(500, 'API Error: 500 Internal Server Error');
-
-    renderWithProviders();
-
-    await waitFor(() => {
-      expect(mocks.createNewConversation).toHaveBeenCalledOnce();
+      expect(useEvolveWorkspaceStore.getState().seedMode).toBe('default');
     });
 
-    expect(mocks.startEvolution.mutateAsync).not.toHaveBeenCalled();
+    expect(mocks.createNewConversation).not.toHaveBeenCalled();
   });
 });

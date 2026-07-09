@@ -5,6 +5,10 @@
   min-height: 300px;
 }
 
+.story-editor--reading .tiptap {
+  min-height: 0;
+}
+
 .story-editor .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   float: left;

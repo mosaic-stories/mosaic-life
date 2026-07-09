@@ -13,7 +13,11 @@ from .associations import LegacyAssociationCreate, LegacyAssociationResponse
 class StoryCreate(BaseModel):
     """Schema for creating a new story."""
 
-    title: str = Field(..., min_length=1, max_length=500, description="Story title")
+    title: str | None = Field(
+        None,
+        max_length=500,
+        description="Story title (derived from content if omitted)",
+    )
     content: str = Field(
         default="", max_length=50000, description="Story content in Markdown"
     )
@@ -55,10 +59,10 @@ class StoryUpdate(BaseModel):
     """Schema for updating an existing story."""
 
     title: str | None = Field(
-        None, min_length=1, max_length=500, description="Story title"
+        None, max_length=500, description="Story title (derived from content if blank)"
     )
     content: str | None = Field(
-        None, min_length=1, max_length=50000, description="Story content in Markdown"
+        None, max_length=50000, description="Story content in Markdown"
     )
     visibility: Literal["public", "private", "personal"] | None = Field(
         None,

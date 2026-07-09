@@ -36,10 +36,18 @@ export default function StoryEditor({
 
   if (!editor) return null;
 
+  if (readOnly) {
+    return (
+      <div className="story-editor story-editor--reading font-serif text-[17px] leading-relaxed">
+        <EditorContent editor={editor} />
+      </div>
+    );
+  }
+
   return (
     <div className="story-editor rounded-lg border border-neutral-200 bg-white overflow-hidden focus-within:border-theme-primary focus-within:ring-2 focus-within:ring-theme-primary/20 transition-colors">
-      {!readOnly && <EditorToolbar editor={editor} legacyId={legacyId} />}
-      <div className={readOnly ? 'px-0 py-0' : 'px-6 py-4'}>
+      <EditorToolbar editor={editor} legacyId={legacyId} />
+      <div className="px-6 py-4">
         <EditorContent editor={editor} />
       </div>
     </div>

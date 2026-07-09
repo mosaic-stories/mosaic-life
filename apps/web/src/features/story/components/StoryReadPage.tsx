@@ -1,16 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
-import { Loader2, Globe, Users, Lock, Sparkles } from 'lucide-react';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Loader2, Globe, Users, Lock } from 'lucide-react';
 import VersionHistoryDrawer from './VersionHistoryDrawer';
 import StoryToolbar from './StoryToolbar';
 import StoryViewer from './StoryViewer';
 import DeleteStoryDialog from './DeleteStoryDialog';
-import EvolutionResumeBanner from './EvolutionResumeBanner';
 import { useLegacy } from '@/features/legacy/hooks/useLegacies';
-import { useStory, useDeleteStory, storyKeys } from '@/features/story/hooks/useStories';
+import { useStory, useDeleteStory } from '@/features/story/hooks/useStories';
 import {
   useVersions,
   useVersionDetail,
@@ -18,12 +14,12 @@ import {
   useApproveDraft,
   useDiscardDraft,
 } from '@/features/story/hooks/useVersions';
-import { useActiveEvolution, evolutionKeys } from '@/lib/hooks/useEvolution';
-import { discardActiveEvolution } from '@/lib/api/evolution';
+import { useActiveEvolution } from '@/lib/hooks/useEvolution';
 import { useAuth } from '@/contexts/AuthContext';
 import { SEOHead } from '@/components/seo';
+import { getStoryDisplayTitle } from '@/features/story/utils/displayTitle';
 
-interface StoryCreationProps {
+interface StoryReadPageProps {
   legacyId: string;
   storyId?: string;
 }
@@ -38,26 +34,18 @@ const VISIBILITY_MAP = {
   personal: { icon: Lock, label: 'Personal', description: 'Only you can see this story' },
 } as const;
 
-export default function StoryCreation({ legacyId, storyId }: StoryCreationProps) {
+export default function StoryReadPage({ legacyId, storyId }: StoryReadPageProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [visibility, setVisibility] = useState<'public' | 'private' | 'personal'>('private');
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [previewVersionNumber, setPreviewVersionNumber] = useState<number | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
-  const queryClient = useQueryClient();
-  const [isDiscardingEvolution, setIsDiscardingEvolution] = useState(false);
-
-  const { data: legacy, isLoading: _legacyLoading } = useLegacy(legacyId);
+  const { data: legacy } = useLegacy(legacyId);
   const { data: existingStory, isLoading: storyLoading } = useStory(storyId);
   const { data: activeEvolution, isSuccess: hasEvolutionData } = useActiveEvolution(storyId, !!storyId);
   const deleteStory = useDeleteStory();
-  const isEditMode = !!storyId;
 
-  // Version history (only fetch when drawer is open)
   const isAuthor = useMemo(() => {
     if (!existingStory || !user) return false;
 
@@ -66,6 +54,7 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
     return normalizeEmail(existingStory.author_email) === normalizeEmail(user.email);
   }, [existingStory, user]);
 
+  const canEdit = !!existingStory && !!user && isAuthor;
   const showHistory = isAuthor && (existingStory?.version_count ?? 0) > 1;
   const versionsQuery = useVersions(storyId ?? '', isHistoryOpen && !!storyId);
   const versionDetailQuery = useVersionDetail(storyId ?? '', previewVersionNumber);
@@ -75,34 +64,17 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
 
   // When previewing a version, use its content instead of the story's
   const previewData = versionDetailQuery.data;
-  const displayTitle = previewData ? previewData.title : title;
-  const displayContent = previewData ? previewData.content : content;
+  const displayTitle = previewData
+    ? getStoryDisplayTitle(previewData.title, previewData.created_at)
+    : existingStory
+      ? getStoryDisplayTitle(existingStory.title, existingStory.created_at)
+      : '';
+  const displayContent = previewData ? previewData.content : (existingStory?.content ?? '');
   const isPreviewing = previewVersionNumber !== null && previewData !== undefined;
   const isPreviewActive = previewData?.status === 'active';
 
-  // Check if user can edit this story (author-only)
-  const canEdit = useMemo(() => {
-    return !!existingStory && !!user && isAuthor;
-  }, [existingStory, user, isAuthor]);
-
   const hasActiveEvolution = hasEvolutionData && !!activeEvolution
     && !['completed', 'discarded'].includes(activeEvolution.phase);
-
-  // Guard: if no storyId, redirect to legacy page (creation now goes through evolve)
-  useEffect(() => {
-    if (!storyId) {
-      navigate(`/legacy/${legacyId}`, { replace: true });
-    }
-  }, [storyId, legacyId, navigate]);
-
-  // Populate form with existing story data when editing
-  useEffect(() => {
-    if (existingStory) {
-      setTitle(existingStory.title);
-      setContent(existingStory.content);
-      setVisibility(existingStory.visibility);
-    }
-  }, [existingStory]);
 
   const handleSelectVersion = (versionNumber: number) => {
     setPreviewVersionNumber(versionNumber);
@@ -137,19 +109,8 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
     navigate(`/legacy/${legacyId}/story/${storyId}/evolve`);
   };
 
-  const handleDiscardEvolution = async () => {
-    if (!storyId) return;
-    setIsDiscardingEvolution(true);
-    try {
-      await discardActiveEvolution(storyId);
-    } catch (err) {
-      console.error('Failed to discard evolution session:', err);
-    } finally {
-      queryClient.setQueryData(evolutionKeys.active(storyId), null);
-      queryClient.removeQueries({ queryKey: evolutionKeys.active(storyId) });
-      await queryClient.invalidateQueries({ queryKey: storyKeys.detail(storyId) });
-      setIsDiscardingEvolution(false);
-    }
+  const handleEdit = () => {
+    navigate(`/legacy/${legacyId}/story/${storyId}/edit`);
   };
 
   const handleDeleteStory = async () => {
@@ -164,8 +125,8 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
 
   const legacyName = legacy?.name || 'Legacy';
 
-  // Show loading state while fetching existing story
-  if (isEditMode && storyLoading) {
+  // Show loading state while fetching the story
+  if (!storyId || storyLoading) {
     return (
       <div className="min-h-screen bg-theme-background flex items-center justify-center">
         <Loader2 className="size-8 animate-spin text-theme-primary" />
@@ -173,12 +134,10 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
     );
   }
 
-  // If no storyId, render nothing (redirect effect will fire)
-  if (!storyId) {
-    return null;
-  }
-
-  const visibilityInfo = VISIBILITY_MAP[visibility];
+  const visibilityInfo = VISIBILITY_MAP[existingStory?.visibility ?? 'private'];
+  const displayableTitle = existingStory
+    ? getStoryDisplayTitle(existingStory.title, existingStory.created_at)
+    : 'Story';
 
   const associatedLegaciesLabel = existingStory?.legacies?.length
     ? existingStory.legacies
@@ -191,63 +150,42 @@ export default function StoryCreation({ legacyId, storyId }: StoryCreationProps)
   return (
     <div className="min-h-screen bg-theme-background transition-colors duration-300">
       <SEOHead
-        title={existingStory?.title ?? 'Story'}
+        title={displayableTitle}
         description="View this story"
         noIndex={true}
       />
       <StoryToolbar
         legacyId={legacyId}
         legacyName={legacyName}
-        storyTitle={existingStory?.title ?? 'Story'}
-        isEditMode={isEditMode}
+        storyTitle={displayableTitle}
         canEdit={canEdit}
         showHistory={showHistory}
         versionCount={existingStory?.version_count ?? null}
-        hasActiveEvolution={hasActiveEvolution}
         canDelete={canEdit}
         onOpenHistory={() => setIsHistoryOpen(true)}
+        onEdit={handleEdit}
         onEvolve={handleNavigateToEvolve}
         onDelete={() => setShowDeleteDialog(true)}
       />
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <div className="space-y-8">
-          {/* Evolution resume banner */}
-          {hasActiveEvolution && (
-            <EvolutionResumeBanner
-              onContinue={handleNavigateToEvolve}
-              onDiscard={handleDiscardEvolution}
-              isDiscarding={isDiscardingEvolution}
-            />
-          )}
-
-          {/* Draft story CTA */}
-          {existingStory?.status === 'draft' && (
-            <Card className="border-amber-200 bg-amber-50 p-4 text-center">
-              <p className="text-sm text-amber-800 mb-2">This story is still a draft.</p>
-              <Button size="sm" onClick={handleNavigateToEvolve}>
-                <Sparkles className="size-4 mr-2" />
-                Continue in Workspace
-              </Button>
-            </Card>
-          )}
-
-          <StoryViewer
-            displayTitle={displayTitle}
-            displayContent={displayContent}
-            visibilityIcon={visibilityInfo.icon}
-            visibilityLabel={visibilityInfo.label}
-            authorName={existingStory?.author_name}
-            createdAt={existingStory?.created_at}
-            associatedLegaciesLabel={associatedLegaciesLabel}
-            isPreviewing={isPreviewing}
-            previewData={previewData}
-            isPreviewActive={isPreviewActive}
-            onRestore={handleRestore}
-            isRestoring={restoreVersionMutation.isPending}
-          />
-        </div>
+        <StoryViewer
+          displayTitle={displayTitle}
+          displayContent={displayContent}
+          visibilityIcon={visibilityInfo.icon}
+          visibilityLabel={visibilityInfo.label}
+          authorName={existingStory?.author_name}
+          createdAt={existingStory?.created_at}
+          associatedLegaciesLabel={associatedLegaciesLabel}
+          isPreviewing={isPreviewing}
+          previewData={previewData}
+          isPreviewActive={isPreviewActive}
+          onRestore={handleRestore}
+          isRestoring={restoreVersionMutation.isPending}
+          hasActiveEvolution={!!hasActiveEvolution}
+          onResumeDraft={handleNavigateToEvolve}
+        />
       </main>
 
       {/* Delete Story Dialog */}

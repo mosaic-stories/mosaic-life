@@ -28,11 +28,13 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useStoryContext, useExtractContext, useUpdateFactStatus } from '../hooks/useStoryContext';
+import { useEnsureEvolveSession } from '../hooks/useEnsureEvolveSession';
 import { useEvolveWorkspaceStore } from '../store/useEvolveWorkspaceStore';
 import type { ContextFact, FactCategory, FactStatus } from '../api/storyContext';
 
 interface ContextToolProps {
   storyId: string;
+  legacyId: string;
 }
 
 const CATEGORY_CONFIG: Record<
@@ -63,10 +65,11 @@ const FILTER_OPTIONS: Array<{ id: FactCategory | 'all'; label: string }> = [
   ...CATEGORY_ORDER.map((c) => ({ id: c, label: CATEGORY_CONFIG[c].label })),
 ];
 
-export function ContextTool({ storyId }: ContextToolProps) {
+export function ContextTool({ storyId, legacyId }: ContextToolProps) {
   const { data: context, isLoading } = useStoryContext(storyId);
   const extractMutation = useExtractContext(storyId);
   const updateFact = useUpdateFactStatus(storyId);
+  const ensureSession = useEnsureEvolveSession(storyId, legacyId);
 
   const contextFilter = useEvolveWorkspaceStore((s) => s.contextFilter);
   const setContextFilter = useEvolveWorkspaceStore((s) => s.setContextFilter);
@@ -74,6 +77,9 @@ export function ContextTool({ storyId }: ContextToolProps) {
   // Auto-trigger extraction on first visit if no context exists
   useEffect(() => {
     if (context === null && !extractMutation.isPending) {
+      ensureSession('context').catch((err) => {
+        console.error('Failed to ensure evolve session for context extraction:', err);
+      });
       extractMutation.mutate(false);
     }
   }, [context]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -88,6 +94,9 @@ export function ContextTool({ storyId }: ContextToolProps) {
   };
 
   const handleRefresh = () => {
+    ensureSession('context').catch((err) => {
+      console.error('Failed to ensure evolve session for context extraction:', err);
+    });
     extractMutation.mutate(true);
   };
 

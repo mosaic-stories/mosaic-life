@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from uuid import UUID
 
 from fastapi import HTTPException
+from opentelemetry import trace
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -38,6 +39,9 @@ logger = logging.getLogger(__name__)
 
 # Maximum length for content preview
 PREVIEW_MAX_LENGTH = 200
+
+# Maximum length for a derived working title
+TITLE_MAX_LENGTH = 60
 
 MEDIA_OBJECT_PATH_RE = re.compile(r"^/users/[0-9a-fA-F-]+/([0-9a-fA-F-]{36})\.[^/]+$")
 
@@ -122,6 +126,57 @@ def create_content_preview(content: str, max_length: int = PREVIEW_MAX_LENGTH) -
         truncated = truncated[:last_space]
 
     return truncated.rstrip(".,;:!?") + "..."
+
+
+def _strip_markdown_line(text: str) -> str:
+    """Strip common Markdown syntax from a single line of text."""
+    # Strip HTML tags
+    text = re.sub(r"<[^>]+>", "", text)
+    # Check if this line is just a fenced code block or tilde block marker
+    if re.match(r"^`{3,}[a-zA-Z0-9+-]*\s*$", text) or re.match(
+        r"^~{3,}[a-zA-Z0-9+-]*\s*$", text
+    ):
+        return ""
+    text = re.sub(r"^#{1,6}\s+", "", text)
+    text = re.sub(r"\*{1,3}([^*]+)\*{1,3}", r"\1", text)
+    text = re.sub(r"_{1,3}([^_]+)_{1,3}", r"\1", text)
+    text = re.sub(r"!\[[^\]]*\]\([^)]+\)", "", text)
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"`([^`]+)`", r"\1", text)
+    text = re.sub(r"^>\s+", "", text)
+    text = re.sub(r"^[-*_]{3,}$", "", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def derive_title_from_content(content: str, max_length: int = TITLE_MAX_LENGTH) -> str:
+    """Derive a working title from the first non-empty line of content.
+
+    Strips Markdown syntax and truncates to ~max_length characters on a word
+    boundary. Returns "" when content has no non-empty lines.
+
+    Args:
+        content: Full story content (Markdown)
+        max_length: Maximum title length
+
+    Returns:
+        Derived title, or "" if content has no usable text
+    """
+    for raw_line in content.splitlines():
+        line = _strip_markdown_line(raw_line)
+        if not line:
+            continue
+
+        if len(line) <= max_length:
+            return line
+
+        truncated = line[:max_length]
+        last_space = truncated.rfind(" ")
+        if last_space > max_length * 0.5:
+            truncated = truncated[:last_space]
+
+        return truncated.rstrip(".,;:!?")
+
+    return ""
 
 
 async def _get_legacy_names(
@@ -211,10 +266,18 @@ async def create_story(
 
     await _ensure_contributor_access(db, user_id, legacy_ids)
 
+    provided_title = (data.title or "").strip()
+    if provided_title:
+        title = provided_title
+        title_derived = False
+    else:
+        title = derive_title_from_content(data.content)
+        title_derived = bool(title)
+
     # Create story (without legacy_id - using many-to-many)
     story = Story(
         author_id=user_id,
-        title=data.title,
+        title=title,
         content=data.content,
         visibility=data.visibility,
         status=data.status,
@@ -236,7 +299,7 @@ async def create_story(
     await create_story_version(
         db=db,
         story=story,
-        title=data.title,
+        title=title,
         content=data.content,
         source="manual_edit",
         user_id=user_id,
@@ -260,6 +323,7 @@ async def create_story(
         for leg in sorted(data.legacies, key=lambda x: x.position)
     ]
 
+    trace.get_current_span().set_attribute("title_derived", title_derived)
     logger.info(
         "story.created",
         extra={
@@ -267,6 +331,7 @@ async def create_story(
             "legacy_ids": [str(lid) for lid in legacy_ids],
             "author_id": str(user_id),
             "visibility": data.visibility,
+            "title_derived": title_derived,
         },
     )
 
@@ -1047,12 +1112,23 @@ async def update_story(
             detail="Only the story author can update this story",
         )
 
-    # Determine if title/content changed (versioned fields)
-    new_title = data.title if data.title is not None else story.title
+    # Determine new title/content (versioned fields).
+    # Omitted title (None) leaves the stored title untouched; an explicitly
+    # blank title falls back to a working title derived from content.
     new_content = data.content if data.content is not None else story.content
-    content_changed = (data.title is not None and data.title != story.title) or (
-        data.content is not None and data.content != story.content
-    )
+
+    title_derived = False
+    if data.title is not None:
+        provided_title = data.title.strip()
+        if provided_title:
+            new_title = provided_title
+        else:
+            new_title = derive_title_from_content(new_content)
+            title_derived = bool(new_title)
+    else:
+        new_title = story.title
+
+    content_changed = new_title != story.title or new_content != story.content
 
     version_number = None
     if content_changed:
@@ -1112,11 +1188,13 @@ async def update_story(
     legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
     legacy_names = await _get_legacy_names(db, legacy_ids)
 
+    trace.get_current_span().set_attribute("title_derived", title_derived)
     logger.info(
         "story.updated",
         extra={
             "story_id": str(story_id),
             "user_id": str(user_id),
+            "title_derived": title_derived,
         },
     )
 

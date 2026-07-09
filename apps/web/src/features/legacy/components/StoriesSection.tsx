@@ -15,7 +15,6 @@ export interface StoriesSectionProps {
   onStoryClick: (storyId: string) => void;
   onAddStory: () => void;
   canAddStory?: boolean;
-  isCreatingStory?: boolean;
 }
 
 export default function StoriesSection({
@@ -25,7 +24,6 @@ export default function StoriesSection({
   onStoryClick,
   onAddStory,
   canAddStory = true,
-  isCreatingStory = false,
 }: StoriesSectionProps) {
   const { user } = useAuth();
   const [sortBy, setSortBy] = useState<SortOption>('recent');
@@ -99,14 +97,10 @@ export default function StoriesSection({
       {canAddStory && (
         <div
           className="border-2 border-dashed border-stone-300 rounded-xl p-8 text-center cursor-pointer hover:border-theme-accent transition-colors"
-          onClick={isCreatingStory ? undefined : onAddStory}
+          onClick={onAddStory}
         >
           <div className="size-11 rounded-full bg-stone-100 flex items-center justify-center mx-auto mb-3">
-            {isCreatingStory ? (
-              <Loader2 className="size-5 text-theme-primary animate-spin" />
-            ) : (
-              <PenLine className="size-5 text-neutral-500" />
-            )}
+            <PenLine className="size-5 text-neutral-500" />
           </div>
           <p className="font-serif text-base font-semibold text-neutral-900">Share a Memory</p>
           <p className="text-[13px] text-neutral-400 mt-1">Write a story or start a conversation with AI</p>

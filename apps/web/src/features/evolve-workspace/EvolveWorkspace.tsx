@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -9,12 +9,10 @@ import {
 } from '@/components/ui/resizable';
 import { useStory, storyKeys, useUpdateStory } from '@/features/story/hooks/useStories';
 import { useIsMobile } from '@/components/ui/use-mobile';
-import { ApiError } from '@/lib/api/client';
 import {
   evolutionKeys,
   useActiveEvolution,
   useSaveManualDraft,
-  useStartEvolution,
 } from '@/lib/hooks/useEvolution';
 import { discardActiveEvolution, acceptEvolution } from '@/lib/api/evolution';
 import { WorkspaceHeader } from './components/WorkspaceHeader';
@@ -24,11 +22,11 @@ import { ToolPanel } from './components/ToolPanel';
 import { MobileToolSheet } from './components/MobileToolSheet';
 import { MobileBottomBar } from './components/MobileBottomBar';
 import { useAIRewrite } from './hooks/useAIRewrite';
+import { useEnsureEvolveSession } from './hooks/useEnsureEvolveSession';
 import { storyContextKeys } from './hooks/useStoryContext';
 import type { StoryContextResponse } from './api/storyContext';
 import { type ToolId, useEvolveWorkspaceStore } from './store/useEvolveWorkspaceStore';
 import { useAIChatStore } from '@/features/ai-chat/store/aiChatStore';
-import { createNewConversation } from '@/features/ai-chat/api/ai';
 
 /** Reset both workspace stores (no React hook needed). */
 function resetAllStores() {
@@ -57,18 +55,13 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
   const [isDiscarding, setIsDiscarding] = useState(false);
   const [isFinishing, setIsFinishing] = useState(false);
   const [title, setTitle] = useState('Untitled');
-  const bootstrapAttemptedRef = useRef(false);
 
   const { data: story, isLoading } = useStory(storyId);
   const updateStory = useUpdateStory();
-  const {
-    data: activeEvolution,
-    error: activeEvolutionError,
-    isLoading: isActiveEvolutionLoading,
-  } = useActiveEvolution(storyId);
-  const startEvolution = useStartEvolution(storyId);
+  const { data: activeEvolution } = useActiveEvolution(storyId);
   const saveDraft = useSaveManualDraft(storyId);
   const { triggerRewrite, abort: abortRewrite } = useAIRewrite(storyId);
+  const ensureSession = useEnsureEvolveSession(storyId, legacyId);
 
   const hasDraft = !!activeEvolution?.draft_version_id;
   const sessionId = activeEvolution?.id;
@@ -94,40 +87,14 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     }
   }, [story?.source_conversation_id, evolveConversationId, setSeedMode]);
 
-  // If a conversation_id was passed via the URL (from evolve), use it directly
-  // instead of creating a new conversation.
+  // If a conversation_id was passed via the URL (from a deliberate "Discuss"
+  // action elsewhere), wire it up directly — this reads an existing
+  // conversation, it never creates one.
   useEffect(() => {
     if (evolveConversationId && !conversationIds[activePersonaId]) {
       setConversationForPersona(activePersonaId, evolveConversationId);
     }
   }, [evolveConversationId, activePersonaId, conversationIds, setConversationForPersona]);
-
-  // Create a conversation for the active persona when it doesn't exist yet.
-  useEffect(() => {
-    if (conversationIds[activePersonaId] || evolveConversationId) return;
-
-    let mounted = true;
-
-    async function initConversation() {
-      try {
-        const conv = await createNewConversation({
-          persona_id: activePersonaId,
-          legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
-        });
-        if (mounted) {
-          setConversationForPersona(activePersonaId, conv.id);
-        }
-      } catch (err) {
-        console.error('Failed to create evolve conversation:', err);
-      }
-    }
-
-    initConversation();
-
-    return () => {
-      mounted = false;
-    };
-  }, [activePersonaId, legacyId, conversationIds, setConversationForPersona, evolveConversationId]);
 
   // Reset stores on unmount so navigation away starts clean.
   useEffect(() => {
@@ -149,36 +116,6 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     }
   }, [story?.title]);
 
-  useEffect(() => {
-    if (!storyId || !story || activeEvolution || isActiveEvolutionLoading || startEvolution.isPending) {
-      return;
-    }
-
-    if (!(activeEvolutionError instanceof ApiError) || activeEvolutionError.status !== 404) {
-      return;
-    }
-
-    if (bootstrapAttemptedRef.current) {
-      return;
-    }
-    bootstrapAttemptedRef.current = true;
-
-    void startEvolution.mutateAsync('biographer').catch((error) => {
-      bootstrapAttemptedRef.current = false;
-      console.error('Failed to bootstrap evolution session:', error);
-    });
-  }, [
-    storyId,
-    story,
-    activeEvolution,
-    activeEvolutionError,
-    isActiveEvolutionLoading,
-    startEvolution,
-  ]);
-
-  const isBootstrappingSession =
-    !activeEvolution && (isActiveEvolutionLoading || startEvolution.isPending);
-
   const handleContentChange = useCallback((markdown: string) => {
     setContent(markdown);
     setIsDirty(true);
@@ -186,17 +123,25 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
 
   const handleSaveDraft = useCallback(async () => {
     if (!story) return;
+    if (!sessionId) {
+      await ensureSession('manual_save');
+    }
     await saveDraft.mutateAsync({
       title,
       content,
     });
     setIsDirty(false);
-  }, [story, title, content, saveDraft]);
+  }, [story, sessionId, ensureSession, title, content, saveDraft]);
 
   const handleFinish = useCallback(async (visibility?: 'public' | 'private' | 'personal') => {
-    if (!sessionId || !story) return;
+    if (!story) return;
     setIsFinishing(true);
     try {
+      let activeSessionId = sessionId;
+      if (!activeSessionId) {
+        const ensured = await ensureSession('manual_save');
+        activeSessionId = ensured.session.id;
+      }
       // Auto-save draft if there are unsaved changes
       if (isDirty) {
         await saveDraft.mutateAsync({
@@ -206,7 +151,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
         setIsDirty(false);
       }
       // Accept the session (promotes draft to active, completes session)
-      await acceptEvolution(storyId, sessionId, { visibility });
+      await acceptEvolution(storyId, activeSessionId, { visibility });
       // Clear caches
       queryClient.removeQueries({ queryKey: evolutionKeys.all });
       await queryClient.invalidateQueries({ queryKey: storyKeys.detail(storyId) });
@@ -217,7 +162,7 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     } finally {
       setIsFinishing(false);
     }
-  }, [sessionId, story, isDirty, title, content, storyId, legacyId, saveDraft, queryClient, navigate]);
+  }, [sessionId, story, ensureSession, isDirty, title, content, storyId, legacyId, saveDraft, queryClient, navigate]);
 
   const handleUpdateTitle = useCallback(
     async (nextTitle: string) => {
@@ -239,7 +184,9 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     [storyId, title, updateStory],
   );
 
-  const handleRewrite = useCallback(() => {
+  const handleRewrite = useCallback(async () => {
+    const { conversationId: ensuredConversationId } = await ensureSession('rewrite');
+
     // Gather pinned facts from context panel
     const context = queryClient.getQueryData<StoryContextResponse | null>(
       storyContextKeys.detail(storyId),
@@ -249,14 +196,14 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
       .map(({ category, content: factContent, detail }) => ({ category, content: factContent, detail }));
 
     triggerRewrite(content, {
-      conversation_id: conversationId,
+      conversation_id: ensuredConversationId,
       pinned_context_ids: pinnedContextIds,
       writing_style: writingStyle,
       length_preference: lengthPreference,
       context_summary: context?.summary ?? undefined,
       pinned_facts: pinnedFacts,
     });
-  }, [content, conversationId, pinnedContextIds, writingStyle, lengthPreference, triggerRewrite, queryClient, storyId]);
+  }, [content, ensureSession, pinnedContextIds, writingStyle, lengthPreference, triggerRewrite, queryClient, storyId]);
 
   const handleAcceptRewrite = useCallback(
     (rewrittenContent: string) => {
@@ -326,14 +273,6 @@ export default function EvolveWorkspace({ storyId: propStoryId, legacyId: propLe
     return (
       <div className="h-[calc(100dvh-3.5rem)] flex items-center justify-center">
         <span className="text-neutral-400">Loading workspace...</span>
-      </div>
-    );
-  }
-
-  if (isBootstrappingSession) {
-    return (
-      <div className="h-[calc(100dvh-3.5rem)] flex items-center justify-center">
-        <span className="text-neutral-400">Preparing evolve workspace...</span>
       </div>
     );
   }

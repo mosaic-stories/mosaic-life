@@ -49,6 +49,7 @@ async def start_evolution(
         story_id=story_id,
         user_id=session_data.user_id,
         persona_id=data.persona_id,
+        trigger=data.trigger,
     )
 
     # Generate opening message from the persona (best-effort, non-blocking)
