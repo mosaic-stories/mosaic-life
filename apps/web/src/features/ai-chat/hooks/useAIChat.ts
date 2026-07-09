@@ -226,7 +226,11 @@ export function useAIChat({
 
       let conversationId = activeConversationId;
       if (!conversationId) {
-        if (!ensureConversationId) return;
+        if (!ensureConversationId) {
+          setError('No conversation is active and unable to create one automatically.');
+          console.error('[useAIChat] sendMessage called in lazy/manual-create mode but ensureConversationId is not provided.');
+          return;
+        }
         try {
           conversationId = await ensureConversationId();
         } catch (err) {

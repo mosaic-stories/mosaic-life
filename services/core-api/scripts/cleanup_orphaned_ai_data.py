@@ -68,7 +68,7 @@ def _orphaned_draft_ids_query(cutoff: datetime):
         func.trim(Story.content) == "",
         or_(
             func.trim(Story.title) == "",
-            Story.title.like("Untitled Story%"),
+            Story.title.like("Untitled Story - %"),
         ),
     )
 

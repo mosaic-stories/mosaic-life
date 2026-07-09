@@ -61,12 +61,46 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
   // server data.
   const hasEditedRef = useRef(false);
   useEffect(() => {
-    if (existingStory && !hasEditedRef.current) {
+    if (existingStory && existingStory.id === storyId && !hasEditedRef.current) {
       setTitle(existingStory.title);
       setContent(existingStory.content);
       setVisibility(existingStory.visibility);
     }
-  }, [existingStory]);
+  }, [existingStory, storyId]);
+
+  // Synchronize component state and refs when storyId changes (e.g. when navigating between different edit routes)
+  useEffect(() => {
+    // Only reset if the storyId physically changed from what we have in effectiveIdRef.current.
+    // This allows us to transition seamlessly from '/new' (storyId=undefined) to the newly created UUID
+    // edit route after the first keystroke causes runCreate to update effectiveIdRef.current.
+    if (storyId !== effectiveIdRef.current) {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+
+      effectiveIdRef.current = storyId;
+      hasCreatedRef.current = !isNew;
+      creatingRef.current = false;
+      hasEditedRef.current = false;
+      isSavingRef.current = false;
+      pendingSaveRef.current = false;
+
+      // Reset states. If the newly loaded story's query cache data is already available
+      // and matches the new storyId, we can sync immediately; otherwise reset to empty
+      // and let the existingStory-synchronizing effect handle hydration when data arrives.
+      if (existingStory && existingStory.id === storyId && !isNew) {
+        setTitle(existingStory.title);
+        setContent(existingStory.content);
+        setVisibility(existingStory.visibility);
+      } else {
+        setTitle('');
+        setContent(seedQuote ? `> ${seedQuote}\n\n` : '');
+        setVisibility('private');
+      }
+      setSaveState('idle');
+    }
+  }, [storyId, isNew, seedQuote, existingStory]);
 
   useEffect(() => {
     return () => {

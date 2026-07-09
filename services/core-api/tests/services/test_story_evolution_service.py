@@ -42,9 +42,16 @@ class TestStartEvolutionSession:
         test_story: Story,
         test_legacy: Legacy,
     ) -> None:
-        before = evolution_service.EVOLVE_SESSIONS_STARTED.labels(
-            trigger="chat"
-        )._value.get()
+        from prometheus_client import REGISTRY
+
+        # Initialize the metric series
+        evolution_service.EVOLVE_SESSIONS_STARTED.labels(trigger="chat")
+        before = (
+            REGISTRY.get_sample_value(
+                "evolve_sessions_started_total", {"trigger": "chat"}
+            )
+            or 0.0
+        )
 
         await evolution_service.start_session(
             db=db_session,
@@ -54,10 +61,13 @@ class TestStartEvolutionSession:
             trigger="chat",
         )
 
-        after = evolution_service.EVOLVE_SESSIONS_STARTED.labels(
-            trigger="chat"
-        )._value.get()
-        assert after == before + 1
+        after = (
+            REGISTRY.get_sample_value(
+                "evolve_sessions_started_total", {"trigger": "chat"}
+            )
+            or 0.0
+        )
+        assert after == before + 1.0
 
     @pytest.mark.asyncio
     async def test_start_session_non_author_forbidden(
