@@ -13,6 +13,7 @@ import { SEOHead, getLegacySchema } from '@/components/seo';
 import type { LegacySchemaInput } from '@/components/seo';
 import { useAuth } from '@/contexts/AuthContext';
 import ProfileHeader from './ProfileHeader';
+import InvitePromptCard from './InvitePromptCard';
 import SectionNav from './SectionNav';
 import type { SectionId } from './SectionNav';
 import StoriesSection from './StoriesSection';
@@ -191,6 +192,10 @@ export default function LegacyProfile({ legacyId }: LegacyProfileProps) {
         onEdit={() => navigate(`/legacy/${legacyId}/edit`)}
         onDelete={() => setShowDeleteDialog(true)}
       />
+
+      {isMember && (
+        <InvitePromptCard legacy={legacy} currentUserRole={currentUserRole} />
+      )}
 
       <SectionNav
         activeSection={activeSection}

@@ -90,6 +90,10 @@ vi.mock('./SectionNav', () => ({
   ),
 }));
 
+vi.mock('./InvitePromptCard', () => ({
+  default: () => null,
+}));
+
 vi.mock('./StoriesSection', () => ({
   default: (props: { canAddStory?: boolean }) => (
     <div data-testid="stories-section" data-can-add-story={String(props.canAddStory)} />

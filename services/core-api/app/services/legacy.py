@@ -15,6 +15,7 @@ from ..models.associations import StoryLegacy
 from ..adapters.storage import get_storage_adapter
 from ..models.legacy import Legacy, LegacyMember
 from ..models.person import Person
+from ..models.story import Story
 from ..models.user import User
 from ..schemas.legacy import (
     LegacyCreate,
@@ -108,6 +109,61 @@ async def get_story_counts(db: AsyncSession, legacy_ids: list[UUID]) -> dict[UUI
         select(StoryLegacy.legacy_id, func.count(StoryLegacy.story_id))
         .where(StoryLegacy.legacy_id.in_(legacy_ids))
         .group_by(StoryLegacy.legacy_id)
+    )
+    counts = {row[0]: row[1] for row in result.all()}
+    return {lid: counts.get(lid, 0) for lid in legacy_ids}
+
+
+async def get_published_story_count(db: AsyncSession, legacy_id: UUID) -> int:
+    """Get the number of published stories associated with a legacy."""
+    result = await db.execute(
+        select(func.count(StoryLegacy.story_id))
+        .join(Story, Story.id == StoryLegacy.story_id)
+        .where(StoryLegacy.legacy_id == legacy_id, Story.status == "published")
+    )
+    return result.scalar() or 0
+
+
+async def get_published_story_counts(
+    db: AsyncSession, legacy_ids: list[UUID]
+) -> dict[UUID, int]:
+    """Get published story counts for multiple legacies in a single query."""
+    if not legacy_ids:
+        return {}
+    result = await db.execute(
+        select(StoryLegacy.legacy_id, func.count(StoryLegacy.story_id))
+        .join(Story, Story.id == StoryLegacy.story_id)
+        .where(StoryLegacy.legacy_id.in_(legacy_ids), Story.status == "published")
+        .group_by(StoryLegacy.legacy_id)
+    )
+    counts = {row[0]: row[1] for row in result.all()}
+    return {lid: counts.get(lid, 0) for lid in legacy_ids}
+
+
+async def get_member_count(db: AsyncSession, legacy_id: UUID) -> int:
+    """Get the number of non-pending members of a legacy."""
+    result = await db.execute(
+        select(func.count(LegacyMember.user_id)).where(
+            LegacyMember.legacy_id == legacy_id,
+            LegacyMember.role != "pending",
+        )
+    )
+    return result.scalar() or 0
+
+
+async def get_member_counts(
+    db: AsyncSession, legacy_ids: list[UUID]
+) -> dict[UUID, int]:
+    """Get non-pending member counts for multiple legacies in a single query."""
+    if not legacy_ids:
+        return {}
+    result = await db.execute(
+        select(LegacyMember.legacy_id, func.count(LegacyMember.user_id))
+        .where(
+            LegacyMember.legacy_id.in_(legacy_ids),
+            LegacyMember.role != "pending",
+        )
+        .group_by(LegacyMember.legacy_id)
     )
     counts = {row[0]: row[1] for row in result.all()}
     return {lid: counts.get(lid, 0) for lid in legacy_ids}
@@ -281,6 +337,9 @@ async def create_legacy(
         person_id=legacy.person_id,
         favorite_count=legacy.favorite_count or 0,
         story_count=0,
+        published_story_count=0,
+        member_count=1,
+        invite_prompt_dismissed_at=legacy.invite_prompt_dismissed_at,
     )
 
 
@@ -326,6 +385,8 @@ async def list_user_legacies(
     # Batch-fetch story counts
     legacy_ids = [legacy.id for legacy, _ in legacies]
     story_counts = await get_story_counts(db, legacy_ids)
+    published_story_counts = await get_published_story_counts(db, legacy_ids)
+    member_counts = await get_member_counts(db, legacy_ids)
 
     return [
         LegacyResponse(
@@ -349,6 +410,9 @@ async def list_user_legacies(
             background_image_url=get_background_image_url(legacy),
             favorite_count=legacy.favorite_count or 0,
             story_count=story_counts.get(legacy.id, 0),
+            published_story_count=published_story_counts.get(legacy.id, 0),
+            member_count=member_counts.get(legacy.id, 0),
+            invite_prompt_dismissed_at=legacy.invite_prompt_dismissed_at,
         )
         for legacy, member_role in legacies
     ]
@@ -391,6 +455,8 @@ async def list_user_legacies_scoped(
     # Batch-fetch story counts
     legacy_ids = [legacy.id for legacy, _role in rows]
     story_counts = await get_story_counts(db, legacy_ids)
+    published_story_counts = await get_published_story_counts(db, legacy_ids)
+    member_counts = await get_member_counts(db, legacy_ids)
 
     # Compute counts
     all_legacies = []
@@ -419,6 +485,9 @@ async def list_user_legacies_scoped(
             background_image_url=get_background_image_url(legacy),
             favorite_count=legacy.favorite_count or 0,
             story_count=story_counts.get(legacy.id, 0),
+            published_story_count=published_story_counts.get(legacy.id, 0),
+            member_count=member_counts.get(legacy.id, 0),
+            invite_prompt_dismissed_at=legacy.invite_prompt_dismissed_at,
         )
         all_legacies.append(resp)
         if role == "creator":
@@ -606,6 +675,8 @@ async def explore_legacies(
     # Batch-fetch story counts
     legacy_ids = [legacy.id for legacy in legacies]
     story_counts = await get_story_counts(db, legacy_ids)
+    published_story_counts = await get_published_story_counts(db, legacy_ids)
+    member_counts = await get_member_counts(db, legacy_ids)
 
     return [
         LegacyResponse(
@@ -644,6 +715,9 @@ async def explore_legacies(
             background_image_url=get_background_image_url(legacy),
             favorite_count=legacy.favorite_count or 0,
             story_count=story_counts.get(legacy.id, 0),
+            published_story_count=published_story_counts.get(legacy.id, 0),
+            member_count=member_counts.get(legacy.id, 0),
+            invite_prompt_dismissed_at=legacy.invite_prompt_dismissed_at,
         )
         for legacy in legacies
     ]
@@ -715,6 +789,8 @@ async def get_legacy_public(
     ]
 
     story_count = await get_story_count(db, legacy.id)
+    published_story_count = await get_published_story_count(db, legacy.id)
+    member_count = await get_member_count(db, legacy.id)
 
     return LegacyResponse(
         id=legacy.id,
@@ -738,6 +814,9 @@ async def get_legacy_public(
         background_image_url=get_background_image_url(legacy),
         favorite_count=legacy.favorite_count or 0,
         story_count=story_count,
+        published_story_count=published_story_count,
+        member_count=member_count,
+        invite_prompt_dismissed_at=legacy.invite_prompt_dismissed_at,
     )
 
 
@@ -813,6 +892,8 @@ async def get_legacy_detail(
     ]
 
     story_count = await get_story_count(db, legacy.id)
+    published_story_count = await get_published_story_count(db, legacy.id)
+    member_count = await get_member_count(db, legacy.id)
 
     # Determine actual role for the requesting user
     user_role = "admirer"
@@ -843,6 +924,9 @@ async def get_legacy_detail(
         background_image_url=get_background_image_url(legacy),
         favorite_count=legacy.favorite_count or 0,
         story_count=story_count,
+        published_story_count=published_story_count,
+        member_count=member_count,
+        invite_prompt_dismissed_at=legacy.invite_prompt_dismissed_at,
     )
 
 
@@ -917,6 +1001,8 @@ async def update_legacy(
     )
 
     story_count = await get_story_count(db, legacy.id)
+    published_story_count = await get_published_story_count(db, legacy.id)
+    member_count = await get_member_count(db, legacy.id)
 
     return LegacyResponse(
         id=legacy.id,
@@ -939,6 +1025,9 @@ async def update_legacy(
         background_image_url=get_background_image_url(legacy),
         favorite_count=legacy.favorite_count or 0,
         story_count=story_count,
+        published_story_count=published_story_count,
+        member_count=member_count,
+        invite_prompt_dismissed_at=legacy.invite_prompt_dismissed_at,
     )
 
 
@@ -1053,3 +1142,48 @@ async def remove_legacy_member(
     )
 
     return {"message": "Member removed"}
+
+
+async def dismiss_invite_prompt(
+    db: AsyncSession,
+    user_id: UUID,
+    legacy_id: UUID,
+) -> None:
+    """Dismiss the invite-moment prompt for a legacy.
+
+    Any non-pending member may dismiss the prompt. Dismissal is legacy-scoped
+    (not per-user): once set, the prompt never reappears for any member of
+    that legacy. Idempotent - dismissing an already-dismissed prompt is a
+    no-op.
+
+    Args:
+        db: Database session
+        user_id: User dismissing the prompt (must be a non-pending member)
+        legacy_id: Legacy ID
+
+    Raises:
+        HTTPException: 403 if not a member, 404 if legacy not found
+    """
+    # Any non-pending member may dismiss
+    await check_legacy_access(db, user_id, legacy_id, required_role="admirer")
+
+    result = await db.execute(select(Legacy).where(Legacy.id == legacy_id))
+    legacy = result.scalar_one_or_none()
+
+    if not legacy:
+        raise HTTPException(
+            status_code=404,
+            detail="Legacy not found",
+        )
+
+    if legacy.invite_prompt_dismissed_at is None:
+        legacy.invite_prompt_dismissed_at = datetime.now(timezone.utc)
+        await db.commit()
+
+        logger.info(
+            "legacy.invite_prompt_dismissed",
+            extra={
+                "legacy_id": str(legacy_id),
+                "user_id": str(user_id),
+            },
+        )
