@@ -124,3 +124,48 @@ async def delete_response(
         response_id=response_id,
         user_id=session.user_id,
     )
+
+
+@router.post(
+    "/{response_id}/dismiss-offer",
+    response_model=StoryResponseItem,
+    summary="Dismiss the 'make this a story' offer",
+    description="Persist that the response's author dismissed the conversion "
+    "offer for this response. Author-only.",
+)
+async def dismiss_offer(
+    story_id: UUID,
+    response_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> StoryResponseItem:
+    session = require_auth(request)
+    return await story_response_service.dismiss_offer(
+        db=db,
+        story_id=story_id,
+        response_id=response_id,
+        user_id=session.user_id,
+    )
+
+
+@router.post(
+    "/{response_id}/hide",
+    response_model=StoryResponseItem,
+    summary="Hide a converted note from other viewers",
+    description="Hide a converted note so it stays visible to its own author "
+    "but is hidden from everyone else. Story-author-only; the target must be "
+    "a converted note.",
+)
+async def hide_response(
+    story_id: UUID,
+    response_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> StoryResponseItem:
+    session = require_auth(request)
+    return await story_response_service.hide_response(
+        db=db,
+        story_id=story_id,
+        response_id=response_id,
+        user_id=session.user_id,
+    )

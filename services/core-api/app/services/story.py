@@ -17,9 +17,11 @@ from ..models.associations import StoryLegacy
 from ..models.legacy import Legacy, LegacyMember
 from ..models.story import Story
 from ..models.story_reaction import StoryReaction as StoryReactionModel
+from ..models.story_response import StoryResponse as StoryResponseModel
 from ..models.story_version import StoryVersion
 from ..schemas.associations import LegacyAssociationResponse
 from ..schemas.story import (
+    StoryBacklinkSummary,
     StoryCreate,
     StoryDetail,
     StoryResponse,
@@ -27,6 +29,7 @@ from ..schemas.story import (
     StoryUpdate,
 )
 from ..schemas.story_reaction import ReactionType
+from . import story_response as story_response_service
 from .change_summary import generate_change_summary
 from .story_access import (
     ACTIVE_ROLES,
@@ -202,6 +205,80 @@ async def _get_legacy_names(
     return {row[0]: row[1] for row in result.all()}
 
 
+def _primary_legacy_id(story: Story) -> UUID | None:
+    """Return a story's primary legacy id, falling back to the first one."""
+    if not story.legacy_associations:
+        return None
+    primary = next(
+        (assoc for assoc in story.legacy_associations if assoc.role == "primary"),
+        story.legacy_associations[0],
+    )
+    return primary.legacy_id
+
+
+async def _load_backlink_summary(
+    db: AsyncSession, story_id: UUID | None
+) -> StoryBacklinkSummary | None:
+    """Resolve a story's title + primary legacy for a backlink summary.
+
+    Returns None when `story_id` is None, or when the story no longer exists
+    (e.g. the source story was deleted, which auto-nulls the backlink FK —
+    this defensive lookup-miss path should not normally be hit).
+    """
+    if story_id is None:
+        return None
+    result = await db.execute(
+        select(Story)
+        .options(selectinload(Story.legacy_associations))
+        .where(Story.id == story_id)
+    )
+    story = result.scalar_one_or_none()
+    if story is None:
+        return None
+    return StoryBacklinkSummary(
+        id=story.id,
+        title=story.title,
+        legacy_id=_primary_legacy_id(story),
+    )
+
+
+async def _load_grown_from_responses(
+    db: AsyncSession, story_id: UUID, user_id: UUID
+) -> list[StoryBacklinkSummary]:
+    """Stories whose `source_story_id` points at `story_id`, viewer-filtered.
+
+    Reciprocal side of the source-story backlink: "stories grown from
+    responses on this story." Filtered per-candidate with `can_read_story`
+    (plus the same author-only draft rule `get_story_detail` applies to the
+    story itself) so private/draft stories grown from someone else's
+    response are never leaked. The candidate set is expected to be small, so
+    a per-row authorization loop is used rather than a bulk query.
+    """
+    result = await db.execute(
+        select(Story)
+        .options(selectinload(Story.legacy_associations))
+        .where(Story.source_story_id == story_id)
+        .order_by(Story.created_at.asc())
+    )
+    candidates = result.scalars().unique().all()
+
+    summaries: list[StoryBacklinkSummary] = []
+    for candidate in candidates:
+        if candidate.status == "draft" and candidate.author_id != user_id:
+            continue
+        allowed, _reason = await can_read_story(db, candidate, user_id)
+        if not allowed:
+            continue
+        summaries.append(
+            StoryBacklinkSummary(
+                id=candidate.id,
+                title=candidate.title,
+                legacy_id=_primary_legacy_id(candidate),
+            )
+        )
+    return summaries
+
+
 async def _ensure_contributor_access(
     db: AsyncSession,
     user_id: UUID,
@@ -268,6 +345,17 @@ async def create_story(
 
     await _ensure_contributor_access(db, user_id, legacy_ids)
 
+    # Create-from-response wiring: only the response's own author may convert
+    # it. Loaded up front so an unauthorized/missing response 403s/404s
+    # before any story row is created.
+    source_response: StoryResponseModel | None = None
+    if data.source_response_id is not None:
+        source_response = await story_response_service.load_response_for_conversion(
+            db=db,
+            response_id=data.source_response_id,
+            user_id=user_id,
+        )
+
     provided_title = (data.title or "").strip()
     if provided_title:
         title = provided_title
@@ -284,8 +372,14 @@ async def create_story(
         visibility=data.visibility,
         status=data.status,
     )
+    if source_response is not None:
+        story.source_story_id = source_response.story_id
     db.add(story)
     await db.flush()  # Get story.id without committing
+
+    if source_response is not None:
+        # Only possible now that story.id exists (post-flush).
+        source_response.converted_story_id = story.id
 
     # Create StoryLegacy associations
     for leg_assoc in data.legacies:
@@ -336,6 +430,19 @@ async def create_story(
             "title_derived": title_derived,
         },
     )
+
+    if source_response is not None:
+        primary_legacy_id = next(
+            (leg.legacy_id for leg in data.legacies if leg.role == "primary"),
+            data.legacies[0].legacy_id,
+        )
+        story_response_service.record_conversion(
+            new_story_id=story.id,
+            source_response_id=source_response.id,
+            source_story_id=source_response.story_id,
+            legacy_id=primary_legacy_id,
+            user_id=user_id,
+        )
 
     return StoryResponse(
         id=story.id,
@@ -1026,6 +1133,12 @@ async def get_story_detail(
     legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
     legacy_names = await _get_legacy_names(db, legacy_ids)
 
+    # Story-to-story backlinks (response-to-story conversion): this story's
+    # link back to the story it grew out of, and the reciprocal set of
+    # stories that grew out of responses left here.
+    source_story_summary = await _load_backlink_summary(db, story.source_story_id)
+    grown_from_responses = await _load_grown_from_responses(db, story.id, user_id)
+
     # Reaction types the requesting user has already made on this story, so
     # the frontend can render toggled-on state on load rather than only
     # after an in-session toggle response.
@@ -1093,6 +1206,8 @@ async def get_story_detail(
         version_count=version_count,
         has_draft=has_draft,
         source_conversation_id=story.source_conversation_id,
+        source_story=source_story_summary,
+        grown_from_responses=grown_from_responses,
         created_at=story.created_at,
         updated_at=story.updated_at,
     )

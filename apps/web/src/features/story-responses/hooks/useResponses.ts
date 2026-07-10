@@ -13,6 +13,8 @@ import {
   createResponse,
   updateResponse,
   deleteResponse,
+  dismissOffer,
+  hideResponse,
   type StoryResponseItem,
   type StoryResponseListResponse,
 } from '@/features/story-responses/api/responses';
@@ -96,6 +98,10 @@ export function useCreateResponse(storyId: string) {
         body,
         created_at: new Date().toISOString(),
         edited_at: null,
+        converted_story_id: null,
+        converted_story: null,
+        offer_dismissed_at: null,
+        hidden: false,
       };
 
       queryClient.setQueryData<ResponsesPageData>(responseKeys.list(storyId), (old) => {
@@ -160,6 +166,98 @@ export function useUpdateResponse(storyId: string) {
           items.map((item) => (item.id === updated.id ? updated : item)),
         ),
       );
+    },
+  });
+}
+
+/** Mirrors `useUpdateResponse`'s optimistic-update / reconcile-on-success shape. */
+export function useDismissOffer(storyId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    StoryResponseItem,
+    Error,
+    string,
+    { previousData?: ResponsesPageData }
+  >({
+    mutationFn: (responseId: string) => dismissOffer(storyId, responseId),
+    onMutate: async (responseId) => {
+      await queryClient.cancelQueries({ queryKey: responseKeys.list(storyId) });
+      const previousData = queryClient.getQueryData<ResponsesPageData>(
+        responseKeys.list(storyId),
+      );
+      queryClient.setQueryData<ResponsesPageData>(responseKeys.list(storyId), (old) =>
+        updateCachedPages(old, (items) =>
+          items.map((item) =>
+            item.id === responseId
+              ? { ...item, offer_dismissed_at: new Date().toISOString() }
+              : item,
+          ),
+        ),
+      );
+      return { previousData };
+    },
+    onError: (_err, _responseId, context) => {
+      if (context) {
+        queryClient.setQueryData(responseKeys.list(storyId), context.previousData);
+      }
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<ResponsesPageData>(responseKeys.list(storyId), (old) =>
+        updateCachedPages(old, (items) =>
+          items.map((item) => (item.id === updated.id ? updated : item)),
+        ),
+      );
+    },
+  });
+}
+
+/**
+ * Mirrors `useDismissOffer`'s optimistic-update / reconcile-on-success shape,
+ * but additionally invalidates the list query on success (`onSettled`):
+ * hiding a note can make the row disappear entirely for the *hiding*
+ * viewer's own view — the backend list filter excludes any response with
+ * `hidden_at` set unless the viewer is the note's own author, so a story
+ * author who isn't the note's own author will no longer see this row on the
+ * next fetch. Letting the invalidate-driven refetch re-run that server-side
+ * filter is simpler and more correct than trying to replicate it client-side.
+ */
+export function useHideResponse(storyId: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    StoryResponseItem,
+    Error,
+    string,
+    { previousData?: ResponsesPageData }
+  >({
+    mutationFn: (responseId: string) => hideResponse(storyId, responseId),
+    onMutate: async (responseId) => {
+      await queryClient.cancelQueries({ queryKey: responseKeys.list(storyId) });
+      const previousData = queryClient.getQueryData<ResponsesPageData>(
+        responseKeys.list(storyId),
+      );
+      queryClient.setQueryData<ResponsesPageData>(responseKeys.list(storyId), (old) =>
+        updateCachedPages(old, (items) =>
+          items.map((item) => (item.id === responseId ? { ...item, hidden: true } : item)),
+        ),
+      );
+      return { previousData };
+    },
+    onError: (_err, _responseId, context) => {
+      if (context) {
+        queryClient.setQueryData(responseKeys.list(storyId), context.previousData);
+      }
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData<ResponsesPageData>(responseKeys.list(storyId), (old) =>
+        updateCachedPages(old, (items) =>
+          items.map((item) => (item.id === updated.id ? updated : item)),
+        ),
+      );
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: responseKeys.list(storyId) });
     },
   });
 }
