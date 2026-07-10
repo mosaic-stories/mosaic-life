@@ -115,8 +115,18 @@ class Story(Base):
         default=None,
     )
 
+    source_story_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("stories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Relationships
     author: Mapped["User"] = relationship("User", foreign_keys=[author_id])
+    source_story: Mapped["Story | None"] = relationship(
+        "Story", remote_side=[id], foreign_keys=[source_story_id]
+    )
     legacy_associations: Mapped[list["StoryLegacy"]] = relationship(
         "StoryLegacy",
         cascade="all, delete-orphan",

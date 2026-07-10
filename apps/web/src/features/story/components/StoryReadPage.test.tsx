@@ -130,6 +130,8 @@ const mockStoryData = {
   ],
   version_count: 3,
   has_draft: false,
+  source_story: null,
+  grown_from_responses: [],
   created_at: '2026-02-15T10:00:00Z',
   updated_at: '2026-02-16T10:00:00Z',
 };

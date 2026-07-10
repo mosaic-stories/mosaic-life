@@ -20,7 +20,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from opentelemetry import trace
 from prometheus_client import Counter
-from sqlalchemy import case, select, update
+from sqlalchemy import case, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -29,6 +29,7 @@ from ..models.story import Story
 from ..models.story_response import StoryResponse as StoryResponseModel
 from ..models.user import User
 from ..schemas.story_response import (
+    ConvertedStorySummary,
     StoryResponseCreate,
     StoryResponseItem,
     StoryResponseUpdate,
@@ -42,6 +43,12 @@ tracer = trace.get_tracer("core-api.story_response")
 RESPONSES_CREATED = Counter(
     "story_responses_created_total",
     "Story responses created",
+    ["service", "component"],
+)
+
+RESPONSES_CONVERTED = Counter(
+    "story_responses_converted_total",
+    "Story responses converted into standalone stories",
     ["service", "component"],
 )
 
@@ -117,7 +124,9 @@ def _primary_legacy_id(story: Story) -> UUID | None:
 
 
 def _serialize_response(
-    response: StoryResponseModel, user: User | None
+    response: StoryResponseModel,
+    user: User | None,
+    converted_story: Story | None = None,
 ) -> StoryResponseItem:
     display_name = ""
     username = ""
@@ -126,6 +135,15 @@ def _serialize_response(
         display_name = user.name or user.username
         username = user.username
         avatar_url = user.avatar_url
+
+    converted_story_summary = None
+    if converted_story is not None:
+        converted_story_summary = ConvertedStorySummary(
+            id=converted_story.id,
+            title=converted_story.title,
+            legacy_id=_primary_legacy_id(converted_story),
+        )
+
     return StoryResponseItem(
         id=response.id,
         story_id=response.story_id,
@@ -136,7 +154,30 @@ def _serialize_response(
         body=response.body,
         created_at=response.created_at,
         edited_at=response.edited_at,
+        converted_story_id=response.converted_story_id,
+        converted_story=converted_story_summary,
+        offer_dismissed_at=response.offer_dismissed_at,
+        hidden=response.hidden_at is not None,
     )
+
+
+async def _load_converted_stories(
+    db: AsyncSession, converted_story_ids: list[UUID]
+) -> dict[UUID, Story]:
+    """Batch-load converted stories (with legacy associations) by id.
+
+    A response's ``converted_story_id`` is auto-nulled by the FK when the
+    converted story is deleted, so any id passed in here is expected to
+    resolve; a miss is tolerated defensively and simply yields no summary.
+    """
+    if not converted_story_ids:
+        return {}
+    result = await db.execute(
+        select(Story)
+        .options(selectinload(Story.legacy_associations))
+        .where(Story.id.in_(converted_story_ids))
+    )
+    return {s.id: s for s in result.scalars().all()}
 
 
 async def _load_response(
@@ -291,6 +332,11 @@ async def list_responses(
     filters = [
         StoryResponseModel.story_id == story_id,
         StoryResponseModel.deleted_at.is_(None),
+        # Hidden notes are excluded from everyone but the note's own author.
+        or_(
+            StoryResponseModel.hidden_at.is_(None),
+            StoryResponseModel.user_id == user_id,
+        ),
     ]
     if cursor:
         filters.append(StoryResponseModel.created_at > cursor)
@@ -318,7 +364,21 @@ async def list_responses(
         user_rows = await db.execute(select(User).where(User.id.in_(user_ids)))
         users_by_id = {u.id: u for u in user_rows.scalars().all()}
 
-    items = [_serialize_response(r, users_by_id.get(r.user_id)) for r in responses]
+    converted_story_ids = list(
+        {r.converted_story_id for r in responses if r.converted_story_id is not None}
+    )
+    converted_stories_by_id = await _load_converted_stories(db, converted_story_ids)
+
+    items = [
+        _serialize_response(
+            r,
+            users_by_id.get(r.user_id),
+            converted_stories_by_id.get(r.converted_story_id)
+            if r.converted_story_id is not None
+            else None,
+        )
+        for r in responses
+    ]
 
     return {"items": items, "next_cursor": next_cursor, "has_more": has_more}
 
@@ -342,6 +402,12 @@ async def update_response(
         if response.user_id != user_id:
             raise HTTPException(
                 status_code=403, detail="Only the response author can edit it"
+            )
+
+        if response.converted_story_id is not None:
+            raise HTTPException(
+                status_code=400,
+                detail="A converted note cannot be edited",
             )
 
         response.body = data.body
@@ -426,4 +492,184 @@ async def delete_response(
                 "response_id": str(response_id),
                 "deleted_by": "author" if is_author else "legacy_admin",
             },
+        )
+
+
+async def load_response_for_conversion(
+    db: AsyncSession,
+    response_id: UUID,
+    user_id: UUID,
+) -> StoryResponseModel:
+    """Load a response for create-from-response conversion.
+
+    Only the response's own author may turn their writing into a standalone
+    story. Raises 404 if the response does not exist or is soft-deleted, 403
+    if the actor is not its author, 409 if it was already converted (the
+    response only tracks a single `converted_story_id`; converting it again
+    would silently relink the note and orphan its previous converted story).
+    Intended to be called from `story_service.create_story` before the story
+    is created, within the same transaction/commit as the rest of story
+    creation.
+    """
+    result = await db.execute(
+        select(StoryResponseModel).where(
+            StoryResponseModel.id == response_id,
+            StoryResponseModel.deleted_at.is_(None),
+        )
+    )
+    response = result.scalar_one_or_none()
+    if response is None:
+        raise HTTPException(status_code=404, detail="Response not found")
+    if response.user_id != user_id:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the response's author can convert it into a story",
+        )
+    if response.converted_story_id is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="This response has already been converted into a story",
+        )
+    return response
+
+
+def record_conversion(
+    *,
+    new_story_id: UUID,
+    source_response_id: UUID,
+    source_story_id: UUID,
+    legacy_id: UUID | None,
+    user_id: UUID,
+) -> None:
+    """Emit span/log/metric telemetry for a completed response-to-story conversion.
+
+    Called by `story_service.create_story` after the create-from-response
+    transaction (story creation + response linking) has committed
+    successfully.
+    """
+    with tracer.start_as_current_span("story_response.convert") as span:
+        span.set_attribute("component", "story-responses")
+        span.set_attribute("story_id", str(new_story_id))
+        span.set_attribute("source_response_id", str(source_response_id))
+        span.set_attribute("source_story_id", str(source_story_id))
+        span.set_attribute("user_id", str(user_id))
+
+    RESPONSES_CONVERTED.labels(service="core-api", component="story-responses").inc()
+    logger.info(
+        "story_response.converted",
+        extra={
+            "story_id": str(new_story_id),
+            "source_response_id": str(source_response_id),
+            "source_story_id": str(source_story_id),
+            "legacy_id": str(legacy_id) if legacy_id else None,
+            "user_id": str(user_id),
+        },
+    )
+
+
+async def dismiss_offer(
+    db: AsyncSession,
+    story_id: UUID,
+    response_id: UUID,
+    user_id: UUID,
+) -> StoryResponseItem:
+    """Dismiss the "make this a story" offer for a response. Author-only.
+
+    Persisted server-side (`offer_dismissed_at`) so dismissal is cross-device
+    and does not reappear on a later visit.
+    """
+    with tracer.start_as_current_span("story_response.dismiss_offer") as span:
+        span.set_attribute("component", "story-responses")
+        span.set_attribute("story_id", str(story_id))
+        span.set_attribute("response_id", str(response_id))
+        span.set_attribute("user_id", str(user_id))
+
+        response = await _load_response(db, story_id, response_id)
+
+        if response.user_id != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the response author can dismiss this offer",
+            )
+
+        response.offer_dismissed_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(response)
+
+        logger.info(
+            "story_response.offer_dismissed",
+            extra={
+                "response_id": str(response_id),
+                "user_id": str(user_id),
+            },
+        )
+
+        actor = await db.get(User, user_id)
+        converted_stories = await _load_converted_stories(
+            db,
+            [response.converted_story_id] if response.converted_story_id else [],
+        )
+        return _serialize_response(
+            response,
+            actor,
+            converted_stories.get(response.converted_story_id)
+            if response.converted_story_id
+            else None,
+        )
+
+
+async def hide_response(
+    db: AsyncSession,
+    story_id: UUID,
+    response_id: UUID,
+    user_id: UUID,
+) -> StoryResponseItem:
+    """Hide a converted note from everyone but its own author.
+
+    Authorized to the *story* author only (not legacy admin), and rejected
+    unless the target response is a converted note
+    (`converted_story_id is not None`) — this moderation power is scoped to
+    notes only in this change (see spec R2).
+    """
+    with tracer.start_as_current_span("story_response.hide") as span:
+        span.set_attribute("component", "story-responses")
+        span.set_attribute("story_id", str(story_id))
+        span.set_attribute("response_id", str(response_id))
+        span.set_attribute("user_id", str(user_id))
+
+        response = await _load_response(db, story_id, response_id)
+
+        story = await _load_story_with_legacies(db, story_id)
+        if story.author_id != user_id:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the story author can hide a response",
+            )
+
+        if response.converted_story_id is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Only a converted note can be hidden",
+            )
+
+        response.hidden_at = datetime.now(timezone.utc)
+        response.hidden_by_id = user_id
+        await db.commit()
+        await db.refresh(response)
+
+        logger.info(
+            "story_response.hidden",
+            extra={
+                "response_id": str(response_id),
+                "story_id": str(story_id),
+                "hidden_by_id": str(user_id),
+            },
+        )
+
+        note_author = await db.get(User, response.user_id)
+        converted_stories = await _load_converted_stories(
+            db, [response.converted_story_id]
+        )
+        return _serialize_response(
+            response, note_author, converted_stories.get(response.converted_story_id)
         )

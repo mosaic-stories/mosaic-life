@@ -50,6 +50,16 @@ class StoryResponseUpdate(StoryResponseBody):
     """Schema for editing an existing story response."""
 
 
+class ConvertedStorySummary(BaseModel):
+    """Summary of the story a response was converted into."""
+
+    id: UUID
+    title: str
+    legacy_id: UUID | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class StoryResponseItem(BaseModel):
     """A single response returned by the API."""
 
@@ -64,6 +74,26 @@ class StoryResponseItem(BaseModel):
     edited_at: datetime | None = Field(
         default=None,
         description="Non-null when the response has been edited since creation",
+    )
+    converted_story_id: UUID | None = Field(
+        default=None,
+        description="Non-null when this response was converted into a standalone "
+        "story; the response renders as a non-editable note linking to it",
+    )
+    converted_story: ConvertedStorySummary | None = Field(
+        default=None,
+        description="Summary of the converted story, when converted_story_id is set",
+    )
+    offer_dismissed_at: datetime | None = Field(
+        default=None,
+        description="Non-null once the response's author has dismissed the "
+        "'make this a story' offer for this response",
+    )
+    hidden: bool = Field(
+        default=False,
+        description="True when the story author has hidden this converted note "
+        "from other viewers. List filtering means only the note's own author "
+        "will ever actually receive hidden=True.",
     )
 
     model_config = {"from_attributes": True}

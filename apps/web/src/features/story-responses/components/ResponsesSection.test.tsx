@@ -33,7 +33,15 @@ function renderSection(props: Partial<React.ComponentProps<typeof ResponsesSecti
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <ResponsesSection storyId="story-1" currentUserId="user-1" canModerate={false} {...props} />
+        <ResponsesSection
+          storyId="story-1"
+          legacyId="legacy-1"
+          sourceStoryId="story-1"
+          currentUserId="user-1"
+          canModerate={false}
+          isStoryAuthor={false}
+          {...props}
+        />
       </MemoryRouter>
     </QueryClientProvider>,
   );

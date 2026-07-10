@@ -35,6 +35,13 @@ export interface StorySummary {
   reaction_smile_count: number;
 }
 
+/** Summary of a related story used for source/grown-from backlinks (see response-to-story). */
+export interface StoryBacklinkSummary {
+  id: string;
+  title: string;
+  legacy_id: string | null;
+}
+
 export interface StoryDetail {
   id: string;
   legacies: LegacyAssociation[];
@@ -50,6 +57,10 @@ export interface StoryDetail {
   version_count: number | null;  // null if not author
   has_draft: boolean | null;     // null if not author
   source_conversation_id: string | null;
+  /** This story's backlink to the story it grew out of, when it was created from a response on another story. */
+  source_story: StoryBacklinkSummary | null;
+  /** Other stories that grew out of a response left on this story (viewer-readable subset). */
+  grown_from_responses: StoryBacklinkSummary[];
   created_at: string;
   updated_at: string;
   favorite_count: number;
@@ -67,6 +78,8 @@ export interface CreateStoryInput {
   content: string;
   visibility?: 'public' | 'private' | 'personal';
   status?: 'draft' | 'published';
+  /** The response this story is converted from, if any (see response-to-story). */
+  source_response_id?: string;
 }
 
 export interface UpdateStoryInput {
