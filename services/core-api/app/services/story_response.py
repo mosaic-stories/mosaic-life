@@ -504,9 +504,12 @@ async def load_response_for_conversion(
 
     Only the response's own author may turn their writing into a standalone
     story. Raises 404 if the response does not exist or is soft-deleted, 403
-    if the actor is not its author. Intended to be called from
-    `story_service.create_story` before the story is created, within the
-    same transaction/commit as the rest of story creation.
+    if the actor is not its author, 409 if it was already converted (the
+    response only tracks a single `converted_story_id`; converting it again
+    would silently relink the note and orphan its previous converted story).
+    Intended to be called from `story_service.create_story` before the story
+    is created, within the same transaction/commit as the rest of story
+    creation.
     """
     result = await db.execute(
         select(StoryResponseModel).where(
@@ -521,6 +524,11 @@ async def load_response_for_conversion(
         raise HTTPException(
             status_code=403,
             detail="Only the response's author can convert it into a story",
+        )
+    if response.converted_story_id is not None:
+        raise HTTPException(
+            status_code=409,
+            detail="This response has already been converted into a story",
         )
     return response
 

@@ -229,6 +229,60 @@ class TestCreateFromResponse:
         assert resp.status_code == 404
 
     @pytest.mark.asyncio
+    async def test_convert_denied_for_mismatched_legacy(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy_2: Legacy,
+        test_story: Story,
+    ):
+        """The converted story must share a legacy with the source response's
+        story — an arbitrary `legacies` list would produce a confusing
+        cross-legacy backlink and violate the offer's "same legacy" contract.
+        """
+        response_id = await _create_response(
+            client, test_story.id, auth_headers, "A memory that belongs here."
+        )
+
+        resp = await client.post(
+            "/api/stories/",
+            json={
+                "content": "Wrong legacy entirely",
+                "legacies": [{"legacy_id": str(test_legacy_2.id)}],
+                "source_response_id": response_id,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_convert_denied_for_already_converted_response(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_legacy: Legacy,
+        test_story: Story,
+    ):
+        """Converting the same response twice would silently relink the note
+        and orphan its first converted story — must be rejected.
+        """
+        response_id = await _create_response(
+            client, test_story.id, auth_headers, "A memory worth its own page."
+        )
+        await _convert_response(client, response_id, test_legacy.id, auth_headers)
+
+        resp = await client.post(
+            "/api/stories/",
+            json={
+                "content": "Trying to convert it again",
+                "legacies": [{"legacy_id": str(test_legacy.id)}],
+                "source_response_id": response_id,
+            },
+            headers=auth_headers,
+        )
+        assert resp.status_code == 409
+
+    @pytest.mark.asyncio
     async def test_converted_note_cannot_be_edited(
         self,
         client: AsyncClient,

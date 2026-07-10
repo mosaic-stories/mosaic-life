@@ -355,6 +355,22 @@ async def create_story(
             response_id=data.source_response_id,
             user_id=user_id,
         )
+        # A converted story must stay associated with (at least one of) the
+        # source response's story's legacies — the offer's contract is "same
+        # legacy," and an arbitrary `data.legacies` here would produce a
+        # confusing cross-legacy backlink.
+        source_legacy_ids_result = await db.execute(
+            select(StoryLegacy.legacy_id).where(
+                StoryLegacy.story_id == source_response.story_id
+            )
+        )
+        source_legacy_ids = {row[0] for row in source_legacy_ids_result.all()}
+        if source_legacy_ids.isdisjoint(legacy_ids):
+            raise HTTPException(
+                status_code=400,
+                detail="A story converted from a response must be associated "
+                "with the same legacy as the response's story",
+            )
 
     provided_title = (data.title or "").strip()
     if provided_title:
