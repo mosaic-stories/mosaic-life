@@ -20,6 +20,7 @@ import { SEOHead } from '@/components/seo';
 import { getStoryDisplayTitle } from '@/features/story/utils/displayTitle';
 import ReactionsRow from '@/features/story-responses/components/ReactionsRow';
 import ResponsesSection from '@/features/story-responses/components/ResponsesSection';
+import StoryBacklinks from './StoryBacklinks';
 
 interface StoryReadPageProps {
   legacyId: string;
@@ -204,6 +205,13 @@ export default function StoryReadPage({ legacyId, storyId }: StoryReadPageProps)
         />
 
         {!isPreviewing && existingStory && (
+          <StoryBacklinks
+            sourceStory={existingStory.source_story}
+            grownStories={existingStory.grown_from_responses}
+          />
+        )}
+
+        {!isPreviewing && existingStory && (
           <div className="mt-8">
             <ReactionsRow
               storyId={existingStory.id}
@@ -221,8 +229,11 @@ export default function StoryReadPage({ legacyId, storyId }: StoryReadPageProps)
         {!isPreviewing && existingStory && canRespondOrReact && (
           <ResponsesSection
             storyId={existingStory.id}
+            legacyId={legacyId}
+            sourceStoryId={existingStory.id}
             currentUserId={user?.id}
             canModerate={canModerateResponses}
+            isStoryAuthor={isAuthor}
             responseCount={existingStory.response_count}
           />
         )}

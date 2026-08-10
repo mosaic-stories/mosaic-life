@@ -7,17 +7,36 @@ import { useResponsesList, useCreateResponse } from '@/features/story-responses/
 
 export interface ResponsesSectionProps {
   storyId: string;
+  /** Legacy the story belongs to — threaded down to `ResponseItem` for its
+   * "make it a story" offer, which navigates to `/legacy/:legacyId/story/new`. */
+  legacyId: string;
+  /**
+   * The id of the story these responses belong to. Today always equal to
+   * `storyId`; threaded through as its own explicitly-named prop so later
+   * work (converted-note backlink rendering) has an unambiguous name to
+   * reach for.
+   */
+  sourceStoryId: string;
   currentUserId?: string;
   /** Legacy creator/admin — can remove other members' responses. */
   canModerate: boolean;
+  /**
+   * True when the viewer is the author of the story these responses belong
+   * to — gates the "hide note" affordance on converted notes (story-author
+   * moderation is scoped to notes only; see response-to-story spec).
+   */
+  isStoryAuthor: boolean;
   /** Authoritative count from the story record, shown in the section heading. */
   responseCount?: number;
 }
 
 export default function ResponsesSection({
   storyId,
+  legacyId,
+  sourceStoryId,
   currentUserId,
   canModerate,
+  isStoryAuthor,
   responseCount,
 }: ResponsesSectionProps) {
   const [draft, setDraft] = useState('');
@@ -100,9 +119,12 @@ export default function ResponsesSection({
             <ResponseItem
               key={response.id}
               storyId={storyId}
+              legacyId={legacyId}
+              sourceStoryId={sourceStoryId}
               response={response}
               currentUserId={currentUserId}
               canModerate={canModerate}
+              isStoryAuthor={isStoryAuthor}
             />
           ))
         )}

@@ -35,6 +35,12 @@ class StoryCreate(BaseModel):
         min_length=1,
         description="Legacies this story is about (at least one required)",
     )
+    source_response_id: UUID | None = Field(
+        default=None,
+        description="The response this story is converted from, if any. Must "
+        "be authored by the requesting user; the source response is replaced "
+        "in place with a note linking back to the new story.",
+    )
 
     @field_validator("legacies")
     @classmethod
@@ -159,6 +165,16 @@ class StoryScopedResponse(BaseModel):
     counts: StoryScopeCounts
 
 
+class StoryBacklinkSummary(BaseModel):
+    """Summary of a related story used for source/grown-from backlinks."""
+
+    id: UUID
+    title: str
+    legacy_id: UUID | None = None
+
+    model_config = {"from_attributes": True}
+
+
 class StoryDetail(BaseModel):
     """Schema for full story details."""
 
@@ -176,6 +192,17 @@ class StoryDetail(BaseModel):
     version_count: int | None = None
     has_draft: bool | None = None
     source_conversation_id: UUID | None = None
+    source_story: StoryBacklinkSummary | None = Field(
+        default=None,
+        description="This story's backlink to the story it grew out of, when "
+        "it was created from a response on another story",
+    )
+    grown_from_responses: list[StoryBacklinkSummary] = Field(
+        default_factory=list,
+        description="Other stories whose source_story_id points at this "
+        "story (i.e. stories that grew out of a response left here), "
+        "filtered to those the requesting viewer can read",
+    )
     favorite_count: int = Field(
         default=0, description="Number of times this story has been favorited"
     )

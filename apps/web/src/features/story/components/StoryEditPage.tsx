@@ -24,6 +24,14 @@ interface StoryEditPageProps {
 
 interface EditPageLocationState {
   seedQuote?: string;
+  /**
+   * Raw response body to seed the new story's content with, verbatim (no
+   * `> ` blockquote wrap, unlike `seedQuote`). Set when navigating here via
+   * a response's "make it a story" offer (see openspec/changes/response-to-story).
+   */
+  seedBody?: string;
+  /** The response this story is being converted from, when seeded via `seedBody`. */
+  sourceResponseId?: string;
 }
 
 type SaveState = 'idle' | 'saving' | 'saved' | 'error';
@@ -31,7 +39,14 @@ type SaveState = 'idle' | 'saving' | 'saved' | 'error';
 export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const seedQuote = (location.state as EditPageLocationState | null)?.seedQuote;
+  const editLocationState = location.state as EditPageLocationState | null;
+  const seedQuote = editLocationState?.seedQuote;
+  const seedBody = editLocationState?.seedBody;
+  const sourceResponseId = editLocationState?.sourceResponseId;
+  // A response-conversion seed always wins over a story-prompt seed if both
+  // are somehow present (shouldn't normally happen — different entry points).
+  const seedContent = seedBody ?? (seedQuote ? `> ${seedQuote}\n\n` : '');
+  const isSeededFromResponse = !!(seedBody || sourceResponseId);
 
   const isNew = !storyId;
   const { data: existingStory, isLoading: storyLoading } = useStory(storyId);
@@ -39,7 +54,7 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
   const updateStory = useUpdateStory();
 
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState(() => (seedQuote ? `> ${seedQuote}\n\n` : ''));
+  const [content, setContent] = useState(() => seedContent);
   const [visibility, setVisibility] = useState<Visibility>('private');
   const [saveState, setSaveState] = useState<SaveState>('idle');
 
@@ -95,12 +110,12 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
         setVisibility(existingStory.visibility);
       } else {
         setTitle('');
-        setContent(seedQuote ? `> ${seedQuote}\n\n` : '');
+        setContent(seedContent);
         setVisibility('private');
       }
       setSaveState('idle');
     }
-  }, [storyId, isNew, seedQuote, existingStory]);
+  }, [storyId, isNew, seedContent, existingStory]);
 
   useEffect(() => {
     return () => {
@@ -161,6 +176,7 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
         visibility: snapshot.visibility,
         status: 'draft',
         legacies: [{ legacy_id: legacyId, role: 'primary', position: 0 }],
+        source_response_id: sourceResponseId,
       });
       hasCreatedRef.current = true;
       effectiveIdRef.current = newStory.id;
@@ -181,7 +197,7 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
       creatingRef.current = false;
       setSaveState('error');
     }
-  }, [createStory, legacyId, navigate, runAutosave]);
+  }, [createStory, legacyId, navigate, runAutosave, sourceResponseId]);
 
   const handleChange = useCallback(
     (next: Partial<{ title: string; content: string; visibility: Visibility }>) => {
@@ -238,6 +254,11 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
         : saveState === 'error' ? "Couldn't save"
           : '';
 
+  // Story creation is lazy (first edit triggers runCreate), so a seeded
+  // draft that hasn't been touched yet isn't persisted anywhere. Surface
+  // that so the author knows to make a modification before navigating away.
+  const showNotSavedYetBadge = isSeededFromResponse && isNew && !hasCreatedRef.current;
+
   return (
     <div className="min-h-screen bg-theme-background transition-colors duration-300">
       <SEOHead title={title || 'Write a story'} description="Write a story" noIndex={true} />
@@ -249,6 +270,15 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
             Back
           </Button>
           <div className="flex items-center gap-3 shrink-0">
+            {showNotSavedYetBadge && (
+              <span
+                className="text-xs text-neutral-400 border border-neutral-200 rounded-full px-2 py-0.5"
+                title="Make an edit to save this as a new story."
+                data-testid="not-saved-yet-indicator"
+              >
+                Not saved yet
+              </span>
+            )}
             <span
               className={`text-xs ${saveState === 'error' ? 'text-destructive' : 'text-neutral-400'}`}
               role="status"

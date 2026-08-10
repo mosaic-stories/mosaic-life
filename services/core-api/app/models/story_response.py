@@ -63,9 +63,36 @@ class StoryResponse(Base):
         nullable=True,
     )
 
+    converted_story_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("stories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    hidden_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    hidden_by_id: Mapped[UUID | None] = mapped_column(
+        PG_UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    offer_dismissed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     # Relationships
     story: Mapped["Story"] = relationship("Story", foreign_keys=[story_id])
     user: Mapped["User"] = relationship("User", foreign_keys=[user_id])
+    converted_story: Mapped["Story | None"] = relationship(
+        "Story", foreign_keys=[converted_story_id]
+    )
+    hidden_by: Mapped["User | None"] = relationship("User", foreign_keys=[hidden_by_id])
 
     def __repr__(self) -> str:
         return (
