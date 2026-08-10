@@ -92,8 +92,9 @@ class StoryResponseItem(BaseModel):
     hidden: bool = Field(
         default=False,
         description="True when the story author has hidden this converted note "
-        "from other viewers. List filtering means only the note's own author "
-        "will ever actually receive hidden=True.",
+        "from other viewers. List endpoints filter hidden notes out for everyone "
+        "except the note's author; mutation responses may also return this flag "
+        "to the story author who hid the note.",
     )
 
     model_config = {"from_attributes": True}

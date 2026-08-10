@@ -35,7 +35,7 @@ from ..schemas.story_response import (
     StoryResponseUpdate,
 )
 from ..services import notification as notification_service
-from ..services.story_access import ACTIVE_ROLES
+from ..services.story_access import ACTIVE_ROLES, can_read_story
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer("core-api.story_response")
@@ -162,13 +162,17 @@ def _serialize_response(
 
 
 async def _load_converted_stories(
-    db: AsyncSession, converted_story_ids: list[UUID]
+    db: AsyncSession,
+    converted_story_ids: list[UUID],
+    user_id: UUID,
 ) -> dict[UUID, Story]:
-    """Batch-load converted stories (with legacy associations) by id.
+    """Batch-load viewer-readable converted stories (with legacies) by id.
 
     A response's ``converted_story_id`` is auto-nulled by the FK when the
     converted story is deleted, so any id passed in here is expected to
     resolve; a miss is tolerated defensively and simply yields no summary.
+    Draft visibility is enforced alongside the shared story read policy,
+    matching `require_story_read_access`.
     """
     if not converted_story_ids:
         return {}
@@ -177,7 +181,14 @@ async def _load_converted_stories(
         .options(selectinload(Story.legacy_associations))
         .where(Story.id.in_(converted_story_ids))
     )
-    return {s.id: s for s in result.scalars().all()}
+    stories_by_id: dict[UUID, Story] = {}
+    for story in result.scalars().unique().all():
+        if story.status == "draft" and story.author_id != user_id:
+            continue
+        allowed, _reason = await can_read_story(db, story, user_id)
+        if allowed:
+            stories_by_id[story.id] = story
+    return stories_by_id
 
 
 async def _load_response(
@@ -367,7 +378,9 @@ async def list_responses(
     converted_story_ids = list(
         {r.converted_story_id for r in responses if r.converted_story_id is not None}
     )
-    converted_stories_by_id = await _load_converted_stories(db, converted_story_ids)
+    converted_stories_by_id = await _load_converted_stories(
+        db, converted_story_ids, user_id
+    )
 
     items = [
         _serialize_response(
@@ -512,10 +525,12 @@ async def load_response_for_conversion(
     creation.
     """
     result = await db.execute(
-        select(StoryResponseModel).where(
+        select(StoryResponseModel)
+        .where(
             StoryResponseModel.id == response_id,
             StoryResponseModel.deleted_at.is_(None),
         )
+        .with_for_update()
     )
     response = result.scalar_one_or_none()
     if response is None:
@@ -608,6 +623,7 @@ async def dismiss_offer(
         converted_stories = await _load_converted_stories(
             db,
             [response.converted_story_id] if response.converted_story_id else [],
+            user_id,
         )
         return _serialize_response(
             response,
@@ -668,7 +684,9 @@ async def hide_response(
 
         note_author = await db.get(User, response.user_id)
         converted_stories = await _load_converted_stories(
-            db, [response.converted_story_id]
+            db,
+            [response.converted_story_id],
+            user_id,
         )
         return _serialize_response(
             response, note_author, converted_stories.get(response.converted_story_id)

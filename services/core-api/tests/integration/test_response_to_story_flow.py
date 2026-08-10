@@ -150,6 +150,57 @@ class TestCreateFromResponse:
         assert item["offer_dismissed_at"] is None
 
     @pytest.mark.asyncio
+    async def test_converted_story_summary_respects_viewer_read_access(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict[str, str],
+        test_user_2: User,
+        test_legacy: Legacy,
+        test_story: Story,
+    ):
+        await _add_member(db_session, test_legacy.id, test_user_2.id, "advocate")
+        note_author_headers = create_auth_headers_for_user(test_user_2)
+
+        response_id = await _create_response(
+            client, test_story.id, note_author_headers, "A private memory."
+        )
+        create_resp = await client.post(
+            "/api/stories/",
+            json={
+                "title": "Only Mine",
+                "content": "This grew from my response, but remains personal.",
+                "visibility": "personal",
+                "legacies": [{"legacy_id": str(test_legacy.id)}],
+                "source_response_id": response_id,
+            },
+            headers=note_author_headers,
+        )
+        assert create_resp.status_code == 201, create_resp.text
+        new_story_id = create_resp.json()["id"]
+
+        list_as_story_author = await client.get(
+            f"/api/stories/{test_story.id}/responses", headers=auth_headers
+        )
+        item_for_story_author = next(
+            item
+            for item in list_as_story_author.json()["items"]
+            if item["id"] == response_id
+        )
+        assert item_for_story_author["converted_story_id"] == new_story_id
+        assert item_for_story_author["converted_story"] is None
+
+        list_as_note_author = await client.get(
+            f"/api/stories/{test_story.id}/responses", headers=note_author_headers
+        )
+        item_for_note_author = next(
+            item
+            for item in list_as_note_author.json()["items"]
+            if item["id"] == response_id
+        )
+        assert item_for_note_author["converted_story"]["id"] == new_story_id
+
+    @pytest.mark.asyncio
     async def test_backlink_fields_on_new_story_and_source_story(
         self,
         client: AsyncClient,
