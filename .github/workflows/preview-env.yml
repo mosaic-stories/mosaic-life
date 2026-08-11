@@ -43,10 +43,12 @@ jobs:
 
       - name: Set environment variables
         id: vars
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BRANCH_NAME: ${{ github.head_ref }}
+          TARGET_BRANCH: ${{ github.base_ref }}
         run: |
-          PR_NUMBER=${{ github.event.pull_request.number }}
-          BRANCH_NAME=${{ github.head_ref }}
-          SAFE_BRANCH=$(echo ${BRANCH_NAME} | sed 's/[^a-zA-Z0-9-]/-/g' | tr '[:upper:]' '[:lower:]')
+          SAFE_BRANCH=$(printf '%s\n' "${BRANCH_NAME}" | sed 's/[^a-zA-Z0-9-]/-/g' | tr '[:upper:]' '[:lower:]')
           NAMESPACE="preview-pr-${PR_NUMBER}"
 
           echo "pr-number=${PR_NUMBER}" >> $GITHUB_OUTPUT
@@ -57,7 +59,6 @@ jobs:
           echo "image-tag=pr-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
 
           # Determine target environment based on base branch (for context/labeling)
-          TARGET_BRANCH="${{ github.base_ref }}"
           if [ "${TARGET_BRANCH}" == "main" ]; then
             TARGET_ENV="prod"
           else
@@ -350,8 +351,9 @@ jobs:
     steps:
       - name: Set environment variables
         id: vars
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          PR_NUMBER=${{ github.event.pull_request.number }}
           NAMESPACE="preview-pr-${PR_NUMBER}"
 
           echo "pr-number=${PR_NUMBER}" >> $GITHUB_OUTPUT
