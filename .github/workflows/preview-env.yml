@@ -48,7 +48,7 @@ jobs:
           BRANCH_NAME: ${{ github.head_ref }}
           TARGET_BRANCH: ${{ github.base_ref }}
         run: |
-          SAFE_BRANCH=$(echo "${BRANCH_NAME}" | sed 's/[^a-zA-Z0-9-]/-/g' | tr '[:upper:]' '[:lower:]')
+          SAFE_BRANCH=$(printf '%s\n' "${BRANCH_NAME}" | sed 's/[^a-zA-Z0-9-]/-/g' | tr '[:upper:]' '[:lower:]')
           NAMESPACE="preview-pr-${PR_NUMBER}"
 
           echo "pr-number=${PR_NUMBER}" >> $GITHUB_OUTPUT
