@@ -104,3 +104,8 @@ Suggested PR split (each well under 400 LOC): **PR1** = §0–2 (the security fi
        "action": "rewrite", "visibility": "public", "status": "published", ...}
 
 - [ ] 5.3 Close [issue #98](https://github.com/mosaic-stories/mosaic-life/issues/98) via `Fixes #98` in PR1, then `/opsx:archive story-write-authz` after merge to fold the delta into `openspec/specs/story-access/spec.md`.
+
+      -- PR opened 2026-08-11: https://github.com/mosaic-stories/mosaic-life/pull/120
+      -- (develop -> main, `Fixes #98` in the description; §0-4 landed as a single PR
+      -- rather than the suggested PR1/PR2 split — normal develop-flow promotion, per
+      -- this repo's established pattern). Remaining: merge, then `/opsx:archive story-write-authz`.
