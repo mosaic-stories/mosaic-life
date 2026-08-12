@@ -19,10 +19,16 @@ from app.models.associations import StoryLegacy
 from app.models.story_evolution import StoryEvolutionSession
 from app.models.story_version import StoryVersion
 from app.config import get_settings
+from app.config.ai_rate_limits import (
+    STORY_REWRITE_CONCURRENCY,
+    STORY_REWRITE_THRESHOLDS,
+)
 from app.providers.registry import get_provider_registry
 from app.schemas.ai import SSEErrorEvent
 from app.schemas.rewrite import RewriteRequest
 from app.schemas.story_evolution import EvolutionSSEChunkEvent, EvolutionSSEDoneEvent
+from app.services.ai_concurrency import AIConcurrencyLimitError, AIConcurrencySlot
+from app.services.ai_rate_limit import AIRateLimitError, enforce_ai_rate_limit
 from app.services.story_access import require_story_write_access
 from app.services.story_writer import StoryWriterAgent
 
@@ -47,6 +53,25 @@ async def rewrite_story(
     user_id = session_data.user_id
 
     # Pre-stream checks must raise JSON HTTP errors (not SSE error streams).
+    try:
+        await enforce_ai_rate_limit(
+            db, user_id, bucket="story_rewrite", thresholds=STORY_REWRITE_THRESHOLDS
+        )
+        slot = await AIConcurrencySlot.acquire(
+            user_id, bucket="story_rewrite", limit=STORY_REWRITE_CONCURRENCY
+        )
+    except AIRateLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e),
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        ) from e
+    except AIConcurrencyLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e),
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        ) from e
     # load_legacy_associations=False: this handler queries StoryLegacy
     # directly below for the primary legacy, so the gate's eager-load
     # would be an unused extra query.
@@ -206,6 +231,8 @@ async def rewrite_story(
                 retryable=True,
             )
             yield f"data: {error_event.model_dump_json()}\n\n"
+        finally:
+            await slot.release()
 
     return StreamingResponse(
         rewrite_stream(),

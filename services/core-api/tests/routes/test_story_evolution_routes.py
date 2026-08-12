@@ -6,8 +6,14 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config.ai_rate_limits import (
+    STORY_EVOLUTION_CONCURRENCY,
+    STORY_EVOLUTION_THRESHOLDS,
+)
+from app.models.ai_rate_limit import AIRateLimitEvent
 from app.models.story import Story
 from app.models.user import User
+from app.services.ai_concurrency import AIConcurrencySlot
 from tests.conftest import create_auth_headers_for_user
 
 
@@ -335,6 +341,84 @@ class TestGenerateDraft:
         )
         assert response.status_code == 422
 
+    @pytest.mark.asyncio
+    async def test_generate_frequency_rate_limited(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+    ) -> None:
+        """Exceeding the story_evolution frequency threshold returns 429.
+
+        The rate-limit check runs immediately after `require_auth`, before
+        the phase-validation logic, so the session's phase doesn't matter
+        here.
+        """
+        create_resp = await client.post(
+            f"/api/stories/{test_story.id}/evolution",
+            json={"persona_id": "biographer"},
+            headers=auth_headers,
+        )
+        session_id = create_resp.json()["id"]
+
+        limit = STORY_EVOLUTION_THRESHOLDS[0][1]
+        for _ in range(limit):
+            db_session.add(
+                AIRateLimitEvent(user_id=test_user.id, bucket="story_evolution")
+            )
+        await db_session.commit()
+
+        response = await client.post(
+            f"/api/stories/{test_story.id}/evolution/{session_id}/generate",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 429
+        retry_after = response.headers.get("Retry-After")
+        assert retry_after is not None
+        assert int(retry_after) > 0
+
+    @pytest.mark.asyncio
+    async def test_generate_concurrency_rate_limited(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_user: User,
+        test_story: Story,
+    ) -> None:
+        """Exceeding the story_evolution concurrency limit returns 429.
+
+        Pre-occupies the single concurrency slot directly (bypassing the
+        route) to simulate an already in-flight generate/revise request for
+        this user, then confirms a new request is rejected immediately.
+        """
+        create_resp = await client.post(
+            f"/api/stories/{test_story.id}/evolution",
+            json={"persona_id": "biographer"},
+            headers=auth_headers,
+        )
+        session_id = create_resp.json()["id"]
+
+        slot = await AIConcurrencySlot.acquire(
+            test_user.id,
+            bucket="story_evolution",
+            limit=STORY_EVOLUTION_CONCURRENCY,
+        )
+        try:
+            response = await client.post(
+                f"/api/stories/{test_story.id}/evolution/{session_id}/generate",
+                headers=auth_headers,
+            )
+
+            assert response.status_code == 429
+            retry_after = response.headers.get("Retry-After")
+            assert retry_after is not None
+            assert int(retry_after) > 0
+        finally:
+            await slot.release()
+
 
 class TestReviseDraft:
     @pytest.mark.asyncio
@@ -357,6 +441,84 @@ class TestReviseDraft:
             headers=auth_headers,
         )
         assert response.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_revise_frequency_rate_limited(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+    ) -> None:
+        """Exceeding the story_evolution frequency threshold returns 429.
+
+        Same shared `story_evolution` bucket as generate_draft; the check
+        runs before phase validation so the session's phase doesn't matter.
+        """
+        create_resp = await client.post(
+            f"/api/stories/{test_story.id}/evolution",
+            json={"persona_id": "biographer"},
+            headers=auth_headers,
+        )
+        session_id = create_resp.json()["id"]
+
+        limit = STORY_EVOLUTION_THRESHOLDS[0][1]
+        for _ in range(limit):
+            db_session.add(
+                AIRateLimitEvent(user_id=test_user.id, bucket="story_evolution")
+            )
+        await db_session.commit()
+
+        response = await client.post(
+            f"/api/stories/{test_story.id}/evolution/{session_id}/revise",
+            json={"instructions": "Make it longer"},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 429
+        retry_after = response.headers.get("Retry-After")
+        assert retry_after is not None
+        assert int(retry_after) > 0
+
+    @pytest.mark.asyncio
+    async def test_revise_concurrency_rate_limited(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_user: User,
+        test_story: Story,
+    ) -> None:
+        """Exceeding the shared story_evolution concurrency limit returns 429.
+
+        generate_draft and revise_draft share the same bucket, so a slot
+        occupied elsewhere blocks revise_draft too.
+        """
+        create_resp = await client.post(
+            f"/api/stories/{test_story.id}/evolution",
+            json={"persona_id": "biographer"},
+            headers=auth_headers,
+        )
+        session_id = create_resp.json()["id"]
+
+        slot = await AIConcurrencySlot.acquire(
+            test_user.id,
+            bucket="story_evolution",
+            limit=STORY_EVOLUTION_CONCURRENCY,
+        )
+        try:
+            response = await client.post(
+                f"/api/stories/{test_story.id}/evolution/{session_id}/revise",
+                json={"instructions": "Make it longer"},
+                headers=auth_headers,
+            )
+
+            assert response.status_code == 429
+            retry_after = response.headers.get("Retry-After")
+            assert retry_after is not None
+            assert int(retry_after) > 0
+        finally:
+            await slot.release()
 
 
 class TestSaveManualDraft:

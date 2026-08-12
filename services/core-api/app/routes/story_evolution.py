@@ -11,6 +11,10 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.middleware import require_auth
+from app.config.ai_rate_limits import (
+    STORY_EVOLUTION_CONCURRENCY,
+    STORY_EVOLUTION_THRESHOLDS,
+)
 from app.database import get_db
 from app.providers.registry import get_provider_registry
 from app.schemas.ai import SSEErrorEvent
@@ -28,6 +32,8 @@ from app.schemas.story_evolution import (
 from app.schemas.story_version import StoryVersionDetail
 from app.services import activity as activity_service
 from app.services import story_evolution as evolution_service
+from app.services.ai_concurrency import AIConcurrencyLimitError, AIConcurrencySlot
+from app.services.ai_rate_limit import AIRateLimitError, enforce_ai_rate_limit
 from app.services.story_writer import StoryWriterAgent
 
 logger = logging.getLogger(__name__)
@@ -270,6 +276,31 @@ async def generate_draft(
     """Trigger draft generation. Streams result via SSE."""
     session_data = require_auth(request)
 
+    try:
+        await enforce_ai_rate_limit(
+            db,
+            session_data.user_id,
+            bucket="story_evolution",
+            thresholds=STORY_EVOLUTION_THRESHOLDS,
+        )
+        slot = await AIConcurrencySlot.acquire(
+            session_data.user_id,
+            bucket="story_evolution",
+            limit=STORY_EVOLUTION_CONCURRENCY,
+        )
+    except AIRateLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e),
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        ) from e
+    except AIConcurrencyLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e),
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        ) from e
+
     evo_session = await evolution_service.get_session_for_generation(
         db=db,
         session_id=session_id,
@@ -283,58 +314,61 @@ async def generate_draft(
 
     async def generate_stream() -> AsyncGenerator[str, None]:
         try:
-            context = await evolution_service.build_generation_context(
-                db=db, session=evo_session, user_id=session_data.user_id
-            )
+            try:
+                context = await evolution_service.build_generation_context(
+                    db=db, session=evo_session, user_id=session_data.user_id
+                )
 
-            system_prompt = writer.build_system_prompt(
-                writing_style=context["writing_style"],
-                length_preference=context["length_preference"],
-                legacy_name=context["legacy_name"],
-                relationship_context=context.get("relationship_context", ""),
-                is_revision=False,
-            )
+                system_prompt = writer.build_system_prompt(
+                    writing_style=context["writing_style"],
+                    length_preference=context["length_preference"],
+                    legacy_name=context["legacy_name"],
+                    relationship_context=context.get("relationship_context", ""),
+                    is_revision=False,
+                )
 
-            user_message = writer.build_user_message(
-                original_story=context["original_story"],
-                summary_text=context["summary_text"],
-            )
+                user_message = writer.build_user_message(
+                    original_story=context["original_story"],
+                    summary_text=context["summary_text"],
+                )
 
-            full_text = ""
-            async for chunk in writer.stream_draft(
-                llm_provider=llm,
-                system_prompt=system_prompt,
-                user_message=user_message,
-                model_id=context["model_id"],
-            ):
-                full_text += chunk
-                event = EvolutionSSEChunkEvent(text=chunk)
-                yield f"data: {event.model_dump_json()}\n\n"
+                full_text = ""
+                async for chunk in writer.stream_draft(
+                    llm_provider=llm,
+                    system_prompt=system_prompt,
+                    user_message=user_message,
+                    model_id=context["model_id"],
+                ):
+                    full_text += chunk
+                    event = EvolutionSSEChunkEvent(text=chunk)
+                    yield f"data: {event.model_dump_json()}\n\n"
 
-            # Create draft version and advance phase
-            version = await evolution_service.save_draft(
-                db=db,
-                session=evo_session,
-                title=context["story_title"],
-                content=full_text,
-                user_id=session_data.user_id,
-            )
+                # Create draft version and advance phase
+                version = await evolution_service.save_draft(
+                    db=db,
+                    session=evo_session,
+                    title=context["story_title"],
+                    content=full_text,
+                    user_id=session_data.user_id,
+                )
 
-            done_event = EvolutionSSEDoneEvent(
-                version_id=version.id,
-                version_number=version.version_number,
-            )
-            yield f"data: {done_event.model_dump_json()}\n\n"
+                done_event = EvolutionSSEDoneEvent(
+                    version_id=version.id,
+                    version_number=version.version_number,
+                )
+                yield f"data: {done_event.model_dump_json()}\n\n"
 
-        except Exception:
-            logger.exception("evolution.generate.error")
-            # Rollback database session to prevent invalid state
-            await db.rollback()
-            error_event = SSEErrorEvent(
-                message="Draft generation failed. Please try again.",
-                retryable=True,
-            )
-            yield f"data: {error_event.model_dump_json()}\n\n"
+            except Exception:
+                logger.exception("evolution.generate.error")
+                # Rollback database session to prevent invalid state
+                await db.rollback()
+                error_event = SSEErrorEvent(
+                    message="Draft generation failed. Please try again.",
+                    retryable=True,
+                )
+                yield f"data: {error_event.model_dump_json()}\n\n"
+        finally:
+            await slot.release()
 
     return StreamingResponse(
         generate_stream(),
@@ -358,6 +392,31 @@ async def revise_draft(
     """Revise the current draft with feedback. Streams via SSE."""
     session_data = require_auth(request)
 
+    try:
+        await enforce_ai_rate_limit(
+            db,
+            session_data.user_id,
+            bucket="story_evolution",
+            thresholds=STORY_EVOLUTION_THRESHOLDS,
+        )
+        slot = await AIConcurrencySlot.acquire(
+            session_data.user_id,
+            bucket="story_evolution",
+            limit=STORY_EVOLUTION_CONCURRENCY,
+        )
+    except AIRateLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e),
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        ) from e
+    except AIConcurrencyLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e),
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        ) from e
+
     evo_session = await evolution_service.get_session_for_revision(
         db=db,
         session_id=session_id,
@@ -371,60 +430,63 @@ async def revise_draft(
 
     async def revise_stream() -> AsyncGenerator[str, None]:
         try:
-            context = await evolution_service.build_generation_context(
-                db=db,
-                session=evo_session,
-                include_draft=True,
-                user_id=session_data.user_id,
-            )
+            try:
+                context = await evolution_service.build_generation_context(
+                    db=db,
+                    session=evo_session,
+                    include_draft=True,
+                    user_id=session_data.user_id,
+                )
 
-            system_prompt = writer.build_system_prompt(
-                writing_style=context["writing_style"],
-                length_preference=context["length_preference"],
-                legacy_name=context["legacy_name"],
-                relationship_context=context.get("relationship_context", ""),
-                is_revision=True,
-            )
+                system_prompt = writer.build_system_prompt(
+                    writing_style=context["writing_style"],
+                    length_preference=context["length_preference"],
+                    legacy_name=context["legacy_name"],
+                    relationship_context=context.get("relationship_context", ""),
+                    is_revision=True,
+                )
 
-            user_message = writer.build_user_message(
-                original_story=context["original_story"],
-                summary_text=context["summary_text"],
-                previous_draft=context.get("previous_draft"),
-                revision_instructions=data.instructions,
-            )
+                user_message = writer.build_user_message(
+                    original_story=context["original_story"],
+                    summary_text=context["summary_text"],
+                    previous_draft=context.get("previous_draft"),
+                    revision_instructions=data.instructions,
+                )
 
-            full_text = ""
-            async for chunk in writer.stream_draft(
-                llm_provider=llm,
-                system_prompt=system_prompt,
-                user_message=user_message,
-                model_id=context["model_id"],
-            ):
-                full_text += chunk
-                event = EvolutionSSEChunkEvent(text=chunk)
-                yield f"data: {event.model_dump_json()}\n\n"
+                full_text = ""
+                async for chunk in writer.stream_draft(
+                    llm_provider=llm,
+                    system_prompt=system_prompt,
+                    user_message=user_message,
+                    model_id=context["model_id"],
+                ):
+                    full_text += chunk
+                    event = EvolutionSSEChunkEvent(text=chunk)
+                    yield f"data: {event.model_dump_json()}\n\n"
 
-            version = await evolution_service.update_draft(
-                db=db,
-                session=evo_session,
-                content=full_text,
-            )
+                version = await evolution_service.update_draft(
+                    db=db,
+                    session=evo_session,
+                    content=full_text,
+                )
 
-            done_event = EvolutionSSEDoneEvent(
-                version_id=version.id,
-                version_number=version.version_number,
-            )
-            yield f"data: {done_event.model_dump_json()}\n\n"
+                done_event = EvolutionSSEDoneEvent(
+                    version_id=version.id,
+                    version_number=version.version_number,
+                )
+                yield f"data: {done_event.model_dump_json()}\n\n"
 
-        except Exception:
-            logger.exception("evolution.revise.error")
-            # Rollback database session to prevent invalid state
-            await db.rollback()
-            error_event = SSEErrorEvent(
-                message="Revision failed. Please try again.",
-                retryable=True,
-            )
-            yield f"data: {error_event.model_dump_json()}\n\n"
+            except Exception:
+                logger.exception("evolution.revise.error")
+                # Rollback database session to prevent invalid state
+                await db.rollback()
+                error_event = SSEErrorEvent(
+                    message="Revision failed. Please try again.",
+                    retryable=True,
+                )
+                yield f"data: {error_event.model_dump_json()}\n\n"
+        finally:
+            await slot.release()
 
     return StreamingResponse(
         revise_stream(),

@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..adapters.ai import AIProviderError
 from ..adapters.storytelling import format_story_context as format_story_context_impl
 from ..auth.middleware import require_auth
+from ..config.ai_rate_limits import CHAT_MESSAGE_CONCURRENCY, CHAT_MESSAGE_THRESHOLDS
 from ..config.personas import get_persona, get_personas
 from ..config.settings import get_settings
 from ..database import get_db, get_db_for_background
@@ -45,6 +46,8 @@ from ..schemas.retrieval import ChunkResult
 from ..services import activity as activity_service
 from ..services import ai as ai_service
 from ..services import memory as memory_service
+from ..services.ai_concurrency import AIConcurrencyLimitError, AIConcurrencySlot
+from ..services.ai_rate_limit import AIRateLimitError, enforce_ai_rate_limit
 from ..services.story_access import require_story_read_access
 
 router = APIRouter(prefix="/api/ai", tags=["ai"])
@@ -498,6 +501,35 @@ async def seed_conversation(
 
         llm = registry.get_llm_provider()
 
+        # Pre-stream checks must raise JSON HTTP errors (not SSE error streams).
+        # Placed here (after the idempotency 204 short-circuits and all the
+        # 400/500 validation raises above) so that only requests that are
+        # actually about to generate consume a rate-limit slot or a
+        # concurrency slot — nothing between here and `seed_stream` can raise
+        # and skip the release.
+        try:
+            await enforce_ai_rate_limit(
+                db,
+                session.user_id,
+                bucket="chat_message",
+                thresholds=CHAT_MESSAGE_THRESHOLDS,
+            )
+            slot = await AIConcurrencySlot.acquire(
+                session.user_id, bucket="chat_message", limit=CHAT_MESSAGE_CONCURRENCY
+            )
+        except AIRateLimitError as e:
+            raise HTTPException(
+                status_code=429,
+                detail=str(e),
+                headers={"Retry-After": str(e.retry_after_seconds)},
+            ) from e
+        except AIConcurrencyLimitError as e:
+            raise HTTPException(
+                status_code=429,
+                detail=str(e),
+                headers={"Retry-After": str(e.retry_after_seconds)},
+            ) from e
+
         async def seed_stream() -> AsyncGenerator[str, None]:
             full_response = ""
             try:
@@ -535,6 +567,9 @@ async def seed_conversation(
                     retryable=True,
                 )
                 yield f"data: {error_event.model_dump_json()}\n\n"
+
+            finally:
+                await slot.release()
 
         return StreamingResponse(
             seed_stream(),
@@ -816,6 +851,30 @@ async def send_message(
     """Send message and stream AI response."""
     session = require_auth(request)
 
+    # Pre-stream checks must raise JSON HTTP errors (not SSE error streams).
+    try:
+        await enforce_ai_rate_limit(
+            db,
+            session.user_id,
+            bucket="chat_message",
+            thresholds=CHAT_MESSAGE_THRESHOLDS,
+        )
+        slot = await AIConcurrencySlot.acquire(
+            session.user_id, bucket="chat_message", limit=CHAT_MESSAGE_CONCURRENCY
+        )
+    except AIRateLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e),
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        ) from e
+    except AIConcurrencyLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e),
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        ) from e
+
     with tracer.start_as_current_span("ai.chat.request") as span:
         span.set_attribute("user_id", str(session.user_id))
         span.set_attribute("conversation_id", str(conversation_id))
@@ -1013,6 +1072,9 @@ async def send_message(
                     retryable=False,
                 )
                 yield f"data: {error_event.model_dump_json()}\n\n"
+
+            finally:
+                await slot.release()
 
         return StreamingResponse(
             generate_stream(),
