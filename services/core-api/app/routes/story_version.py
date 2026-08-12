@@ -7,14 +7,11 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Depends,
-    HTTPException,
     Query,
     Request,
     status,
 )
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from ..auth.middleware import require_auth
 from ..database import get_db, get_db_for_background
@@ -26,6 +23,7 @@ from ..schemas.story_version import (
 )
 from ..services import story_version as version_service
 from ..services.ingestion import index_story_chunks
+from ..services.story_access import require_story_write_access
 
 router = APIRouter(prefix="/api/stories/{story_id}/versions", tags=["story-versions"])
 logger = logging.getLogger(__name__)
@@ -34,23 +32,11 @@ logger = logging.getLogger(__name__)
 async def _require_author(db: AsyncSession, story_id: UUID, user_id: UUID) -> Story:
     """Load story and verify requesting user is the author.
 
-    Raises HTTPException 404 if not found, 403 if not author.
+    Delegates to the canonical story-access write gate.
     """
-    result = await db.execute(
-        select(Story)
-        .options(selectinload(Story.legacy_associations))
-        .where(Story.id == story_id)
+    return await require_story_write_access(
+        db=db, story_id=story_id, user_id=user_id, action="manage versions for"
     )
-    story = result.scalar_one_or_none()
-
-    if not story:
-        raise HTTPException(status_code=404, detail="Story not found")
-    if story.author_id != user_id:
-        raise HTTPException(
-            status_code=403, detail="Only the author can manage versions"
-        )
-
-    return story
 
 
 # ── List / Bulk operations (no path parameter) ──────────────────────────

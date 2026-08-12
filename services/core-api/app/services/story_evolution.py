@@ -19,6 +19,7 @@ from app.models.associations import ConversationLegacy, StoryLegacy
 from app.models.story import Story
 from app.models.story_evolution import StoryEvolutionSession
 from app.models.story_version import StoryVersion
+from app.services.story_access import require_story_write_access
 
 if TYPE_CHECKING:
     from typing import Any
@@ -51,16 +52,13 @@ class DiscardSessionResult:
 async def _require_story_author(
     db: AsyncSession, story_id: uuid.UUID, user_id: uuid.UUID
 ) -> Story:
-    """Load story and verify user is the author. Raises 404 or 403."""
-    result = await db.execute(select(Story).where(Story.id == story_id).options())
-    story = result.scalar_one_or_none()
-    if not story:
-        raise HTTPException(status_code=404, detail="Story not found")
-    if story.author_id != user_id:
-        raise HTTPException(
-            status_code=403, detail="Only the story author can evolve it"
-        )
-    return story
+    """Load story and verify user is the author.
+
+    Delegates to the canonical story-access write gate.
+    """
+    return await require_story_write_access(
+        db=db, story_id=story_id, user_id=user_id, action="evolve"
+    )
 
 
 async def _get_session(

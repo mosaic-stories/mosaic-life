@@ -30,7 +30,12 @@ async def require_story_read_access(
     story_id: UUID,
     user_id: UUID,
 ) -> Story:
-    """Load story and enforce visibility-based read access."""
+    """Load story and enforce visibility-based read access.
+
+    WARNING: this is a READ-only gate. It must never be the sole gate on an
+    endpoint that mutates story-owned state — use `require_story_write_access`
+    for that case instead.
+    """
     result = await db.execute(
         select(Story)
         .options(selectinload(Story.legacy_associations))
@@ -49,6 +54,30 @@ async def require_story_read_access(
         return story
 
     raise HTTPException(status_code=403, detail="Not authorized to view this story")
+
+
+async def require_story_write_access(
+    db: AsyncSession,
+    story_id: UUID,
+    user_id: UUID,
+    *,
+    action: str = "modify",
+) -> Story:
+    """Load a story and enforce author-only write access.
+
+    Composes `require_story_read_access` first, so draft-existence hiding
+    and read denials are identical to every read surface, then enforces the
+    story-access spec's author-only editing rule on top.
+    """
+    story = await require_story_read_access(db=db, story_id=story_id, user_id=user_id)
+    allowed, _reason = await can_write_story(
+        story=story, user_id=user_id, action=action
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=403, detail=f"Only the story author can {action} this story"
+        )
+    return story
 
 
 def allowed_visibilities(role: str | None) -> list[str]:
@@ -137,6 +166,40 @@ async def can_read_story(
                     "story_id": str(story.id),
                     "visibility": story.visibility,
                     "reason": reason,
+                },
+            )
+
+        return allowed, reason
+
+
+async def can_write_story(
+    story: Story, user_id: UUID, *, action: str = "modify"
+) -> tuple[bool, str]:
+    """Return whether a user may write (mutate) a story and the deciding reason."""
+    with tracer.start_as_current_span("authz.can_write_story") as span:
+        span.set_attribute("story_id", str(story.id))
+        span.set_attribute("user_id", str(user_id))
+        span.set_attribute("action", action)
+
+        allowed = story.author_id == user_id
+        reason = "author" if allowed else "not_author"
+        decision = "allow" if allowed else "deny"
+        span.set_attribute("decision", decision)
+        span.set_attribute("reason", reason)
+        AUTHZ_DECISIONS.labels(
+            decision=decision, reason=reason, service="core-api"
+        ).inc()
+
+        if not allowed:
+            logger.warning(
+                "authz.write_denied",
+                extra={
+                    "user_id": str(user_id),
+                    "story_id": str(story.id),
+                    "author_id": str(story.author_id),
+                    "action": action,
+                    "visibility": story.visibility,
+                    "status": story.status,
                 },
             )
 

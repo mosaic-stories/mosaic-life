@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.story import Story
 from app.models.user import User
@@ -55,6 +56,26 @@ class TestCreateEvolutionSession:
             headers=headers,
         )
         assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_start_session_non_author_draft_not_found(
+        self,
+        client: AsyncClient,
+        test_story: Story,
+        test_user_2: User,
+        db_session: AsyncSession,
+    ) -> None:
+        """A non-author must not be able to detect a draft story's existence."""
+        test_story.status = "draft"
+        await db_session.commit()
+
+        headers = create_auth_headers_for_user(test_user_2)
+        response = await client.post(
+            f"/api/stories/{test_story.id}/evolution",
+            json={"persona_id": "biographer"},
+            headers=headers,
+        )
+        assert response.status_code == 404
 
     @pytest.mark.asyncio
     async def test_start_session_conflict(
