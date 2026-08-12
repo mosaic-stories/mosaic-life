@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from unittest.mock import AsyncMock
@@ -60,12 +60,12 @@ def _keycloak_client() -> SimpleNamespace:
 
 async def _start_keycloak_login(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch, kc: SimpleNamespace
-) -> str:
+) -> tuple[Response, dict[str, list[str]]]:
     monkeypatch.setattr(auth_router, "get_keycloak_client", lambda settings: kc)
     response = await client.get("/api/auth/keycloak")
     assert response.status_code in {302, 307}
     params = _params(response.headers["location"])
-    return params["state"][0]
+    return response, params
 
 
 @pytest.mark.asyncio
@@ -75,11 +75,9 @@ async def test_login_keycloak_sets_state_pkce_cookies_and_authorize_pkce(
     monkeypatch.setattr(auth_router, "get_settings", _keycloak_settings)
     kc = _keycloak_client()
 
-    state = await _start_keycloak_login(client, monkeypatch, kc)
-    response = await client.get("/api/auth/keycloak")
-    params = _params(response.headers["location"])
+    response, params = await _start_keycloak_login(client, monkeypatch, kc)
 
-    assert state
+    assert params["state"][0]
     assert params["code_challenge"][0]
     assert params["code_challenge_method"] == ["S256"]
     assert "mosaic_oauth_state" in response.cookies
@@ -92,7 +90,8 @@ async def test_callback_keycloak_succeeds_and_clears_cookies(
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _keycloak_settings)
     kc = _keycloak_client()
-    state = await _start_keycloak_login(client, monkeypatch, kc)
+    _, params = await _start_keycloak_login(client, monkeypatch, kc)
+    state = params["state"][0]
 
     response = await client.get(
         f"/api/auth/keycloak/callback?code=good-code&state={state}"
@@ -142,7 +141,8 @@ async def test_callback_keycloak_rejects_missing_pkce_cookie(
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _keycloak_settings)
     kc = _keycloak_client()
-    state = await _start_keycloak_login(client, monkeypatch, kc)
+    _, params = await _start_keycloak_login(client, monkeypatch, kc)
+    state = params["state"][0]
     client.cookies.delete("mosaic_pkce")
 
     response = await client.get(
@@ -159,7 +159,8 @@ async def test_callback_keycloak_rejects_invalid_pkce_cookie(
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _keycloak_settings)
     kc = _keycloak_client()
-    state = await _start_keycloak_login(client, monkeypatch, kc)
+    _, params = await _start_keycloak_login(client, monkeypatch, kc)
+    state = params["state"][0]
     client.cookies.set("mosaic_pkce", "tampered")
 
     response = await client.get(
@@ -193,7 +194,8 @@ async def test_callback_keycloak_replay_is_rejected_after_success(
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _keycloak_settings)
     kc = _keycloak_client()
-    state = await _start_keycloak_login(client, monkeypatch, kc)
+    _, params = await _start_keycloak_login(client, monkeypatch, kc)
+    state = params["state"][0]
 
     first = await client.get(f"/api/auth/keycloak/callback?code=code-1&state={state}")
     second = await client.get(f"/api/auth/keycloak/callback?code=code-2&state={state}")
@@ -210,7 +212,8 @@ async def test_callback_keycloak_unexpected_error_redirects_and_clears_cookies(
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _keycloak_settings)
     kc = _keycloak_client()
-    state = await _start_keycloak_login(client, monkeypatch, kc)
+    _, params = await _start_keycloak_login(client, monkeypatch, kc)
+    state = params["state"][0]
 
     async def fail_find_or_create_user(*args, **kwargs):
         raise RuntimeError("boom")

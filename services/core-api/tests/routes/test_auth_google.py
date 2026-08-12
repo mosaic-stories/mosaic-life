@@ -2,7 +2,7 @@ from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from unittest.mock import AsyncMock
@@ -39,11 +39,13 @@ def _clears_oauth_cookies(response) -> bool:
     )
 
 
-async def _start_google_login(client: AsyncClient) -> tuple[str, str]:
+async def _start_google_login(
+    client: AsyncClient,
+) -> tuple[Response, dict[str, list[str]]]:
     response = await client.get("/api/auth/google")
     assert response.status_code in {302, 307}
     params = _params(response.headers["location"])
-    return params["state"][0], params["code_challenge"][0]
+    return response, params
 
 
 @pytest.mark.asyncio
@@ -52,12 +54,10 @@ async def test_login_google_sets_state_pkce_cookies_and_authorize_pkce(
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _google_settings)
 
-    state, code_challenge = await _start_google_login(client)
-    response = await client.get("/api/auth/google")
-    params = _params(response.headers["location"])
+    response, params = await _start_google_login(client)
 
-    assert state
-    assert code_challenge
+    assert params["state"][0]
+    assert params["code_challenge"][0]
     assert params["code_challenge_method"] == ["S256"]
     assert "mosaic_oauth_state" in response.cookies
     assert "mosaic_pkce" in response.cookies
@@ -69,7 +69,8 @@ async def test_callback_google_succeeds_clears_cookies_and_sends_verifier(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _google_settings)
-    state, _ = await _start_google_login(client)
+    _, params = await _start_google_login(client)
+    state = params["state"][0]
 
     google_client = SimpleNamespace(
         exchange_code_for_tokens=AsyncMock(return_value={"access_token": "access"}),
@@ -135,7 +136,8 @@ async def test_callback_google_rejects_missing_pkce_cookie(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _google_settings)
-    state, _ = await _start_google_login(client)
+    _, params = await _start_google_login(client)
+    state = params["state"][0]
     client.cookies.delete("mosaic_pkce")
 
     response = await client.get(
@@ -151,7 +153,8 @@ async def test_callback_google_rejects_invalid_pkce_cookie(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _google_settings)
-    state, _ = await _start_google_login(client)
+    _, params = await _start_google_login(client)
+    state = params["state"][0]
     client.cookies.set("mosaic_pkce", "tampered")
 
     response = await client.get(
@@ -183,7 +186,8 @@ async def test_callback_google_replay_is_rejected_after_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _google_settings)
-    state, _ = await _start_google_login(client)
+    _, params = await _start_google_login(client)
+    state = params["state"][0]
 
     google_client = SimpleNamespace(
         exchange_code_for_tokens=AsyncMock(return_value={"access_token": "access"}),
@@ -213,7 +217,8 @@ async def test_callback_google_unexpected_error_redirects_and_clears_cookies(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(auth_router, "get_settings", _google_settings)
-    state, _ = await _start_google_login(client)
+    _, params = await _start_google_login(client)
+    state = params["state"][0]
 
     google_client = SimpleNamespace(
         exchange_code_for_tokens=AsyncMock(return_value={"access_token": "access"}),
