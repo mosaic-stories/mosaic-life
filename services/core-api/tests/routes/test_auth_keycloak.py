@@ -33,7 +33,12 @@ def _params(location: str) -> dict[str, list[str]]:
 
 def _clears_oauth_cookies(response) -> bool:
     set_cookie = "\n".join(response.headers.get_list("set-cookie"))
-    return "mosaic_oauth_state=" in set_cookie and "mosaic_pkce=" in set_cookie
+    return (
+        "mosaic_oauth_state=" in set_cookie
+        and "mosaic_pkce=" in set_cookie
+        and "HttpOnly" in set_cookie
+        and "SameSite=lax" in set_cookie
+    )
 
 
 def _keycloak_client() -> SimpleNamespace:
@@ -163,6 +168,21 @@ async def test_callback_keycloak_rejects_invalid_pkce_cookie(
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid PKCE verifier"
+
+
+@pytest.mark.asyncio
+async def test_callback_keycloak_provider_error_clears_cookies(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(auth_router, "get_settings", _keycloak_settings)
+    kc = _keycloak_client()
+    await _start_keycloak_login(client, monkeypatch, kc)
+
+    response = await client.get("/api/auth/keycloak/callback?error=access_denied")
+
+    assert response.status_code in {302, 307}
+    assert response.headers["location"] == "http://app.test/?error=access_denied"
+    assert _clears_oauth_cookies(response)
 
 
 @pytest.mark.asyncio

@@ -176,11 +176,7 @@ def _check_oauth_callback_cookies(
         _record_auth_login_rejection(provider, "state_cookie_mismatch")
         raise HTTPException(status_code=400, detail="Invalid state parameter")
 
-    response.delete_cookie(
-        key=_STATE_COOKIE,
-        path="/",
-        domain=settings.session_cookie_domain,
-    )
+    _clear_oauth_cookie(response, request, settings, key=_STATE_COOKIE)
 
     if not pkce_required:
         return None
@@ -206,12 +202,29 @@ def _check_oauth_callback_cookies(
         _record_auth_login_rejection(provider, "invalid_pkce_cookie")
         raise HTTPException(status_code=400, detail="Invalid PKCE verifier")
 
+    _clear_oauth_cookie(response, request, settings, key=_PKCE_COOKIE)
+    return code_verifier
+
+
+def _clear_oauth_cookie(
+    response: RedirectResponse, request: Request, settings: Settings, *, key: str
+) -> None:
+    is_secure = settings.session_cookie_secure or is_request_secure(request)
     response.delete_cookie(
-        key=_PKCE_COOKIE,
+        key=key,
         path="/",
         domain=settings.session_cookie_domain,
+        secure=is_secure,
+        httponly=True,
+        samesite="lax",
     )
-    return code_verifier
+
+
+def _clear_oauth_cookies(
+    response: RedirectResponse, request: Request, settings: Settings
+) -> None:
+    _clear_oauth_cookie(response, request, settings, key=_STATE_COOKIE)
+    _clear_oauth_cookie(response, request, settings, key=_PKCE_COOKIE)
 
 
 def _clear_session_cookie(
@@ -357,7 +370,9 @@ async def callback_google(
 
     if error:
         logger.error("auth.google.callback_error", extra={"error": error})
-        return RedirectResponse(url=f"{settings.app_url}/?error={error}")
+        response = RedirectResponse(url=f"{settings.app_url}/?error={error}")
+        _clear_oauth_cookies(response, request, settings)
+        return response
 
     if not state or not _verify_signed_state(state, settings.session_secret_key):
         logger.warning(
@@ -500,7 +515,9 @@ async def callback_keycloak(
 
     if error:
         logger.error("auth.keycloak.callback_error", extra={"error": error})
-        return RedirectResponse(url=f"{settings.app_url}/?error={error}")
+        response = RedirectResponse(url=f"{settings.app_url}/?error={error}")
+        _clear_oauth_cookies(response, request, settings)
+        return response
 
     if not state or not _verify_signed_state(state, settings.session_secret_key):
         logger.warning(
