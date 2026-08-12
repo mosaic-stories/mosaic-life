@@ -1,9 +1,6 @@
 """Keycloak OIDC client with PKCE support."""
 
-import base64
-import hashlib
 import logging
-import secrets
 from typing import Any
 from urllib.parse import urlparse
 
@@ -45,22 +42,6 @@ class KeycloakOIDCClient:
         # (discovery, token exchange, userinfo) so they hit the Keycloak container
         # directly on the Docker-internal network.
         self._internal_base_url = settings.keycloak_internal_base_url
-
-    # ------------------------------------------------------------------
-    # PKCE helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def generate_pkce_pair() -> tuple[str, str]:
-        """Return (code_verifier, code_challenge) for S256 PKCE."""
-        verifier = secrets.token_urlsafe(64)
-        digest = hashlib.sha256(verifier.encode()).digest()
-        challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
-        return verifier, challenge
-
-    # ------------------------------------------------------------------
-    # Internal routing helpers
-    # ------------------------------------------------------------------
 
     def _to_internal_url(self, url: str) -> str:
         """Swap the public base URL for the internal base URL on server-to-server calls."""

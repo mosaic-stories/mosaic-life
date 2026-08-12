@@ -103,7 +103,10 @@ Suggested PR split (each well under 400 LOC): **PR1** = §0–2 (the security fi
        "user_id": "<B's user id>", "story_id": "<A_story_id>", "author_id": "<A's user id>",
        "action": "rewrite", "visibility": "public", "status": "published", ...}
 
-- [ ] 5.3 Close [issue #98](https://github.com/mosaic-stories/mosaic-life/issues/98) via `Fixes #98` in PR1, then `/opsx:archive story-write-authz` after merge to fold the delta into `openspec/specs/story-access/spec.md`.
+- [x] 5.3 Close [issue #98](https://github.com/mosaic-stories/mosaic-life/issues/98) via `Fixes #98` in PR1, then `/opsx:archive story-write-authz` after merge to fold the delta into `openspec/specs/story-access/spec.md`.
+
+      -- PR #120 merged 2026-08-12T05:06:07Z (squash-merge to main), closing issue #98
+      -- via its `Fixes #98` trailer. Archiving now via /opsx:archive.
 
       -- PR opened 2026-08-11: https://github.com/mosaic-stories/mosaic-life/pull/120
       -- (develop -> main, `Fixes #98` in the description; §0-4 landed as a single PR

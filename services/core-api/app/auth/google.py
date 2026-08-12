@@ -45,7 +45,7 @@ class GoogleOAuthClient:
         )
 
     async def exchange_code_for_tokens(
-        self, code: str, redirect_uri: str
+        self, code: str, redirect_uri: str, code_verifier: str | None = None
     ) -> dict[str, Any]:
         """Exchange authorization code for access and ID tokens.
 
@@ -60,16 +60,20 @@ class GoogleOAuthClient:
             GoogleOAuthError: If token exchange fails
         """
         try:
+            data = {
+                "code": code,
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+                "redirect_uri": redirect_uri,
+                "grant_type": "authorization_code",
+            }
+            if code_verifier is not None:
+                data["code_verifier"] = code_verifier
+
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     self.settings.google_token_url,
-                    data={
-                        "code": code,
-                        "client_id": self.client_id,
-                        "client_secret": self.client_secret,
-                        "redirect_uri": redirect_uri,
-                        "grant_type": "authorization_code",
-                    },
+                    data=data,
                     headers={"Content-Type": "application/x-www-form-urlencoded"},
                 )
 

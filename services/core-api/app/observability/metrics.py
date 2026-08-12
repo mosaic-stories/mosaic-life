@@ -90,3 +90,9 @@ AUTHZ_DECISIONS = Counter(
     "Story authorization decisions",
     ["decision", "reason", "service"],
 )
+
+AUTH_LOGIN_REJECTIONS = Counter(
+    "auth_login_rejections_total",
+    "OAuth login callback rejections at the CSRF/PKCE binding layer",
+    ["service", "provider", "reason"],
+)
