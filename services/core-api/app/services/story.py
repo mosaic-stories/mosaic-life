@@ -35,6 +35,7 @@ from .story_access import (
     ACTIVE_ROLES,
     can_read_story,
     get_linked_legacy_filters,
+    require_story_write_access,
     visible_stories_criteria,
 )
 from .story_version import create_version as create_story_version
@@ -1249,36 +1250,15 @@ async def update_story(
         Updated story
 
     Raises:
-        HTTPException: 404 if not found, 403 if not author
+        HTTPException: delegates to `require_story_write_access` — 404 if not
+            found, 404 if it's another author's draft (existence hidden),
+            403 if the caller can't read it at all, 403 if the caller can
+            read it but isn't the author.
     """
-    # Load story with associations
-    result = await db.execute(
-        select(Story)
-        .options(selectinload(Story.legacy_associations))
-        .where(Story.id == story_id)
+    # Load story and enforce author-only write access via the canonical gate.
+    story = await require_story_write_access(
+        db=db, story_id=story_id, user_id=user_id, action="update"
     )
-    story = result.scalar_one_or_none()
-
-    if not story:
-        raise HTTPException(
-            status_code=404,
-            detail="Story not found",
-        )
-
-    # Author-only updates
-    if story.author_id != user_id:
-        logger.warning(
-            "story.update_denied",
-            extra={
-                "story_id": str(story_id),
-                "user_id": str(user_id),
-                "author_id": str(story.author_id),
-            },
-        )
-        raise HTTPException(
-            status_code=403,
-            detail="Only the story author can update this story",
-        )
 
     # Determine new title/content (versioned fields).
     # Omitted title (None) leaves the stored title untouched; an explicitly

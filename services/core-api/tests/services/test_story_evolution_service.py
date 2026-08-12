@@ -86,6 +86,26 @@ class TestStartEvolutionSession:
         assert exc.value.status_code == 403
 
     @pytest.mark.asyncio
+    async def test_start_session_non_author_draft_not_found(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_story: Story,
+    ) -> None:
+        """A non-author must not be able to detect a draft story's existence."""
+        test_story.status = "draft"
+        await db_session.commit()
+
+        with pytest.raises(HTTPException) as exc:
+            await evolution_service.start_session(
+                db=db_session,
+                story_id=test_story.id,
+                user_id=test_user_2.id,
+                persona_id="biographer",
+            )
+        assert exc.value.status_code == 404
+
+    @pytest.mark.asyncio
     async def test_start_session_conflict_when_active_exists(
         self,
         db_session: AsyncSession,
@@ -149,6 +169,40 @@ class TestGetActiveSession:
             user_id=test_user.id,
         )
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_active_session_non_author_forbidden(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_story: Story,
+    ) -> None:
+        with pytest.raises(HTTPException) as exc:
+            await evolution_service.get_active_session(
+                db=db_session,
+                story_id=test_story.id,
+                user_id=test_user_2.id,
+            )
+        assert exc.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_get_active_session_non_author_draft_not_found(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_story: Story,
+    ) -> None:
+        """A non-author must not be able to detect a draft story's existence."""
+        test_story.status = "draft"
+        await db_session.commit()
+
+        with pytest.raises(HTTPException) as exc:
+            await evolution_service.get_active_session(
+                db=db_session,
+                story_id=test_story.id,
+                user_id=test_user_2.id,
+            )
+        assert exc.value.status_code == 404
 
 
 class TestAdvancePhase:
@@ -1041,6 +1095,40 @@ class TestDiscardDraftStory:
             sa_select(StoryModel).where(StoryModel.id == story_id)
         )
         assert story_check.scalar_one_or_none() is None
+
+    @pytest.mark.asyncio
+    async def test_discard_active_session_non_author_forbidden(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_story: Story,
+    ) -> None:
+        with pytest.raises(HTTPException) as exc:
+            await evolution_service.discard_active_session(
+                db=db_session,
+                story_id=test_story.id,
+                user_id=test_user_2.id,
+            )
+        assert exc.value.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_discard_active_session_non_author_draft_not_found(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_story: Story,
+    ) -> None:
+        """A non-author must not be able to detect a draft story's existence."""
+        test_story.status = "draft"
+        await db_session.commit()
+
+        with pytest.raises(HTTPException) as exc:
+            await evolution_service.discard_active_session(
+                db=db_session,
+                story_id=test_story.id,
+                user_id=test_user_2.id,
+            )
+        assert exc.value.status_code == 404
 
     @pytest.mark.asyncio
     async def test_discard_preserves_published_story(

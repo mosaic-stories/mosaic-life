@@ -148,6 +148,14 @@
 * **Sanitization:** DOMPurify/rehype‑sanitize for user content.
 * **Input validation:** zod (frontend), Pydantic (backend) at boundaries.
 * **AuthZ:** single call to central policy function per request; no duplicated logic in clients/plugins.
+* **Read vs. write gates:** an endpoint that mutates a resource must gate on a write/ownership check, not a read check — a read check is never sufficient authorization for a mutation, even when it happens to reject most bad requests too (issue #98: a read gate on a write endpoint let any reader overwrite another author's draft). For story-scoped endpoints, use `require_story_write_access` (`app/services/story_access.py`); the read-only `require_story_read_access` gates visibility only, never mutation.
+* **Read-gated write exception:** a write surface may stay on the read gate only when every write it performs is keyed to the *calling* user's own row, so no cross-user tamper is possible regardless of who else can pass the gate. Audited instances:
+  * `routes/graph_context.py` — GET, read-only, no write at all.
+  * `routes/ai.py` (conversation seeding) — reads story content only, no story mutation.
+  * `routes/ai.py` and `routes/story_context.py` (context extraction) — writes `StoryContext` scoped to `(story_id, user_id)`.
+  * `routes/story_context.py` (fact status) — already scoped to the caller's own `StoryContext`.
+
+  Don't add to this list without the same "keyed to the calling user" reasoning — when in doubt, use the write gate.
 * **Transport:** TLS everywhere; mTLS optional later; JWT between services.
 
 ---

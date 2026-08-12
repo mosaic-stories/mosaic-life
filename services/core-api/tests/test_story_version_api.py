@@ -100,6 +100,25 @@ class TestListVersions:
         )
         assert resp.status_code == 403
 
+    @pytest.mark.asyncio
+    async def test_list_versions_non_author_draft_not_found(
+        self,
+        client: AsyncClient,
+        versioned_story: Story,
+        db_session: AsyncSession,
+        test_user_2: User,
+    ) -> None:
+        """A non-author must not be able to detect a draft story's existence."""
+        versioned_story.status = "draft"
+        await db_session.commit()
+
+        headers = create_auth_headers_for_user(test_user_2)
+        resp = await client.get(
+            f"/api/stories/{versioned_story.id}/versions",
+            headers=headers,
+        )
+        assert resp.status_code == 404
+
 
 class TestGetVersion:
     @pytest.mark.asyncio

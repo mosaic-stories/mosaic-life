@@ -17,7 +17,12 @@ from app.models.story import Story
 from app.models.user import User
 from app.services.retrieval import resolve_visibility_filter
 from app.services.story import list_legacy_stories
-from app.services.story_access import can_read_story, require_story_read_access
+from app.services.story_access import (
+    can_read_story,
+    can_write_story,
+    require_story_read_access,
+    require_story_write_access,
+)
 from tests.conftest import create_auth_headers_for_user
 
 
@@ -330,3 +335,140 @@ async def test_legacy_link_access_matrix(
         db_session, receiver_creator.id, legacy_id=receiver.id
     )
     assert (story.id in {summary.id for summary in summaries}) is expected_listed
+
+
+# ---------------------------------------------------------------------------
+# `require_story_write_access` / `can_write_story` — canonical write gate
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("visibility", ["public", "private", "personal"])
+async def test_write_access_allows_author(
+    db_session: AsyncSession,
+    visibility: str,
+) -> None:
+    legacy, users = await _matrix_context(db_session)
+    story = await _story(
+        db_session,
+        author=users["author"],
+        legacy=legacy,
+        visibility=visibility,
+    )
+    await db_session.commit()
+
+    loaded = await require_story_write_access(db_session, story.id, users["author"].id)
+    assert loaded.id == story.id
+
+
+@pytest.mark.asyncio
+async def test_write_access_allows_author_on_own_draft(
+    db_session: AsyncSession,
+) -> None:
+    legacy, users = await _matrix_context(db_session)
+    story = await _story(
+        db_session,
+        author=users["author"],
+        legacy=legacy,
+        visibility="private",
+        status="draft",
+    )
+    await db_session.commit()
+
+    loaded = await require_story_write_access(db_session, story.id, users["author"].id)
+    assert loaded.id == story.id
+
+
+@pytest.mark.asyncio
+async def test_write_access_denies_non_author_on_readable_story(
+    db_session: AsyncSession,
+) -> None:
+    legacy, users = await _matrix_context(db_session)
+    story = await _story(
+        db_session,
+        author=users["author"],
+        legacy=legacy,
+        visibility="public",
+    )
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        await require_story_write_access(
+            db_session,
+            story.id,
+            users["non_member"].id,
+            action="rewrite",
+        )
+    assert exc.value.status_code == 403
+    assert "rewrite" in exc.value.detail
+
+
+@pytest.mark.asyncio
+async def test_write_access_denies_non_member_on_private_story(
+    db_session: AsyncSession,
+) -> None:
+    legacy, users = await _matrix_context(db_session)
+    story = await _story(
+        db_session,
+        author=users["author"],
+        legacy=legacy,
+        visibility="private",
+    )
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        await require_story_write_access(db_session, story.id, users["non_member"].id)
+    assert exc.value.status_code == 403
+    assert exc.value.detail == "Not authorized to view this story"
+
+
+@pytest.mark.asyncio
+async def test_write_access_hides_draft_existence_from_non_author(
+    db_session: AsyncSession,
+) -> None:
+    legacy, users = await _matrix_context(db_session)
+    story = await _story(
+        db_session,
+        author=users["author"],
+        legacy=legacy,
+        visibility="private",
+        status="draft",
+    )
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        await require_story_write_access(db_session, story.id, users["admirer"].id)
+    assert exc.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_write_access_missing_story_is_404(
+    db_session: AsyncSession,
+) -> None:
+    _legacy_obj, users = await _matrix_context(db_session)
+
+    with pytest.raises(HTTPException) as exc:
+        await require_story_write_access(db_session, uuid4(), users["author"].id)
+    assert exc.value.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_can_write_story_reasons(
+    db_session: AsyncSession,
+) -> None:
+    legacy, users = await _matrix_context(db_session)
+    story = await _story(
+        db_session,
+        author=users["author"],
+        legacy=legacy,
+        visibility="public",
+    )
+    await db_session.commit()
+
+    allowed, reason = await can_write_story(story, users["author"].id)
+    assert allowed is True
+    assert reason == "author"
+
+    denied, deny_reason = await can_write_story(story, users["non_member"].id)
+    assert denied is False
+    assert deny_reason == "not_author"

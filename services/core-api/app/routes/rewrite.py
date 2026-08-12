@@ -23,7 +23,7 @@ from app.providers.registry import get_provider_registry
 from app.schemas.ai import SSEErrorEvent
 from app.schemas.rewrite import RewriteRequest
 from app.schemas.story_evolution import EvolutionSSEChunkEvent, EvolutionSSEDoneEvent
-from app.services.story_access import require_story_read_access
+from app.services.story_access import require_story_write_access
 from app.services.story_writer import StoryWriterAgent
 
 logger = logging.getLogger(__name__)
@@ -46,8 +46,17 @@ async def rewrite_story(
     session_data = require_auth(request)
     user_id = session_data.user_id
 
-    # Pre-stream checks must raise JSON HTTP errors (not SSE error streams)
-    story = await require_story_read_access(db=db, story_id=story_id, user_id=user_id)
+    # Pre-stream checks must raise JSON HTTP errors (not SSE error streams).
+    # load_legacy_associations=False: this handler queries StoryLegacy
+    # directly below for the primary legacy, so the gate's eager-load
+    # would be an unused extra query.
+    story = await require_story_write_access(
+        db=db,
+        story_id=story_id,
+        user_id=user_id,
+        action="rewrite",
+        load_legacy_associations=False,
+    )
 
     # Validate conversation ownership before loading summary (do not leak details)
     conversation_summary = ""

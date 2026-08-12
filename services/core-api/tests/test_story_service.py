@@ -441,6 +441,26 @@ class TestUpdateStory:
         assert public_exc.value.status_code == 403
 
     @pytest.mark.asyncio
+    async def test_update_story_non_author_draft_not_found(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_story_public: Story,
+    ):
+        """A non-author must not be able to detect a draft story's existence."""
+        test_story_public.status = "draft"
+        await db_session.commit()
+
+        with pytest.raises(HTTPException) as exc:
+            await story_service.update_story(
+                db=db_session,
+                user_id=test_user_2.id,
+                story_id=test_story_public.id,
+                data=StoryUpdate(title="Should Not Work"),
+            )
+        assert exc.value.status_code == 404
+
+    @pytest.mark.asyncio
     async def test_update_partial_fields(
         self,
         db_session: AsyncSession,
