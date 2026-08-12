@@ -3,6 +3,7 @@
 from prometheus_client import Counter, Histogram
 
 from app.observability.metrics import (
+    AUTH_LOGIN_REJECTIONS,
     AI_EMBEDDING_DURATION,
     AI_GUARDRAIL_TRIGGERS,
     AI_LATENCY_BUCKETS,
@@ -39,6 +40,16 @@ class TestMetricDefinitions:
 
     def test_ai_guardrail_triggers_labels(self) -> None:
         assert AI_GUARDRAIL_TRIGGERS._labelnames == ("provider", "action")
+
+    def test_auth_login_rejections_is_counter(self) -> None:
+        assert isinstance(AUTH_LOGIN_REJECTIONS, Counter)
+
+    def test_auth_login_rejections_labels(self) -> None:
+        assert AUTH_LOGIN_REJECTIONS._labelnames == (
+            "service",
+            "provider",
+            "reason",
+        )
 
     def test_ai_retrieval_duration_is_histogram(self) -> None:
         assert isinstance(AI_RETRIEVAL_DURATION, Histogram)
