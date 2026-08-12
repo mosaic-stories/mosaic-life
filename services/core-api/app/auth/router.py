@@ -20,7 +20,9 @@ from ..database import get_db
 from ..models.profile_settings import ProfileSettings
 from ..models.user_session import UserSession
 from ..models.user import User
+from ..observability.metrics import AUTH_LOGIN_REJECTIONS
 from ..services.username import allocate_username
+from .pkce import generate_pkce_pair, sign_value, verify_and_extract_value
 from .session_tokens import (
     extract_client_ip,
     extract_device_info,
@@ -44,6 +46,7 @@ logger = logging.getLogger(__name__)
 STATE_TOKEN_MAX_AGE = 300
 
 # PKCE verifier cookie name and lifetime
+_STATE_COOKIE = "mosaic_oauth_state"
 _PKCE_COOKIE = "mosaic_pkce"
 
 
@@ -105,23 +108,124 @@ def _verify_signed_state(state: str, secret_key: str) -> bool:
         return False
 
 
-def _sign_pkce_value(value: str, secret: str) -> str:
-    """HMAC-sign a PKCE verifier so the cookie cannot be forged or tampered with."""
-    sig = hmac.new(secret.encode(), value.encode(), hashlib.sha256).digest()
-    return f"{value}.{base64.urlsafe_b64encode(sig).decode()}"
+def _record_auth_login_rejection(provider: str, reason: str) -> None:
+    AUTH_LOGIN_REJECTIONS.labels(
+        service="core-api", provider=provider, reason=reason
+    ).inc()
 
 
-def _verify_and_extract_pkce_value(signed: str, secret: str) -> str | None:
-    """Verify the signed PKCE cookie and return the raw verifier, or None if invalid."""
-    try:
-        raw, sig_b64 = signed.rsplit(".", 1)
-        expected = hmac.new(secret.encode(), raw.encode(), hashlib.sha256).digest()
-        actual = base64.urlsafe_b64decode(sig_b64.encode())
-        if hmac.compare_digest(expected, actual):
-            return raw
+def _set_oauth_start_cookies(
+    response: RedirectResponse,
+    request: Request,
+    settings: Settings,
+    *,
+    state: str,
+    code_verifier: str | None,
+) -> None:
+    is_secure = settings.session_cookie_secure or is_request_secure(request)
+    response.set_cookie(
+        key=_STATE_COOKIE,
+        value=sign_value(state, settings.session_secret_key),
+        max_age=STATE_TOKEN_MAX_AGE,
+        httponly=True,
+        secure=is_secure,
+        samesite="lax",
+        path="/",
+        domain=settings.session_cookie_domain,
+    )
+    if code_verifier is not None:
+        response.set_cookie(
+            key=_PKCE_COOKIE,
+            value=sign_value(code_verifier, settings.session_secret_key),
+            max_age=STATE_TOKEN_MAX_AGE,
+            httponly=True,
+            secure=is_secure,
+            samesite="lax",
+            path="/",
+            domain=settings.session_cookie_domain,
+        )
+
+
+def _check_oauth_callback_cookies(
+    request: Request,
+    response: RedirectResponse,
+    settings: Settings,
+    *,
+    provider: str,
+    state: str,
+    pkce_required: bool,
+) -> str | None:
+    signed_state = request.cookies.get(_STATE_COOKIE)
+    state_cookie = (
+        verify_and_extract_value(signed_state, settings.session_secret_key)
+        if signed_state
+        else None
+    )
+    if not state_cookie:
+        logger.warning(
+            f"auth.{provider}.state_cookie_mismatch",
+            extra={"provider": provider, "reason": "state_cookie_missing"},
+        )
+        _record_auth_login_rejection(provider, "state_cookie_missing")
+        raise HTTPException(status_code=400, detail="Invalid state parameter")
+    if not hmac.compare_digest(state_cookie, state):
+        logger.warning(
+            f"auth.{provider}.state_cookie_mismatch",
+            extra={"provider": provider, "reason": "state_cookie_mismatch"},
+        )
+        _record_auth_login_rejection(provider, "state_cookie_mismatch")
+        raise HTTPException(status_code=400, detail="Invalid state parameter")
+
+    response.delete_cookie(
+        key=_STATE_COOKIE,
+        path="/",
+        domain=settings.session_cookie_domain,
+    )
+
+    if not pkce_required:
         return None
-    except Exception:
-        return None
+
+    signed_verifier = request.cookies.get(_PKCE_COOKIE)
+    if not signed_verifier:
+        logger.warning(
+            f"auth.{provider}.pkce_cookie_missing",
+            extra={"provider": provider, "reason": "missing_pkce_cookie"},
+        )
+        _record_auth_login_rejection(provider, "missing_pkce_cookie")
+        raise HTTPException(
+            status_code=400, detail="Missing PKCE verifier — login session expired"
+        )
+    code_verifier = verify_and_extract_value(
+        signed_verifier, settings.session_secret_key
+    )
+    if not code_verifier:
+        logger.warning(
+            f"auth.{provider}.pkce_cookie_invalid",
+            extra={"provider": provider, "reason": "invalid_pkce_cookie"},
+        )
+        _record_auth_login_rejection(provider, "invalid_pkce_cookie")
+        raise HTTPException(status_code=400, detail="Invalid PKCE verifier")
+
+    response.delete_cookie(
+        key=_PKCE_COOKIE,
+        path="/",
+        domain=settings.session_cookie_domain,
+    )
+    return code_verifier
+
+
+def _clear_session_cookie(
+    response: RedirectResponse, request: Request, settings: Settings
+) -> None:
+    is_secure = settings.session_cookie_secure or is_request_secure(request)
+    response.delete_cookie(
+        key=settings.session_cookie_name,
+        path="/",
+        httponly=True,
+        secure=is_secure,
+        samesite="lax",
+        domain=settings.session_cookie_domain,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -215,6 +319,7 @@ async def login_google(request: Request) -> RedirectResponse:
         raise HTTPException(status_code=500, detail="Google OAuth not configured")
 
     state = _create_signed_state(settings.session_secret_key)
+    code_verifier, code_challenge = generate_pkce_pair()
     redirect_uri = f"{settings.api_url}/api/auth/google/callback"
     params = {
         "client_id": settings.google_client_id,
@@ -224,10 +329,16 @@ async def login_google(request: Request) -> RedirectResponse:
         "state": state,
         "access_type": "offline",
         "prompt": "select_account",
+        "code_challenge": code_challenge,
+        "code_challenge_method": "S256",
     }
     auth_url = f"{settings.google_auth_url}?{urlencode(params)}"
     logger.info("auth.google.login_redirect", extra={"redirect_uri": redirect_uri})
-    return RedirectResponse(url=auth_url)
+    response = RedirectResponse(url=auth_url)
+    _set_oauth_start_cookies(
+        response, request, settings, state=state, code_verifier=code_verifier
+    )
+    return response
 
 
 @router.get("/auth/google/callback")
@@ -252,16 +363,27 @@ async def callback_google(
         logger.warning(
             "auth.google.invalid_state", extra={"state": state[:50] if state else None}
         )
+        _record_auth_login_rejection("google", "invalid_state_signature")
         raise HTTPException(status_code=400, detail="Invalid state parameter")
 
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code")
 
+    response = RedirectResponse(url=f"{settings.app_url}/app")
+    code_verifier = _check_oauth_callback_cookies(
+        request,
+        response,
+        settings,
+        provider="google",
+        state=state,
+        pkce_required=True,
+    )
+
     try:
         google_client = get_google_client(settings)
         redirect_uri = f"{settings.api_url}/api/auth/google/callback"
         token_response = await google_client.exchange_code_for_tokens(
-            code=code, redirect_uri=redirect_uri
+            code=code, redirect_uri=redirect_uri, code_verifier=code_verifier
         )
         user_info = await google_client.get_user_info(token_response["access_token"])
         google_user = GoogleUser(**user_info)
@@ -287,23 +409,30 @@ async def callback_google(
 
         logger.info("auth.google.callback_success", extra={"user_id": str(user.id)})
 
-        response = RedirectResponse(url=f"{settings.app_url}/app")
         await _build_and_set_session(request, db, user, settings, response)
         return response
 
     except EmailAlreadyExistsError as exc:
         logger.warning("auth.email_already_registered", extra={"email": exc.email})
-        return RedirectResponse(
-            url=f"{settings.app_url}/?error=email_already_registered"
+        response.headers["location"] = (
+            f"{settings.app_url}/?error=email_already_registered"
         )
+        return response
     except GoogleOAuthError as exc:
         logger.error("auth.google.oauth_error", extra={"error": str(exc)})
-        return RedirectResponse(url=f"{settings.app_url}/?error=authentication_failed")
+        response.headers["location"] = (
+            f"{settings.app_url}/?error=authentication_failed"
+        )
+        return response
     except Exception as exc:
         logger.error(
             "auth.google.unexpected_error", extra={"error": str(exc)}, exc_info=True
         )
-        raise HTTPException(status_code=500, detail="Authentication failed")
+        _clear_session_cookie(response, request, settings)
+        response.headers["location"] = (
+            f"{settings.app_url}/?error=authentication_failed"
+        )
+        return response
 
 
 # ---------------------------------------------------------------------------
@@ -322,8 +451,6 @@ async def login_keycloak(request: Request) -> RedirectResponse:
     if not settings.keycloak_client_id or not settings.keycloak_client_secret:
         raise HTTPException(status_code=500, detail="Keycloak OIDC not configured")
 
-    from .keycloak import KeycloakOIDCClient
-
     try:
         kc = get_keycloak_client(settings)
         auth_endpoint = await kc.get_authorization_endpoint()
@@ -334,7 +461,7 @@ async def login_keycloak(request: Request) -> RedirectResponse:
         raise HTTPException(status_code=502, detail="Cannot reach Keycloak")
 
     state = _create_signed_state(settings.session_secret_key)
-    code_verifier, code_challenge = KeycloakOIDCClient.generate_pkce_pair()
+    code_verifier, code_challenge = generate_pkce_pair()
 
     redirect_uri = f"{settings.api_url}/api/auth/keycloak/callback"
     params = {
@@ -351,20 +478,8 @@ async def login_keycloak(request: Request) -> RedirectResponse:
     logger.info("auth.keycloak.login_redirect", extra={"redirect_uri": redirect_uri})
 
     response = RedirectResponse(url=auth_url)
-    # Store PKCE verifier in a short-lived httpOnly cookie for the callback.
-    # domain must match session_cookie_domain so the cookie is sent back when
-    # Keycloak redirects to mosaicapi.* even if the login was initiated through
-    # the frontend proxy on mosaic.*.
-    is_secure = settings.session_cookie_secure or is_request_secure(request)
-    response.set_cookie(
-        key=_PKCE_COOKIE,
-        value=_sign_pkce_value(code_verifier, settings.session_secret_key),
-        max_age=STATE_TOKEN_MAX_AGE,
-        httponly=True,
-        secure=is_secure,
-        samesite="lax",
-        path="/",
-        domain=settings.session_cookie_domain,
+    _set_oauth_start_cookies(
+        response, request, settings, state=state, code_verifier=code_verifier
     )
     return response
 
@@ -392,20 +507,22 @@ async def callback_keycloak(
             "auth.keycloak.invalid_state",
             extra={"state": state[:50] if state else None},
         )
+        _record_auth_login_rejection("keycloak", "invalid_state_signature")
         raise HTTPException(status_code=400, detail="Invalid state parameter")
 
     if not code:
         raise HTTPException(status_code=400, detail="Missing authorization code")
 
-    signed_verifier = request.cookies.get(_PKCE_COOKIE)
-    if not signed_verifier:
-        raise HTTPException(
-            status_code=400, detail="Missing PKCE verifier — login session expired"
-        )
-    code_verifier = _verify_and_extract_pkce_value(
-        signed_verifier, settings.session_secret_key
+    response = RedirectResponse(url=f"{settings.app_url}/app")
+    code_verifier = _check_oauth_callback_cookies(
+        request,
+        response,
+        settings,
+        provider="keycloak",
+        state=state,
+        pkce_required=True,
     )
-    if not code_verifier:
+    if code_verifier is None:
         raise HTTPException(status_code=400, detail="Invalid PKCE verifier")
 
     try:
@@ -436,30 +553,30 @@ async def callback_keycloak(
 
         logger.info("auth.keycloak.callback_success", extra={"user_id": str(user.id)})
 
-        response = RedirectResponse(url=f"{settings.app_url}/app")
         await _build_and_set_session(request, db, user, settings, response)
-
-        # Clear the PKCE cookie — it's consumed
-        response.delete_cookie(
-            key=_PKCE_COOKIE,
-            path="/",
-            domain=settings.session_cookie_domain,
-        )
         return response
 
     except EmailAlreadyExistsError as exc:
         logger.warning("auth.email_already_registered", extra={"email": exc.email})
-        return RedirectResponse(
-            url=f"{settings.app_url}/?error=email_already_registered"
+        response.headers["location"] = (
+            f"{settings.app_url}/?error=email_already_registered"
         )
+        return response
     except KeycloakOIDCError as exc:
         logger.error("auth.keycloak.oidc_error", extra={"error": str(exc)})
-        return RedirectResponse(url=f"{settings.app_url}/?error=authentication_failed")
+        response.headers["location"] = (
+            f"{settings.app_url}/?error=authentication_failed"
+        )
+        return response
     except Exception as exc:
         logger.error(
             "auth.keycloak.unexpected_error", extra={"error": str(exc)}, exc_info=True
         )
-        raise HTTPException(status_code=500, detail="Authentication failed")
+        _clear_session_cookie(response, request, settings)
+        response.headers["location"] = (
+            f"{settings.app_url}/?error=authentication_failed"
+        )
+        return response
 
 
 # ---------------------------------------------------------------------------
