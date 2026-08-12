@@ -2,6 +2,7 @@
 
 from .activity import UserActivity
 from .ai import AIConversation, AIMessage
+from .ai_rate_limit import AIRateLimitEvent
 from .connection import Connection, ConnectionRequest
 from .associations import (
     ConversationLegacy,
@@ -37,6 +38,7 @@ from .user_session import UserSession
 __all__ = [
     "AIConversation",
     "AIMessage",
+    "AIRateLimitEvent",
     "Connection",
     "ConnectionRequest",
     "ContextFact",

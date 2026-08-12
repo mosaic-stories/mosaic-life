@@ -96,3 +96,27 @@ AUTH_LOGIN_REJECTIONS = Counter(
     "OAuth login callback rejections at the CSRF/PKCE binding layer",
     ["service", "provider", "reason"],
 )
+
+# --- AI rate-limiting metrics ---
+
+AI_RATE_LIMIT_REJECTIONS = Counter(
+    "ai_rate_limit_rejections_total",
+    "AI endpoint requests rejected by the per-user frequency limiter",
+    ["service", "bucket"],
+)
+AI_CONCURRENCY_REJECTIONS = Counter(
+    "ai_concurrency_rejections_total",
+    "AI endpoint requests rejected by the per-user concurrency guard",
+    ["service", "bucket"],
+)
+AI_RATE_LIMIT_USAGE_RATIO = Histogram(
+    "ai_rate_limit_usage_ratio",
+    "Observed count / threshold at each frequency-limit check (fleet-wide distribution, not per-user)",
+    ["service", "bucket"],
+    buckets=(0.25, 0.5, 0.75, 0.9, 1.0),
+)
+AI_CONCURRENCY_ACTIVE = Gauge(
+    "ai_concurrency_active",
+    "Current in-flight LLM operations per bucket on this pod",
+    ["service", "bucket"],
+)

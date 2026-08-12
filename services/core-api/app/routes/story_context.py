@@ -11,6 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.middleware import require_auth
+from app.config.ai_rate_limits import (
+    STORY_CONTEXT_EXTRACT_CONCURRENCY,
+    STORY_CONTEXT_EXTRACT_THRESHOLDS,
+)
 from app.database import get_db, get_db_for_background
 from app.models.story_context import ContextFact, StoryContext
 from app.providers.registry import get_provider_registry
@@ -21,6 +25,8 @@ from app.schemas.story_context import (
     ContextFactResponse,
     StoryContextResponse,
 )
+from app.services.ai_concurrency import AIConcurrencyLimitError, AIConcurrencySlot
+from app.services.ai_rate_limit import AIRateLimitError, enforce_ai_rate_limit
 from app.services.context_extractor import ContextExtractor
 from app.services.story_access import require_story_read_access
 
@@ -103,6 +109,20 @@ async def extract_context(
         if ctx and ctx.summary and not ctx.extracting:
             return ExtractResponse(status="cached")
 
+    try:
+        await enforce_ai_rate_limit(
+            db,
+            user_id,
+            bucket="story_context_extract",
+            thresholds=STORY_CONTEXT_EXTRACT_THRESHOLDS,
+        )
+    except AIRateLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e),
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        ) from e
+
     # Run extraction in background
     story_content = story.content
 
@@ -121,6 +141,21 @@ async def extract_context(
                 "story_context.extract.background_failed",
                 extra={"story_id": str(story_id)},
             )
+        finally:
+            await slot.release()
+
+    try:
+        slot = await AIConcurrencySlot.acquire(
+            user_id,
+            bucket="story_context_extract",
+            limit=STORY_CONTEXT_EXTRACT_CONCURRENCY,
+        )
+    except AIConcurrencyLimitError as e:
+        raise HTTPException(
+            status_code=429,
+            detail=str(e),
+            headers={"Retry-After": str(e.retry_after_seconds)},
+        ) from e
 
     background_tasks.add_task(background_extract)
     return ExtractResponse(status="extracting")

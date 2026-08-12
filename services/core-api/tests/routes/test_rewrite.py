@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
@@ -10,11 +11,17 @@ from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config.ai_rate_limits import (
+    STORY_REWRITE_CONCURRENCY,
+    STORY_REWRITE_THRESHOLDS,
+)
 from app.models.ai import AIConversation
+from app.models.ai_rate_limit import AIRateLimitEvent
 from app.models.story import Story
 from app.models.story_evolution import StoryEvolutionSession
 from app.models.story_version import StoryVersion
 from app.models.user import User
+from app.services.ai_concurrency import AIConcurrencySlot
 from tests.conftest import create_auth_headers_for_user
 
 
@@ -220,7 +227,7 @@ class TestRewriteEndpoint:
     ) -> None:
         """The story's author must still be able to rewrite their own story."""
 
-        async def mock_stream(**kwargs):
+        async def mock_stream(**kwargs: object) -> AsyncGenerator[str, None]:
             for chunk in ["Once upon a time, ", "there was a hero."]:
                 yield chunk
 
@@ -255,3 +262,80 @@ class TestRewriteEndpoint:
         assert new_draft.content == "Once upon a time, there was a hero."
         assert new_draft.created_by == test_user.id
         assert new_draft.source == "ai_rewrite"
+
+    @pytest.mark.asyncio
+    async def test_rewrite_returns_429_when_frequency_limit_exceeded(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict[str, str],
+        test_story_public: Story,
+        test_user: User,
+    ) -> None:
+        """Exceeding STORY_REWRITE_THRESHOLDS returns 429 with a numeric
+        Retry-After header, and the LLM provider is never touched — the
+        frequency check runs before the stream/provider is reached."""
+        window_seconds, max_count = STORY_REWRITE_THRESHOLDS[0]
+        for _ in range(max_count):
+            db_session.add(
+                AIRateLimitEvent(user_id=test_user.id, bucket="story_rewrite")
+            )
+        await db_session.commit()
+
+        mock_registry = MagicMock()
+
+        with patch(
+            "app.routes.rewrite.get_provider_registry",
+            return_value=mock_registry,
+        ):
+            response = await client.post(
+                f"/api/stories/{test_story_public.id}/rewrite",
+                json={"content": test_story_public.content},
+                headers=auth_headers,
+            )
+
+        assert response.status_code == 429
+        retry_after = response.headers.get("Retry-After")
+        assert retry_after is not None
+        assert int(retry_after) == window_seconds
+        mock_registry.get_llm_provider.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rewrite_returns_429_when_concurrency_limit_exceeded(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_story_public: Story,
+        test_user: User,
+    ) -> None:
+        """STORY_REWRITE_CONCURRENCY is 1, so pre-occupying the single slot
+        must cause the route to reject with 429 + Retry-After. After the
+        slot is released, a follow-up call must no longer be rejected for
+        concurrency (it may still fail downstream, e.g. no LLM configured,
+        but that must not surface as a 429)."""
+        slot = await AIConcurrencySlot.acquire(
+            test_user.id, bucket="story_rewrite", limit=STORY_REWRITE_CONCURRENCY
+        )
+        try:
+            response = await client.post(
+                f"/api/stories/{test_story_public.id}/rewrite",
+                json={"content": test_story_public.content},
+                headers=auth_headers,
+            )
+            assert response.status_code == 429
+            retry_after = response.headers.get("Retry-After")
+            assert retry_after is not None
+            assert int(retry_after) > 0
+        finally:
+            await slot.release()
+
+        # Bonus: the slot is free again after release, so a follow-up call
+        # must not be concurrency-rejected. It may still fail downstream
+        # (e.g. no LLM provider configured in the test env), which is fine —
+        # we only assert it isn't a 429.
+        follow_up = await client.post(
+            f"/api/stories/{test_story_public.id}/rewrite",
+            json={"content": test_story_public.content},
+            headers=auth_headers,
+        )
+        assert follow_up.status_code != 429

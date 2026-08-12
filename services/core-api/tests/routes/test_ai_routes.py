@@ -11,7 +11,9 @@ from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config.ai_rate_limits import CHAT_MESSAGE_CONCURRENCY, CHAT_MESSAGE_THRESHOLDS
 from app.models.ai import AIConversation, AIMessage
+from app.models.ai_rate_limit import AIRateLimitEvent
 from app.models.associations import ConversationLegacy
 from app.models.legacy import Legacy
 from app.models.story import Story
@@ -21,6 +23,7 @@ from app.models.user import User
 from app.routes.ai import _resolve_story_id_for_extraction, format_story_context
 from app.schemas.retrieval import ChunkResult
 from app.services import ai as ai_service
+from app.services.ai_concurrency import AIConcurrencySlot
 from tests.conftest import create_auth_headers_for_user
 
 
@@ -972,3 +975,233 @@ class TestAIWorkflow:
             headers=auth_headers,
         )
         assert get_deleted.status_code == 404
+
+
+async def _create_conversation(
+    client: AsyncClient,
+    auth_headers: dict[str, str],
+    test_legacy: Legacy,
+) -> str:
+    """Create a conversation via the API and return its id (helper for rate-limit tests)."""
+    create_resp = await client.post(
+        "/api/ai/conversations",
+        json={
+            "persona_id": "biographer",
+            "legacies": [
+                {"legacy_id": str(test_legacy.id), "role": "primary", "position": 0}
+            ],
+        },
+        headers=auth_headers,
+    )
+    return create_resp.json()["id"]
+
+
+class TestSendMessageRateLimiting:
+    """Route-level tests for the `chat_message` bucket rate limit wired into
+    `send_message` (ai-rate-limiting change, tasks.md 8.3/8.4)."""
+
+    @pytest.mark.asyncio
+    async def test_send_message_frequency_limit_returns_429(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict[str, str],
+        test_user: User,
+        test_legacy: Legacy,
+    ) -> None:
+        """The call that crosses the tightest chat_message threshold gets a 429."""
+        conv_id = await _create_conversation(client, auth_headers, test_legacy)
+
+        # Directly seed enough AIRateLimitEvent rows to already be at the
+        # tightest configured threshold, rather than making N real HTTP
+        # calls first.
+        per_window_limit = CHAT_MESSAGE_THRESHOLDS[0][1]
+        now = datetime.now(timezone.utc)
+        for _ in range(per_window_limit):
+            db_session.add(
+                AIRateLimitEvent(
+                    user_id=test_user.id, bucket="chat_message", created_at=now
+                )
+            )
+        await db_session.commit()
+
+        response = await client.post(
+            f"/api/ai/conversations/{conv_id}/messages",
+            json={"content": "One more message, please."},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 429
+        retry_after = response.headers["Retry-After"]
+        assert int(retry_after) > 0
+
+    @pytest.mark.asyncio
+    async def test_send_message_concurrency_limit_returns_429(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_user: User,
+        test_legacy: Legacy,
+    ) -> None:
+        """A request beyond the concurrency cap gets a 429 while slots are held."""
+        conv_id = await _create_conversation(client, auth_headers, test_legacy)
+
+        slots = [
+            await AIConcurrencySlot.acquire(
+                test_user.id, bucket="chat_message", limit=CHAT_MESSAGE_CONCURRENCY
+            )
+            for _ in range(CHAT_MESSAGE_CONCURRENCY)
+        ]
+        try:
+            response = await client.post(
+                f"/api/ai/conversations/{conv_id}/messages",
+                json={"content": "Squeezing in one more."},
+                headers=auth_headers,
+            )
+
+            assert response.status_code == 429
+            retry_after = response.headers["Retry-After"]
+            assert int(retry_after) > 0
+        finally:
+            # Always release what this test acquired so module-global
+            # concurrency state doesn't leak into other tests.
+            for slot in slots:
+                await slot.release()
+
+    @pytest.mark.asyncio
+    async def test_send_message_releases_concurrency_slot_on_mid_stream_failure(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_user: User,
+        test_legacy: Legacy,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The concurrency slot is released even when streaming fails partway
+        through — the same `finally: await slot.release()` path a real client
+        disconnect must also hit (tasks.md 8.4).
+
+        Disconnect-simulation note: httpx's `ASGITransport` (0.28.1) fully
+        awaits the ASGI app to completion inside `handle_async_request`
+        *before* it ever hands any response back to the client -- see
+        `httpx._transports.asgi.ASGITransport.handle_async_request`, which
+        does `await self.app(scope, receive, send)` and only returns a
+        `Response` afterwards. That means there is no way to observe or
+        induce a genuine partial-read client disconnect via
+        `client.stream(...)` against this app in this test transport: by
+        the time any bytes are visible to the test, the route's entire
+        generator (including its `finally`) has already run to completion
+        server-side, so an "early exit" of `async with client.stream(...)`
+        would prove nothing. Per the task brief's documented fallback, this
+        test instead makes the stream generator raise mid-iteration, which
+        exercises the identical `finally: await slot.release()` code path
+        that a real disconnect (delivered to the generator as
+        `GeneratorExit` at its suspended `yield`) would also hit.
+        """
+        conv_id = await _create_conversation(client, auth_headers, test_legacy)
+
+        class FailingStorytellingAgent:
+            async def prepare_turn(self, **kwargs):
+                return SimpleNamespace(chunks_count=0, graph_context_metadata=None)
+
+            async def stream_response(self, **kwargs):
+                yield "Partial reply before the connection drops."
+                raise ConnectionResetError("simulated client disconnect mid-stream")
+
+        class FakeRegistry:
+            def get_storytelling_agent(self) -> FailingStorytellingAgent:
+                return FailingStorytellingAgent()
+
+        monkeypatch.setattr(
+            "app.routes.ai.get_provider_registry", lambda: FakeRegistry()
+        )
+
+        response = await client.post(
+            f"/api/ai/conversations/{conv_id}/messages",
+            json={"content": "Tell me about their childhood."},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 200
+        assert '"type":"error"' in response.text
+
+        # Prove the slot was actually freed: acquiring back up to the full
+        # concurrency limit for this user/bucket must succeed immediately.
+        slots = [
+            await AIConcurrencySlot.acquire(
+                test_user.id, bucket="chat_message", limit=CHAT_MESSAGE_CONCURRENCY
+            )
+            for _ in range(CHAT_MESSAGE_CONCURRENCY)
+        ]
+        for slot in slots:
+            await slot.release()
+
+
+class TestSeedConversationRateLimiting:
+    """Route-level tests for the `chat_message` bucket rate limit wired into
+    `seed_conversation` (ai-rate-limiting change, tasks.md 8.3)."""
+
+    @pytest.mark.asyncio
+    async def test_seed_conversation_frequency_limit_returns_429(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict[str, str],
+        test_user: User,
+        test_legacy: Legacy,
+        test_story: Story,
+    ) -> None:
+        """The call that crosses the tightest chat_message threshold gets a 429."""
+        conv_id = await _create_conversation(client, auth_headers, test_legacy)
+
+        per_window_limit = CHAT_MESSAGE_THRESHOLDS[0][1]
+        now = datetime.now(timezone.utc)
+        for _ in range(per_window_limit):
+            db_session.add(
+                AIRateLimitEvent(
+                    user_id=test_user.id, bucket="chat_message", created_at=now
+                )
+            )
+        await db_session.commit()
+
+        response = await client.post(
+            f"/api/ai/conversations/{conv_id}/seed",
+            params={"story_id": str(test_story.id)},
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 429
+        retry_after = response.headers["Retry-After"]
+        assert int(retry_after) > 0
+
+    @pytest.mark.asyncio
+    async def test_seed_conversation_concurrency_limit_returns_429(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        test_user: User,
+        test_legacy: Legacy,
+        test_story: Story,
+    ) -> None:
+        """A seed request beyond the concurrency cap gets a 429 while slots are held."""
+        conv_id = await _create_conversation(client, auth_headers, test_legacy)
+
+        slots = [
+            await AIConcurrencySlot.acquire(
+                test_user.id, bucket="chat_message", limit=CHAT_MESSAGE_CONCURRENCY
+            )
+            for _ in range(CHAT_MESSAGE_CONCURRENCY)
+        ]
+        try:
+            response = await client.post(
+                f"/api/ai/conversations/{conv_id}/seed",
+                params={"story_id": str(test_story.id)},
+                headers=auth_headers,
+            )
+
+            assert response.status_code == 429
+            retry_after = response.headers["Retry-After"]
+            assert int(retry_after) > 0
+        finally:
+            for slot in slots:
+                await slot.release()
