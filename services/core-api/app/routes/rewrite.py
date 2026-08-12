@@ -46,9 +46,16 @@ async def rewrite_story(
     session_data = require_auth(request)
     user_id = session_data.user_id
 
-    # Pre-stream checks must raise JSON HTTP errors (not SSE error streams)
+    # Pre-stream checks must raise JSON HTTP errors (not SSE error streams).
+    # load_legacy_associations=False: this handler queries StoryLegacy
+    # directly below for the primary legacy, so the gate's eager-load
+    # would be an unused extra query.
     story = await require_story_write_access(
-        db=db, story_id=story_id, user_id=user_id, action="rewrite"
+        db=db,
+        story_id=story_id,
+        user_id=user_id,
+        action="rewrite",
+        load_legacy_associations=False,
     )
 
     # Validate conversation ownership before loading summary (do not leak details)

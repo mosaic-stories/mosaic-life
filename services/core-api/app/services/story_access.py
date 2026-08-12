@@ -29,18 +29,26 @@ async def require_story_read_access(
     db: AsyncSession,
     story_id: UUID,
     user_id: UUID,
+    *,
+    load_legacy_associations: bool = True,
 ) -> Story:
     """Load story and enforce visibility-based read access.
 
     WARNING: this is a READ-only gate. It must never be the sole gate on an
     endpoint that mutates story-owned state — use `require_story_write_access`
     for that case instead.
+
+    `load_legacy_associations` eager-loads `story.legacy_associations` for
+    callers that need it afterward (e.g. to resolve the primary legacy).
+    The visibility check itself never depends on it being eager-loaded
+    (see `_can_read_story`'s private-visibility branch), so callers that
+    don't touch the relationship on the returned `Story` can pass `False`
+    to skip an unneeded query.
     """
-    result = await db.execute(
-        select(Story)
-        .options(selectinload(Story.legacy_associations))
-        .where(Story.id == story_id)
-    )
+    query = select(Story).where(Story.id == story_id)
+    if load_legacy_associations:
+        query = query.options(selectinload(Story.legacy_associations))
+    result = await db.execute(query)
     story = result.scalar_one_or_none()
 
     if not story:
@@ -62,14 +70,24 @@ async def require_story_write_access(
     user_id: UUID,
     *,
     action: str = "modify",
+    load_legacy_associations: bool = True,
 ) -> Story:
     """Load a story and enforce author-only write access.
 
     Composes `require_story_read_access` first, so draft-existence hiding
     and read denials are identical to every read surface, then enforces the
     story-access spec's author-only editing rule on top.
+
+    `load_legacy_associations` is forwarded to the read gate — pass `False`
+    when the caller won't touch `story.legacy_associations` afterward, to
+    skip the eager-load query (the author-only check itself never needs it).
     """
-    story = await require_story_read_access(db=db, story_id=story_id, user_id=user_id)
+    story = await require_story_read_access(
+        db=db,
+        story_id=story_id,
+        user_id=user_id,
+        load_legacy_associations=load_legacy_associations,
+    )
     allowed, _reason = await can_write_story(
         story=story, user_id=user_id, action=action
     )
@@ -222,7 +240,14 @@ async def _can_read_story(
         if story.author_id == user_id:
             return True, "author"
 
-        story_legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
+        # Queried directly rather than via `story.legacy_associations` so
+        # this branch works whether or not the caller eager-loaded that
+        # relationship (see `load_legacy_associations` on the read/write
+        # gates — most write-only callers skip the eager load entirely).
+        legacy_ids_result = await db.execute(
+            select(StoryLegacy.legacy_id).where(StoryLegacy.story_id == story.id)
+        )
+        story_legacy_ids = list(legacy_ids_result.scalars().all())
         if not story_legacy_ids:
             return False, "denied"
 

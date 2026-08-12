@@ -1250,7 +1250,10 @@ async def update_story(
         Updated story
 
     Raises:
-        HTTPException: 404 if not found, 403 if not author
+        HTTPException: delegates to `require_story_write_access` — 404 if not
+            found, 404 if it's another author's draft (existence hidden),
+            403 if the caller can't read it at all, 403 if the caller can
+            read it but isn't the author.
     """
     # Load story and enforce author-only write access via the canonical gate.
     story = await require_story_write_access(

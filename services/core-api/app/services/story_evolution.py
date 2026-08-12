@@ -54,10 +54,16 @@ async def _require_story_author(
 ) -> Story:
     """Load story and verify user is the author.
 
-    Delegates to the canonical story-access write gate.
+    Delegates to the canonical story-access write gate. Skips the
+    read gate's `legacy_associations` eager-load: none of this module's
+    callers touch it on the returned `Story`.
     """
     return await require_story_write_access(
-        db=db, story_id=story_id, user_id=user_id, action="evolve"
+        db=db,
+        story_id=story_id,
+        user_id=user_id,
+        action="evolve",
+        load_legacy_associations=False,
     )
 
 
