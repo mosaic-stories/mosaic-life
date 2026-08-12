@@ -92,7 +92,7 @@ async def enforce_ai_rate_limit(
         highest_ratio
     )
 
-    if highest_ratio >= 0.8:
+    if violation is None and highest_ratio >= 0.8:
         logger.info(
             "ai.rate_limit.near_limit",
             extra={

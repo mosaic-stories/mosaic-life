@@ -67,7 +67,11 @@ async def ai_concurrency_guard(
         yield
     finally:
         async with _lock:
-            _active[key] = _active.get(key, 0) - 1
+            remaining = _active.get(key, 0) - 1
+            if remaining > 0:
+                _active[key] = remaining
+            else:
+                _active.pop(key, None)
             AI_CONCURRENCY_ACTIVE.labels(service="core-api", bucket=bucket).dec()
 
 
