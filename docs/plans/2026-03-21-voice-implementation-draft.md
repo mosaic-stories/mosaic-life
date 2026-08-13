@@ -59,7 +59,7 @@ model_list:
       mode: realtime
 
 general_settings:
-  master_key: sk-mosaic-life-master    # your existing master key
+  master_key: sk-REPLACE-ME    # placeholder — use your own long random secret, never commit the real value
 ```
 
 ### Helm Values (infra/helm/core-api/values.yaml)
