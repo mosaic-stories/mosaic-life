@@ -89,6 +89,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // where login() fires before /api/auth/providers has resolved.
   const login = useCallback(() => {
     const returnUrl = window.location.pathname + window.location.search;
+    // No reader exists yet; any future consumer must validate this is a same-origin path (^/(?!/)) before navigating, else fall back to '/'.
     sessionStorage.setItem('auth_return_url', returnUrl);
     if (activeProvider) {
       window.location.href = `/api/auth/${activeProvider}`;
