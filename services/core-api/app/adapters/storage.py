@@ -33,6 +33,15 @@ class StorageAdapter(ABC):
         pass
 
     @abstractmethod
+    def get_file_size(self, path: str) -> int | None:
+        """Get the size in bytes of the file at the given path.
+
+        Returns:
+            File size in bytes, or None if the file does not exist.
+        """
+        pass
+
+    @abstractmethod
     def delete_file(self, path: str) -> None:
         """Delete a file at the given path."""
         pass
@@ -62,6 +71,13 @@ class LocalStorageAdapter(StorageAdapter):
         """Check if file exists locally."""
         full_path = self.base_path / path
         return full_path.exists() and full_path.is_file()
+
+    def get_file_size(self, path: str) -> int | None:
+        """Get the size in bytes of a local file, or None if it doesn't exist."""
+        full_path = self.base_path / path
+        if not full_path.exists() or not full_path.is_file():
+            return None
+        return full_path.stat().st_size
 
     def delete_file(self, path: str) -> None:
         """Delete file from local storage."""
@@ -156,6 +172,14 @@ class S3StorageAdapter(StorageAdapter):
             return True
         except ClientError:
             return False
+
+    def get_file_size(self, path: str) -> int | None:
+        """Get the size in bytes of an S3 object, or None if it doesn't exist."""
+        try:
+            response = self._ops_client.head_object(Bucket=self.bucket, Key=path)
+            return int(response["ContentLength"])
+        except ClientError:
+            return None
 
     def delete_file(self, path: str) -> None:
         """Delete file from S3."""

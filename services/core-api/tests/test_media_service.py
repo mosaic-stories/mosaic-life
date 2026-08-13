@@ -344,3 +344,134 @@ class TestClearLegacyImages:
         refreshed_legacy = legacy_result.scalar_one()
         assert refreshed_legacy.profile_image_id is None
         assert refreshed_legacy.background_image_id is None
+
+
+class TestConfirmUpload:
+    """Tests for confirm_upload's storage-verified size enforcement (12c).
+
+    confirm_upload must not trust the client-declared size_bytes on the
+    Media record — it has to check the actual object size in storage and
+    reject (and clean up) anything over the configured maximum.
+    """
+
+    @pytest.mark.asyncio
+    async def test_oversized_upload_rejected_and_deleted_from_storage(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_media: Media,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """An object larger than the max upload size is rejected and purged."""
+        deleted_paths: list[str] = []
+
+        class DummyStorage:
+            def file_exists(self, path: str) -> bool:
+                return True
+
+            def get_file_size(self, path: str) -> int | None:
+                return 20 * 1024 * 1024  # 20 MB > default 10 MB max
+
+            def delete_file(self, path: str) -> None:
+                deleted_paths.append(path)
+
+        monkeypatch.setattr(
+            media_service, "get_storage_adapter", lambda: DummyStorage()
+        )
+
+        with pytest.raises(HTTPException) as exc:
+            await media_service.confirm_upload(
+                db=db_session,
+                user_id=test_user.id,
+                media_id=test_media.id,
+            )
+
+        assert exc.value.status_code == 400
+        assert "exceeds maximum" in exc.value.detail
+        assert deleted_paths == [test_media.storage_path]
+
+        # The record must not be left confirmed with the bad size.
+        media_result = await db_session.execute(
+            select(Media).where(Media.id == test_media.id)
+        )
+        media = media_result.scalar_one()
+        assert media.size_bytes == 1024  # unchanged from fixture default
+
+    @pytest.mark.asyncio
+    async def test_missing_object_rejected_and_deleted_from_storage(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_media: Media,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A file_exists() True but get_file_size() None race is treated as invalid."""
+        deleted_paths: list[str] = []
+
+        class DummyStorage:
+            def file_exists(self, path: str) -> bool:
+                return True
+
+            def get_file_size(self, path: str) -> int | None:
+                return None
+
+            def delete_file(self, path: str) -> None:
+                deleted_paths.append(path)
+
+        monkeypatch.setattr(
+            media_service, "get_storage_adapter", lambda: DummyStorage()
+        )
+
+        with pytest.raises(HTTPException) as exc:
+            await media_service.confirm_upload(
+                db=db_session,
+                user_id=test_user.id,
+                media_id=test_media.id,
+            )
+
+        assert exc.value.status_code == 400
+        assert "could not be verified" in exc.value.detail
+        assert "exceeds maximum" not in exc.value.detail
+        assert deleted_paths == [test_media.storage_path]
+
+    @pytest.mark.asyncio
+    async def test_in_limit_upload_persists_storage_verified_size(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_media: Media,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A within-limit confirm succeeds and persists the *actual* size,
+        not the client-declared size_bytes from the upload-url request."""
+        actual_size = 2048  # differs from test_media fixture's declared 1024
+
+        class DummyStorage:
+            def file_exists(self, path: str) -> bool:
+                return True
+
+            def get_file_size(self, path: str) -> int | None:
+                return actual_size
+
+            def delete_file(self, path: str) -> None:
+                raise AssertionError(
+                    "delete_file should not be called for an in-limit upload"
+                )
+
+        monkeypatch.setattr(
+            media_service, "get_storage_adapter", lambda: DummyStorage()
+        )
+
+        result = await media_service.confirm_upload(
+            db=db_session,
+            user_id=test_user.id,
+            media_id=test_media.id,
+        )
+
+        assert result.size_bytes == actual_size
+
+        media_result = await db_session.execute(
+            select(Media).where(Media.id == test_media.id)
+        )
+        media = media_result.scalar_one()
+        assert media.size_bytes == actual_size

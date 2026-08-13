@@ -4,9 +4,11 @@ import json
 import logging
 from collections.abc import Awaitable, Callable
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 from sqlalchemy import select
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -15,10 +17,44 @@ from starlette.types import ASGIApp
 from ..config import Settings, get_settings
 from ..database import get_db
 from ..models.user_session import UserSession
+from ..observability.metrics import CSRF_REJECTIONS
 from .models import SessionData
 from .session_tokens import hash_session_token
 
 logger = logging.getLogger(__name__)
+
+# Methods that can mutate state and therefore need CSRF defense-in-depth
+# beyond the SameSite=Lax session cookie. Safe methods (GET/HEAD/OPTIONS) are
+# not checked since they must not have side effects.
+UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
+
+# Endpoints reachable without a valid session. Exact-match only (see #104,
+# finding 12f) — a prefix match would silently make any future path sharing
+# a prefix (e.g. "/docs-internal/...") public too.
+_ALWAYS_PUBLIC_PATHS: frozenset[str] = frozenset(
+    {
+        "/healthz",
+        "/readyz",
+        # Scraped unauthenticated in-cluster by Prometheus in every
+        # environment (see the Helm chart's prometheus.io/scrape
+        # annotation) — must stay public even outside dev.
+        "/metrics",
+        "/api/auth/google",
+        "/api/auth/google/callback",
+        "/api/auth/keycloak",
+        "/api/auth/keycloak/callback",
+        "/api/auth/providers",
+    }
+)
+
+# Interactive API docs leak route/schema details and must not be exposed
+# outside local/dev environments.
+_DEV_ONLY_PUBLIC_PATHS: frozenset[str] = frozenset(
+    {
+        "/docs",
+        "/openapi.json",
+    }
+)
 
 
 class SessionMiddleware(BaseHTTPMiddleware):
@@ -35,6 +71,13 @@ class SessionMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.settings = settings or get_settings()
         self.signer = TimestampSigner(self.settings.session_secret_key)
+        # settings.env follows the same "dev" convention used elsewhere
+        # (e.g. app/database.py, app/config/settings.py) for local/dev checks.
+        self.public_paths: frozenset[str] = (
+            _ALWAYS_PUBLIC_PATHS | _DEV_ONLY_PUBLIC_PATHS
+            if self.settings.env == "dev"
+            else _ALWAYS_PUBLIC_PATHS
+        )
 
     async def dispatch(
         self, request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -91,6 +134,11 @@ class SessionMiddleware(BaseHTTPMiddleware):
                 request.state.authenticated = False
         else:
             request.state.authenticated = False
+
+        if request.state.authenticated and request.method in UNSAFE_METHODS:
+            csrf_rejection = self._check_csrf(request)
+            if csrf_rejection is not None:
+                return csrf_rejection
 
         return await call_next(request)
 
@@ -160,23 +208,52 @@ class SessionMiddleware(BaseHTTPMiddleware):
             await db_gen.aclose()
 
     def _is_public_path(self, path: str) -> bool:
-        """Check if the path is a public endpoint that doesn't require auth."""
-        public_paths = [
-            "/healthz",
-            "/readyz",
-            "/metrics",
-            "/api/auth/google",
-            "/api/auth/google/callback",
-            "/api/auth/keycloak",
-            "/api/auth/keycloak/callback",
-            "/api/auth/providers",
-            "/docs",
-            "/openapi.json",
-        ]
-        # Check exact match for root path
+        """Check if the path is a public endpoint that doesn't require auth.
+
+        Exact match only — see #104 finding 12f. A prefix match would treat
+        e.g. "/docs-internal/..." as public just because "/docs" is.
+        """
         if path == "/" or path == "":
             return True
-        return any(path.startswith(p) for p in public_paths)
+        return path in self.public_paths
+
+    def _check_csrf(self, request: Request) -> Response | None:
+        """Origin/Referer allowlist check for unsafe methods (#104 finding 12g).
+
+        Defense-in-depth alongside the session cookie's SameSite=Lax
+        attribute. Only applies to requests carrying a validated session —
+        there's nothing to forge on behalf of an unauthenticated request.
+
+        Origin is preferred; Referer is used as a fallback when Origin is
+        absent (some browsers omit Origin on same-origin GETs, though it's
+        always sent for unsafe methods in modern browsers). If BOTH headers
+        are absent, the request is allowed through unchanged — this is a
+        documented residual gap rather than a false rejection of legitimate
+        non-browser or older-browser clients.
+
+        Returns a 403 Response to short-circuit the request on mismatch, or
+        None to let the request proceed.
+        """
+        header_value = request.headers.get("origin") or request.headers.get("referer")
+        if header_value is None:
+            return None
+
+        expected = urlsplit(self.settings.app_url)
+        actual = urlsplit(header_value)
+        if (actual.scheme, actual.netloc) == (expected.scheme, expected.netloc):
+            return None
+
+        path = request.url.path
+        logger.warning(
+            "session.csrf_rejected",
+            extra={"path": path, "origin_or_referer": header_value},
+        )
+        CSRF_REJECTIONS.labels(path=path).inc()
+        # JSON body matches the shape FastAPI's HTTPException handler
+        # produces elsewhere in the app, rather than a plain-text response.
+        return JSONResponse(
+            status_code=403, content={"detail": "Origin/Referer mismatch"}
+        )
 
 
 def create_session_cookie(

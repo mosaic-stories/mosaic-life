@@ -388,14 +388,22 @@ async def upload_local_file(
     request: Request,
 ) -> Response:
     """Accept file upload to local storage (dev only)."""
+    try:
+        require_auth(request)
+    except HTTPException:
+        logger.warning("media.local_upload_denied", extra={"path": path})
+        raise
+
     settings = get_settings()
     if settings.storage_backend != "local":
         raise HTTPException(status_code=404, detail="Not found")
 
-    # Validate path doesn't escape
+    # Validate path doesn't escape the local media root. A plain string-prefix
+    # comparison would let a sibling directory sharing a prefix (e.g.
+    # "media-evil" vs "media") slip through, so use is_relative_to instead.
     base_path = Path(settings.local_media_path)
     full_path = (base_path / path).resolve()
-    if not str(full_path).startswith(str(base_path.resolve())):
+    if not full_path.resolve().is_relative_to(base_path.resolve()):
         raise HTTPException(status_code=400, detail="Invalid path")
 
     # Create parent directories
@@ -410,16 +418,24 @@ async def upload_local_file(
 
 
 @local_router.get("/{path:path}")
-async def serve_local_file(path: str) -> FileResponse:
+async def serve_local_file(path: str, request: Request) -> FileResponse:
     """Serve file from local storage (dev only)."""
+    try:
+        require_auth(request)
+    except HTTPException:
+        logger.warning("media.local_serve_denied", extra={"path": path})
+        raise
+
     settings = get_settings()
     if settings.storage_backend != "local":
         raise HTTPException(status_code=404, detail="Not found")
 
-    # Validate path doesn't escape
+    # Validate path doesn't escape the local media root. A plain string-prefix
+    # comparison would let a sibling directory sharing a prefix (e.g.
+    # "media-evil" vs "media") slip through, so use is_relative_to instead.
     base_path = Path(settings.local_media_path)
     full_path = (base_path / path).resolve()
-    if not str(full_path).startswith(str(base_path.resolve())):
+    if not full_path.resolve().is_relative_to(base_path.resolve()):
         raise HTTPException(status_code=400, detail="Invalid path")
 
     if not full_path.exists():

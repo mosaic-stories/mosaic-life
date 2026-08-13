@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 
 from app.auth import router as auth_router
 from app.config import Settings
+from app.models.user import User
 from app.models.user_session import UserSession
 
 
@@ -78,6 +79,7 @@ async def test_callback_google_succeeds_clears_cookies_and_sends_verifier(
             return_value={
                 "id": "google-user",
                 "email": "google@example.com",
+                "verified_email": True,
                 "name": "Google User",
                 "picture": "https://example.com/avatar.jpg",
             }
@@ -166,6 +168,48 @@ async def test_callback_google_rejects_invalid_pkce_cookie(
 
 
 @pytest.mark.asyncio
+async def test_callback_google_rejects_unverified_email(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(auth_router, "get_settings", _google_settings)
+    _, params = await _start_google_login(client)
+    state = params["state"][0]
+
+    google_client = SimpleNamespace(
+        exchange_code_for_tokens=AsyncMock(return_value={"access_token": "access"}),
+        get_user_info=AsyncMock(
+            return_value={
+                "id": "google-unverified-user",
+                "email": "unverified@example.com",
+                "verified_email": False,
+                "name": "Unverified Google User",
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        auth_router, "get_google_client", lambda settings: google_client
+    )
+    find_or_create = AsyncMock()
+    monkeypatch.setattr(auth_router, "_find_or_create_user", find_or_create)
+
+    response = await client.get(
+        f"/api/auth/google/callback?code=good-code&state={state}"
+    )
+
+    assert response.status_code in {302, 307}
+    assert response.headers["location"] == "http://app.test/?error=email_unverified"
+    find_or_create.assert_not_called()
+    user_count = await db_session.scalar(select(func.count()).select_from(User))
+    session_count = await db_session.scalar(
+        select(func.count()).select_from(UserSession)
+    )
+    assert user_count == 0
+    assert session_count == 0
+
+
+@pytest.mark.asyncio
 async def test_callback_google_provider_error_clears_cookies(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -195,6 +239,7 @@ async def test_callback_google_replay_is_rejected_after_success(
             return_value={
                 "id": "google-replay-user",
                 "email": "google-replay@example.com",
+                "verified_email": True,
                 "name": "Google Replay",
             }
         ),
@@ -226,6 +271,7 @@ async def test_callback_google_unexpected_error_redirects_and_clears_cookies(
             return_value={
                 "id": "google-error-user",
                 "email": "google-error@example.com",
+                "verified_email": True,
                 "name": "Google Error",
             }
         ),

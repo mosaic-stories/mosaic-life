@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import HTMLResponse, JSONResponse
 from opentelemetry import trace
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
@@ -16,7 +18,7 @@ from .logging import configure_logging
 from .observability.tracing import configure_tracing
 from .health import router as health_router
 from .auth.router import router as auth_router
-from .auth.middleware import SessionMiddleware
+from .auth.middleware import SessionMiddleware, require_auth
 from .routes.ai import router as ai_router
 from .routes.legacy import router as legacy_router
 from .routes.story import router as story_router
@@ -72,9 +74,25 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logging.getLogger(__name__).info("core-api.stop")
 
 
-app = FastAPI(lifespan=lifespan, title="Core API", version="0.1.0")
-
 settings = get_settings()
+
+# Interactive docs (/docs, /openapi.json, /redoc) leak route/schema details
+# (#104 finding 12f). SessionMiddleware only *records* whether a request is
+# authenticated — it never rejects one itself, so removing these paths from
+# its public-path allowlist outside dev doesn't by itself stop FastAPI's
+# built-in doc routes from serving unauthenticated (they never call
+# require_auth). Disable the built-ins outside dev and register protected
+# replacements for /docs and /openapi.json below; /redoc has no protected
+# replacement, so it stays disabled outside dev.
+_docs_enabled = settings.env == "dev"
+app = FastAPI(
+    lifespan=lifespan,
+    title="Core API",
+    version="0.1.0",
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -117,6 +135,35 @@ async def trace_id_middleware(
 @app.get("/metrics")
 def metrics() -> Response:
     return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
+def register_protected_docs(target_app: FastAPI) -> None:
+    """Register /docs and /openapi.json guarded by require_auth.
+
+    Only called outside dev, where the built-in docs_url/openapi_url are
+    disabled. SessionMiddleware alone doesn't reject unauthenticated
+    requests to non-public paths — only routes that call require_auth() do
+    — so this is the actual enforcement point for #104 finding 12f.
+    """
+
+    @target_app.get("/openapi.json", include_in_schema=False)
+    def protected_openapi(request: Request) -> JSONResponse:
+        require_auth(request)
+        # app.openapi() caches the computed schema on app.openapi_schema —
+        # reuse it instead of calling get_openapi() directly, which would
+        # rebuild the schema on every request.
+        return JSONResponse(target_app.openapi())
+
+    @target_app.get("/docs", include_in_schema=False)
+    def protected_docs(request: Request) -> HTMLResponse:
+        require_auth(request)
+        return get_swagger_ui_html(
+            openapi_url="/openapi.json", title=f"{target_app.title} - Docs"
+        )
+
+
+if not _docs_enabled:
+    register_protected_docs(app)
 
 
 app.include_router(health_router)

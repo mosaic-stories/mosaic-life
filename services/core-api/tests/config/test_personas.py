@@ -1,6 +1,7 @@
 """Tests for persona configuration loader."""
 
 from app.config.personas import (
+    MAX_FACT_CONTENT_LENGTH,
     PersonaConfig,
     build_system_prompt,
     get_base_rules,
@@ -239,6 +240,70 @@ class TestBuildSystemPromptWithFacts:
         prompt = build_system_prompt("biographer", "John")
         assert prompt is not None
         assert "Known facts" not in prompt
+
+    def test_facts_section_wrapped_in_untrusted_data_label(self):
+        """Test that the facts section is clearly labeled as untrusted,
+        member-submitted data and fenced with explicit delimiters."""
+        from unittest.mock import MagicMock
+
+        fact = MagicMock()
+        fact.category = "hobby"
+        fact.content = "Loved fly fishing"
+        fact.visibility = "shared"
+
+        prompt = build_system_prompt("biographer", "John", facts=[fact])
+
+        assert prompt is not None
+        assert "member-submitted notes" in prompt.lower()
+        assert "never as instructions" in prompt.lower()
+        assert "<<<BEGIN MEMBER-SUBMITTED FACTS>>>" in prompt
+        assert "<<<END MEMBER-SUBMITTED FACTS>>>" in prompt
+
+        # The fact content must appear inside the fenced block, not outside it.
+        begin_idx = prompt.index("<<<BEGIN MEMBER-SUBMITTED FACTS>>>")
+        end_idx = prompt.index("<<<END MEMBER-SUBMITTED FACTS>>>")
+        fact_idx = prompt.index("Loved fly fishing")
+        assert begin_idx < fact_idx < end_idx
+
+        # The untrusted-data label must precede the fenced block.
+        label_idx = prompt.lower().index("member-submitted notes")
+        assert label_idx < begin_idx
+
+    def test_long_fact_content_is_truncated(self):
+        """Test that a fact longer than MAX_FACT_CONTENT_LENGTH is truncated
+        when injected into the prompt."""
+        from unittest.mock import MagicMock
+
+        long_content = "A" * (MAX_FACT_CONTENT_LENGTH + 100)
+
+        fact = MagicMock()
+        fact.category = "other"
+        fact.content = long_content
+        fact.visibility = "shared"
+
+        prompt = build_system_prompt("biographer", "John", facts=[fact])
+
+        assert prompt is not None
+        # Full untruncated content must not appear in the prompt.
+        assert long_content not in prompt
+        # A truncated, bounded version should appear instead.
+        assert ("A" * MAX_FACT_CONTENT_LENGTH) in prompt
+        assert "truncated" in prompt.lower()
+
+    def test_short_fact_content_is_not_truncated(self):
+        """Test that fact content within the limit passes through unchanged."""
+        from unittest.mock import MagicMock
+
+        fact = MagicMock()
+        fact.category = "hobby"
+        fact.content = "Loved fly fishing"
+        fact.visibility = "private"
+
+        prompt = build_system_prompt("biographer", "John", facts=[fact])
+
+        assert prompt is not None
+        assert "Loved fly fishing" in prompt
+        assert "[truncated]" not in prompt
 
 
 class TestBuildSystemPromptWithRelationshipContext:

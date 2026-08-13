@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock
 from app.auth import router as auth_router
 from app.auth.models import OIDCUser
 from app.config import Settings
+from app.models.user import User
 from app.models.user_session import UserSession
 
 
@@ -51,6 +52,7 @@ def _keycloak_client() -> SimpleNamespace:
             return_value=OIDCUser(
                 sub="keycloak-user",
                 email="keycloak@example.com",
+                email_verified=True,
                 name="Keycloak User",
                 picture="https://example.com/avatar.jpg",
             )
@@ -169,6 +171,47 @@ async def test_callback_keycloak_rejects_invalid_pkce_cookie(
 
     assert response.status_code == 400
     assert response.json()["detail"] == "Invalid PKCE verifier"
+
+
+@pytest.mark.asyncio
+async def test_callback_keycloak_rejects_unverified_email(
+    client: AsyncClient,
+    db_session: AsyncSession,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(auth_router, "get_settings", _keycloak_settings)
+    kc = SimpleNamespace(
+        get_authorization_endpoint=AsyncMock(
+            return_value="https://keycloak.test/protocol/openid-connect/auth"
+        ),
+        exchange_code_for_tokens=AsyncMock(return_value={"access_token": "access"}),
+        get_user_info=AsyncMock(
+            return_value=OIDCUser(
+                sub="keycloak-unverified-user",
+                email="unverified@example.com",
+                email_verified=False,
+                name="Unverified Keycloak User",
+            )
+        ),
+    )
+    _, params = await _start_keycloak_login(client, monkeypatch, kc)
+    state = params["state"][0]
+    find_or_create = AsyncMock()
+    monkeypatch.setattr(auth_router, "_find_or_create_user", find_or_create)
+
+    response = await client.get(
+        f"/api/auth/keycloak/callback?code=good-code&state={state}"
+    )
+
+    assert response.status_code in {302, 307}
+    assert response.headers["location"] == "http://app.test/?error=email_unverified"
+    find_or_create.assert_not_called()
+    user_count = await db_session.scalar(select(func.count()).select_from(User))
+    session_count = await db_session.scalar(
+        select(func.count()).select_from(UserSession)
+    )
+    assert user_count == 0
+    assert session_count == 0
 
 
 @pytest.mark.asyncio

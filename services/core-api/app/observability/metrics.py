@@ -93,8 +93,14 @@ AUTHZ_DECISIONS = Counter(
 
 AUTH_LOGIN_REJECTIONS = Counter(
     "auth_login_rejections_total",
-    "OAuth login callback rejections at the CSRF/PKCE binding layer",
+    "OAuth/OIDC login callback rejections (CSRF/PKCE binding, unverified email, etc.)",
     ["service", "provider", "reason"],
+)
+
+CSRF_REJECTIONS = Counter(
+    "core_api_csrf_rejections_total",
+    "Mutating requests rejected because Origin/Referer did not match the configured app URL",
+    ["path"],
 )
 
 # --- AI rate-limiting metrics ---
