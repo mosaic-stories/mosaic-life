@@ -20,4 +20,4 @@
 
 - [x] 4.1 Run `just validate-frontend` and confirm it passes.
 - [x] 4.2 Drive the affected flow in the running compose stack: load the app, open browser devtools, confirm no CSP violation errors in the console and that the CSP/HSTS headers match the updated config (`docker compose -f infra/compose/docker-compose.yml up -d web` then inspect response headers).
-- [ ] 4.3 Open a PR referencing GitHub issue #107 and this OpenSpec change (`frontend-csp-hardening-107`).
+- [x] 4.3 Open a PR referencing GitHub issue #107 and this OpenSpec change (`frontend-csp-hardening-107`).
