@@ -52,7 +52,8 @@ export default function InviteAcceptPage() {
 
   const handleLogin = () => {
     // Store the current URL to redirect back after login
-    sessionStorage.setItem('auth_return_url', window.location.pathname);
+    // No reader exists yet; any future consumer must validate this is a same-origin path (^/(?!/)) before navigating, else fall back to '/'.
+    sessionStorage.setItem('auth_return_url', window.location.pathname + window.location.search);
     login();
   };
 

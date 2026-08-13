@@ -2,9 +2,19 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react-swc'
 import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
+import fs from 'fs'
 
 // Get backend URL from environment, default to localhost for local development
 const BACKEND_URL = process.env.VITE_BACKEND_URL || 'http://localhost:8080'
+
+// MSW's mock worker script is only needed for tests/Storybook; it must never ship in the production bundle.
+const excludeMockServiceWorker = () => ({
+  name: 'exclude-mock-service-worker',
+  closeBundle() {
+    const mswPath = path.resolve(__dirname, 'dist/mockServiceWorker.js')
+    fs.rmSync(mswPath, { force: true })
+  },
+})
 
 export default defineConfig({
   plugins: [
@@ -14,6 +24,7 @@ export default defineConfig({
       open: false,
       gzipSize: true,
     }),
+    excludeMockServiceWorker(),
   ],
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
