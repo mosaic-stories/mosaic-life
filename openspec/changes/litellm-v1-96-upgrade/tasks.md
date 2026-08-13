@@ -29,10 +29,10 @@
 
 - [x] 5.1 Locally: `docker compose -f infra/compose/docker-compose.yml up -d litellm` (or full stack), then `curl http://localhost:14000/v1/models` and confirm the three new aliases are listed. **N/A 2026-08-13**: the `litellm` service in `infra/compose/docker-compose.yml` has been commented out/disabled since 2026-07-07 (commit `19b93c5`, when local personas switched to a local Qwen/MLX model) — there's no running local LiteLLM to verify against. `infra/compose/litellm-config.yaml` was still updated per 4.2 so it stays correct for whenever local LiteLLM is re-enabled. Skipped per user decision; relying on staging verification (5.3/5.4) instead.
 - [x] 5.2 Locally: run one completion against each of `claude-sonnet-5`, `claude-opus-5`, and `glm-5` through the local LiteLLM proxy and confirm successful responses (or a clear, expected `AccessDeniedException` if 1.2's Bedrock access precondition hasn't landed yet in this AWS account — distinguish that from a config bug). **N/A 2026-08-13**: same as 5.1 — no running local LiteLLM proxy to test against. Skipped per user decision.
-- [ ] 5.3 After merge/ArgoCD sync to staging: repeat 5.1/5.2 against the staging LiteLLM endpoint.
-- [ ] 5.4 Confirm the three new aliases appear in staging's `/v1/models` and that existing aliases are unaffected.
+- [x] 5.3 After merge/ArgoCD sync to staging: repeat 5.1/5.2 against the staging LiteLLM endpoint. **Done 2026-08-13**: confirmed by user — PR #130 merged, ArgoCD synced, all 3 new models tested successfully in the LiteLLM UI.
+- [x] 5.4 Confirm the three new aliases appear in staging's `/v1/models` and that existing aliases are unaffected. **Done 2026-08-13**: confirmed by user — new models visible in the LiteLLM UI post-sync; no reported issues with existing aliases.
 
 ## 6. Wrap-up
 
-- [ ] 6.1 Confirm `docs/ai-models.md` accurately reflects the final state of both config files (prod and local dev) after Phases 1 and 2 land.
+- [x] 6.1 Confirm `docs/ai-models.md` accurately reflects the final state of both config files (prod and local dev) after Phases 1 and 2 land. **Done 2026-08-13**: re-diffed `docs/ai-models.md`'s new-aliases table against `configmap.yaml` and `litellm-config.yaml` — model IDs match exactly in both environments.
 - [x] 6.2 Note in the PR description(s) that production ArgoCD sync/rollout to `mosaiclife.me`'s backing services is a separate, human-triggered GitOps step per CLAUDE.md, not performed as part of this task list. **Done 2026-08-13**: both [PR #129](https://github.com/mosaic-stories/mosaic-life/pull/129) and [PR #130](https://github.com/mosaic-stories/mosaic-life/pull/130) include a "Post-merge (human-triggered GitOps step, not part of this PR)" section.
