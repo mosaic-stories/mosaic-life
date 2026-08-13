@@ -23,7 +23,7 @@
 - [x] 4.1 In `infra/helm/litellm/templates/configmap.yaml`, add `claude-sonnet-5` (`bedrock/us.anthropic.claude-sonnet-5`), `claude-opus-5` (`bedrock/us.anthropic.claude-opus-5`), and `glm-5` (`bedrock/zai.glm-5`) to `model_list`, grouped/commented consistently with the existing entries.
 - [x] 4.2 In `infra/compose/litellm-config.yaml`, add the same three aliases using local-dev's direct-ID convention: `claude-sonnet-5` → `bedrock/anthropic.claude-sonnet-5`, `claude-opus-5` → `bedrock/anthropic.claude-opus-5`, `glm-5` → `bedrock/zai.glm-5` (identical to prod for this one, since GLM 5 has no cross-region inference profile).
 - [x] 4.3 Update `docs/ai-models.md` model tables to include the three new aliases and their IDs per environment.
-- [ ] 4.4 Commit and open a PR scoped to Phase 2 only.
+- [x] 4.4 Commit and open a PR scoped to Phase 2 only. **Done 2026-08-13**: [PR #130](https://github.com/mosaic-stories/mosaic-life/pull/130), committed directly to `develop` and opened against `main`.
 
 ## 5. Phase 2 — Local and staging verification
 
@@ -35,4 +35,4 @@
 ## 6. Wrap-up
 
 - [ ] 6.1 Confirm `docs/ai-models.md` accurately reflects the final state of both config files (prod and local dev) after Phases 1 and 2 land.
-- [ ] 6.2 Note in the PR description(s) that production ArgoCD sync/rollout to `mosaiclife.me`'s backing services is a separate, human-triggered GitOps step per CLAUDE.md, not performed as part of this task list.
+- [x] 6.2 Note in the PR description(s) that production ArgoCD sync/rollout to `mosaiclife.me`'s backing services is a separate, human-triggered GitOps step per CLAUDE.md, not performed as part of this task list. **Done 2026-08-13**: both [PR #129](https://github.com/mosaic-stories/mosaic-life/pull/129) and [PR #130](https://github.com/mosaic-stories/mosaic-life/pull/130) include a "Post-merge (human-triggered GitOps step, not part of this PR)" section.
