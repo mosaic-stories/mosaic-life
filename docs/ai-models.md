@@ -37,6 +37,9 @@ These models are configured in LiteLLM and available for future use:
 | LiteLLM Alias | Underlying Model | Provider |
 |---------------|-----------------|----------|
 | `claude-opus-4-6` | `us.anthropic.claude-opus-4-6-v1` | Bedrock |
+| `claude-sonnet-5` | `us.anthropic.claude-sonnet-5` (prod/staging, cross-region) / `anthropic.claude-sonnet-5` (local dev) | Bedrock |
+| `claude-opus-5` | `us.anthropic.claude-opus-5` (prod/staging, cross-region) / `anthropic.claude-opus-5` (local dev) | Bedrock |
+| `glm-5` | `zai.glm-5` (identical in all environments — no cross-region inference profile available) | Bedrock |
 | `qwen3-next-80b` | `qwen.qwen3-next-80b-a3b` | Bedrock |
 | `kimi-k2.5` | `moonshotai.kimi-k2.5` | Bedrock |
 | `voxtral-small-24b` | `mistral.voxtral-small-24b-2507` | Bedrock |
