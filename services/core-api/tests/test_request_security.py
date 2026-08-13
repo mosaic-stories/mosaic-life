@@ -180,6 +180,7 @@ async def test_mismatched_origin_on_mutating_request_is_rejected(
     response = await client.post("/api/auth/logout", headers=headers)
 
     assert response.status_code == 403
+    assert response.json() == {"detail": "Origin/Referer mismatch"}
 
 
 @pytest.mark.asyncio

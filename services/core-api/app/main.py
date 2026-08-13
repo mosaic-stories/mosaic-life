@@ -5,7 +5,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, JSONResponse
 from opentelemetry import trace
 from prometheus_client import (
@@ -150,13 +149,10 @@ def register_protected_docs(target_app: FastAPI) -> None:
     @target_app.get("/openapi.json", include_in_schema=False)
     def protected_openapi(request: Request) -> JSONResponse:
         require_auth(request)
-        return JSONResponse(
-            get_openapi(
-                title=target_app.title,
-                version=target_app.version,
-                routes=target_app.routes,
-            )
-        )
+        # app.openapi() caches the computed schema on app.openapi_schema —
+        # reuse it instead of calling get_openapi() directly, which would
+        # rebuild the schema on every request.
+        return JSONResponse(target_app.openapi())
 
     @target_app.get("/docs", include_in_schema=False)
     def protected_docs(request: Request) -> HTMLResponse:

@@ -248,11 +248,12 @@ async def confirm_upload(
                 "actual_size": actual_size,
             },
         )
-        max_mb = settings.max_upload_size_bytes / (1024 * 1024)
-        raise HTTPException(
-            status_code=400,
-            detail=f"Uploaded file exceeds maximum of {max_mb:.0f} MB",
-        )
+        if actual_size is None:
+            detail = "Uploaded file could not be verified in storage."
+        else:
+            max_mb = settings.max_upload_size_bytes / (1024 * 1024)
+            detail = f"Uploaded file exceeds maximum of {max_mb:.0f} MB"
+        raise HTTPException(status_code=400, detail=detail)
 
     # Persist the storage-verified size rather than the client-declared value.
     media.size_bytes = actual_size

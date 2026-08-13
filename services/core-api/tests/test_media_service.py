@@ -387,6 +387,7 @@ class TestConfirmUpload:
             )
 
         assert exc.value.status_code == 400
+        assert "exceeds maximum" in exc.value.detail
         assert deleted_paths == [test_media.storage_path]
 
         # The record must not be left confirmed with the bad size.
@@ -429,6 +430,8 @@ class TestConfirmUpload:
             )
 
         assert exc.value.status_code == 400
+        assert "could not be verified" in exc.value.detail
+        assert "exceeds maximum" not in exc.value.detail
         assert deleted_paths == [test_media.storage_path]
 
     @pytest.mark.asyncio

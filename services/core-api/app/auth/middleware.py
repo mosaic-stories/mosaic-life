@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from uuid import UUID
 
 from fastapi import Request, Response
+from fastapi.responses import JSONResponse
 from itsdangerous import BadSignature, SignatureExpired, TimestampSigner
 from sqlalchemy import select
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -248,7 +249,11 @@ class SessionMiddleware(BaseHTTPMiddleware):
             extra={"path": path, "origin_or_referer": header_value},
         )
         CSRF_REJECTIONS.labels(path=path).inc()
-        return Response(status_code=403, content="Origin/Referer mismatch")
+        # JSON body matches the shape FastAPI's HTTPException handler
+        # produces elsewhere in the app, rather than a plain-text response.
+        return JSONResponse(
+            status_code=403, content={"detail": "Origin/Referer mismatch"}
+        )
 
 
 def create_session_cookie(
