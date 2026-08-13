@@ -18,6 +18,17 @@ data:
       - model_name: claude-haiku-4-5
         litellm_params:
           model: bedrock/us.anthropic.claude-haiku-4-5-20251001-v1:0
+      - model_name: claude-sonnet-5
+        litellm_params:
+          model: bedrock/us.anthropic.claude-sonnet-5
+      - model_name: claude-opus-5
+        litellm_params:
+          model: bedrock/us.anthropic.claude-opus-5
+
+      # Z.ai GLM via Bedrock (in-region only in us-east-1 — no cross-region inference profile available)
+      - model_name: glm-5
+        litellm_params:
+          model: bedrock/zai.glm-5
 
       # Qwen via Bedrock
       - model_name: qwen3-next-80b
