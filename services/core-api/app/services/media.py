@@ -233,6 +233,32 @@ async def confirm_upload(
             detail="File not found in storage. Upload may have failed.",
         )
 
+    # Verify the actual uploaded object size against the configured maximum.
+    # The client-declared size_bytes on the record cannot be trusted — it was
+    # supplied before the file was ever uploaded.
+    settings = get_settings()
+    actual_size = storage.get_file_size(media.storage_path)
+    if actual_size is None or actual_size > settings.max_upload_size_bytes:
+        storage.delete_file(media.storage_path)
+        logger.warning(
+            "media.upload_size_mismatch",
+            extra={
+                "media_id": str(media_id),
+                "declared_size": media.size_bytes,
+                "actual_size": actual_size,
+            },
+        )
+        max_mb = settings.max_upload_size_bytes / (1024 * 1024)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Uploaded file exceeds maximum of {max_mb:.0f} MB",
+        )
+
+    # Persist the storage-verified size rather than the client-declared value.
+    media.size_bytes = actual_size
+    await db.commit()
+    await db.refresh(media)
+
     logger.info(
         "media.upload_confirmed",
         extra={

@@ -341,7 +341,9 @@ async def retrieve_context(
             else:
                 # selective: only include explicitly shared stories
                 story_id_strs = [str(sid) for sid in lf.story_ids]
-                story_id_list = ", ".join(f"'{sid}'" for sid in story_id_strs)
+                story_id_placeholders = ", ".join(
+                    f":sid_{i}" for i in range(len(story_id_strs))
+                )
                 linked_sql = text(f"""
                     SELECT
                         id,
@@ -351,19 +353,19 @@ async def retrieve_context(
                     FROM story_chunks
                     WHERE
                         legacy_id = :linked_legacy_id
-                        AND story_id IN ({story_id_list})
+                        AND story_id IN ({story_id_placeholders})
                         AND visibility IN ('public', 'private')
                     ORDER BY embedding <=> (:query_embedding)::vector
                     LIMIT :top_k
                 """)
-                linked_result = await db.execute(
-                    linked_sql,
-                    {
-                        "query_embedding": embedding_str,
-                        "linked_legacy_id": str(lf.legacy_id),
-                        "top_k": top_k,
-                    },
-                )
+                linked_params: dict[str, Any] = {
+                    "query_embedding": embedding_str,
+                    "linked_legacy_id": str(lf.legacy_id),
+                    "top_k": top_k,
+                }
+                for i, sid in enumerate(story_id_strs):
+                    linked_params[f"sid_{i}"] = sid
+                linked_result = await db.execute(linked_sql, linked_params)
 
             linked_rows = linked_result.fetchall()
             linked_chunks.extend(

@@ -412,6 +412,15 @@ async def callback_google(
             },
         )
 
+        if not google_user.verified_email:
+            logger.warning(
+                "auth.email_unverified_rejected",
+                extra={"provider": "google", "email": google_user.email},
+            )
+            _record_auth_login_rejection("google", "email_unverified")
+            response.headers["location"] = f"{settings.app_url}/?error=email_unverified"
+            return response
+
         user = await _find_or_create_user(
             db,
             provider="google",
@@ -557,6 +566,15 @@ async def callback_keycloak(
             "auth.keycloak.user_info_received",
             extra={"sub": oidc_user.sub, "email": oidc_user.email},
         )
+
+        if not oidc_user.email_verified:
+            logger.warning(
+                "auth.email_unverified_rejected",
+                extra={"provider": "keycloak", "email": oidc_user.email},
+            )
+            _record_auth_login_rejection("keycloak", "email_unverified")
+            response.headers["location"] = f"{settings.app_url}/?error=email_unverified"
+            return response
 
         user = await _find_or_create_user(
             db,
