@@ -1,7 +1,8 @@
 # ai-rate-limiting Specification
 
 ## Purpose
-TBD - created by archiving change ai-rate-limiting. Update Purpose after archive.
+Every LLM-invoking endpoint triggers an expensive Bedrock/LiteLLM completion with no per-user throttle, letting a single logged-in (or compromised/automated) user drive unbounded model spend and starve server worker connections by opening unlimited conversations or concurrent streams. This capability enforces per-user request-frequency and concurrency limits — independently per endpoint group — across chat, story rewrite, context extraction, and story evolution, rejecting excess requests with `429 Too Many Requests` and a `Retry-After` header so clients can back off.
+
 ## Requirements
 ### Requirement: Per-user request-frequency limiting on LLM-invoking endpoints
 The system SHALL limit how often an authenticated user may call an endpoint that invokes an LLM, scoped per user (not per IP, not global), across the following endpoints: sending a chat message, seeding a conversation's opening message, requesting a story rewrite, triggering story context extraction, and generating or revising a story-evolution draft. Limits are evaluated independently per endpoint group (e.g. a user hitting the story-rewrite limit is not blocked from sending chat messages).

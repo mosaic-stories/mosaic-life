@@ -12,9 +12,7 @@ const excludeMockServiceWorker = () => ({
   name: 'exclude-mock-service-worker',
   closeBundle() {
     const mswPath = path.resolve(__dirname, 'dist/mockServiceWorker.js')
-    if (fs.existsSync(mswPath)) {
-      fs.rmSync(mswPath)
-    }
+    fs.rmSync(mswPath, { force: true })
   },
 })
 
