@@ -1048,6 +1048,42 @@ class TestPromoteDraftAtBoundary:
         )
         assert v1.scalar_one().status == "inactive"
 
+    @pytest.mark.asyncio
+    async def test_normalizes_legacy_creation_time_source_on_promotion(
+        self, db_session, story_with_version, test_user
+    ):
+        """Draft rows are created with a creation-time `source` that predates
+        the boundary-reason model (`"ai_rewrite"` in routes/rewrite.py,
+        `"story_evolution"` in story_evolution.py's save_draft) -- neither
+        matches the mapped source (`"ai_enhancement"`) that
+        `reason="ai_rewrite_applied"` resolves to. Promotion must overwrite
+        `source` with the mapped value so the persisted source and the
+        change-summary text `fallback_summary()` just wrote from that same
+        mapped value describe the same thing, rather than leaving the stale
+        legacy value in place forever."""
+        draft = StoryVersion(
+            story_id=story_with_version.id,
+            version_number=2,
+            title="AI Draft",
+            content="AI content.",
+            status="draft",
+            source="ai_rewrite",
+            created_by=test_user.id,
+        )
+        db_session.add(draft)
+        await db_session.flush()
+
+        result = await promote_draft_at_boundary(
+            db_session,
+            story_with_version,
+            draft,
+            reason="ai_rewrite_applied",
+            user_id=test_user.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        assert result.source == "ai_enhancement"
+
 
 class TestDiscardDraft:
     @pytest.mark.asyncio
@@ -1249,7 +1285,6 @@ class TestMintVersionAtBoundary:
             ("session_idle", "manual_edit"),
             ("session_close", "manual_edit"),
             ("session_max_interval", "manual_edit"),
-            ("publish", "manual_edit"),
             ("evolve_entry", "manual_edit"),
             ("ai_rewrite_applied", "ai_enhancement"),
         ],

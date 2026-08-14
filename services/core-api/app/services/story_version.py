@@ -498,7 +498,6 @@ _BOUNDARY_REASON_TO_SOURCE: dict[str, str] = {
     "session_close": "manual_edit",
     "session_idle": "manual_edit",
     "session_max_interval": "manual_edit",
-    "publish": "manual_edit",
     "evolve_entry": "manual_edit",
     "ai_rewrite_applied": "ai_enhancement",
     "restore": "restoration",
@@ -934,7 +933,16 @@ async def promote_draft_at_boundary(
         if not draft.change_summary:
             draft.change_summary = fallback_text
 
-        # (4) Promote.
+        # (4) Promote. `draft.source` is normalized to the mapped boundary
+        # source here -- draft rows are created with a creation-time value
+        # (`"ai_rewrite"` in routes/rewrite.py, `"story_evolution"` in
+        # story_evolution.py's save_draft) that predates the boundary-reason
+        # model. Left unset, the persisted source would permanently disagree
+        # with `source` above, which is what `fallback_summary()` just used
+        # to write `draft.change_summary` -- the version's displayed source
+        # label and its own change-summary text would describe two different
+        # things.
+        draft.source = source
         draft.status = "active"
         draft.stale = False
 
