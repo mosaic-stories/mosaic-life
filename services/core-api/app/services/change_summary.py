@@ -49,6 +49,8 @@ async def generate_change_summary(
     old_content: str,
     new_content: str,
     user_id: UUID,
+    story_id: UUID,
+    version_id: UUID,
     source: str = "manual_edit",
     source_version: int | None = None,
 ) -> str:
@@ -62,6 +64,10 @@ async def generate_change_summary(
     version boundary -- not a snapshot from moments earlier, so the generated
     summary describes the whole editing session between boundaries rather
     than the last few keystrokes.
+
+    ``story_id``/``version_id`` are recorded only as span attributes -- this
+    call runs post-commit in the background, so they're what lets a slow or
+    failing summary be correlated back to the story/version in traces.
 
     Collects streamed tokens from the provider's ``stream_generate`` method
     and returns the concatenated, stripped result. The call is bounded by
@@ -142,6 +148,8 @@ async def generate_change_summary(
             return _fallback_summary(source, source_version)
 
         finally:
+            span.set_attribute("story_id", str(story_id))
+            span.set_attribute("version_id", str(version_id))
             span.set_attribute("outcome", outcome)
             span.set_attribute("model_id", model_id)
             STORY_CHANGE_SUMMARY.labels(outcome=outcome).inc()
