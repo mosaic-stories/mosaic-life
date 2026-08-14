@@ -282,7 +282,11 @@ def _session_expiry_cutoff() -> datetime:
 
 
 async def expire_stale_sessions(db: AsyncSession, user_id: UUID) -> None:
-    """Mark a user's sessions past the cookie's absolute max age as revoked."""
+    """Mark a user's sessions past the cookie's absolute max age as revoked.
+
+    Does not commit — leaves the transaction boundary to the caller, since
+    every current call site persists this alongside other writes of its own.
+    """
     await db.execute(
         update(UserSession)
         .where(
@@ -299,7 +303,6 @@ async def expire_stale_sessions(db: AsyncSession, user_id: UUID) -> None:
         # the same caveat in auth/middleware.py).
         .execution_options(synchronize_session="fetch")
     )
-    await db.commit()
 
 
 async def upsert_user_session(
