@@ -21,6 +21,7 @@ from ..models.profile_settings import ProfileSettings
 from ..models.user_session import UserSession
 from ..models.user import User
 from ..observability.metrics import AUTH_LOGIN_REJECTIONS
+from ..services.settings import expire_stale_sessions
 from ..services.username import allocate_username
 from .pkce import generate_pkce_pair, sign_value, verify_and_extract_value
 from .session_tokens import (
@@ -279,6 +280,8 @@ async def _build_and_set_session(
     response: "RedirectResponse",
 ) -> None:
     """Populate the session cookie and persist a UserSession record."""
+    await expire_stale_sessions(db, user.id)
+
     now = datetime.now(timezone.utc)
     session_data = SessionData(
         user_id=user.id,

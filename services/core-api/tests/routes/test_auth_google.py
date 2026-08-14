@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from unittest.mock import AsyncMock
 
 from app.auth import router as auth_router
-from app.config import Settings
+from app.config import Settings, get_settings
 from app.models.user import User
 from app.models.user_session import UserSession
 
@@ -100,6 +101,66 @@ async def test_callback_google_succeeds_clears_cookies_and_sends_verifier(
         google_client.exchange_code_for_tokens.await_args.kwargs["code_verifier"]
         is not None
     )
+
+
+@pytest.mark.asyncio
+async def test_callback_google_expires_stale_sessions_for_returning_user(
+    client: AsyncClient,
+    monkeypatch: pytest.MonkeyPatch,
+    db_session: AsyncSession,
+    test_user: User,
+) -> None:
+    """A fresh login should sweep that user's long-dead session rows.
+
+    Otherwise sessions from logins the user never explicitly logged out of
+    (they just closed the browser) linger with revoked_at=None forever,
+    even though their cookies expired long ago.
+    """
+    monkeypatch.setattr(auth_router, "get_settings", _google_settings)
+
+    max_age = get_settings().session_cookie_max_age
+    stale_created_at = (
+        datetime.now(timezone.utc) - timedelta(seconds=max_age) - timedelta(days=1)
+    )
+    stale_session = UserSession(
+        user_id=test_user.id,
+        session_token="stale-google-session-hash",
+        device_info="Old Browser",
+        last_active_at=stale_created_at,
+        created_at=stale_created_at,
+    )
+    db_session.add(stale_session)
+    await db_session.commit()
+    await db_session.refresh(stale_session)
+
+    _, params = await _start_google_login(client)
+    state = params["state"][0]
+
+    google_client = SimpleNamespace(
+        exchange_code_for_tokens=AsyncMock(return_value={"access_token": "access"}),
+        get_user_info=AsyncMock(
+            return_value={
+                "id": test_user.provider_id,
+                "email": test_user.email,
+                "verified_email": True,
+                "name": test_user.name,
+                "picture": test_user.avatar_url,
+            }
+        ),
+    )
+    monkeypatch.setattr(
+        auth_router, "get_google_client", lambda settings: google_client
+    )
+
+    response = await client.get(
+        f"/api/auth/google/callback?code=good-code&state={state}"
+    )
+    assert response.status_code in {302, 307}
+
+    refreshed = await db_session.execute(
+        select(UserSession).where(UserSession.id == stale_session.id)
+    )
+    assert refreshed.scalar_one().revoked_at is not None
 
 
 @pytest.mark.asyncio
