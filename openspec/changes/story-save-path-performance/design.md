@@ -85,6 +85,19 @@ It calls the existing `create_version()`, writes the deterministic fallback summ
 
 This keeps `FALLBACK_SUMMARIES` lookups working, keeps history labels human-readable, and leaves the collapse migration's run detection valid.
 
+**Correction found during implementation (2026-08-14): "publish" is not a distinct boundary.** The proposal listed "publish (draft→published)" as a boundary separate from "AI rewrite applied / draft approved." Implementation found this doesn't correspond to any real code path: `StoryUpdate` has no `status` field, the plain Edit page never sends one, and the only place `story.status` transitions `draft → published` is inside `accept_session()` ([story_evolution.py:883](../../../services/core-api/app/services/story_evolution.py)) — which is the *same event* as draft approval. There is no standalone publish action to hang a separate reason on. The reason set is therefore six, not seven: `evolve_entry`, `ai_rewrite_applied`, `restore`, `session_close`, `session_idle`, `session_max_interval`. `ai_rewrite_applied` covers both `approve_draft()` (story_version.py) and `accept_session()` (story_evolution.py) — accept's status flip to `published` is an unrelated side effect of the same call, not a second boundary. If the product later adds a real "Publish" affordance to the plain editor, it gets its own reason then.
+
+### Decision 3a: Promoting an existing draft is not the same operation as minting a new version
+
+`mint_version_at_boundary` always creates a new `StoryVersion` row via `create_version()`. But `approve_draft()` and `accept_session()` don't create anything — they promote an *already-existing* draft row (created earlier by an AI rewrite, at `rewrite.py:332` or `story_evolution.py:1070`) to `status="active"`. Routing them through `mint_version_at_boundary` unmodified would mint a second, redundant active version on top of the promoted draft, corrupting the draft→active semantics the frontend depends on (`get_draft_version`, the draft indicator in `VersionsTool.tsx`).
+
+The fix: extract the shared tail of `mint_version_at_boundary` (clear `pending_edit_since`, emit the span/metric/log, schedule the two background tasks) into a private `_finalize_mint()` used by both:
+
+- `mint_version_at_boundary(...)` — unchanged for `evolve_entry`, `restore`, and the three session reasons: creates a new row via `create_version()`, then finalizes.
+- `promote_draft_at_boundary(db, story, draft, *, reason, user_id, background_tasks)` — new, for `ai_rewrite_applied` only: deactivates the current active version, promotes `draft` in place (`status="active"`), backfills `draft.change_summary` with the deterministic fallback if still null (true for every draft today — neither creation site sets one), updates `story.title`/`content`/`active_version_id`, then finalizes using the same shared tail.
+
+Both existing route-level `_queue_reindex()` calls in `routes/story_version.py` (on `approve_draft` and `restore_version`) are removed — reindexing now happens once, inside the boundary helper, not twice.
+
 Re-embedding moves here from the PUT route, which is what takes it off the per-autosave path.
 
 ### Decision 4: Change summary is a post-commit upgrade, never a blocking call

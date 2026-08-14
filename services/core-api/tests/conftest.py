@@ -30,6 +30,7 @@ from app.models.story import Story  # noqa: E402
 from app.models.story_evolution import StoryEvolutionSession  # noqa: E402
 from app.models.story_version import StoryVersion  # noqa: E402
 from app.models.user import User  # noqa: E402
+from app.services.change_summary import fallback_summary  # noqa: E402
 
 # Clear the lru_cache on get_settings to pick up test env vars
 get_settings.cache_clear()
@@ -105,22 +106,45 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
     app.dependency_overrides[get_db] = override_get_db
 
-    # Mock both get_db_for_background and index_story_chunks to avoid background task issues in tests
+    # Mock both get_db_for_background and index_story_chunks to avoid background task issues in tests.
+    # Boundary mints (app.services.story_version, e.g. approve_draft/restore_version/
+    # accept_session/start_session) also schedule their own post-commit
+    # get_db_for_background/index_story_chunks/generate_change_summary work --
+    # mocked here too so route-level tests never make a real DB connection,
+    # search index call, or LLM call from a background task.
     with (
         patch("app.routes.story.get_db_for_background") as mock_get_db_bg,
         patch("app.routes.story.index_story_chunks", new_callable=AsyncMock),
-        patch("app.routes.story_version.get_db_for_background") as mock_get_db_bg2,
-        patch("app.routes.story_version.index_story_chunks", new_callable=AsyncMock),
+        patch("app.services.story_version.get_db_for_background") as mock_get_db_bg2,
+        patch("app.services.story_version.index_story_chunks", new_callable=AsyncMock),
+        patch(
+            "app.services.story_version.generate_change_summary",
+            new_callable=AsyncMock,
+        ) as mock_generate_change_summary,
     ):
         # Make get_db_for_background return the test session
         async def mock_bg_db():
             yield db_session
 
+        # `_finalize_mint()` schedules two independent background closures
+        # (reindex + change-summary upgrade) that each call
+        # `get_db_for_background()` separately -- a `side_effect` factory
+        # (rather than a single pre-materialized `return_value` generator)
+        # ensures the second call gets a fresh, un-exhausted generator.
         async def mock_bg_db2():
             yield db_session
 
         mock_get_db_bg.return_value = mock_bg_db()
-        mock_get_db_bg2.return_value = mock_bg_db2()
+        mock_get_db_bg2.side_effect = mock_bg_db2
+
+        # Real change-summary generation calls out to an LLM provider;
+        # short-circuit it to the deterministic fallback text so background
+        # summary upgrades never depend on a reachable provider in tests.
+        mock_generate_change_summary.side_effect = (
+            lambda *, old_content, new_content, user_id, source, source_version=None, **_: (
+                fallback_summary(source, source_version)
+            )
+        )
 
         async with AsyncClient(
             transport=ASGITransport(app=app),

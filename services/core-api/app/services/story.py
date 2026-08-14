@@ -1445,6 +1445,62 @@ async def update_story(
     )
 
 
+async def close_edit_session(
+    db: AsyncSession,
+    user_id: UUID,
+    story_id: UUID,
+    background_tasks: BackgroundTasks,
+) -> None:
+    """Close an editing session in response to the client's navigate-away hint.
+
+    The client posts this best-effort, `fetch(..., { keepalive: true })`
+    signal when the author leaves the Edit page (design.md Decision 2,
+    `openspec/changes/story-save-path-performance`). If an editing session
+    is open (`story.pending_edit_since is not None`), this mints a version
+    capturing the session's content via `mint_version_at_boundary()` with
+    `reason="session_close"` -- the same boundary helper `update_story()`
+    uses for its idle/max-interval checks, so the fallback summary,
+    `pending_edit_since` clearing, and post-commit change-summary/reindex
+    scheduling all behave identically.
+
+    Idempotent and safe to lose: if no session is open (already closed by a
+    prior call, or by a save's own idle/max-interval check), this is a
+    no-op. If the client's request never arrives at all (tab crash, offline),
+    nothing is lost -- the same session boundary is still evaluated lazily
+    on the next save or the next version-history read (design.md Decision 2,
+    "Editing sessions close without user action").
+
+    Args:
+        db: Database session
+        user_id: User closing the session (must be the story's author)
+        story_id: Story ID
+        background_tasks: The request's `BackgroundTasks`. Forwarded to
+            `mint_version_at_boundary()` so its post-commit work
+            (change-summary upgrade, search re-index) can be scheduled when
+            a version is minted.
+
+    Raises:
+        HTTPException: delegates to `require_story_write_access` -- 404 if
+            not found, 404 if it's another author's draft (existence
+            hidden), 403 if the caller can't read it at all, 403 if the
+            caller can read it but isn't the author.
+    """
+    story = await require_story_write_access(
+        db=db, story_id=story_id, user_id=user_id, action="update"
+    )
+
+    if story.pending_edit_since is not None:
+        await mint_version_at_boundary(
+            db,
+            story,
+            reason="session_close",
+            user_id=user_id,
+            background_tasks=background_tasks,
+        )
+
+    await db.commit()
+
+
 async def delete_story(
     db: AsyncSession,
     user_id: UUID,
