@@ -1,10 +1,14 @@
 """Unit tests for story service layer."""
 
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
+
 import pytest
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models.associations import StoryLegacy
 from app.models.legacy import Legacy, LegacyMember
 from app.models.story import Story
@@ -348,6 +352,7 @@ class TestUpdateStory:
             user_id=test_user.id,
             story_id=test_story_public.id,
             data=data,
+            background_tasks=BackgroundTasks(),
         )
 
         assert story.title == "Updated Title"
@@ -369,6 +374,7 @@ class TestUpdateStory:
                 user_id=test_user_2.id,
                 story_id=test_story_public.id,
                 data=data,
+                background_tasks=BackgroundTasks(),
             )
         assert exc.value.status_code == 403
         assert "only the story author" in exc.value.detail.lower()
@@ -398,6 +404,7 @@ class TestUpdateStory:
                 user_id=test_user_2.id,
                 story_id=test_story_public.id,
                 data=data,
+                background_tasks=BackgroundTasks(),
             )
 
         assert exc.value.status_code == 403
@@ -428,6 +435,7 @@ class TestUpdateStory:
                 user_id=test_user_2.id,
                 story_id=test_story_private.id,
                 data=StoryUpdate(title="Advocate Private Edit"),
+                background_tasks=BackgroundTasks(),
             )
         assert private_exc.value.status_code == 403
 
@@ -437,6 +445,7 @@ class TestUpdateStory:
                 user_id=test_user_2.id,
                 story_id=test_story_public.id,
                 data=StoryUpdate(title="Advocate Public Edit"),
+                background_tasks=BackgroundTasks(),
             )
         assert public_exc.value.status_code == 403
 
@@ -457,6 +466,7 @@ class TestUpdateStory:
                 user_id=test_user_2.id,
                 story_id=test_story_public.id,
                 data=StoryUpdate(title="Should Not Work"),
+                background_tasks=BackgroundTasks(),
             )
         assert exc.value.status_code == 404
 
@@ -477,6 +487,7 @@ class TestUpdateStory:
             user_id=test_user.id,
             story_id=test_story_public.id,
             data=data,
+            background_tasks=BackgroundTasks(),
         )
 
         assert story.title == "New Title Only"
@@ -507,6 +518,7 @@ class TestUpdateStory:
             user_id=test_user.id,
             story_id=test_story_public.id,
             data=data,
+            background_tasks=BackgroundTasks(),
         )
 
         assert story.title == "A fresh opening line for this story."
@@ -528,6 +540,7 @@ class TestUpdateStory:
             user_id=test_user.id,
             story_id=test_story_public.id,
             data=data,
+            background_tasks=BackgroundTasks(),
         )
 
         assert story.title == original_title
@@ -547,6 +560,7 @@ class TestUpdateStory:
             user_id=test_user.id,
             story_id=test_story_public.id,
             data=data,
+            background_tasks=BackgroundTasks(),
         )
 
         assert story.title == "Draft in progress"
@@ -739,37 +753,59 @@ class TestCreateStoryVersioning:
 
 
 class TestUpdateStoryVersioning:
-    """Tests for versioning integration in update_story."""
+    """Tests for versioning integration in update_story.
+
+    Under story-save-path-performance, a content-changing save no longer
+    mints a version by itself -- versions are minted only at session
+    boundaries (design.md Decision 1/2). These tests cover the ordinary
+    no-mint save, the two boundary rules evaluated in Step A of
+    `update_story` (idle and max-interval), and that an already-open
+    session continues untouched when neither threshold has been crossed.
+    """
 
     @pytest.mark.asyncio
-    async def test_update_creates_new_version(
+    async def test_update_does_not_create_new_version(
         self,
         db_session: AsyncSession,
         test_user: User,
         test_story_public: Story,
     ):
-        """Updating content should create a new version."""
-        # Fixture already creates v1 with active_version_id set
+        """An ordinary content-changing save persists the change without
+        minting a version -- that's the entire point of this change. It
+        does open an editing session so a later boundary can capture it."""
+        # Fixture already creates v1 with active_version_id set, and no
+        # session is open (pending_edit_since is None).
 
         data = StoryUpdate(title="Updated Title", content="Updated content.")
-        await story_service.update_story(
+        story = await story_service.update_story(
             db=db_session,
             user_id=test_user.id,
             story_id=test_story_public.id,
             data=data,
+            background_tasks=BackgroundTasks(),
         )
 
-        # Check that v2 was created
+        # No new version was minted; v1 remains the only version, still
+        # active, and the response reports no minted version.
         versions_result = await db_session.execute(
             select(StoryVersion)
             .where(StoryVersion.story_id == test_story_public.id)
             .order_by(StoryVersion.version_number)
         )
         versions = versions_result.scalars().all()
-        assert len(versions) == 2
-        assert versions[0].status == "inactive"  # v1
-        assert versions[1].status == "active"  # v2
-        assert versions[1].title == "Updated Title"
+        assert len(versions) == 1
+        assert versions[0].status == "active"
+        assert story.version_number is None
+
+        # The story row itself does reflect the new content immediately,
+        # and a fresh editing session is now open for it.
+        result = await db_session.execute(
+            select(Story).where(Story.id == test_story_public.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.title == "Updated Title"
+        assert updated_story.content == "Updated content."
+        assert updated_story.pending_edit_since is not None
 
     @pytest.mark.asyncio
     async def test_visibility_only_update_no_new_version(
@@ -787,6 +823,7 @@ class TestUpdateStoryVersioning:
             user_id=test_user.id,
             story_id=test_story_public.id,
             data=data,
+            background_tasks=BackgroundTasks(),
         )
 
         versions_result = await db_session.execute(
@@ -794,6 +831,272 @@ class TestUpdateStoryVersioning:
         )
         versions = versions_result.scalars().all()
         assert len(versions) == 1  # Still only v1
+
+    @pytest.mark.asyncio
+    async def test_update_mints_version_on_idle_session_boundary(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """A save arriving after the previous session has gone idle mints a
+        version first, capturing the content as it was already stored --
+        not the content arriving in this request (design.md Decision 2)."""
+        stale = datetime.now(timezone.utc) - timedelta(
+            seconds=get_settings().story_edit_session_idle_seconds + 60
+        )
+        test_story_public.pending_edit_since = stale
+        test_story_public.updated_at = stale
+        await db_session.commit()
+
+        previously_stored_content = test_story_public.content
+
+        data = StoryUpdate(content="Brand new content for this request.")
+        story = await story_service.update_story(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            data=data,
+            background_tasks=BackgroundTasks(),
+        )
+
+        # A version was minted by this request and reported on the
+        # response; it captured the previously-stored content, not the
+        # content arriving in this request.
+        assert story.version_number == 2
+        versions_result = await db_session.execute(
+            select(StoryVersion)
+            .where(StoryVersion.story_id == test_story_public.id)
+            .order_by(StoryVersion.version_number)
+        )
+        versions = versions_result.scalars().all()
+        assert len(versions) == 2
+        assert versions[0].status == "inactive"
+        assert versions[1].status == "active"
+        assert versions[1].content == previously_stored_content
+
+        # The incoming update was still applied, and a fresh session opened
+        # to track it.
+        result = await db_session.execute(
+            select(Story).where(Story.id == test_story_public.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.content == "Brand new content for this request."
+        assert updated_story.pending_edit_since is not None
+
+    @pytest.mark.asyncio
+    async def test_update_mints_version_on_max_interval_session_boundary(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """A continuously active session that exceeds the max interval mints
+        a version even though the idle threshold was never crossed."""
+        now = datetime.now(timezone.utc)
+        test_story_public.pending_edit_since = now - timedelta(
+            seconds=get_settings().story_edit_session_max_seconds + 60
+        )
+        # Recent enough that the idle rule alone would not fire.
+        test_story_public.updated_at = now - timedelta(seconds=5)
+        await db_session.commit()
+
+        data = StoryUpdate(content="Another autosave keystroke.")
+        story = await story_service.update_story(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            data=data,
+            background_tasks=BackgroundTasks(),
+        )
+
+        assert story.version_number == 2
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 2
+
+    @pytest.mark.asyncio
+    async def test_open_session_continues_without_minting(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """A save that arrives mid-session, with neither threshold crossed,
+        leaves the session's start time untouched and mints nothing."""
+        now = datetime.now(timezone.utc)
+        session_start = now - timedelta(minutes=2)
+        test_story_public.pending_edit_since = session_start
+        test_story_public.updated_at = now - timedelta(seconds=5)
+        await db_session.commit()
+
+        data = StoryUpdate(content="Yet more typing.")
+        story = await story_service.update_story(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            data=data,
+            background_tasks=BackgroundTasks(),
+        )
+
+        assert story.version_number is None
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 1
+
+        result = await db_session.execute(
+            select(Story).where(Story.id == test_story_public.id)
+        )
+        updated_story = result.scalar_one()
+        # Session start time is unchanged -- the session continues rather
+        # than resetting.
+        stored_start = updated_story.pending_edit_since
+        assert stored_start is not None
+        if stored_start.tzinfo is None:
+            stored_start = stored_start.replace(tzinfo=timezone.utc)
+        assert stored_start == session_start
+
+
+class TestCloseEditSession:
+    """Tests for close_edit_session -- the client's best-effort navigate-away
+    hint (design.md Decision 2, `story-save-path-performance`). It mints a
+    version via `mint_version_at_boundary(reason="session_close")` when a
+    session is open, and is a no-op (still succeeds) otherwise.
+    """
+
+    @pytest.mark.asyncio
+    async def test_close_mints_version_when_session_open(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """An open session is captured as a version whose `source` is the
+        `session_close` -> `manual_edit` mapping from
+        `_BOUNDARY_REASON_TO_SOURCE`, and `pending_edit_since` is cleared."""
+        test_story_public.pending_edit_since = datetime.now(timezone.utc)
+        await db_session.commit()
+
+        await story_service.close_edit_session(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        versions_result = await db_session.execute(
+            select(StoryVersion)
+            .where(StoryVersion.story_id == test_story_public.id)
+            .order_by(StoryVersion.version_number)
+        )
+        versions = versions_result.scalars().all()
+        assert len(versions) == 2
+        assert versions[0].status == "inactive"
+        assert versions[1].status == "active"
+        assert versions[1].source == "manual_edit"
+
+        result = await db_session.execute(
+            select(Story).where(Story.id == test_story_public.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.pending_edit_since is None
+
+    @pytest.mark.asyncio
+    async def test_close_is_noop_when_no_session_open(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """No open session (fixture default: `pending_edit_since is None`)
+        -- no version is minted and no error is raised."""
+        assert test_story_public.pending_edit_since is None
+
+        await story_service.close_edit_session(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 1  # Still only v1
+
+    @pytest.mark.asyncio
+    async def test_close_twice_is_idempotent(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """A second call after the session has already been closed mints
+        nothing further -- safe for the client to call more than once."""
+        test_story_public.pending_edit_since = datetime.now(timezone.utc)
+        await db_session.commit()
+
+        await story_service.close_edit_session(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 2
+
+        # Second call: pending_edit_since is now None, so this is a no-op.
+        await story_service.close_edit_session(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 2  # Unchanged
+
+    @pytest.mark.asyncio
+    async def test_close_nonexistent_story_404(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """A story that does not exist raises 404, same as `update_story`."""
+        with pytest.raises(HTTPException) as exc:
+            await story_service.close_edit_session(
+                db=db_session,
+                user_id=test_user.id,
+                story_id=uuid4(),
+                background_tasks=BackgroundTasks(),
+            )
+        assert exc.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_close_non_author_403(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_story_public: Story,
+    ):
+        """A non-author is denied, matching `update_story`'s access-control
+        pattern (`require_story_write_access`)."""
+        with pytest.raises(HTTPException) as exc:
+            await story_service.close_edit_session(
+                db=db_session,
+                user_id=test_user_2.id,
+                story_id=test_story_public.id,
+                background_tasks=BackgroundTasks(),
+            )
+        assert exc.value.status_code == 403
+        assert "only the story author" in exc.value.detail.lower()
 
 
 class TestCreateDraftStory:

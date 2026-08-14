@@ -1,6 +1,7 @@
 """Tests focused on story legacy association behavior."""
 
 import pytest
+from fastapi import BackgroundTasks
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -112,6 +113,7 @@ async def test_update_story_replaces_associations(
                 )
             ]
         ),
+        background_tasks=BackgroundTasks(),
     )
 
     assert len(updated.legacies) == 1

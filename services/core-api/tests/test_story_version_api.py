@@ -1,11 +1,15 @@
 """API tests for story version endpoints."""
 
+from datetime import datetime, timedelta, timezone
+
 import pytest
 import pytest_asyncio
 
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models.story import Story
 from app.models.story_version import StoryVersion
 from app.models.user import User
@@ -118,6 +122,52 @@ class TestListVersions:
             headers=headers,
         )
         assert resp.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_list_versions_mints_and_returns_idle_session_version(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        versioned_story: Story,
+        db_session: AsyncSession,
+    ) -> None:
+        """Opening version history after an editing session has gone idle
+        mints that session's version and returns it in the same response
+        (spec: "Version history read after a session ends"). End-to-end
+        route-level coverage of `list_versions`' boundary evaluation --
+        confirms the route wires `background_tasks` through and commits
+        the mint."""
+        stale = datetime.now(timezone.utc) - timedelta(
+            seconds=get_settings().story_edit_session_idle_seconds + 60
+        )
+        versioned_story.pending_edit_since = stale
+        versioned_story.updated_at = stale
+        await db_session.commit()
+
+        resp = await client.get(
+            f"/api/stories/{versioned_story.id}/versions",
+            headers=auth_headers,
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+
+        # Fixture already has v1 (inactive) + v2 (active) -- a third
+        # version is minted and present in this same response.
+        assert data["total"] == 3
+        version_numbers = {v["version_number"] for v in data["versions"]}
+        assert version_numbers == {1, 2, 3}
+
+        # Persisted, not just an in-memory response artifact -- and the
+        # session is closed.
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == versioned_story.id)
+        )
+        assert len(versions_result.scalars().all()) == 3
+
+        refreshed = await db_session.execute(
+            select(Story).where(Story.id == versioned_story.id)
+        )
+        assert refreshed.scalar_one().pending_edit_since is None
 
 
 class TestGetVersion:

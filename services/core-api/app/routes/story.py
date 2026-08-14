@@ -254,6 +254,7 @@ async def update_story(
         user_id=session.user_id,
         story_id=story_id,
         data=data,
+        background_tasks=background_tasks,
     )
 
     await activity_service.record_activity(
@@ -265,38 +266,39 @@ async def update_story(
         metadata={"title": story.title},
     )
 
-    # Reindex if content changed
-    if data.content is not None and story.legacies:
-        primary_legacy = next(
-            (leg for leg in story.legacies if leg.role == "primary"),
-            story.legacies[0],
-        )
-        # Capture content to satisfy mypy
-        content = data.content
-
-        async def background_reindex() -> None:
-            try:
-                async for bg_db in get_db_for_background():
-                    await index_story_chunks(
-                        db=bg_db,
-                        story_id=story.id,
-                        content=content,
-                        legacy_id=primary_legacy.legacy_id,
-                        visibility=story.visibility,
-                        author_id=session.user_id,
-                        user_id=session.user_id,
-                        story_title=story.title,
-                    )
-            except Exception as e:
-                logger.error(
-                    "background_reindexing_failed",
-                    extra={"story_id": str(story.id), "error": str(e)},
-                    exc_info=True,
-                )
-
-        background_tasks.add_task(background_reindex)
-
     return story
+
+
+@router.post(
+    "/{story_id}/edit-session/close",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Close an editing session",
+    description=(
+        "Best-effort signal the client posts on navigate-away from the Edit "
+        "page. Mints a version capturing the just-ended session if one was "
+        "open, and is a no-op otherwise. Idempotent -- safe to call more "
+        "than once, and safe to lose (the session boundary is still "
+        "evaluated lazily on the next save or version-history read)."
+    ),
+)
+async def close_edit_session(
+    story_id: UUID,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Close an editing session on navigate-away from the Edit page.
+
+    Only the story author may call this (same access gate as `update_story`).
+    """
+    session = require_auth(request)
+
+    await story_service.close_edit_session(
+        db=db,
+        user_id=session.user_id,
+        story_id=story_id,
+        background_tasks=background_tasks,
+    )
 
 
 @router.delete(
