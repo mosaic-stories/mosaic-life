@@ -130,6 +130,7 @@ def load_personas() -> dict[str, PersonaConfig]:
 
     _base_rules = config.get("base_rules", "")
 
+    settings = get_settings()
     personas_config: dict[str, Any] = config.get("personas", {})
     for persona_id, data in personas_config.items():
         traversal_data = data.get("traversal", {})
@@ -145,7 +146,7 @@ def load_personas() -> dict[str, PersonaConfig]:
             name=data["name"],
             icon=data["icon"],
             description=data["description"],
-            model_id=data.get("model_id") or get_settings().default_chat_model_id,
+            model_id=data.get("model_id") or settings.default_chat_model_id,
             system_prompt=data["system_prompt"],
             max_tokens=data.get("max_tokens", 1024),
             traversal=traversal,
