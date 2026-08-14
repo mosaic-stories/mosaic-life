@@ -3,7 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.legacy import Legacy
@@ -26,6 +26,7 @@ class TestStartEvolutionSession:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         assert session.phase == "elicitation"
@@ -59,6 +60,7 @@ class TestStartEvolutionSession:
             user_id=test_user.id,
             persona_id="biographer",
             trigger="chat",
+            background_tasks=BackgroundTasks(),
         )
 
         after = (
@@ -82,6 +84,7 @@ class TestStartEvolutionSession:
                 story_id=test_story.id,
                 user_id=test_user_2.id,
                 persona_id="biographer",
+                background_tasks=BackgroundTasks(),
             )
         assert exc.value.status_code == 403
 
@@ -102,6 +105,7 @@ class TestStartEvolutionSession:
                 story_id=test_story.id,
                 user_id=test_user_2.id,
                 persona_id="biographer",
+                background_tasks=BackgroundTasks(),
             )
         assert exc.value.status_code == 404
 
@@ -119,6 +123,7 @@ class TestStartEvolutionSession:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         # Try to create second — should fail with 409
@@ -128,8 +133,90 @@ class TestStartEvolutionSession:
                 story_id=test_story.id,
                 user_id=test_user.id,
                 persona_id="biographer",
+                background_tasks=BackgroundTasks(),
             )
         assert exc.value.status_code == 409
+
+    @pytest.mark.asyncio
+    async def test_start_session_mints_evolve_entry_version_when_pending_edit(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Entering Evolve with uncaptured edits mints an `evolve_entry`
+        version capturing the pre-AI state before the workspace opens on
+        top of it (design.md Decision 3 / task 2.3), and the new session's
+        `base_version_number` is re-derived to point at it, not the stale
+        version that was active coming in."""
+        from datetime import datetime, timezone
+
+        from sqlalchemy import select as sa_select
+
+        from app.models.story_version import StoryVersion as StoryVersionModel
+
+        test_story.content = "Edited but not yet captured in a version."
+        test_story.pending_edit_since = datetime.now(timezone.utc)
+        await db_session.commit()
+
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+            background_tasks=BackgroundTasks(),
+        )
+
+        assert session.base_version_number == 2
+
+        versions_result = await db_session.execute(
+            sa_select(StoryVersionModel).where(
+                StoryVersionModel.story_id == test_story.id
+            )
+        )
+        versions = versions_result.scalars().all()
+        assert len(versions) == 2
+        minted = next(v for v in versions if v.version_number == 2)
+        assert minted.status == "active"
+        assert minted.source == "manual_edit"
+        assert minted.content == "Edited but not yet captured in a version."
+
+        await db_session.refresh(test_story)
+        assert test_story.pending_edit_since is None
+
+    @pytest.mark.asyncio
+    async def test_start_session_no_mint_when_no_pending_edit(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """No open editing session -> no version minted on Evolve entry;
+        `base_version_number` is simply the already-active version."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story_version import StoryVersion as StoryVersionModel
+
+        assert test_story.pending_edit_since is None
+
+        session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+            background_tasks=BackgroundTasks(),
+        )
+
+        assert session.base_version_number == 1
+
+        versions_result = await db_session.execute(
+            sa_select(StoryVersionModel).where(
+                StoryVersionModel.story_id == test_story.id
+            )
+        )
+        assert len(versions_result.scalars().all()) == 1
 
 
 class TestGetActiveSession:
@@ -146,6 +233,7 @@ class TestGetActiveSession:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         found = await evolution_service.get_active_session(
@@ -219,6 +307,7 @@ class TestAdvancePhase:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         updated = await evolution_service.advance_phase(
@@ -246,6 +335,7 @@ class TestAdvancePhase:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         with pytest.raises(HTTPException) as exc:
@@ -271,6 +361,7 @@ class TestAdvancePhase:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         await evolution_service.advance_phase(
@@ -309,6 +400,7 @@ class TestAdvancePhase:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         await evolution_service.advance_phase(
@@ -345,6 +437,7 @@ class TestDiscardSession:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         result = await evolution_service.discard_session(
@@ -369,6 +462,7 @@ class TestDiscardSession:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         await evolution_service.discard_session(
@@ -402,6 +496,7 @@ class TestSummarizeConversation:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         mock_messages = [
@@ -446,6 +541,7 @@ class TestSummarizeConversation:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         # Advance to summary first
@@ -483,6 +579,7 @@ class TestSummarizeConversation:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         mock_provider = MagicMock()
@@ -519,6 +616,7 @@ class TestGetSessionForGeneration:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         # Advance to summary, then style_selection
@@ -562,6 +660,7 @@ class TestGetSessionForGeneration:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         # Advance all the way to drafting
@@ -613,6 +712,7 @@ class TestGetSessionForGeneration:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         with pytest.raises(HTTPException) as exc:
@@ -640,6 +740,7 @@ class TestBackwardPhaseTransitions:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         # Advance through: elicitation → summary → style_selection
@@ -712,6 +813,7 @@ class TestBackwardPhaseTransitions:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         await evolution_service.advance_phase(
@@ -767,6 +869,7 @@ class TestBackwardPhaseTransitions:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         await evolution_service.advance_phase(
@@ -821,6 +924,7 @@ class TestBackwardPhaseTransitions:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         await evolution_service.advance_phase(
@@ -872,6 +976,7 @@ class TestBackwardPhaseTransitions:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         # Create a draft version
@@ -926,6 +1031,7 @@ class TestSaveDraft:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         draft = await evolution_service.save_draft(
@@ -1002,6 +1108,7 @@ class TestDiscardDraftStory:
             story_id=story_id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         # Discard the session
@@ -1078,6 +1185,7 @@ class TestDiscardDraftStory:
             story_id=story_id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         # Discard via active session endpoint
@@ -1151,6 +1259,7 @@ class TestDiscardDraftStory:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         result = await evolution_service.discard_session(
@@ -1187,6 +1296,7 @@ class TestDiscardDraftStory:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         result = await evolution_service.discard_active_session(
@@ -1219,6 +1329,7 @@ class TestAcceptSession:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
         # Session is in elicitation, no draft
         with pytest.raises(HTTPException) as exc:
@@ -1227,6 +1338,7 @@ class TestAcceptSession:
                 session_id=session.id,
                 story_id=test_story.id,
                 user_id=test_user.id,
+                background_tasks=BackgroundTasks(),
             )
         assert exc.value.status_code == 422
         assert "No draft" in exc.value.detail
@@ -1245,6 +1357,7 @@ class TestAcceptSessionDraftTransition:
             story_id=test_story.id,
             user_id=test_user.id,
             persona_id="biographer",
+            background_tasks=BackgroundTasks(),
         )
 
         draft = await evolution_service.save_draft(
@@ -1283,6 +1396,7 @@ class TestAcceptSessionDraftTransition:
             session_id=evo_session.id,
             story_id=test_story.id,
             user_id=test_user.id,
+            background_tasks=BackgroundTasks(),
         )
 
         assert completed_session.phase == "completed"
@@ -1317,6 +1431,7 @@ class TestAcceptSessionDraftTransition:
             story_id=test_story.id,
             user_id=test_user.id,
             visibility="personal",
+            background_tasks=BackgroundTasks(),
         )
 
         assert completed_session.phase == "completed"
@@ -1351,6 +1466,7 @@ class TestAcceptSessionDraftTransition:
             session_id=evo_session.id,
             story_id=test_story.id,
             user_id=test_user.id,
+            background_tasks=BackgroundTasks(),
         )
 
         result = await db_session.execute(
@@ -1385,6 +1501,7 @@ class TestAcceptSessionDraftTransition:
             session_id=evo_session.id,
             story_id=test_story.id,
             user_id=test_user.id,
+            background_tasks=BackgroundTasks(),
         )
 
         assert completed_session.phase == "completed"
@@ -1394,3 +1511,85 @@ class TestAcceptSessionDraftTransition:
         )
         updated_story = result.scalar_one()
         assert updated_story.status == "published"
+
+    @pytest.mark.asyncio
+    async def test_accept_promotes_draft_in_place_and_deactivates_previous(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """Accepting a session routes through `promote_draft_at_boundary`
+        (design.md Decision 3a) -- the draft row is promoted in place (same
+        id, not replaced by a new version), and the previously active
+        version is deactivated."""
+        from sqlalchemy import select as sa_select
+
+        from app.models.story_version import StoryVersion as StoryVersionModel
+
+        evo_session, draft = await self._setup_session_with_draft(
+            db_session, test_user, test_story
+        )
+        draft_id = draft.id
+
+        await evolution_service.accept_session(
+            db=db_session,
+            session_id=evo_session.id,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        all_versions_result = await db_session.execute(
+            sa_select(StoryVersionModel).where(
+                StoryVersionModel.story_id == test_story.id
+            )
+        )
+        rows = all_versions_result.scalars().all()
+        # v1 (now inactive) + the promoted draft -- no redundant third
+        # version minted on top of it.
+        assert len(rows) == 2
+
+        promoted = next(v for v in rows if v.id == draft_id)
+        assert promoted.status == "active"
+
+        v1 = next(v for v in rows if v.version_number == 1)
+        assert v1.status == "inactive"
+
+
+class TestBuildGenerationContext:
+    @pytest.mark.asyncio
+    async def test_rewrite_base_uses_story_content_not_active_version(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story: Story,
+        test_legacy: Legacy,
+    ) -> None:
+        """`original_story` must be `stories.content`, not the active
+        version's content -- under the boundary model an open editing
+        session (including edits made after entering Evolve, before any
+        boundary re-mints a version) can leave `stories.content` ahead of
+        the active version, and feeding the model stale text would mean
+        working from content the author has already moved past (design.md
+        Decision 5 / task 2.4)."""
+        evo_session = await evolution_service.start_session(
+            db=db_session,
+            story_id=test_story.id,
+            user_id=test_user.id,
+            persona_id="biographer",
+            background_tasks=BackgroundTasks(),
+        )
+
+        # Simulate an autosave landing after Evolve was entered, without a
+        # boundary re-minting a version -- `stories.content` moves ahead of
+        # the (still v1) active version's content.
+        test_story.content = "Content edited after entering Evolve."
+        await db_session.commit()
+
+        context = await evolution_service.build_generation_context(
+            db=db_session, session=evo_session
+        )
+
+        assert context["original_story"] == "Content edited after entering Evolve."

@@ -2,6 +2,7 @@
 
 import pytest
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +10,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.associations import StoryLegacy
 from app.models.legacy import Legacy, LegacyMember
 from app.models.story import Story
+from app.models.story_version import StoryVersion
 from app.models.user import User
+from tests.conftest import create_auth_headers_for_user
 
 
 class TestCreateStory:
@@ -451,6 +454,135 @@ class TestUpdateStory:
         )
 
         assert response.status_code == 403
+
+
+class TestCloseEditSession:
+    """Tests for POST /api/stories/{story_id}/edit-session/close."""
+
+    @pytest.mark.asyncio
+    async def test_close_mints_version_when_session_open(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict[str, str],
+        test_story_public: Story,
+    ):
+        """An open editing session is captured as a version on close."""
+        test_story_public.pending_edit_since = datetime.now(timezone.utc)
+        await db_session.commit()
+
+        response = await client.post(
+            f"/api/stories/{test_story_public.id}/edit-session/close",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 204
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 2
+
+        story_result = await db_session.execute(
+            select(Story).where(Story.id == test_story_public.id)
+        )
+        assert story_result.scalar_one().pending_edit_since is None
+
+    @pytest.mark.asyncio
+    async def test_close_is_noop_when_no_session_open(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict[str, str],
+        test_story_public: Story,
+    ):
+        """No open session -- still 204, and no version is created."""
+        assert test_story_public.pending_edit_since is None
+
+        response = await client.post(
+            f"/api/stories/{test_story_public.id}/edit-session/close",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 204
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 1  # Still only v1
+
+    @pytest.mark.asyncio
+    async def test_close_twice_is_idempotent(
+        self,
+        client: AsyncClient,
+        db_session: AsyncSession,
+        auth_headers: dict[str, str],
+        test_story_public: Story,
+    ):
+        """Calling close twice in a row mints at most one version."""
+        test_story_public.pending_edit_since = datetime.now(timezone.utc)
+        await db_session.commit()
+
+        first = await client.post(
+            f"/api/stories/{test_story_public.id}/edit-session/close",
+            headers=auth_headers,
+        )
+        assert first.status_code == 204
+
+        second = await client.post(
+            f"/api/stories/{test_story_public.id}/edit-session/close",
+            headers=auth_headers,
+        )
+        assert second.status_code == 204
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 2  # Unchanged by 2nd call
+
+    @pytest.mark.asyncio
+    async def test_close_nonexistent_story_404(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+    ):
+        """A story that does not exist returns 404."""
+        response = await client.post(
+            f"/api/stories/{uuid4()}/edit-session/close",
+            headers=auth_headers,
+        )
+
+        assert response.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_close_non_author_403(
+        self,
+        client: AsyncClient,
+        test_story_public: Story,
+        test_user_2: User,
+    ):
+        """A non-author cannot close another author's editing session."""
+        headers = create_auth_headers_for_user(test_user_2)
+
+        response = await client.post(
+            f"/api/stories/{test_story_public.id}/edit-session/close",
+            headers=headers,
+        )
+
+        assert response.status_code == 403
+
+    @pytest.mark.asyncio
+    async def test_close_requires_auth(
+        self,
+        client: AsyncClient,
+        test_story_public: Story,
+    ):
+        """Unauthenticated requests are rejected."""
+        response = await client.post(
+            f"/api/stories/{test_story_public.id}/edit-session/close",
+        )
+
+        assert response.status_code == 401
 
 
 class TestDeleteStory:

@@ -6,7 +6,7 @@ import logging
 from collections.abc import AsyncGenerator
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,6 +46,7 @@ async def start_evolution(
     story_id: UUID,
     data: EvolutionSessionCreate,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ) -> EvolutionSessionResponse:
     """Start a new evolution session for a story."""
@@ -55,6 +56,7 @@ async def start_evolution(
         story_id=story_id,
         user_id=session_data.user_id,
         persona_id=data.persona_id,
+        background_tasks=background_tasks,
         trigger=data.trigger,
     )
 
@@ -223,6 +225,7 @@ async def accept_session(
     story_id: UUID,
     session_id: UUID,
     request: Request,
+    background_tasks: BackgroundTasks,
     data: AcceptEvolutionRequest | None = None,
     db: AsyncSession = Depends(get_db),
 ) -> EvolutionSessionResponse:
@@ -237,6 +240,7 @@ async def accept_session(
         session_id=session_id,
         story_id=story_id,
         user_id=session_data.user_id,
+        background_tasks=background_tasks,
         visibility=data.visibility if data is not None else None,
     )
     return EvolutionSessionResponse.model_validate(evo_session)
