@@ -118,11 +118,14 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
   }, [storyId, isNew, seedContent, existingStory]);
 
   // Best-effort signal that the editing session is over, so the server can
-  // mint a version for it without waiting on the idle timeout. Only makes
-  // sense if the user actually edited something (nothing to close for an
-  // untouched page) and a story exists to close a session for (not the
-  // pre-first-keystroke /new route). Safe to lose — the server has its own
-  // idle-based fallback — so this never surfaces an error to the author.
+  // mint a version for it without waiting on the idle timeout. Gated on
+  // `hasEditedRef` (nothing to close if it never flipped true) and on a
+  // story existing to close a session for (not the pre-first-keystroke
+  // /new route). Note `hasEditedRef` can also flip true from programmatic
+  // editor hydration, not just a real keystroke — a pre-existing condition
+  // of that ref, unrelated to this signal. Safe to lose — the server has
+  // its own idle-based fallback — so this never surfaces an error to the
+  // author.
   const closeEditSession = useCallback(() => {
     if (!hasEditedRef.current || !effectiveIdRef.current) return;
     try {
@@ -152,9 +155,16 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
   // `beforeunload`: it doesn't defeat the back-forward cache and is the
   // modern equivalent, still firing on tab close / hard navigation.
   useEffect(() => {
-    window.addEventListener('pagehide', closeEditSession);
+    const handlePageHide = (event: PageTransitionEvent) => {
+      // `persisted` means the page is going into the back-forward cache,
+      // not actually closing — the author is likely to resume this exact
+      // session via Back/Forward, so don't mint a version prematurely.
+      if (event.persisted) return;
+      closeEditSession();
+    };
+    window.addEventListener('pagehide', handlePageHide);
     return () => {
-      window.removeEventListener('pagehide', closeEditSession);
+      window.removeEventListener('pagehide', handlePageHide);
     };
   }, [closeEditSession]);
 

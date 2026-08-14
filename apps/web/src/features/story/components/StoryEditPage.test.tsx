@@ -318,5 +318,26 @@ describe('StoryEditPage', () => {
         }),
       );
     });
+
+    it('does not post a close-session request when pagehide fires for bfcache (event.persisted)', async () => {
+      const user = userEvent.setup();
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 } as Response);
+      vi.stubGlobal('fetch', fetchMock);
+      storyQueryResult = { data: mockExistingStory, isLoading: false };
+      renderEditPage({ storyId: 'story-1' });
+
+      const titleInput = screen.getByLabelText(/story title/i);
+      await user.type(titleInput, '!');
+
+      // jsdom doesn't implement PageTransitionEvent, so fake the property
+      // the real browser sets when the page is entering the bfcache rather
+      // than actually closing.
+      const persistedPageHide = new Event('pagehide');
+      Object.defineProperty(persistedPageHide, 'persisted', { value: true });
+      window.dispatchEvent(persistedPageHide);
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
   });
 });
+
