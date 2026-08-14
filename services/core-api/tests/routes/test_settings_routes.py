@@ -1,12 +1,13 @@
 """Tests for settings account/session/export routes."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.models.user import User
 from app.models.user_session import UserSession
 
@@ -60,6 +61,45 @@ class TestSettingsSessions:
         )
         revoked = refreshed.scalar_one()
         assert revoked.revoked_at is not None
+
+    @pytest.mark.asyncio
+    async def test_stale_session_excluded_from_list(
+        self,
+        client: AsyncClient,
+        auth_headers: dict[str, str],
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """A session whose cookie has long since hit its max-age must not
+        be shown as active, even though nothing ever set revoked_at on it
+        (e.g. the user closed the browser instead of clicking logout)."""
+        max_age = get_settings().session_cookie_max_age
+        stale_created_at = datetime.now(timezone.utc) - timedelta(
+            seconds=max_age + timedelta(days=1).total_seconds()
+        )
+        stale_session = UserSession(
+            user_id=test_user.id,
+            session_token="stale-session-token-hash",
+            device_info="Old Browser",
+            last_active_at=stale_created_at,
+            created_at=stale_created_at,
+        )
+        db_session.add(stale_session)
+        await db_session.commit()
+        await db_session.refresh(stale_session)
+
+        response = await client.get("/api/users/me/sessions", headers=auth_headers)
+
+        assert response.status_code == 200
+        session_ids = {item["id"] for item in response.json()["sessions"]}
+        assert str(stale_session.id) not in session_ids
+
+        # Fetching the list should also opportunistically revoke the stale
+        # row so it doesn't linger forever, not just hide it from this view.
+        refreshed = await db_session.execute(
+            select(UserSession).where(UserSession.id == stale_session.id)
+        )
+        assert refreshed.scalar_one().revoked_at is not None
 
     @pytest.mark.asyncio
     async def test_cannot_revoke_current_session(

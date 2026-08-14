@@ -6,7 +6,7 @@ from typing import Any
 from uuid import UUID
 
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
@@ -267,6 +267,41 @@ async def get_user_stats(db: AsyncSession, user_id: UUID) -> UserStatsResponse:
     )
 
 
+def _session_expiry_cutoff() -> datetime:
+    """Timestamp before which a session's cookie can no longer authenticate.
+
+    Session cookies are signed with a fixed max-age at login and never
+    refreshed (see auth/router.py::_build_and_set_session) — so a
+    UserSession row older than this is inert even if nothing ever set
+    revoked_at on it.
+    """
+    settings = get_settings()
+    return datetime.now(timezone.utc) - timedelta(
+        seconds=settings.session_cookie_max_age
+    )
+
+
+async def expire_stale_sessions(db: AsyncSession, user_id: UUID) -> None:
+    """Mark a user's sessions past the cookie's absolute max age as revoked."""
+    await db.execute(
+        update(UserSession)
+        .where(
+            UserSession.user_id == user_id,
+            UserSession.revoked_at.is_(None),
+            UserSession.created_at < _session_expiry_cutoff(),
+        )
+        .values(revoked_at=datetime.now(timezone.utc))
+        # "fetch" re-selects matched PKs in SQL and syncs the ORM session
+        # from that, rather than the default "evaluate" strategy which
+        # re-checks the WHERE clause against in-memory objects — SQLite
+        # hands back naive datetimes for DateTime(timezone=True) columns,
+        # which blows up comparing against our tz-aware cutoff there (see
+        # the same caveat in auth/middleware.py).
+        .execution_options(synchronize_session="fetch")
+    )
+    await db.commit()
+
+
 async def upsert_user_session(
     db: AsyncSession,
     user_id: UUID,
@@ -275,6 +310,8 @@ async def upsert_user_session(
     ip_address: str | None,
 ) -> None:
     """Ensure a live user session exists for the provided token hash."""
+    await expire_stale_sessions(db, user_id)
+
     result = await db.execute(
         select(UserSession).where(
             UserSession.user_id == user_id,
@@ -318,6 +355,7 @@ async def get_user_sessions(
         .where(
             UserSession.user_id == user_id,
             UserSession.revoked_at.is_(None),
+            UserSession.created_at >= _session_expiry_cutoff(),
         )
         .order_by(UserSession.last_active_at.desc())
     )
