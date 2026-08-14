@@ -14,7 +14,7 @@ from fastapi import (
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..auth.middleware import require_auth
-from ..database import get_db, get_db_for_background
+from ..database import get_db
 from ..models.story import Story
 from ..schemas.story_version import (
     BulkDeleteRequest,
@@ -22,7 +22,6 @@ from ..schemas.story_version import (
     StoryVersionListResponse,
 )
 from ..services import story_version as version_service
-from ..services.ingestion import index_story_chunks
 from ..services.story_access import require_story_write_access
 
 router = APIRouter(prefix="/api/stories/{story_id}/versions", tags=["story-versions"])
@@ -50,19 +49,32 @@ async def _require_author(db: AsyncSession, story_id: UUID, user_id: UUID) -> St
 async def list_versions(
     story_id: UUID,
     request: Request,
+    background_tasks: BackgroundTasks,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
 ) -> StoryVersionListResponse:
     session = require_auth(request)
-    await _require_author(db, story_id, session.user_id)
+    story = await _require_author(db, story_id, session.user_id)
 
-    return await version_service.list_versions(
+    result = await version_service.list_versions(
         db=db,
-        story_id=story_id,
+        story=story,
+        user_id=session.user_id,
+        background_tasks=background_tasks,
         page=page,
         page_size=page_size,
     )
+    # `list_versions` may mint a version if the previous editing session
+    # went idle or hit the max-interval cap (design.md Decision 2);
+    # `mint_version_at_boundary` never commits (repo convention -- callers
+    # own the commit, see commit c1cb24c). Committing unconditionally here
+    # matches this file's other routes that call a mutating service
+    # function (e.g. `approve_draft`, `restore_version` below) -- a no-op
+    # commit when nothing was minted is harmless.
+    await db.commit()
+
+    return result
 
 
 @router.delete(
@@ -102,13 +114,15 @@ async def approve_draft(
     db: AsyncSession = Depends(get_db),
 ) -> StoryVersionDetail:
     session = require_auth(request)
-    story = await _require_author(db, story_id, session.user_id)
+    await _require_author(db, story_id, session.user_id)
 
-    result = await version_service.approve_draft(db=db, story_id=story_id)
+    result = await version_service.approve_draft(
+        db=db,
+        story_id=story_id,
+        user_id=session.user_id,
+        background_tasks=background_tasks,
+    )
     await db.commit()
-
-    # Queue embedding reprocessing
-    _queue_reindex(background_tasks, story, result.content, session.user_id)
 
     return result
 
@@ -189,58 +203,15 @@ async def restore_version(
     db: AsyncSession = Depends(get_db),
 ) -> StoryVersionDetail:
     session = require_auth(request)
-    story = await _require_author(db, story_id, session.user_id)
+    await _require_author(db, story_id, session.user_id)
 
     result = await version_service.restore_version(
         db=db,
         story_id=story_id,
         version_number=version_number,
         user_id=session.user_id,
+        background_tasks=background_tasks,
     )
     await db.commit()
 
-    # Queue embedding reprocessing
-    _queue_reindex(background_tasks, story, result.content, session.user_id)
-
     return result
-
-
-# ── Helpers ──────────────────────────────────────────────────────────────
-
-
-def _queue_reindex(
-    background_tasks: BackgroundTasks,
-    story: Story,
-    content: str,
-    user_id: UUID,
-) -> None:
-    """Queue background embedding reprocessing for a story."""
-    if not story.legacy_associations:
-        return
-
-    primary_legacy = next(
-        (leg for leg in story.legacy_associations if leg.role == "primary"),
-        story.legacy_associations[0],
-    )
-
-    async def background_index() -> None:
-        try:
-            async for bg_db in get_db_for_background():
-                await index_story_chunks(
-                    db=bg_db,
-                    story_id=story.id,
-                    content=content,
-                    legacy_id=primary_legacy.legacy_id,
-                    visibility=story.visibility,
-                    author_id=story.author_id,
-                    user_id=user_id,
-                    story_title=story.title,
-                )
-        except Exception as e:
-            logger.error(
-                "background_reindexing_failed",
-                extra={"story_id": str(story.id), "error": str(e)},
-                exc_info=True,
-            )
-
-    background_tasks.add_task(background_index)

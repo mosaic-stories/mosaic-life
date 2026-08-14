@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 from opentelemetry import trace
 from prometheus_client import Counter
 
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +20,10 @@ from app.models.story import Story
 from app.models.story_evolution import StoryEvolutionSession
 from app.models.story_version import StoryVersion
 from app.services.story_access import require_story_write_access
+from app.services.story_version import (
+    mint_version_at_boundary,
+    promote_draft_at_boundary,
+)
 
 if TYPE_CHECKING:
     from typing import Any
@@ -93,6 +97,7 @@ async def start_session(
     story_id: uuid.UUID,
     user_id: uuid.UUID,
     persona_id: str,
+    background_tasks: BackgroundTasks,
     trigger: str | None = None,
 ) -> StoryEvolutionSession:
     """Start a new evolution session for a story.
@@ -139,7 +144,22 @@ async def start_session(
                 status_code=422, detail="Story must have a primary legacy"
             )
 
-        # Determine base version number
+        # Entering Evolve is itself a boundary (design.md Decision 3): if the
+        # previous editing session left uncaptured edits, mint a version for
+        # them now so the pre-AI state is preserved before the workspace
+        # opens on top of it. Must run before `base_version_number` is
+        # derived below -- a mint here changes `story.active_version_id`.
+        if story.pending_edit_since is not None:
+            await mint_version_at_boundary(
+                db,
+                story,
+                reason="evolve_entry",
+                user_id=user_id,
+                background_tasks=background_tasks,
+            )
+
+        # Determine base version number (re-derived after the possible mint
+        # above, so it reflects whichever version is now active).
         base_version_number = 1
         if story.active_version_id:
             version_result = await db.execute(
@@ -830,6 +850,7 @@ async def accept_session(
     session_id: uuid.UUID,
     story_id: uuid.UUID,
     user_id: uuid.UUID,
+    background_tasks: BackgroundTasks,
     visibility: str | None = None,
 ) -> StoryEvolutionSession:
     """Accept the draft and complete the session."""
@@ -855,28 +876,25 @@ async def accept_session(
     if not draft_version:
         raise HTTPException(status_code=404, detail="Draft version not found")
 
-    # Deactivate current active version
-    story = await db.execute(select(Story).where(Story.id == story_id))
-    story_obj = story.scalar_one()
+    story_result = await db.execute(select(Story).where(Story.id == story_id))
+    story_obj = story_result.scalar_one()
 
-    if story_obj.active_version_id:
-        current_active = await db.execute(
-            select(StoryVersion).where(StoryVersion.id == story_obj.active_version_id)
-        )
-        current = current_active.scalar_one_or_none()
-        if current:
-            current.status = "inactive"
-            # Flush to ensure the unique constraint is satisfied before activating the draft
-            await db.flush()
-
-    # Promote draft to active
-    draft_version.status = "active"
     draft_version.source_conversation_id = session.conversation_id
 
-    # Update story content and active version
-    story_obj.title = draft_version.title
-    story_obj.content = draft_version.content
-    story_obj.active_version_id = draft_version.id
+    # Promote the draft to active in place (design.md Decision 3a) --
+    # deactivates the current active version, backfills a null
+    # change_summary with the deterministic fallback, updates
+    # story.title/content/active_version_id, clears
+    # story.pending_edit_since, and schedules the post-commit change-summary
+    # upgrade + reindex tasks the same way every other boundary does.
+    await promote_draft_at_boundary(
+        db=db,
+        story=story_obj,
+        draft=draft_version,
+        reason="ai_rewrite_applied",
+        user_id=user_id,
+        background_tasks=background_tasks,
+    )
 
     # Transition draft → published
     if story_obj.status == "draft":
@@ -963,15 +981,13 @@ async def build_generation_context(
     story_result = await db.execute(select(Story).where(Story.id == session.story_id))
     story = story_result.scalar_one()
 
-    # Load active version content
+    # `original_story` is the story's current saved content, not the active
+    # version's -- under the boundary model, an open editing session (or an
+    # open Evolve session on top of one) can leave `stories.content` ahead
+    # of the active version, and feeding the model stale text would mean
+    # working from content the author has already moved past (design.md
+    # Decision 5).
     original_story = story.content
-    if story.active_version_id:
-        version_result = await db.execute(
-            select(StoryVersion).where(StoryVersion.id == story.active_version_id)
-        )
-        active_version = version_result.scalar_one_or_none()
-        if active_version:
-            original_story = active_version.content
 
     # Load primary legacy
     legacy_result = await db.execute(

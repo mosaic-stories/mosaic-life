@@ -1,6 +1,7 @@
 """Unit tests for story service layer."""
 
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 import pytest
 from fastapi import BackgroundTasks, HTTPException
@@ -956,6 +957,146 @@ class TestUpdateStoryVersioning:
         if stored_start.tzinfo is None:
             stored_start = stored_start.replace(tzinfo=timezone.utc)
         assert stored_start == session_start
+
+
+class TestCloseEditSession:
+    """Tests for close_edit_session -- the client's best-effort navigate-away
+    hint (design.md Decision 2, `story-save-path-performance`). It mints a
+    version via `mint_version_at_boundary(reason="session_close")` when a
+    session is open, and is a no-op (still succeeds) otherwise.
+    """
+
+    @pytest.mark.asyncio
+    async def test_close_mints_version_when_session_open(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """An open session is captured as a version whose `source` is the
+        `session_close` -> `manual_edit` mapping from
+        `_BOUNDARY_REASON_TO_SOURCE`, and `pending_edit_since` is cleared."""
+        test_story_public.pending_edit_since = datetime.now(timezone.utc)
+        await db_session.commit()
+
+        await story_service.close_edit_session(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        versions_result = await db_session.execute(
+            select(StoryVersion)
+            .where(StoryVersion.story_id == test_story_public.id)
+            .order_by(StoryVersion.version_number)
+        )
+        versions = versions_result.scalars().all()
+        assert len(versions) == 2
+        assert versions[0].status == "inactive"
+        assert versions[1].status == "active"
+        assert versions[1].source == "manual_edit"
+
+        result = await db_session.execute(
+            select(Story).where(Story.id == test_story_public.id)
+        )
+        updated_story = result.scalar_one()
+        assert updated_story.pending_edit_since is None
+
+    @pytest.mark.asyncio
+    async def test_close_is_noop_when_no_session_open(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """No open session (fixture default: `pending_edit_since is None`)
+        -- no version is minted and no error is raised."""
+        assert test_story_public.pending_edit_since is None
+
+        await story_service.close_edit_session(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 1  # Still only v1
+
+    @pytest.mark.asyncio
+    async def test_close_twice_is_idempotent(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_story_public: Story,
+    ):
+        """A second call after the session has already been closed mints
+        nothing further -- safe for the client to call more than once."""
+        test_story_public.pending_edit_since = datetime.now(timezone.utc)
+        await db_session.commit()
+
+        await story_service.close_edit_session(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 2
+
+        # Second call: pending_edit_since is now None, so this is a no-op.
+        await story_service.close_edit_session(
+            db=db_session,
+            user_id=test_user.id,
+            story_id=test_story_public.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == test_story_public.id)
+        )
+        assert len(versions_result.scalars().all()) == 2  # Unchanged
+
+    @pytest.mark.asyncio
+    async def test_close_nonexistent_story_404(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+    ):
+        """A story that does not exist raises 404, same as `update_story`."""
+        with pytest.raises(HTTPException) as exc:
+            await story_service.close_edit_session(
+                db=db_session,
+                user_id=test_user.id,
+                story_id=uuid4(),
+                background_tasks=BackgroundTasks(),
+            )
+        assert exc.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_close_non_author_403(
+        self,
+        db_session: AsyncSession,
+        test_user_2: User,
+        test_story_public: Story,
+    ):
+        """A non-author is denied, matching `update_story`'s access-control
+        pattern (`require_story_write_access`)."""
+        with pytest.raises(HTTPException) as exc:
+            await story_service.close_edit_session(
+                db=db_session,
+                user_id=test_user_2.id,
+                story_id=test_story_public.id,
+                background_tasks=BackgroundTasks(),
+            )
+        assert exc.value.status_code == 403
+        assert "only the story author" in exc.value.detail.lower()
 
 
 class TestCreateDraftStory:

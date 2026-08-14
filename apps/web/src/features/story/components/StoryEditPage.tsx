@@ -117,11 +117,56 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
     }
   }, [storyId, isNew, seedContent, existingStory]);
 
+  // Best-effort signal that the editing session is over, so the server can
+  // mint a version for it without waiting on the idle timeout. Gated on
+  // `hasEditedRef` (nothing to close if it never flipped true) and on a
+  // story existing to close a session for (not the pre-first-keystroke
+  // /new route). Note `hasEditedRef` can also flip true from programmatic
+  // editor hydration, not just a real keystroke — a pre-existing condition
+  // of that ref, unrelated to this signal. Safe to lose — the server has
+  // its own idle-based fallback — so this never surfaces an error to the
+  // author.
+  const closeEditSession = useCallback(() => {
+    if (!hasEditedRef.current || !effectiveIdRef.current) return;
+    try {
+      fetch(`/api/stories/${effectiveIdRef.current}/edit-session/close`, {
+        method: 'POST',
+        credentials: 'include',
+        keepalive: true,
+      }).catch(() => {
+        // Best-effort; the server's idle-based fallback covers a lost signal.
+      });
+    } catch {
+      // Swallow synchronous throws too (e.g. sandboxed test environments).
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      // Covers in-SPA navigation away from the edit page (back button,
+      // opening Evolve, routing elsewhere) where the component unmounts.
+      closeEditSession();
     };
-  }, []);
+  }, [closeEditSession]);
+
+  // Covers a real tab close or browser-level navigation, which React's
+  // unmount cleanup above does not catch. `pagehide` is preferred over
+  // `beforeunload`: it doesn't defeat the back-forward cache and is the
+  // modern equivalent, still firing on tab close / hard navigation.
+  useEffect(() => {
+    const handlePageHide = (event: PageTransitionEvent) => {
+      // `persisted` means the page is going into the back-forward cache,
+      // not actually closing — the author is likely to resume this exact
+      // session via Back/Forward, so don't mint a version prematurely.
+      if (event.persisted) return;
+      closeEditSession();
+    };
+    window.addEventListener('pagehide', handlePageHide);
+    return () => {
+      window.removeEventListener('pagehide', handlePageHide);
+    };
+  }, [closeEditSession]);
 
   const runAutosave = useCallback(async () => {
     const id = effectiveIdRef.current;

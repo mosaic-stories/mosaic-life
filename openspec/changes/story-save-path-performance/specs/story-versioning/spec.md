@@ -1,15 +1,15 @@
 ## ADDED Requirements
 
 ### Requirement: Versions mark boundaries, not keystrokes
-The system SHALL create a story version only at a boundary: publishing a story, entering the AI workspace, applying an AI-generated rewrite, restoring a previous version, or the close of an editing session. A save that changes only a story's title or content SHALL persist that change without creating a version.
+The system SHALL create a story version only at a boundary: entering the AI workspace, applying or accepting an AI-generated rewrite, restoring a previous version, or the close of an editing session. A save that changes only a story's title or content SHALL persist that change without creating a version.
 
 #### Scenario: Autosave during an editing session
 - **WHEN** an author types for several minutes and autosave fires repeatedly
 - **THEN** each change is persisted and the story's version history gains no new entries while the session remains open
 
-#### Scenario: Publishing captures a version
-- **WHEN** an author publishes a draft story
-- **THEN** a version exists capturing the title and content as published
+#### Scenario: Accepting an AI draft captures a version
+- **WHEN** an author accepts an AI-drafted rewrite, including one that transitions the story from draft to published
+- **THEN** a version exists capturing the accepted content, promoted from the draft version rather than duplicated as a new one
 
 #### Scenario: Entering the AI workspace captures a version
 - **WHEN** an author enters the AI workspace on a story they have just been editing
