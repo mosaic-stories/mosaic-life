@@ -61,7 +61,7 @@ With no worker process, "the session ended" can only be noticed when some later 
 
 Both thresholds are settings (`story_edit_session_idle_seconds`, default 900; `story_edit_session_max_seconds`, default 1800).
 
-The client posts a best-effort hint on navigate-away to `POST /api/stories/{story_id}/edit-session/close`, which mints only when `pending_edit_since IS NOT NULL` and is otherwise a no-op — safe to call repeatedly and safe to lose. It uses `fetch(..., { keepalive: true })` rather than `navigator.sendBeacon`, because sendBeacon cannot set the CSRF header the platform requires.
+The client posts a best-effort hint on navigate-away to `POST /api/stories/{story_id}/edit-session/close`, which mints only when `pending_edit_since IS NOT NULL` and is otherwise a no-op — safe to call repeatedly and safe to lose. It uses `fetch(..., { keepalive: true })` rather than `navigator.sendBeacon`. This codebase's CSRF defense is an Origin/Referer allowlist check ([middleware.py:220](../../../services/core-api/app/auth/middleware.py)), not a custom header — `sendBeacon` can't set `credentials: 'include'` reliably across browsers and can't carry a JSON content type, whereas `fetch(..., {keepalive: true})` behaves exactly like the rest of this app's `apiPost`/`apiPut` calls (same-origin, cookie-based session, Origin header sent automatically by the browser). No CSRF-specific handling is needed on either side beyond what already exists.
 
 *Trade-off accepted:* minting on a GET makes a read path write. It is a bounded local INSERT with no external call, and the alternative — a periodic sweep — needs the worker process this architecture defers. Documented rather than hidden.
 

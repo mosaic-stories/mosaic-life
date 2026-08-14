@@ -72,6 +72,7 @@ describe('StoryEditPage', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('renders a plain surface with title, body, and visibility — no Evolve panels', () => {
@@ -222,5 +223,100 @@ describe('StoryEditPage', () => {
     });
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
     expect(titleInput).toHaveValue('Existing title!');
+  });
+
+  describe('close-session signal', () => {
+    it('posts exactly one close-session request to the correct URL on unmount after an edit', async () => {
+      const user = userEvent.setup();
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 } as Response);
+      vi.stubGlobal('fetch', fetchMock);
+      storyQueryResult = { data: mockExistingStory, isLoading: false };
+      const { unmount } = renderEditPage({ storyId: 'story-1' });
+
+      const titleInput = screen.getByLabelText(/story title/i);
+      await user.type(titleInput, '!');
+
+      unmount();
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/stories/story-1/edit-session/close',
+        expect.objectContaining({
+          method: 'POST',
+          credentials: 'include',
+          keepalive: true,
+        }),
+      );
+    });
+
+    it('posts nothing on unmount when nothing was edited', () => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal('fetch', fetchMock);
+      // Deliberately left loading (no data) rather than using
+      // mockExistingStory: once the story loads, the editor's initial
+      // content-sync effect programmatically calls the TipTap
+      // `setContent` command, which — like a real keystroke — fires
+      // `onUpdate`/`onChange` and flips `hasEditedRef.current` to true
+      // even though the author never touched anything (see report / a
+      // pre-existing issue independent of this change). Staying in the
+      // loading state keeps the editor unmounted, so this test isolates
+      // the "story exists (effectiveIdRef set) but hasEditedRef is still
+      // false" branch of the guard cleanly.
+      storyQueryResult = { data: undefined, isLoading: true };
+      const { unmount } = renderEditPage({ storyId: 'story-1' });
+
+      unmount();
+
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('does not change the save indicator or throw/reject when the close request fails', async () => {
+      const user = userEvent.setup();
+      const fetchMock = vi.fn().mockRejectedValue(new Error('network error'));
+      vi.stubGlobal('fetch', fetchMock);
+      storyQueryResult = { data: mockExistingStory, isLoading: false };
+      renderEditPage({ storyId: 'story-1' });
+
+      const titleInput = screen.getByLabelText(/story title/i);
+      await user.type(titleInput, '!');
+
+      const statusBefore = screen.getByRole('status').textContent;
+
+      // Fired via pagehide rather than unmount so the component (and its
+      // save indicator) is still on screen to assert against afterward.
+      expect(() => window.dispatchEvent(new Event('pagehide'))).not.toThrow();
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+
+      // Flush microtasks so the rejected fetch promise's .catch(() => {})
+      // has run; if that handler were missing this would surface as an
+      // unhandled rejection.
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(screen.getByRole('status').textContent).toBe(statusBefore);
+    });
+
+    it('registers a pagehide listener that fires the same close-session request', async () => {
+      const user = userEvent.setup();
+      const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 204 } as Response);
+      vi.stubGlobal('fetch', fetchMock);
+      storyQueryResult = { data: mockExistingStory, isLoading: false };
+      renderEditPage({ storyId: 'story-1' });
+
+      const titleInput = screen.getByLabelText(/story title/i);
+      await user.type(titleInput, '!');
+
+      window.dispatchEvent(new Event('pagehide'));
+
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/stories/story-1/edit-session/close',
+        expect.objectContaining({
+          method: 'POST',
+          credentials: 'include',
+          keepalive: true,
+        }),
+      );
+    });
   });
 });

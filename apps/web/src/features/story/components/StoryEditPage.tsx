@@ -117,11 +117,46 @@ export default function StoryEditPage({ legacyId, storyId }: StoryEditPageProps)
     }
   }, [storyId, isNew, seedContent, existingStory]);
 
+  // Best-effort signal that the editing session is over, so the server can
+  // mint a version for it without waiting on the idle timeout. Only makes
+  // sense if the user actually edited something (nothing to close for an
+  // untouched page) and a story exists to close a session for (not the
+  // pre-first-keystroke /new route). Safe to lose — the server has its own
+  // idle-based fallback — so this never surfaces an error to the author.
+  const closeEditSession = useCallback(() => {
+    if (!hasEditedRef.current || !effectiveIdRef.current) return;
+    try {
+      fetch(`/api/stories/${effectiveIdRef.current}/edit-session/close`, {
+        method: 'POST',
+        credentials: 'include',
+        keepalive: true,
+      }).catch(() => {
+        // Best-effort; the server's idle-based fallback covers a lost signal.
+      });
+    } catch {
+      // Swallow synchronous throws too (e.g. sandboxed test environments).
+    }
+  }, []);
+
   useEffect(() => {
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      // Covers in-SPA navigation away from the edit page (back button,
+      // opening Evolve, routing elsewhere) where the component unmounts.
+      closeEditSession();
     };
-  }, []);
+  }, [closeEditSession]);
+
+  // Covers a real tab close or browser-level navigation, which React's
+  // unmount cleanup above does not catch. `pagehide` is preferred over
+  // `beforeunload`: it doesn't defeat the back-forward cache and is the
+  // modern equivalent, still firing on tab close / hard navigation.
+  useEffect(() => {
+    window.addEventListener('pagehide', closeEditSession);
+    return () => {
+      window.removeEventListener('pagehide', closeEditSession);
+    };
+  }, [closeEditSession]);
 
   const runAutosave = useCallback(async () => {
     const id = effectiveIdRef.current;

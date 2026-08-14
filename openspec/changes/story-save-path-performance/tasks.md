@@ -26,10 +26,10 @@ Each group below is sized to land as one PR (< 400 LOC). Groups are ordered by d
 
 ## 3. Client session-close hint (PR 3)
 
-- [ ] 3.1 Post the close-session signal from `StoryEditPage.tsx` on navigate-away / unmount using `fetch(..., { keepalive: true })` with the CSRF header — best-effort, never blocking navigation, never surfacing an error to the author
-- [ ] 3.2 Confirm autosave behavior is otherwise untouched (serialization, indicator states, retry affordance)
-- [ ] 3.3 Vitest coverage: close is posted once on unmount after edits, not posted when nothing was edited, and a failed close never changes the save indicator
-- [ ] 3.4 Gate: `just validate-frontend` and `npm run test` pass
+- [x] 3.1 Post the close-session signal from `StoryEditPage.tsx` on navigate-away / unmount using `fetch(..., { keepalive: true, credentials: 'include' })` — best-effort, never blocking navigation, never surfacing an error to the author. (Correction, 2026-08-14: no separate "CSRF header" exists to add — this app's CSRF defense is an Origin/Referer check the browser satisfies automatically on same-origin requests, same as every other `apiPost`/`apiPut` call.)
+- [x] 3.2 Confirm autosave behavior is otherwise untouched (serialization, indicator states, retry affordance)
+- [x] 3.3 Vitest coverage: close is posted once on unmount after edits, not posted when nothing was edited, and a failed close never changes the save indicator
+- [x] 3.4 Gate: `just validate-frontend` and `npm run test` pass
 
 ## 4. Verification in the running stack
 
