@@ -655,6 +655,8 @@ async def _finalize_mint(
                 old_content=base_content,
                 new_content=new_content,
                 user_id=user_id,
+                story_id=story_id,
+                version_id=version_id,
                 source=source,
                 source_version=source_version,
             )

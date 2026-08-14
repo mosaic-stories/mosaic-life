@@ -32,6 +32,8 @@ class TestGenerateChangeSummary:
                 old_content="Hello world",
                 new_content="Hello wonderful world",
                 user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
             )
             assert result == "Updated the introduction paragraph"
 
@@ -52,6 +54,8 @@ class TestGenerateChangeSummary:
                 old_content="Hello",
                 new_content="World",
                 user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="manual_edit",
             )
             assert result == "Manual edit"
@@ -72,6 +76,8 @@ class TestGenerateChangeSummary:
                 old_content="Hello",
                 new_content="World",
                 user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="ai_enhancement",
             )
             assert result == "AI enhancement"
@@ -92,6 +98,8 @@ class TestGenerateChangeSummary:
                 old_content="Hello",
                 new_content="World",
                 user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="restoration",
                 source_version=3,
             )
@@ -116,6 +124,8 @@ class TestGenerateChangeSummary:
                 old_content="Hello",
                 new_content="World",
                 user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
             )
             assert result == "Updated content"
 
@@ -136,6 +146,8 @@ class TestGenerateChangeSummary:
                 old_content="Hello",
                 new_content="World",
                 user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="unknown_source",
             )
             assert result == "Content updated"
@@ -161,6 +173,8 @@ class TestGenerateChangeSummary:
                 old_content="Hello",
                 new_content="World",
                 user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="manual_edit",
             )
             assert result == "Manual edit"
@@ -192,6 +206,8 @@ class TestGenerateChangeSummary:
                 old_content="Hello",
                 new_content="World",
                 user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="manual_edit",
             )
             assert result == "Manual edit"
@@ -235,6 +251,8 @@ class TestGenerateChangeSummary:
                     old_content="Hello",
                     new_content="World",
                     user_id=user_id,
+                    story_id=uuid4(),
+                    version_id=uuid4(),
                     source="manual_edit",
                 )
                 assert result == "Manual edit"
