@@ -1,10 +1,13 @@
 """Tests for story version service."""
 
+from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock, patch
+
 import pytest
 import pytest_asyncio
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.models.story import Story
 from app.models.story_version import StoryVersion
@@ -22,6 +25,7 @@ from app.services.story_version import (
     get_draft_version,
     get_version_detail,
     list_versions,
+    mint_version_at_boundary,
     restore_version,
 )
 
@@ -734,3 +738,315 @@ class TestCreateVersion:
         await db_session.refresh(story_with_version)
         assert story_with_version.title == "New Title"
         assert story_with_version.content == "New content."
+
+
+class TestMintVersionAtBoundary:
+    """Tests for `mint_version_at_boundary()` and its two post-commit
+    background-task closures (design.md Decisions 3 and 4).
+
+    Scope note: boundary reasons/mint mechanics for autosave (content-only
+    save mints nothing, idle/max-interval minting, an open session
+    continuing untouched) and change-summary fallback-on-timeout/
+    concurrency-rejection are covered in test_story_service.py and
+    test_change_summary.py respectively. These tests cover what's left:
+    the synchronous fallback write, the background summary upgrade and its
+    CAS guard, `pending_edit_since` clearing, the reason->source mapping,
+    and background-closure safety after the originating session is gone.
+    """
+
+    @pytest.mark.asyncio
+    async def test_fallback_summary_written_synchronously(
+        self, db_session, story_with_version, test_user
+    ):
+        """A version must carry a non-empty change_summary the instant it
+        is created -- before any background work runs (spec: 'Every
+        version carries a change summary'). No background task is invoked
+        in this test at all, so the assertion is purely about the
+        synchronous mint path."""
+        version = await mint_version_at_boundary(
+            db_session,
+            story_with_version,
+            reason="session_idle",
+            user_id=test_user.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        assert version.change_summary
+        assert version.change_summary == "Manual edit"
+
+        # create_version() already flushed -- confirm it's visible via a
+        # fresh read too, not just as an in-memory default on the object
+        # `mint_version_at_boundary` happened to return.
+        result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.id == version.id)
+        )
+        assert result.scalar_one().change_summary == "Manual edit"
+
+    @pytest.mark.asyncio
+    async def test_pending_edit_since_cleared_by_mint(
+        self, db_session, story_with_version, test_user
+    ):
+        """Minting a version closes the editing session by clearing
+        `pending_edit_since` (design.md Decision 1)."""
+        story_with_version.pending_edit_since = datetime.now(timezone.utc) - timedelta(
+            minutes=20
+        )
+        await db_session.flush()
+
+        await mint_version_at_boundary(
+            db_session,
+            story_with_version,
+            reason="session_idle",
+            user_id=test_user.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        assert story_with_version.pending_edit_since is None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("reason", "expected_source"),
+        [
+            ("session_idle", "manual_edit"),
+            ("session_close", "manual_edit"),
+            ("session_max_interval", "manual_edit"),
+            ("publish", "manual_edit"),
+            ("evolve_entry", "manual_edit"),
+            ("ai_rewrite_applied", "ai_enhancement"),
+        ],
+    )
+    async def test_reason_maps_to_persisted_source(
+        self,
+        db_session,
+        story_with_version,
+        test_user,
+        reason,
+        expected_source,
+    ):
+        """`reason` is mapped to `source` before persisting -- the raw
+        reason string is never written to `story_versions.source`
+        (design.md Decision 3)."""
+        version = await mint_version_at_boundary(
+            db_session,
+            story_with_version,
+            reason=reason,
+            user_id=test_user.id,
+            background_tasks=BackgroundTasks(),
+        )
+
+        assert version.source == expected_source
+
+    @pytest.mark.asyncio
+    async def test_restore_reason_maps_to_restoration_source(
+        self, db_session, story_with_version, test_user
+    ):
+        """`reason="restore"` maps to `source="restoration"` and threads
+        `source_version` through to both the persisted column and the
+        fallback summary text."""
+        version = await mint_version_at_boundary(
+            db_session,
+            story_with_version,
+            reason="restore",
+            user_id=test_user.id,
+            background_tasks=BackgroundTasks(),
+            source_version=1,
+        )
+
+        assert version.source == "restoration"
+        assert version.source_version == 1
+        assert version.change_summary == "Restored from version 1"
+
+    @pytest.mark.asyncio
+    async def test_unknown_reason_raises_and_persists_nothing(
+        self, db_session, story_with_version, test_user
+    ):
+        """An unrecognized boundary reason raises ValueError rather than
+        silently persisting a typo'd value to `story_versions.source`."""
+        with pytest.raises(ValueError):
+            await mint_version_at_boundary(
+                db_session,
+                story_with_version,
+                reason="not_a_real_boundary_reason",
+                user_id=test_user.id,
+                background_tasks=BackgroundTasks(),
+            )
+
+        versions_result = await db_session.execute(
+            select(StoryVersion).where(StoryVersion.story_id == story_with_version.id)
+        )
+        # Still only the fixture's v1 -- nothing was persisted for the
+        # rejected reason.
+        assert len(versions_result.scalars().all()) == 1
+
+    @pytest.mark.asyncio
+    async def test_background_upgrade_replaces_fallback_summary(
+        self, db_session, story_with_version, test_user
+    ):
+        """When generation returns real text, the post-commit background
+        task upgrades the row from the deterministic fallback to the
+        generated summary (spec: 'Generation succeeds')."""
+        bg = BackgroundTasks()
+        version = await mint_version_at_boundary(
+            db_session,
+            story_with_version,
+            reason="session_idle",
+            user_id=test_user.id,
+            background_tasks=bg,
+        )
+        await db_session.commit()
+        assert version.change_summary == "Manual edit"  # fallback, pre-upgrade
+
+        async def fake_get_db_for_background():
+            yield db_session
+
+        with (
+            patch(
+                "app.services.story_version.get_db_for_background",
+                fake_get_db_for_background,
+            ),
+            patch(
+                "app.services.story_version.generate_change_summary",
+                AsyncMock(return_value="Rewrote the opening paragraph."),
+            ),
+        ):
+            upgrade_task = next(
+                t for t in bg.tasks if t.func.__name__ == "upgrade_change_summary"
+            )
+            await upgrade_task()
+
+        await db_session.refresh(version)
+        assert version.change_summary == "Rewrote the opening paragraph."
+
+    @pytest.mark.asyncio
+    async def test_background_upgrade_never_clobbers_changed_summary(
+        self, db_session, story_with_version, test_user
+    ):
+        """The CAS guard: the background upgrade writes only when
+        `change_summary` still equals the fallback text captured at mint
+        time. Mint a restoration (whose fallback identifies the restored
+        version), simulate that summary having since changed -- as a
+        concurrent writer would leave it -- then run the upgrade task and
+        assert the row is left alone rather than clobbered with generated
+        text (spec: 'Restoration summary is preserved')."""
+        bg = BackgroundTasks()
+        version = await mint_version_at_boundary(
+            db_session,
+            story_with_version,
+            reason="restore",
+            user_id=test_user.id,
+            background_tasks=bg,
+            source_version=1,
+        )
+        await db_session.commit()
+        assert version.change_summary == "Restored from version 1"
+
+        # Simulate the summary having changed since mint time. The upgrade
+        # closure's CAS guard closes over the *original* fallback string
+        # ("Restored from version 1"), so this row no longer matches it.
+        version.change_summary = "Restored from version 1 (edited by user)"
+        await db_session.commit()
+
+        async def fake_get_db_for_background():
+            yield db_session
+
+        with (
+            patch(
+                "app.services.story_version.get_db_for_background",
+                fake_get_db_for_background,
+            ),
+            patch(
+                "app.services.story_version.generate_change_summary",
+                AsyncMock(return_value="A generated description that must not land."),
+            ),
+        ):
+            upgrade_task = next(
+                t for t in bg.tasks if t.func.__name__ == "upgrade_change_summary"
+            )
+            await upgrade_task()
+
+        await db_session.refresh(version)
+        assert version.change_summary == "Restored from version 1 (edited by user)"
+
+    @pytest.mark.asyncio
+    async def test_background_closures_survive_originating_session_closing(
+        self,
+        db_engine,
+        db_session,
+        story_with_version,
+        test_user,
+        test_legacy,
+    ):
+        """The two scheduled background closures must operate on plain
+        values (UUIDs, strings) captured at schedule time, not on the
+        `story`/`version` ORM instances -- by the time they run in
+        production, the request's session is already gone (design.md
+        Decision 3 implementation note). Proven by closing the originating
+        session before running the scheduled callables against a fresh
+        session bound to the same engine, and asserting neither closure
+        raises DetachedInstanceError/MissingGreenlet. A test using mocked
+        sessions throughout would not catch a regression here."""
+        bg = BackgroundTasks()
+        version = await mint_version_at_boundary(
+            db_session,
+            story_with_version,
+            reason="session_idle",
+            user_id=test_user.id,
+            background_tasks=bg,
+        )
+        version_id = version.id
+        story_id = story_with_version.id
+        expected_legacy_id = test_legacy.id
+        await db_session.commit()
+
+        # Close the originating session -- `story`/`version` are now
+        # detached/stale from the closures' point of view, exactly as they
+        # would be once the request that scheduled them has responded.
+        await db_session.close()
+
+        second_session_maker = async_sessionmaker(
+            bind=db_engine,
+            class_=AsyncSession,
+            autocommit=False,
+            autoflush=False,
+            expire_on_commit=False,
+        )
+
+        async def fake_get_db_for_background():
+            async with second_session_maker() as session:
+                yield session
+
+        with (
+            patch(
+                "app.services.story_version.get_db_for_background",
+                fake_get_db_for_background,
+            ),
+            patch(
+                "app.services.story_version.generate_change_summary",
+                AsyncMock(return_value="Generated after the session closed."),
+            ),
+            patch(
+                "app.services.story_version.index_story_chunks",
+                AsyncMock(return_value=0),
+            ) as mock_index,
+        ):
+            for task in bg.tasks:
+                # Must complete without DetachedInstanceError/MissingGreenlet.
+                await task()
+
+        # The upgrade genuinely landed -- verified from a third,
+        # independent session, not by reading the (closed) original
+        # session's cached objects.
+        async with second_session_maker() as verify_session:
+            result = await verify_session.execute(
+                select(StoryVersion).where(StoryVersion.id == version_id)
+            )
+            refreshed = result.scalar_one()
+            assert refreshed.change_summary == "Generated after the session closed."
+
+        # The reindex closure ran against plain values, not detached ORM
+        # instances.
+        mock_index.assert_awaited_once()
+        _, kwargs = mock_index.call_args
+        assert kwargs["story_id"] == story_id
+        assert kwargs["legacy_id"] == expected_legacy_id
+        assert isinstance(kwargs["content"], str)

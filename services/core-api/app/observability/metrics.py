@@ -126,3 +126,31 @@ AI_CONCURRENCY_ACTIVE = Gauge(
     "Current in-flight LLM operations per bucket on this pod",
     ["service", "bucket"],
 )
+
+# --- Story versioning / save-path metrics ---
+
+STORY_VERSION_MINTS = Counter(
+    "core_api_story_version_mints_total",
+    "Story versions created, by boundary reason",
+    ["reason"],
+)
+
+STORY_CHANGE_SUMMARY = Counter(
+    "core_api_story_change_summary_total",
+    "Change-summary generation outcomes "
+    "(generated, fallback_timeout, fallback_error, fallback_concurrency)",
+    ["outcome"],
+)
+
+STORY_CHANGE_SUMMARY_DURATION = Histogram(
+    "core_api_story_change_summary_duration_seconds",
+    "Background change-summary LLM call latency in seconds",
+    buckets=AI_LATENCY_BUCKETS,
+)
+
+STORY_SAVE_DURATION = Histogram(
+    "core_api_story_save_duration_seconds",
+    "Story save-path latency in seconds",
+    ["minted"],
+    buckets=GRAPH_LATENCY_BUCKETS,
+)
