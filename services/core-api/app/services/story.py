@@ -2,23 +2,26 @@
 
 import logging
 import re
-from datetime import datetime, timezone
+import time
+from datetime import datetime, timedelta, timezone
 from typing import TypedDict, cast
 from urllib.parse import urlparse
 from uuid import UUID
 
-from fastapi import HTTPException
+from fastapi import BackgroundTasks, HTTPException
 from opentelemetry import trace
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from ..config import get_settings
 from ..models.associations import StoryLegacy
 from ..models.legacy import Legacy, LegacyMember
 from ..models.story import Story
 from ..models.story_reaction import StoryReaction as StoryReactionModel
 from ..models.story_response import StoryResponse as StoryResponseModel
 from ..models.story_version import StoryVersion
+from ..observability.metrics import STORY_SAVE_DURATION
 from ..schemas.associations import LegacyAssociationResponse
 from ..schemas.story import (
     StoryBacklinkSummary,
@@ -30,7 +33,6 @@ from ..schemas.story import (
 )
 from ..schemas.story_reaction import ReactionType
 from . import story_response as story_response_service
-from .change_summary import generate_change_summary
 from .story_access import (
     ACTIVE_ROLES,
     can_read_story,
@@ -39,7 +41,7 @@ from .story_access import (
     visible_stories_criteria,
 )
 from .story_version import create_version as create_story_version
-from .story_version import get_draft_version
+from .story_version import get_draft_version, mint_version_at_boundary
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +134,22 @@ def create_content_preview(content: str, max_length: int = PREVIEW_MAX_LENGTH) -
         truncated = truncated[:last_space]
 
     return truncated.rstrip(".,;:!?") + "..."
+
+
+def _as_aware_utc(value: datetime | None) -> datetime | None:
+    """Normalize a DB-loaded timestamp to a UTC-aware datetime, or None.
+
+    SQLite (used in tests) hands back naive datetimes even for
+    `DateTime(timezone=True)` columns; every write path stores UTC, so a
+    naive read is treated as UTC. Without this, comparing a naive read
+    against `datetime.now(timezone.utc)` raises `TypeError`. See the same
+    pattern in `app.auth.middleware` and `app.services.story_prompts`.
+    """
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
 def _strip_markdown_line(text: str) -> str:
@@ -1235,19 +1253,43 @@ async def update_story(
     user_id: UUID,
     story_id: UUID,
     data: StoryUpdate,
+    background_tasks: BackgroundTasks,
 ) -> StoryResponse:
     """Update a story.
 
     Only author can update.
+
+    A content-changing save is a single `UPDATE stories` -- it never mints a
+    story version and never waits on an LLM call or a re-index. Versions are
+    minted only at boundaries (publish, Evolve entry, AI rewrite, restore, or
+    an editing-session boundary); see design.md Decisions 1 and 2 in
+    `openspec/changes/story-save-path-performance`.
+
+    Before applying the incoming update, this function evaluates whether the
+    *previous* editing session (tracked via `story.pending_edit_since`) has
+    crossed a boundary -- gone idle, or exceeded the max session interval --
+    and, if so, mints a version capturing the content as it was stored
+    coming into this request, not the content arriving in this request. At
+    most one version is minted per call. If the incoming update itself
+    changes the title or content and no session is currently open, a new
+    session is opened (`pending_edit_since` is set); if one is already open,
+    it continues untouched.
 
     Args:
         db: Database session
         user_id: User updating the story
         story_id: Story ID
         data: Update data
+        background_tasks: The request's `BackgroundTasks`. Forwarded to
+            `mint_version_at_boundary()` so its post-commit work
+            (change-summary upgrade, search re-index) can be scheduled when
+            a session boundary mints a version during this call.
 
     Returns:
-        Updated story
+        Updated story. `version_number` reports a version minted by *this*
+        request's boundary evaluation (Step A below), if any -- it is
+        **not** the story's current/active version number. It is `None` on
+        an ordinary content save where no session boundary was crossed.
 
     Raises:
         HTTPException: delegates to `require_story_write_access` — 404 if not
@@ -1255,11 +1297,56 @@ async def update_story(
             403 if the caller can't read it at all, 403 if the caller can
             read it but isn't the author.
     """
+    started = time.perf_counter()
+
     # Load story and enforce author-only write access via the canonical gate.
     story = await require_story_write_access(
         db=db, story_id=story_id, user_id=user_id, action="update"
     )
 
+    now = datetime.now(timezone.utc)
+    settings = get_settings()
+
+    # --- Step A: evaluate the *previous* session's boundary BEFORE applying
+    # the incoming update. This ordering is critical -- a boundary mint must
+    # capture the content as currently stored (the state the previous
+    # editing session ended at), not the content arriving in this request.
+    # `mint_version_at_boundary()` reads `story.title`/`story.content` as its
+    # snapshot and does not change their values, so it's safe to run before
+    # Step B computes/applies the new title and content. At most one mint
+    # happens per request; the helper clears `pending_edit_since` itself.
+    minted_version_number: int | None = None
+    pending_edit_since = _as_aware_utc(story.pending_edit_since)
+    if pending_edit_since is not None:
+        idle_cutoff = now - timedelta(seconds=settings.story_edit_session_idle_seconds)
+        max_cutoff = now - timedelta(seconds=settings.story_edit_session_max_seconds)
+        updated_at = _as_aware_utc(story.updated_at)
+
+        # Known imprecision: `updated_at` also moves on a visibility-only
+        # update, so a visibility change can extend an editing session's
+        # idle clock. The max-interval rule below is measured from
+        # `pending_edit_since`, which visibility changes never touch, so it
+        # still bounds a session regardless.
+        if updated_at is not None and updated_at < idle_cutoff:
+            minted = await mint_version_at_boundary(
+                db,
+                story,
+                reason="session_idle",
+                user_id=user_id,
+                background_tasks=background_tasks,
+            )
+            minted_version_number = minted.version_number
+        elif pending_edit_since < max_cutoff:
+            minted = await mint_version_at_boundary(
+                db,
+                story,
+                reason="session_max_interval",
+                user_id=user_id,
+                background_tasks=background_tasks,
+            )
+            minted_version_number = minted.version_number
+
+    # --- Step B: apply the incoming update, exactly as before.
     # Determine new title/content (versioned fields).
     # Omitted title (None) leaves the stored title untouched; an explicitly
     # blank title falls back to a working title derived from content.
@@ -1278,29 +1365,8 @@ async def update_story(
 
     content_changed = new_title != story.title or new_content != story.content
 
-    version_number = None
-    if content_changed:
-        # Capture old content before version creation updates story fields
-        old_content = story.content
-
-        # Generate change summary
-        change_summary = await generate_change_summary(
-            old_content=old_content,
-            new_content=new_content,
-            source="manual_edit",
-        )
-
-        # Create new version (handles deactivation, stale marking, story field updates)
-        new_version = await create_story_version(
-            db=db,
-            story=story,
-            title=new_title,
-            content=new_content,
-            source="manual_edit",
-            user_id=user_id,
-            change_summary=change_summary,
-        )
-        version_number = new_version.version_number
+    story.title = new_title
+    story.content = new_content
 
     # Handle visibility update (not versioned)
     if data.visibility is not None:
@@ -1329,12 +1395,24 @@ async def update_story(
 
     story.updated_at = datetime.now(timezone.utc)
 
+    # --- Step C: open a new editing session if content changed and none is
+    # already open. No version is minted for an ordinary content save --
+    # that's the entire point of this change. If a session is already open,
+    # leave `pending_edit_since` untouched; it continues.
+    if content_changed and story.pending_edit_since is None:
+        story.pending_edit_since = datetime.now(timezone.utc)
+
     await db.commit()
     await db.refresh(story, ["legacy_associations"])
 
     # Get legacy names for response
     legacy_ids = [assoc.legacy_id for assoc in story.legacy_associations]
     legacy_names = await _get_legacy_names(db, legacy_ids)
+
+    version_minted = minted_version_number is not None
+    STORY_SAVE_DURATION.labels(minted=str(version_minted).lower()).observe(
+        time.perf_counter() - started
+    )
 
     trace.get_current_span().set_attribute("title_derived", title_derived)
     logger.info(
@@ -1343,13 +1421,14 @@ async def update_story(
             "story_id": str(story_id),
             "user_id": str(user_id),
             "title_derived": title_derived,
+            "version_minted": version_minted,
         },
     )
 
     return StoryResponse(
         id=story.id,
         title=story.title,
-        version_number=version_number,
+        version_number=minted_version_number,
         visibility=story.visibility,
         status=story.status,
         legacies=[

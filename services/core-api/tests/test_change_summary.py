@@ -1,7 +1,13 @@
 """Tests for change summary generation."""
 
+import asyncio
+from uuid import uuid4
+
 import pytest
 from unittest.mock import MagicMock, patch
+
+from app.services.ai_concurrency import ai_concurrency_guard
+from app.services.change_summary import CHANGE_SUMMARY_CONCURRENCY
 
 
 class TestGenerateChangeSummary:
@@ -25,6 +31,9 @@ class TestGenerateChangeSummary:
             result = await generate_change_summary(
                 old_content="Hello world",
                 new_content="Hello wonderful world",
+                user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
             )
             assert result == "Updated the introduction paragraph"
 
@@ -44,6 +53,9 @@ class TestGenerateChangeSummary:
             result = await generate_change_summary(
                 old_content="Hello",
                 new_content="World",
+                user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="manual_edit",
             )
             assert result == "Manual edit"
@@ -63,6 +75,9 @@ class TestGenerateChangeSummary:
             result = await generate_change_summary(
                 old_content="Hello",
                 new_content="World",
+                user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="ai_enhancement",
             )
             assert result == "AI enhancement"
@@ -82,6 +97,9 @@ class TestGenerateChangeSummary:
             result = await generate_change_summary(
                 old_content="Hello",
                 new_content="World",
+                user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="restoration",
                 source_version=3,
             )
@@ -105,6 +123,9 @@ class TestGenerateChangeSummary:
             result = await generate_change_summary(
                 old_content="Hello",
                 new_content="World",
+                user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
             )
             assert result == "Updated content"
 
@@ -124,6 +145,9 @@ class TestGenerateChangeSummary:
             result = await generate_change_summary(
                 old_content="Hello",
                 new_content="World",
+                user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="unknown_source",
             )
             assert result == "Content updated"
@@ -148,9 +172,93 @@ class TestGenerateChangeSummary:
             result = await generate_change_summary(
                 old_content="Hello",
                 new_content="World",
+                user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
                 source="manual_edit",
             )
             assert result == "Manual edit"
+
+    @pytest.mark.asyncio
+    async def test_timeout_falls_back_without_raising(self):
+        """A provider that never finishes within the configured timeout must
+        fall back rather than hang or raise."""
+        from app.services.change_summary import generate_change_summary
+
+        async def mock_stream(*args, **kwargs):
+            # Sleep far longer than the (patched, tiny) timeout before ever
+            # yielding a token.
+            await asyncio.sleep(5)
+            yield "too late"
+
+        mock_provider = MagicMock()
+        mock_provider.stream_generate = MagicMock(return_value=mock_stream())
+
+        with (
+            patch("app.services.change_summary.get_settings") as mock_settings,
+            patch("app.services.change_summary.get_provider_registry") as mock_registry,
+        ):
+            mock_settings.return_value.change_summary_timeout_seconds = 0.05
+            mock_settings.return_value.change_summary_model_id = "test-model"
+            mock_registry.return_value.get_llm_provider.return_value = mock_provider
+
+            result = await generate_change_summary(
+                old_content="Hello",
+                new_content="World",
+                user_id=uuid4(),
+                story_id=uuid4(),
+                version_id=uuid4(),
+                source="manual_edit",
+            )
+            assert result == "Manual edit"
+
+    @pytest.mark.asyncio
+    async def test_concurrency_limit_falls_back_without_raising(self):
+        """When the per-user concurrency guard is already saturated for the
+        change_summary bucket, generate_change_summary must fall back rather
+        than raise AIConcurrencyLimitError -- there is no client here to
+        reject with a 429."""
+        from app.services.change_summary import generate_change_summary
+
+        user_id = uuid4()
+
+        mock_provider = MagicMock()
+
+        async def mock_stream(*args, **kwargs):
+            yield "should never be reached"
+
+        mock_provider.stream_generate = MagicMock(return_value=mock_stream())
+
+        # Saturate every slot for this user's change_summary bucket before
+        # calling generate_change_summary, so its internal guard acquire
+        # rejects immediately.
+        guards = [
+            ai_concurrency_guard(
+                user_id, bucket="change_summary", limit=CHANGE_SUMMARY_CONCURRENCY
+            )
+            for _ in range(CHANGE_SUMMARY_CONCURRENCY)
+        ]
+        for guard in guards:
+            await guard.__aenter__()
+
+        try:
+            with patch(
+                "app.services.change_summary.get_provider_registry"
+            ) as mock_registry:
+                mock_registry.return_value.get_llm_provider.return_value = mock_provider
+
+                result = await generate_change_summary(
+                    old_content="Hello",
+                    new_content="World",
+                    user_id=user_id,
+                    story_id=uuid4(),
+                    version_id=uuid4(),
+                    source="manual_edit",
+                )
+                assert result == "Manual edit"
+        finally:
+            for guard in guards:
+                await guard.__aexit__(None, None, None)
 
 
 class TestFallbackSummary:

@@ -102,6 +102,14 @@ class Story(Base):
         nullable=False,
     )
 
+    # Edit-session state: NULL means every saved edit is already captured in a
+    # story version (no session open). Non-NULL means uncaptured edits exist,
+    # and the value marks when the current editing session began.
+    pending_edit_since: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
     active_version_id: Mapped[UUID | None] = mapped_column(
         PG_UUID(as_uuid=True),
         ForeignKey("story_versions.id", ondelete="SET NULL", use_alter=True),

@@ -149,6 +149,19 @@ class Settings(BaseModel):
         "CHANGE_SUMMARY_MODEL_ID",
         "claude-haiku-4-5",
     )
+    # How long without a save before an editing session is considered closed.
+    story_edit_session_idle_seconds: int = int(
+        os.getenv("STORY_EDIT_SESSION_IDLE_SECONDS", "900")
+    )
+    # Maximum duration of one continuously-active editing session before a
+    # version is forced.
+    story_edit_session_max_seconds: int = int(
+        os.getenv("STORY_EDIT_SESSION_MAX_SECONDS", "1800")
+    )
+    # Timeout for the background change-summary LLM call.
+    change_summary_timeout_seconds: int = int(
+        os.getenv("CHANGE_SUMMARY_TIMEOUT_SECONDS", "10")
+    )
 
     # Internal API token for CronJob endpoints (cleanup, etc.)
     internal_api_token: str | None = os.getenv("INTERNAL_API_TOKEN")
