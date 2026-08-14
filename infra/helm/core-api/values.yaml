@@ -53,6 +53,7 @@ env:
   # AI Provider Configuration
   AI_LLM_PROVIDER: "litellm"
   AI_EMBEDDING_PROVIDER: "litellm"
+  DEFAULT_CHAT_MODEL_ID: "claude-sonnet-4-6"
   EVOLUTION_SUMMARIZATION_MODEL_ID: "claude-sonnet-4-6"
   CHANGE_SUMMARY_MODEL_ID: "claude-haiku-4-5"
   INTENT_ANALYSIS_MODEL_ID: "claude-haiku-4-5"

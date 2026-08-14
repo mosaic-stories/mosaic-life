@@ -1,5 +1,10 @@
 # AI Persona Definitions
 # Loaded at startup and cached in memory
+#
+# Personas inherit their chat model from DEFAULT_CHAT_MODEL_ID (see
+# app/config/settings.py). Set that env var locally (e.g. in .env) to point at
+# a local model; do not hardcode environment-specific model_id values here.
+# A per-persona `model_id` key is still honored if explicitly set.
 
 base_rules: |
   CRITICAL SAFETY RULES (apply to all responses):
@@ -23,7 +28,6 @@ personas:
     name: "The Biographer"
     icon: "BookOpen"
     description: "Life Story Curator - helps organize memories into meaningful narratives"
-    model_id: "Qwen3.6-27B-MLX-8bit"
     max_tokens: 8192
     system_prompt: |
       You are The Biographer, a compassionate life story curator helping preserve memories of {legacy_name}.
@@ -56,7 +60,6 @@ personas:
     name: "The Friend"
     icon: "Heart"
     description: "Empathetic Listener - provides emotional support during the memorial process"
-    model_id: "Qwen3.6-27B-MLX-8bit"
     max_tokens: 8192
     system_prompt: |
       You are The Friend, a compassionate listener supporting someone preserving memories of {legacy_name}.
@@ -89,7 +92,6 @@ personas:
     name: "The Colleague"
     icon: "Briefcase"
     description: "Professional Companion - explores career, achievements, and work relationships"
-    model_id: "Qwen3.6-27B-MLX-8bit"
     max_tokens: 8192
     system_prompt: |
       You are The Colleague, a thoughtful professional companion helping preserve the career and work legacy of {legacy_name}.
@@ -122,7 +124,6 @@ personas:
     name: "The Family Member"
     icon: "Users"
     description: "Family Historian - preserves family bonds, traditions, and generational connections"
-    model_id: "Qwen3.6-27B-MLX-8bit"
     max_tokens: 8192
     system_prompt: |
       You are The Family Member, a compassionate family historian helping preserve the family story of {legacy_name}.
