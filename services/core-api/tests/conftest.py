@@ -191,6 +191,42 @@ async def test_user_2(db_session: AsyncSession) -> User:
     return user
 
 
+@pytest_asyncio.fixture
+async def test_user_3(db_session: AsyncSession) -> User:
+    """Create a third test user."""
+    user = User(
+        email="test3@example.com",
+        google_id="google_test_789",
+        provider="google",
+        provider_id="google_test_789",
+        name="Test User 3",
+        username="test-user-3-0003",
+        avatar_url="https://example.com/avatar3.jpg",
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
+@pytest_asyncio.fixture
+async def test_user_4(db_session: AsyncSession) -> User:
+    """Create a fourth test user."""
+    user = User(
+        email="test4@example.com",
+        google_id="google_test_012",
+        provider="google",
+        provider_id="google_test_012",
+        name="Test User 4",
+        username="test-user-4-0004",
+        avatar_url="https://example.com/avatar4.jpg",
+    )
+    db_session.add(user)
+    await db_session.commit()
+    await db_session.refresh(user)
+    return user
+
+
 def create_auth_headers_for_user(user: User) -> dict[str, str]:
     """Create authentication headers for a specific user."""
     settings = get_settings()

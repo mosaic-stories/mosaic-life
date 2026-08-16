@@ -31,11 +31,17 @@ async def list_connections(db: AsyncSession, user_id: UUID) -> list[ConnectionRe
     )
     connections = result.scalars().all()
 
+    other_user_ids = {
+        conn.user_b_id if conn.user_a_id == user_id else conn.user_a_id
+        for conn in connections
+    }
+    users_result = await db.execute(select(User).where(User.id.in_(other_user_ids)))
+    users_by_id = {user.id: user for user in users_result.scalars().all()}
+
     responses: list[ConnectionResponse] = []
     for conn in connections:
         other_user_id = conn.user_b_id if conn.user_a_id == user_id else conn.user_a_id
-        user_result = await db.execute(select(User).where(User.id == other_user_id))
-        other_user = user_result.scalar_one()
+        other_user = users_by_id[other_user_id]
         responses.append(
             ConnectionResponse(
                 id=conn.id,

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -181,10 +181,13 @@ async def list_pending(
     )
     requests = result.scalars().all()
 
+    connected_members_by_requester = await _get_connected_members_batch(
+        db, {req.user_id for req in requests}, legacy_id
+    )
+
     responses = []
     for req in requests:
-        # Find connected members for context
-        connected_members = await _get_connected_members(db, req.user_id, legacy_id)
+        connected_members = connected_members_by_requester.get(req.user_id, [])
 
         responses.append(
             LegacyAccessRequestResponse(
@@ -409,51 +412,67 @@ async def _get_request(db: AsyncSession, request_id: UUID) -> LegacyAccessReques
     return req
 
 
-async def _get_connected_members(
-    db: AsyncSession, requester_user_id: UUID, legacy_id: UUID
-) -> list[ConnectedMemberInfo]:
-    """Find legacy members who are connected to the requester."""
-    from sqlalchemy import or_
+async def _get_connected_members_batch(
+    db: AsyncSession, requester_user_ids: set[UUID], legacy_id: UUID
+) -> dict[UUID, list[ConnectedMemberInfo]]:
+    """Find legacy members connected to each requester, batched across requesters.
 
-    # Get all connections for the requester
+    Returns a mapping of requester_user_id -> their connected legacy members.
+    """
+    if not requester_user_ids:
+        return {}
+
+    # Get all connections involving any of the requesters in one query
     connections_result = await db.execute(
         select(Connection).where(
             or_(
-                Connection.user_a_id == requester_user_id,
-                Connection.user_b_id == requester_user_id,
+                Connection.user_a_id.in_(requester_user_ids),
+                Connection.user_b_id.in_(requester_user_ids),
             ),
             Connection.removed_at.is_(None),
         )
     )
     connections = connections_result.scalars().all()
 
-    connected_user_ids = set()
+    # Map each requester to the set of user_ids they're connected to
+    connected_user_ids_by_requester: dict[UUID, set[UUID]] = {
+        requester_id: set() for requester_id in requester_user_ids
+    }
+    all_connected_user_ids: set[UUID] = set()
     for conn in connections:
-        other_id = (
-            conn.user_b_id if conn.user_a_id == requester_user_id else conn.user_a_id
-        )
-        connected_user_ids.add(other_id)
+        if conn.user_a_id in requester_user_ids:
+            connected_user_ids_by_requester[conn.user_a_id].add(conn.user_b_id)
+            all_connected_user_ids.add(conn.user_b_id)
+        if conn.user_b_id in requester_user_ids:
+            connected_user_ids_by_requester[conn.user_b_id].add(conn.user_a_id)
+            all_connected_user_ids.add(conn.user_a_id)
 
-    if not connected_user_ids:
-        return []
+    if not all_connected_user_ids:
+        return {requester_id: [] for requester_id in requester_user_ids}
 
-    # Find which connected users are members of this legacy
+    # Find which connected users are members of this legacy, in one query
     members_result = await db.execute(
         select(LegacyMember)
         .options(selectinload(LegacyMember.user))
         .where(
             LegacyMember.legacy_id == legacy_id,
-            LegacyMember.user_id.in_(connected_user_ids),
+            LegacyMember.user_id.in_(all_connected_user_ids),
         )
     )
     members = members_result.scalars().all()
+    members_by_user_id = {m.user_id: m for m in members}
 
-    return [
-        ConnectedMemberInfo(
-            user_id=m.user_id,
-            display_name=m.user.name,
-            avatar_url=m.user.avatar_url,
-            role=m.role,
-        )
-        for m in members
-    ]
+    result: dict[UUID, list[ConnectedMemberInfo]] = {}
+    for requester_id in requester_user_ids:
+        result[requester_id] = [
+            ConnectedMemberInfo(
+                user_id=m.user_id,
+                display_name=m.user.name,
+                avatar_url=m.user.avatar_url,
+                role=m.role,
+            )
+            for connected_id in connected_user_ids_by_requester[requester_id]
+            if (m := members_by_user_id.get(connected_id)) is not None
+        ]
+
+    return result
