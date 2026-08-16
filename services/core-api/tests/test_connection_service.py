@@ -81,6 +81,28 @@ class TestListConnections:
         result = await connection_service.list_connections(db_session, test_user.id)
         assert len(result) == 0
 
+    async def test_list_connections_skips_user_query_when_empty(
+        self,
+        db_session: AsyncSession,
+        db_engine,
+        test_user: User,
+    ) -> None:
+        """No connections should mean no batched user lookup either."""
+        query_count = 0
+
+        def _count(*_args: object, **_kwargs: object) -> None:
+            nonlocal query_count
+            query_count += 1
+
+        event.listen(db_engine.sync_engine, "before_cursor_execute", _count)
+        try:
+            result = await connection_service.list_connections(db_session, test_user.id)
+        finally:
+            event.remove(db_engine.sync_engine, "before_cursor_execute", _count)
+
+        assert result == []
+        assert query_count == 1
+
     async def test_list_connections_batches_user_lookups(
         self,
         db_session: AsyncSession,

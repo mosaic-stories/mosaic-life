@@ -31,6 +31,9 @@ async def list_connections(db: AsyncSession, user_id: UUID) -> list[ConnectionRe
     )
     connections = result.scalars().all()
 
+    if not connections:
+        return []
+
     other_user_ids = {
         conn.user_b_id if conn.user_a_id == user_id else conn.user_a_id
         for conn in connections

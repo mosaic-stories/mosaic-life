@@ -254,6 +254,47 @@ class TestListPending:
         assert len(pending) == 1
         assert pending[0].connected_members is None
 
+    async def test_list_pending_connected_members_sorted_deterministically(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+        test_user_3: User,
+        test_user_4: User,
+        test_legacy: Legacy,
+    ) -> None:
+        """connected_members order must not depend on set/dict iteration order."""
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id, user_id=test_user_2.id, role="admirer"
+            )
+        )
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id, user_id=test_user_3.id, role="admirer"
+            )
+        )
+        await db_session.commit()
+
+        # test_user is the creator/member of test_legacy already.
+        for member in (test_user, test_user_2, test_user_3):
+            await _connect(db_session, test_user_4, member)
+
+        await service.submit_request(
+            db_session, test_user_4.id, test_legacy.id, "advocate"
+        )
+
+        pending = await service.list_pending(db_session, test_legacy.id, test_user.id)
+
+        assert len(pending) == 1
+        connected_members = pending[0].connected_members
+        assert connected_members is not None
+        assert [m.display_name for m in connected_members] == [
+            "Test User",
+            "Test User 2",
+            "Test User 3",
+        ]
+
     async def test_list_pending_batches_connected_member_lookups(
         self,
         db_session: AsyncSession,

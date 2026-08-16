@@ -464,6 +464,12 @@ async def _get_connected_members_batch(
 
     result: dict[UUID, list[ConnectedMemberInfo]] = {}
     for requester_id in requester_user_ids:
+        connected_members = [
+            members_by_user_id[connected_id]
+            for connected_id in connected_user_ids_by_requester[requester_id]
+            if connected_id in members_by_user_id
+        ]
+        connected_members.sort(key=lambda m: (m.user.name.lower(), m.user_id))
         result[requester_id] = [
             ConnectedMemberInfo(
                 user_id=m.user_id,
@@ -471,8 +477,7 @@ async def _get_connected_members_batch(
                 avatar_url=m.user.avatar_url,
                 role=m.role,
             )
-            for connected_id in connected_user_ids_by_requester[requester_id]
-            if (m := members_by_user_id.get(connected_id)) is not None
+            for m in connected_members
         ]
 
     return result
