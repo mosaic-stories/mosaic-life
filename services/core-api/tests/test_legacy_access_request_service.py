@@ -1,12 +1,22 @@
 """Tests for legacy access request service."""
 
 import pytest
+from sqlalchemy import event
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.connection import Connection
 from app.models.legacy import Legacy, LegacyMember
 from app.models.user import User
 from app.services import legacy_access_request as service
+
+
+async def _connect(db_session: AsyncSession, user_a: User, user_b: User) -> None:
+    """Create an active connection between two users."""
+    a_id = min(user_a.id, user_b.id)
+    b_id = max(user_a.id, user_b.id)
+    db_session.add(Connection(user_a_id=a_id, user_b_id=b_id))
+    await db_session.commit()
 
 
 @pytest.mark.asyncio
@@ -196,6 +206,135 @@ class TestDeclineRequest:
                 db_session, test_legacy_2.id, req.id, test_user.id
             )
         assert exc_info.value.status_code == 404
+
+
+@pytest.mark.asyncio
+class TestListPending:
+    async def test_list_pending_includes_connected_members(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+        test_user_3: User,
+        test_legacy: Legacy,
+    ) -> None:
+        """Connected members reported for each request are computed correctly."""
+        # test_user is the creator (and thus a member) of test_legacy.
+        await _connect(db_session, test_user, test_user_2)
+        await _connect(db_session, test_user, test_user_3)
+
+        await service.submit_request(
+            db_session, test_user_2.id, test_legacy.id, "advocate"
+        )
+        await service.submit_request(
+            db_session, test_user_3.id, test_legacy.id, "advocate"
+        )
+
+        pending = await service.list_pending(db_session, test_legacy.id, test_user.id)
+
+        assert len(pending) == 2
+        for req in pending:
+            assert req.connected_members is not None
+            assert len(req.connected_members) == 1
+            assert req.connected_members[0].user_id == test_user.id
+
+    async def test_list_pending_no_connected_members_when_unconnected(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+        test_legacy: Legacy,
+    ) -> None:
+        await service.submit_request(
+            db_session, test_user_2.id, test_legacy.id, "advocate"
+        )
+
+        pending = await service.list_pending(db_session, test_legacy.id, test_user.id)
+
+        assert len(pending) == 1
+        assert pending[0].connected_members is None
+
+    async def test_list_pending_connected_members_sorted_deterministically(
+        self,
+        db_session: AsyncSession,
+        test_user: User,
+        test_user_2: User,
+        test_user_3: User,
+        test_user_4: User,
+        test_legacy: Legacy,
+    ) -> None:
+        """connected_members order must not depend on set/dict iteration order."""
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id, user_id=test_user_2.id, role="admirer"
+            )
+        )
+        db_session.add(
+            LegacyMember(
+                legacy_id=test_legacy.id, user_id=test_user_3.id, role="admirer"
+            )
+        )
+        await db_session.commit()
+
+        # test_user is the creator/member of test_legacy already.
+        for member in (test_user, test_user_2, test_user_3):
+            await _connect(db_session, test_user_4, member)
+
+        await service.submit_request(
+            db_session, test_user_4.id, test_legacy.id, "advocate"
+        )
+
+        pending = await service.list_pending(db_session, test_legacy.id, test_user.id)
+
+        assert len(pending) == 1
+        connected_members = pending[0].connected_members
+        assert connected_members is not None
+        assert [m.display_name for m in connected_members] == [
+            "Test User",
+            "Test User 2",
+            "Test User 3",
+        ]
+
+    async def test_list_pending_batches_connected_member_lookups(
+        self,
+        db_session: AsyncSession,
+        db_engine,
+        test_user: User,
+        test_user_2: User,
+        test_user_3: User,
+        test_user_4: User,
+        test_legacy: Legacy,
+    ) -> None:
+        """Query count must not scale with the number of pending requests (no N+1)."""
+        for other in (test_user_2, test_user_3, test_user_4):
+            await _connect(db_session, test_user, other)
+            await service.submit_request(
+                db_session, other.id, test_legacy.id, "advocate"
+            )
+
+        query_count = 0
+
+        def _count(*_args: object, **_kwargs: object) -> None:
+            nonlocal query_count
+            query_count += 1
+
+        event.listen(db_engine.sync_engine, "before_cursor_execute", _count)
+        try:
+            pending = await service.list_pending(
+                db_session, test_legacy.id, test_user.id
+            )
+        finally:
+            event.remove(db_engine.sync_engine, "before_cursor_execute", _count)
+
+        assert len(pending) == 3
+        for req in pending:
+            assert req.connected_members is not None
+            assert len(req.connected_members) == 1
+
+        # Old N+1 code issued 3 extra queries per pending request (9 for 3
+        # requests). A fixed, batched implementation stays well under that
+        # regardless of how many requests are pending.
+        assert query_count <= 8
 
 
 @pytest.mark.asyncio

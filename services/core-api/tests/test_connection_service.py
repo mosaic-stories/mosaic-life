@@ -2,6 +2,7 @@
 
 import pytest
 import pytest_asyncio
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.connection import Connection
@@ -21,6 +22,32 @@ async def connected_users(
     await db_session.commit()
     await db_session.refresh(conn)
     return conn
+
+
+@pytest_asyncio.fixture
+async def many_connections(
+    db_session: AsyncSession, test_user: User
+) -> list[Connection]:
+    """Create several connections for test_user, each to a distinct other user."""
+    connections = []
+    for i in range(5):
+        other = User(
+            email=f"many-conn-{i}@example.com",
+            google_id=f"google_many_conn_{i}",
+            provider="google",
+            provider_id=f"google_many_conn_{i}",
+            name=f"Many Conn User {i}",
+            username=f"many-conn-user-{i}",
+        )
+        db_session.add(other)
+        await db_session.flush()
+        user_a_id = min(test_user.id, other.id)
+        user_b_id = max(test_user.id, other.id)
+        conn = Connection(user_a_id=user_a_id, user_b_id=user_b_id)
+        db_session.add(conn)
+        connections.append(conn)
+    await db_session.commit()
+    return connections
 
 
 @pytest.mark.asyncio
@@ -53,6 +80,53 @@ class TestListConnections:
     ) -> None:
         result = await connection_service.list_connections(db_session, test_user.id)
         assert len(result) == 0
+
+    async def test_list_connections_skips_user_query_when_empty(
+        self,
+        db_session: AsyncSession,
+        db_engine,
+        test_user: User,
+    ) -> None:
+        """No connections should mean no batched user lookup either."""
+        query_count = 0
+
+        def _count(*_args: object, **_kwargs: object) -> None:
+            nonlocal query_count
+            query_count += 1
+
+        event.listen(db_engine.sync_engine, "before_cursor_execute", _count)
+        try:
+            result = await connection_service.list_connections(db_session, test_user.id)
+        finally:
+            event.remove(db_engine.sync_engine, "before_cursor_execute", _count)
+
+        assert result == []
+        assert query_count == 1
+
+    async def test_list_connections_batches_user_lookups(
+        self,
+        db_session: AsyncSession,
+        db_engine,
+        test_user: User,
+        many_connections: list[Connection],
+    ) -> None:
+        """Query count must stay constant regardless of connection count (no N+1)."""
+        query_count = 0
+
+        def _count(*_args: object, **_kwargs: object) -> None:
+            nonlocal query_count
+            query_count += 1
+
+        event.listen(db_engine.sync_engine, "before_cursor_execute", _count)
+        try:
+            result = await connection_service.list_connections(db_session, test_user.id)
+        finally:
+            event.remove(db_engine.sync_engine, "before_cursor_execute", _count)
+
+        assert len(result) == 5
+        # One query for connections + one batched query for users, regardless
+        # of how many connections there are.
+        assert query_count == 2
 
 
 @pytest.mark.asyncio
