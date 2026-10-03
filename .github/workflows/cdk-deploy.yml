@@ -5,6 +5,7 @@ on:
     branches: [main, develop]
     paths:
       - 'infra/cdk/**'
+      - 'infra/config/runtime-env/**'
   workflow_dispatch:
     inputs:
       environment:
