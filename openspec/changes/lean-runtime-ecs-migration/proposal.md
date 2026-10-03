@@ -119,7 +119,7 @@ Also answered by the owner on 2026-10-03 (second round). All open questions are 
   - new `MosaicRdsStack` and `MosaicEcsRuntimeStack`;
   - shared IAM policy constructs;
   - `MosaicNeptuneDatabaseStack`, `MosaicLiteLLMSharedStack` and `MosaicAuroraDatabaseStack` retired after cutover;
-  - the IRSA roles in `MosaicLifeStack` and `MosaicStagingResourcesStack` are gated behind a `runtime=eks` context flag.
+  - the IRSA roles in `MosaicLifeStack` and `MosaicStagingResourcesStack` are gated behind an `eksRoles` context flag (default `true` until decommission).
 - **IaC, infrastructure repo:**
   - the NAT gateway count is parameterised (0 for lean);
   - an S3 gateway endpoint is added;

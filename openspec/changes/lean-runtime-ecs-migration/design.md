@@ -102,6 +102,10 @@ nginx can no longer reach core-api by a cluster DNS name.
   4. `aws ecs update-service` for core-api, then web, and wait for stability. The circuit breaker handles rollback.
   5. Write the new tag to SSM.
 
+**Constraint found during apply: merging a CDK change deploys it.** `.github/workflows/cdk-deploy.yml` runs `cdk deploy --all` on any push to `main` or `develop` that touches `infra/cdk/**`. The `environment` context isn't read by the CDK code, so every merge deploys every stack. Consequences:
+- The new stacks (`MosaicRdsStack`, `MosaicEcsRuntimeStack-*`) are only added to the app in `bin/mosaic-life.ts` when the `leanRuntime` context is true. It defaults to `false` in `cdk.json`. During the weekend the operator deploys them manually with `-c leanRuntime=true`. A follow-up commit flips the default once they are live.
+- Any CDK PR that removes permissions must merge only after the matching runtime config change. For example, the Neptune IAM removal waits for `GRAPH_AUGMENTATION_ENABLED=false`.
+
 *Alternative:* each release runs `cdk deploy -c imageTag=…`. One tool owns everything, but it is slower (3–5 min of CloudFormation), and getting migrations to run before rollout needs either split stacks or migrate-on-start.
 
 ### D4. Bedrock model aliases: an in-repo catalog in core-api (recommended)
@@ -122,7 +126,7 @@ nginx can no longer reach core-api by a cluster DNS name.
 - 20 GB gp3, storage autoscaling up to 50 GB, encrypted, 7-day PITR, deletion protection, Performance Insights off.
 - Parameter group carries over `statement_timeout=30000` and `idle_in_transaction_session_timeout=300000`.
 - One instance, two databases: `core` (prod) and `core_staging`. Separate login roles, `mosaic_prod` and `mosaic_staging`, each with `CONNECT` on its own database only and `REVOKE CONNECT … FROM PUBLIC`. Staging therefore cannot touch prod data.
-- The master credentials are an RDS-managed secret.
+- The master credentials are a CDK-generated secret, `mosaic/shared/rds-lean/master` (user `mosaic_admin`). RDS is pinned to the three private subnet IDs read from the foundation's SSM parameters, so removing NAT, which re-tags those subnets as isolated, can't replace the DB subnet group.
 - App credentials stay in the **existing secret names** `mosaic/{prod,staging}/rds/credentials`, updated in place with host, port, username, password, dbname and a new `url` key. ECS injects `DB_URL` from `<secret>:url::`. The EKS ExternalSecret template keeps working from the other keys, which keeps the return path open.
 - Sizing headroom is ~100 max connections, more than enough for core-api's pool across 2 tasks during a deploy. If memory pressure appears, scale to db.t4g.small (~$24).
 
@@ -154,12 +158,12 @@ nginx can no longer reach core-api by a cluster DNS name.
 **Logs**
 - `awslogs` driver to `/mosaic/{env}/core-api`, `/mosaic/{env}/web` and `/mosaic/{env}/migrate`.
 - Retention 30 days for prod, 7 days for staging.
-- The existing structured JSON fields (`ts`, `level`, `request_id`, `user_id`, `path`, `status`, `latency_ms`) are queryable in Logs Insights unchanged.
-- A saved Logs Insights query is provided for "request by id" and "errors last 1 h".
+- The existing python-json-logger fields (`asctime`, `levelname`, `name`, `message`, `trace_id`, `span_id`, `service`, plus any `extra=` fields) are queryable in Logs Insights unchanged. Per-request correlation uses `trace_id`, because core-api has no HTTP request-logging middleware.
+- Saved Logs Insights queries are provided for "request by id" (matching `trace_id` or a domain `request_id`) and "errors last hour".
 
 **Metrics**
 - AWS-vended only: `AWS/ApplicationELB`, `AWS/ECS` (`CPUUtilization`, `MemoryUtilization`) and `AWS/RDS`.
-- One log metric filter: `Mosaic/{env}` `AppErrorCount` from `{ $.level = "ERROR" }`.
+- One log metric filter: `Mosaic/{env}` `AppErrorCount` from `{ $.levelname = "ERROR" }` (python-json-logger field name).
 - Container Insights stays off (cost). `/metrics` is not scraped.
 
 **Alarms (prod) → SNS topic `mosaic-prod-alerts` → email**
@@ -194,7 +198,7 @@ nginx can no longer reach core-api by a cluster DNS name.
   - Bedrock invoke and stream, and `ApplyGuardrail`;
   - **SES `SendEmail`/`SendRawEmail` on the `mosaiclife.me` identity** (this fixes the hand-attached drift);
   - read access to the env's secrets.
-- The ECS task role (`ecs-tasks.amazonaws.com` trust) and the IRSA role (OIDC trust, only created with `-c runtime=eks`) both use this construct.
+- The ECS task role (`ecs-tasks.amazonaws.com` trust, created by the ECS runtime stack) and the IRSA role (OIDC trust, created while the `eksRoles` context is `true`) both use this construct. `eksRoles` defaults to `true` until decommission, because CDK merges auto-deploy.
 - Neptune statements are only included when `-c graph=neptune`.
 - The ECS execution role pulls from ECR, reads the secrets referenced by the task definitions, and writes logs.
 - A new GitHub OIDC role, `github-actions-ecs-deploy`, is defined in the infrastructure repo. It allows:
@@ -202,6 +206,18 @@ nginx can no longer reach core-api by a cluster DNS name.
   - `iam:PassRole` on the task and execution roles;
   - `ssm:PutParameter` on `/mosaiclife/*/image-tag`;
   - `scheduler:CreateSchedule` with `iam:PassRole` for the scheduler role.
+- Role naming convention, used by the deploy role's `iam:PassRole` scope `role/mosaic-*-ecs-*`:
+
+  | Role | Name |
+  |---|---|
+  | Task roles | `mosaic-{env}-ecs-task-{service}` |
+  | Execution role | `mosaic-{env}-ecs-execution` |
+  | Staging scheduler role | `mosaic-staging-ecs-scheduler` |
+
+- Other naming:
+  - the ECS cluster is `mosaic`;
+  - task definition families are `mosaic-{env}-{core-api|web|migrate}`;
+  - the EventBridge Scheduler group is `mosaic-staging`.
 
 ### D11. Edge and DNS move into IaC
 
@@ -215,7 +231,7 @@ nginx can no longer reach core-api by a cluster DNS name.
 1. Create the cluster from `infrastructure/infra/eksctl/cluster.yaml` at a supported version.
 2. Redeploy the foundation with `-c natGateways=1`.
 3. Install the add-ons and ArgoCD.
-4. Deploy app stacks with `-c runtime=eks`. This creates IRSA roles with the new OIDC id, now passed as context instead of hard-coded.
+4. Deploy app stacks with `-c eksRoles=true`. This creates IRSA roles with the new OIDC id, now passed as context instead of hard-coded.
 5. Set the gitops image tag to the current SSM tag. Env values come from the shared `infra/config/runtime-env/{env}.yaml` that CDK also reads.
 6. Allow the EKS node security group on the RDS security group. The database stays as it is.
 7. Scale ECS to 0 and remove the CDK DNS records, letting external-dns take ownership. Flip.

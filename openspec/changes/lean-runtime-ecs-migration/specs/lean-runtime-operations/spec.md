@@ -66,8 +66,8 @@ The runtime SHALL provide:
 - **THEN** an alarm email is sent to the configured recipient
 
 #### Scenario: Investigating an error
-- **WHEN** an operator needs logs for a `request_id` from the last 30 days
-- **THEN** a CloudWatch Logs Insights query over the core-api log group returns the structured JSON log lines for that request
+- **WHEN** an operator needs the logs for one request from the last 30 days, identified by its `trace_id` (present on every core-api log line)
+- **THEN** a saved CloudWatch Logs Insights query over the core-api log group returns the structured JSON log lines carrying that `trace_id`
 
 #### Scenario: Spend overrun
 - **WHEN** actual or forecast monthly AWS spend exceeds the configured budget threshold
