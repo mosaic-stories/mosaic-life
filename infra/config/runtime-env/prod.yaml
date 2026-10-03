@@ -1,0 +1,46 @@
+# Non-secret runtime env for the lean ECS runtime (prod).
+# Source: gitops base/values.yaml + environments/prod/values.yaml and the
+# infra/helm/mosaic-life chart defaults, with the lean overrides applied
+# (Bedrock direct, graph augmentation off, no on-start migrations, no
+# LiteLLM/Neptune). Loaded by infra/cdk/lib/config/runtime-env.ts.
+environment: prod
+
+coreApi:
+  env:
+    PORT: "8080"
+    ENV: production
+    LOG_LEVEL: info
+    AWS_REGION: us-east-1
+    # Chart default; the prod gitops env array omitted it, so the app default applied.
+    AUTH_PROVIDER: google
+    APP_URL: https://mosaiclife.me
+    API_URL: https://api.mosaiclife.me
+    SES_FROM_EMAIL: noreply@mosaiclife.me
+    SES_REGION: us-east-1
+    SESSION_COOKIE_DOMAIN: .mosaiclife.me
+    STORAGE_BACKEND: s3
+    S3_MEDIA_BUCKET: mosaic-prod-media-033691785857
+    S3_BACKUP_BUCKET: mosaic-prod-backups-033691785857
+    BEDROCK_GUARDRAIL_ID: o1m8awhi99vh
+    BEDROCK_GUARDRAIL_VERSION: "1"
+    # Lean overrides
+    AI_LLM_PROVIDER: bedrock
+    AI_EMBEDDING_PROVIDER: bedrock
+    GRAPH_AUGMENTATION_ENABLED: "false"
+    RUN_MIGRATIONS_ON_START: "false"
+
+web:
+  env:
+    NGINX_RESOLVER: 169.254.169.253
+    # Unused fallback: the ALB routes /api/* straight to core-api (design D2).
+    CORE_API_UPSTREAM: 127.0.0.1:8080
+    # Prerender is not reachable from ECS; the spike decides what replaces it.
+    PRERENDER_HOST: ""
+
+# core-api secrets: env var -> Secrets Manager secret + JSON key.
+secrets:
+  DB_URL: { secret: mosaic/prod/rds/credentials, key: url }
+  SESSION_SECRET_KEY: { secret: mosaic/prod/session/secret-key, key: secret-key }
+  INTERNAL_API_TOKEN: { secret: mosaic/prod/internal-api/token, key: token }
+  GOOGLE_CLIENT_ID: { secret: mosaic/prod/google-oauth, key: client-id }
+  GOOGLE_CLIENT_SECRET: { secret: mosaic/prod/google-oauth, key: client-secret }

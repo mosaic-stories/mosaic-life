@@ -1,0 +1,47 @@
+# Non-secret runtime env for the lean ECS runtime (staging).
+# Source: gitops base/values.yaml + environments/staging/values.yaml and the
+# infra/helm/mosaic-life chart defaults, with the lean overrides applied
+# (Bedrock direct, graph augmentation off, no on-start migrations, no
+# LiteLLM/Neptune). Loaded by infra/cdk/lib/config/runtime-env.ts.
+environment: staging
+
+coreApi:
+  env:
+    PORT: "8080"
+    ENV: staging
+    LOG_LEVEL: info
+    AWS_REGION: us-east-1
+    AUTH_PROVIDER: google
+    APP_URL: https://stage.mosaiclife.me
+    API_URL: https://stage-api.mosaiclife.me
+    SES_FROM_EMAIL: noreply@mosaiclife.me
+    SES_REGION: us-east-1
+    SESSION_COOKIE_DOMAIN: .mosaiclife.me
+    STORAGE_BACKEND: s3
+    S3_MEDIA_BUCKET: mosaic-staging-media-033691785857
+    S3_BACKUP_BUCKET: mosaic-staging-backups-033691785857
+    # mosaic-staging-ai-chat-guardrail (MosaicStagingResourcesStack)
+    BEDROCK_GUARDRAIL_ID: a1kbuwc508sp
+    BEDROCK_GUARDRAIL_VERSION: "1"
+    # Lean overrides
+    AI_LLM_PROVIDER: bedrock
+    AI_EMBEDDING_PROVIDER: bedrock
+    GRAPH_AUGMENTATION_ENABLED: "false"
+    RUN_MIGRATIONS_ON_START: "false"
+
+web:
+  env:
+    NGINX_RESOLVER: 169.254.169.253
+    # Unused fallback: the ALB routes /api/* straight to core-api (design D2).
+    CORE_API_UPSTREAM: 127.0.0.1:8080
+    # Prerender is not reachable from ECS; the spike decides what replaces it.
+    PRERENDER_HOST: ""
+
+# core-api secrets: env var -> Secrets Manager secret + JSON key.
+secrets:
+  DB_URL: { secret: mosaic/staging/rds/credentials, key: url }
+  SESSION_SECRET_KEY: { secret: mosaic/staging/session/secret-key, key: secret-key }
+  INTERNAL_API_TOKEN: { secret: mosaic/staging/internal-api/token, key: token }
+  # Staging has no google-oauth secret of its own; the live chart falls back to prod's.
+  GOOGLE_CLIENT_ID: { secret: mosaic/prod/google-oauth, key: client-id }
+  GOOGLE_CLIENT_SECRET: { secret: mosaic/prod/google-oauth, key: client-secret }
