@@ -3,6 +3,8 @@
 AI_PROVIDER = "ai.provider"
 AI_OPERATION = "ai.operation"
 AI_MODEL = "ai.model"
+AI_MODEL_ALIAS = "ai.model.alias"
+AI_MODEL_ID = "ai.model.id"
 AI_RETRYABLE = "ai.retryable"
 AI_ERROR_TYPE = "ai.error_type"
 AI_LATENCY_MS = "ai.latency_ms"

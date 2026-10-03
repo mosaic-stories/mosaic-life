@@ -1,0 +1,40 @@
+# Bedrock model alias catalog for direct-Bedrock mode
+# (AI_LLM_PROVIDER=bedrock / AI_EMBEDDING_PROVIDER=bedrock).
+#
+# Maps the alias names used by core-api settings (DEFAULT_CHAT_MODEL_ID and the
+# other *_MODEL_ID values) to Bedrock model IDs. This MUST stay in sync with the
+# model_list in infra/helm/litellm/templates/configmap.yaml: same alias names,
+# same underlying models (the bedrock/ prefix is stripped here). A unit test in
+# tests/adapters/test_bedrock.py enforces that the alias sets match.
+#
+# IDs not listed here (raw Bedrock IDs, inference-profile ARNs) are passed to
+# Bedrock unchanged.
+models:
+  # Anthropic Claude (cross-region inference profiles)
+  claude-sonnet-4-6: us.anthropic.claude-sonnet-4-6
+  claude-opus-4-6: us.anthropic.claude-opus-4-6-v1
+  claude-haiku-4-5: us.anthropic.claude-haiku-4-5-20251001-v1:0
+  claude-sonnet-5: us.anthropic.claude-sonnet-5
+  claude-opus-5: us.anthropic.claude-opus-5
+
+  # Z.ai GLM (in-region only; no cross-region profile)
+  glm-5: zai.glm-5
+
+  # Qwen
+  qwen3-next-80b: qwen.qwen3-next-80b-a3b
+
+  # Kimi
+  kimi-k2.5: moonshotai.kimi-k2.5
+
+  # Mistral
+  voxtral-small-24b: mistral.voxtral-small-24b-2507
+  voxtral-mini-3b: mistral.voxtral-mini-3b-2507
+  magistral-small: mistral.magistral-small-2509
+  mistral-large-3: mistral.mistral-large-3-675b-instruct
+
+  # Amazon embeddings
+  nova-multimodal-embeddings: amazon.nova-2-multimodal-embeddings-v1:0
+  titan-embed-text-v2: amazon.titan-embed-text-v2:0
+
+  # Meta Llama (cross-region inference profile)
+  llama4-maverick-17b: us.meta.llama4-maverick-17b-instruct-v1:0

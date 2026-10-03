@@ -5,9 +5,12 @@ import logging
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
+from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 import aioboto3  # type: ignore[import-untyped]
+import yaml
 from botocore.exceptions import ClientError  # type: ignore[import-untyped]
 from opentelemetry import trace
 
@@ -16,10 +19,13 @@ from .telemetry import (
     AI_ERROR_TYPE,
     AI_LATENCY_MS,
     AI_MODEL,
+    AI_MODEL_ALIAS,
+    AI_MODEL_ID,
     AI_OPERATION,
     AI_PROVIDER,
     AI_RETRYABLE,
 )
+from ..config.settings import get_settings
 from ..observability.metrics import (
     AI_EMBEDDING_DURATION,
     AI_GUARDRAIL_TRIGGERS,
@@ -33,6 +39,45 @@ tracer = trace.get_tracer("core-api.bedrock")
 # Titan Embeddings v2 constants
 TITAN_EMBED_MODEL_ID = "titan-embed-text-v2"
 TITAN_EMBED_DIMENSION = 1024
+
+BEDROCK_MODELS_PATH = Path(__file__).parent.parent / "config" / "bedrock_models.yaml"
+
+
+@lru_cache(maxsize=1)
+def _load_model_catalog() -> dict[str, str]:
+    """Load the alias -> Bedrock model ID catalog (cached)."""
+    with BEDROCK_MODELS_PATH.open() as f:
+        data = yaml.safe_load(f) or {}
+    return {str(alias): str(mid) for alias, mid in (data.get("models") or {}).items()}
+
+
+def resolve_model_id(model_id: str | None) -> tuple[str, str]:
+    """Resolve a requested model identifier to a Bedrock model ID.
+
+    Order: empty/None -> ``default_chat_model_id`` (then resolved as an alias);
+    known catalog alias -> mapped Bedrock ID; anything else -> unchanged
+    (raw Bedrock IDs and inference-profile ARNs).
+
+    Returns:
+        ``(alias, resolved_id)`` where ``alias`` is the effective requested
+        name after default substitution.
+    """
+    requested = (model_id or "").strip()
+    was_empty = not requested
+    if was_empty:
+        requested = get_settings().default_chat_model_id
+
+    resolved = _load_model_catalog().get(requested)
+    if resolved is not None:
+        logger.debug(
+            "bedrock.model_resolved",
+            extra={"model_alias": requested, "model_id": resolved},
+        )
+        return requested, resolved
+
+    if not was_empty:
+        logger.info("bedrock.model_passthrough", extra={"model_id": requested})
+    return requested, requested
 
 
 def _map_bedrock_error(error_code: str) -> tuple[str, bool]:
@@ -140,7 +185,8 @@ class BedrockAdapter:
         Args:
             messages: Conversation history.
             system_prompt: System prompt for the model.
-            model_id: Bedrock model identifier.
+            model_id: Model alias from the Bedrock catalog, a raw Bedrock
+                model ID/ARN, or empty for the configured default chat model.
             max_tokens: Maximum tokens to generate.
             guardrail_id: Optional Bedrock Guardrail ID.
             guardrail_version: Optional Bedrock Guardrail version.
@@ -152,9 +198,12 @@ class BedrockAdapter:
             BedrockError: On API errors.
         """
         started = time.perf_counter()
+        model_alias, model_id = resolve_model_id(model_id)
         with tracer.start_as_current_span("ai.bedrock.stream") as span:
             span.set_attribute(AI_PROVIDER, "bedrock")
             span.set_attribute(AI_OPERATION, "stream_generate")
+            span.set_attribute(AI_MODEL_ALIAS, model_alias)
+            span.set_attribute(AI_MODEL_ID, model_id)
             span.set_attribute(AI_MODEL, model_id)
             span.set_attribute("message_count", len(messages))
 
@@ -384,7 +433,7 @@ class BedrockAdapter:
 
         Args:
             texts: List of texts to embed.
-            model_id: Titan embedding model ID.
+            model_id: Titan embedding alias or raw Bedrock model ID.
             dimensions: Embedding dimension (256, 512, or 1024).
 
         Returns:
@@ -394,9 +443,12 @@ class BedrockAdapter:
             BedrockError: If embedding generation fails.
         """
         started = time.perf_counter()
+        model_alias, model_id = resolve_model_id(model_id or TITAN_EMBED_MODEL_ID)
         with tracer.start_as_current_span("ai.bedrock.embed") as span:
             span.set_attribute(AI_PROVIDER, "bedrock")
             span.set_attribute(AI_OPERATION, "embed_texts")
+            span.set_attribute(AI_MODEL_ALIAS, model_alias)
+            span.set_attribute(AI_MODEL_ID, model_id)
             span.set_attribute(AI_MODEL, model_id)
             span.set_attribute("text_count", len(texts))
             span.set_attribute("dimensions", dimensions)

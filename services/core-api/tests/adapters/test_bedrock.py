@@ -1,6 +1,11 @@
 """Tests for Bedrock adapter."""
 
-from unittest.mock import AsyncMock, patch
+import json
+import logging
+import re
+from pathlib import Path
+from typing import Any
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -8,9 +13,17 @@ from app.adapters.bedrock import (
     BedrockAdapter,
     BedrockError,
     _extract_triggered_filters,
+    _load_model_catalog,
     get_bedrock_adapter,
+    resolve_model_id,
 )
-from app.adapters.telemetry import AI_MODEL, AI_OPERATION, AI_PROVIDER
+from app.adapters.telemetry import (
+    AI_MODEL,
+    AI_MODEL_ALIAS,
+    AI_MODEL_ID,
+    AI_OPERATION,
+    AI_PROVIDER,
+)
 
 
 class TestBedrockError:
@@ -680,6 +693,157 @@ class TestBedrockMetricsRecording:
 
             mock_hist.labels.assert_called_once_with(
                 provider="bedrock",
-                model="titan-embed-text-v2",
+                model="amazon.titan-embed-text-v2:0",
             )
             mock_hist.labels.return_value.observe.assert_called_once()
+
+
+class TestModelResolution:
+    """Tests for alias -> Bedrock model ID resolution."""
+
+    def test_known_alias_resolves(self) -> None:
+        alias, resolved = resolve_model_id("claude-sonnet-4-6")
+        assert alias == "claude-sonnet-4-6"
+        assert resolved == "us.anthropic.claude-sonnet-4-6"
+
+    def test_empty_resolves_to_default_chat_model(self) -> None:
+        settings = Mock(default_chat_model_id="claude-haiku-4-5")
+        with patch("app.adapters.bedrock.get_settings", return_value=settings):
+            for empty in ("", None, "  "):
+                alias, resolved = resolve_model_id(empty)
+                assert alias == "claude-haiku-4-5"
+                assert resolved == "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+
+    def test_empty_with_raw_default_passes_through_without_log(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        raw = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+        settings = Mock(default_chat_model_id=raw)
+        with (
+            patch("app.adapters.bedrock.get_settings", return_value=settings),
+            caplog.at_level(logging.DEBUG, logger="app.adapters.bedrock"),
+        ):
+            assert resolve_model_id("") == (raw, raw)
+        assert "bedrock.model_passthrough" not in caplog.messages
+
+    @pytest.mark.parametrize(
+        "raw",
+        [
+            "us.anthropic.claude-haiku-4-5-20251001-v1:0",
+            "arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.anthropic.claude-sonnet-4-6",
+            "some-unknown-model",
+        ],
+    )
+    def test_unknown_ids_pass_through(
+        self, raw: str, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.INFO, logger="app.adapters.bedrock"):
+            assert resolve_model_id(raw) == (raw, raw)
+        record = next(
+            r for r in caplog.records if r.message == "bedrock.model_passthrough"
+        )
+        assert record.model_id == raw  # type: ignore[attr-defined]
+
+    def test_resolution_logs_alias_and_id(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.DEBUG, logger="app.adapters.bedrock"):
+            resolve_model_id("glm-5")
+        record = next(
+            r for r in caplog.records if r.message == "bedrock.model_resolved"
+        )
+        assert record.model_alias == "glm-5"  # type: ignore[attr-defined]
+        assert record.model_id == "zai.glm-5"  # type: ignore[attr-defined]
+
+    @pytest.mark.asyncio
+    async def test_stream_generate_sends_resolved_id_and_telemetry(self) -> None:
+        adapter = BedrockAdapter(region="us-east-1")
+
+        async def events() -> Any:
+            yield {"contentBlockDelta": {"delta": {"text": "OK"}}}
+            yield {"messageStop": {"stopReason": "end_turn"}}
+
+        captured: dict[str, Any] = {}
+
+        async def capture(**kwargs: Any) -> dict[str, Any]:
+            captured.update(kwargs)
+            return {"stream": events()}
+
+        mock_span = Mock()
+        span_cm = Mock()
+        span_cm.__enter__ = Mock(return_value=mock_span)
+        span_cm.__exit__ = Mock(return_value=None)
+
+        with (
+            patch.object(adapter, "_get_client") as mock_get_client,
+            patch(
+                "app.adapters.bedrock.tracer.start_as_current_span",
+                return_value=span_cm,
+            ),
+        ):
+            mock_client = AsyncMock()
+            mock_client.converse_stream = capture
+            ctx = AsyncMock()
+            ctx.__aenter__ = AsyncMock(return_value=mock_client)
+            ctx.__aexit__ = AsyncMock(return_value=None)
+            mock_get_client.return_value = ctx
+
+            async for _ in adapter.stream_generate(
+                messages=[{"role": "user", "content": "Hi"}],
+                system_prompt="sys",
+                model_id="claude-sonnet-4-6",
+            ):
+                pass
+
+        resolved = "us.anthropic.claude-sonnet-4-6"
+        assert captured["modelId"] == resolved
+        mock_span.set_attribute.assert_any_call(AI_MODEL_ALIAS, "claude-sonnet-4-6")
+        mock_span.set_attribute.assert_any_call(AI_MODEL_ID, resolved)
+        mock_span.set_attribute.assert_any_call(AI_MODEL, resolved)
+
+    @pytest.mark.asyncio
+    async def test_embed_texts_uses_titan_bedrock_id_at_1024(self) -> None:
+        adapter = BedrockAdapter(region="us-east-1")
+        body = AsyncMock()
+        body.read.return_value = json.dumps({"embedding": [0.1] * 1024}).encode()
+        mock_client = AsyncMock()
+        mock_client.invoke_model = AsyncMock(return_value={"body": body})
+
+        with patch.object(adapter, "_get_client") as mock_get_client:
+            cm = AsyncMock()
+            cm.__aenter__.return_value = mock_client
+            cm.__aexit__.return_value = None
+            mock_get_client.return_value = cm
+
+            await adapter.embed_texts(["Hello"])
+
+        kwargs = mock_client.invoke_model.call_args.kwargs
+        assert kwargs["modelId"] == "amazon.titan-embed-text-v2:0"
+        payload = json.loads(kwargs["body"])
+        assert payload["dimensions"] == 1024
+        assert payload["normalize"] is True
+
+
+class TestModelCatalogSync:
+    """The Bedrock alias catalog must match the LiteLLM model_list."""
+
+    def test_alias_set_matches_litellm_model_list(self) -> None:
+        configmap = (
+            Path(__file__).resolve().parents[4]
+            / "infra"
+            / "helm"
+            / "litellm"
+            / "templates"
+            / "configmap.yaml"
+        )
+        if not configmap.is_file():
+            pytest.skip("LiteLLM configmap not available (outside repo checkout)")
+
+        litellm_aliases = set(re.findall(r"model_name:\s*(\S+)", configmap.read_text()))
+        assert litellm_aliases, "no model_name entries found in LiteLLM configmap"
+        assert set(_load_model_catalog()) == litellm_aliases
+
+    def test_catalog_ids_have_no_litellm_prefix(self) -> None:
+        assert all(
+            not mid.startswith("bedrock/") for mid in _load_model_catalog().values()
+        )
