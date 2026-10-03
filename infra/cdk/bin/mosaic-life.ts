@@ -15,6 +15,12 @@ const app = new cdk.App();
 // (and the cross-stack import of the Neptune export). Default: no Neptune coupling.
 const graph: string | undefined = app.node.tryGetContext('graph');
 
+// `eksRoles` (default true, see cdk.json): create the EKS IRSA core-api roles. Merges auto-deploy
+// (`cdk deploy --all`), so the live roles stay until the EKS runtime is decommissioned.
+// `leanRuntime` (default false): reserved for the ECS/RDS runtime stacks (added in later changes).
+const ctxBool = (v: unknown, dflt: boolean): boolean => (v === undefined ? dflt : v === true || v === 'true');
+const eksRoles = ctxBool(app.node.tryGetContext('eksRoles'), true);
+
 // Environment configuration
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT || '033691785857',
@@ -44,6 +50,7 @@ const appStack = new MosaicLifeStack(app, 'MosaicLifeStack', {
     existingEcrRepos: true,
     existingS3Buckets: true,
     environment: prodEnvironment,
+    eksRoles,
     graph,
     tags: {
       Project: 'MosaicLife',
@@ -87,6 +94,7 @@ new StagingResourcesStack(app, 'MosaicStagingResourcesStack', {
   env,
   vpc: appStack.vpc,
   domainName,
+  eksRoles,
   graph,
 });
 

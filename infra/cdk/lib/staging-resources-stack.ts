@@ -8,10 +8,12 @@ import * as sqs from 'aws-cdk-lib/aws-sqs';
 import * as sns_subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import { Construct } from 'constructs';
 import { AIChatGuardrail } from './guardrail-construct';
+import { grantCoreApiPermissions } from './constructs/core-api-permissions';
 
 export interface StagingResourcesStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
   domainName: string;
+  eksRoles?: boolean; // Create the EKS IRSA core-api role (default true until decommission)
   graph?: string; // Graph backend; 'neptune' adds Neptune IAM grants (imports Neptune stack export)
 }
 
@@ -30,13 +32,14 @@ export interface StagingResourcesStackProps extends cdk.StackProps {
 export class StagingResourcesStack extends cdk.Stack {
   public readonly mediaBucket: s3.Bucket;
   public readonly backupBucket: s3.Bucket;
-  public readonly coreApiRole: iam.Role;
+  public readonly coreApiRole?: iam.Role; // undefined when eksRoles=false
   public readonly sessionSecret: secretsmanager.Secret;
 
   constructor(scope: Construct, id: string, props: StagingResourcesStackProps) {
     super(scope, id, props);
 
     const { domainName, graph } = props;
+    const eksRoles = props.eksRoles ?? true;
     const environment = 'staging';
 
     // ============================================================
@@ -156,186 +159,100 @@ export class StagingResourcesStack extends cdk.Stack {
     );
 
     // ============================================================
-    // IAM Role for Staging core-api (IRSA)
-    // Allows both staging namespace and preview-pr-* namespaces
-    // ============================================================
-    const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
-    const oidcProvider = `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
-
-    this.coreApiRole = new iam.Role(this, 'StagingCoreApiRole', {
-      roleName: `mosaic-${environment}-core-api-role`,
-      assumedBy: new iam.FederatedPrincipal(oidcProvider, {}),
-      description: 'IAM role for staging core-api service in EKS (S3, Secrets, SES)',
-      inlinePolicies: {
-        'SESEmailSendPolicy': new iam.PolicyDocument({
-          statements: [
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: [
-                'ses:SendEmail',
-                'ses:SendRawEmail',
-              ],
-              resources: ['*'],
-            }),
-            new iam.PolicyStatement({
-              effect: iam.Effect.ALLOW,
-              actions: [
-                'ses:GetSendQuota',
-                'ses:GetSendStatistics',
-                'ses:ListVerifiedEmailAddresses',
-              ],
-              resources: ['*'],
-            }),
-          ],
-        }),
-      },
-    });
-
-    // Override the trust policy to allow both staging and preview namespaces
-    const cfnRole = this.coreApiRole.node.defaultChild as cdk.CfnResource;
-    cfnRole.addPropertyOverride('AssumeRolePolicyDocument', {
-      Version: '2012-10-17',
-      Statement: [
-        {
-          Effect: 'Allow',
-          Principal: {
-            Federated: oidcProvider,
-          },
-          Action: 'sts:AssumeRoleWithWebIdentity',
-          Condition: {
-            StringEquals: {
-              [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]: 'sts.amazonaws.com',
-            },
-            StringLike: {
-              [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]: [
-                `system:serviceaccount:mosaic-${environment}:core-api`,
-                'system:serviceaccount:preview-pr-*:core-api',
-              ],
-            },
-          },
-        },
-      ],
-    });
-
-    // Grant S3 access
-    this.mediaBucket.grantReadWrite(this.coreApiRole);
-    this.backupBucket.grantReadWrite(this.coreApiRole);
-
-    // Grant Secrets Manager access for staging secrets
-    this.coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowStagingSecretsAccess',
-        effect: iam.Effect.ALLOW,
-        actions: ['secretsmanager:GetSecretValue'],
-        resources: [
-          `arn:aws:secretsmanager:${this.region}:${this.account}:secret:mosaic/staging/*`,
-        ],
-      })
-    );
-
-    // Grant SNS/SQS access
-    domainEventsTopic.grantPublish(this.coreApiRole);
-    eventsQueue.grantConsumeMessages(this.coreApiRole);
-
-    // Grant Bedrock access for AI chat feature
-    // Cross-region inference (us.* model IDs) may route to any US region
-    this.coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowBedrockInvoke',
-        effect: iam.Effect.ALLOW,
-        actions: [
-          'bedrock:InvokeModel',
-          'bedrock:InvokeModelWithResponseStream',
-        ],
-        resources: [
-          // Allow access to Claude foundation models in all US regions
-          // Cross-region inference may route to any of these
-          'arn:aws:bedrock:us-east-1::foundation-model/anthropic.*',
-          'arn:aws:bedrock:us-east-2::foundation-model/anthropic.*',
-          'arn:aws:bedrock:us-west-2::foundation-model/anthropic.*',
-          // Allow cross-region inference profiles
-          `arn:aws:bedrock:us-east-1:${this.account}:inference-profile/us.anthropic.*`,
-          `arn:aws:bedrock:us-east-2:${this.account}:inference-profile/us.anthropic.*`,
-          `arn:aws:bedrock:us-west-2:${this.account}:inference-profile/us.anthropic.*`,
-          // Allow access to Amazon Titan Embeddings for AI memory/RAG
-          'arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0',
-          'arn:aws:bedrock:us-east-2::foundation-model/amazon.titan-embed-text-v2:0',
-          'arn:aws:bedrock:us-west-2::foundation-model/amazon.titan-embed-text-v2:0',
-        ],
-      })
-    );
-
-    // Grant AWS Marketplace permissions required by newer Bedrock models (e.g. Claude Haiku 4.5+)
-    // These models require a marketplace agreement before first use; the IAM role must be
-    // authorised to read and complete that subscription handshake.
-    this.coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowBedrockMarketplaceSubscription',
-        effect: iam.Effect.ALLOW,
-        actions: [
-          'aws-marketplace:ViewSubscriptions',
-          'aws-marketplace:Subscribe',
-          'aws-marketplace:Unsubscribe',
-        ],
-        resources: ['*'],
-      })
-    );
-
-    // ============================================================
     // Bedrock Guardrail for AI Chat (Staging)
     // ============================================================
     const aiGuardrail = new AIChatGuardrail(this, 'AIChatGuardrail', {
       environment,
     });
 
-    // Grant permission to apply the staging guardrail
-    this.coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowBedrockGuardrail',
-        effect: iam.Effect.ALLOW,
-        actions: ['bedrock:ApplyGuardrail'],
-        resources: [aiGuardrail.guardrailArn],
-      })
-    );
-
     // Store guardrail info for outputs
     const guardrailId = aiGuardrail.guardrailId;
     const guardrailVersion = aiGuardrail.guardrailVersion;
 
-    // Grant Neptune graph database access for graph-augmented RAG
-    // Only wired when `-c graph=neptune`; default has no dependency on the Neptune stack.
-    if (graph === 'neptune') {
-      const neptuneDataPlaneResourceArn = cdk.Fn.importValue('mosaic-neptune-data-plane-resource-arn');
-      this.coreApiRole.addToPolicy(
-        new iam.PolicyStatement({
-          sid: 'AllowNeptuneConnect',
-          effect: iam.Effect.ALLOW,
-          actions: ['neptune-db:connect'],
-          resources: [neptuneDataPlaneResourceArn],
-        })
-      );
-      this.coreApiRole.addToPolicy(
-        new iam.PolicyStatement({
-          sid: 'AllowNeptuneOpenCypherQueries',
-          effect: iam.Effect.ALLOW,
-          actions: [
-            'neptune-db:ReadDataViaQuery',
-            'neptune-db:WriteDataViaQuery',
-            'neptune-db:DeleteDataViaQuery',
-            'neptune-db:GetQueryStatus',
-          ],
-          resources: [neptuneDataPlaneResourceArn],
-          conditions: {
-            StringEquals: {
-              'neptune-db:QueryLanguage': 'OpenCypher',
+    // ============================================================
+    // IAM Role for Staging core-api (IRSA)
+    // Allows both staging namespace and preview-pr-* namespaces
+    // Kept while the EKS runtime is live; `-c eksRoles=false` drops it (defaults to true).
+    // ============================================================
+    if (eksRoles) {
+      const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
+      const oidcProvider = `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
+
+      const coreApiRole = new iam.Role(this, 'StagingCoreApiRole', {
+        roleName: `mosaic-${environment}-core-api-role`,
+        assumedBy: new iam.FederatedPrincipal(oidcProvider, {}),
+        description: 'IAM role for staging core-api service in EKS (S3, Secrets, SES)',
+        inlinePolicies: {
+          'SESEmailSendPolicy': new iam.PolicyDocument({
+            statements: [
+              new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: [
+                  'ses:SendEmail',
+                  'ses:SendRawEmail',
+                ],
+                resources: ['*'],
+              }),
+              new iam.PolicyStatement({
+                effect: iam.Effect.ALLOW,
+                actions: [
+                  'ses:GetSendQuota',
+                  'ses:GetSendStatistics',
+                  'ses:ListVerifiedEmailAddresses',
+                ],
+                resources: ['*'],
+              }),
+            ],
+          }),
+        },
+      });
+
+      // Override the trust policy to allow both staging and preview namespaces
+      const cfnRole = coreApiRole.node.defaultChild as cdk.CfnResource;
+      cfnRole.addPropertyOverride('AssumeRolePolicyDocument', {
+        Version: '2012-10-17',
+        Statement: [
+          {
+            Effect: 'Allow',
+            Principal: {
+              Federated: oidcProvider,
+            },
+            Action: 'sts:AssumeRoleWithWebIdentity',
+            Condition: {
+              StringEquals: {
+                [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:aud`]: 'sts.amazonaws.com',
+              },
+              StringLike: {
+                [`oidc.eks.${this.region}.amazonaws.com/id/${clusterId}:sub`]: [
+                  `system:serviceaccount:mosaic-${environment}:core-api`,
+                  'system:serviceaccount:preview-pr-*:core-api',
+                ],
+              },
             },
           },
-        })
-      );
-    }
+        ],
+      });
 
-    cdk.Tags.of(this.coreApiRole).add('Environment', environment);
-    cdk.Tags.of(this.coreApiRole).add('Component', 'IAM');
+      // Shared permissions: S3, Secrets Manager, Bedrock, guardrail, SES, (Neptune when graph=neptune)
+      grantCoreApiPermissions(coreApiRole, {
+        environment,
+        account: this.account,
+        region: this.region,
+        mediaBucket: this.mediaBucket,
+        backupBucket: this.backupBucket,
+        guardrailArn: aiGuardrail.guardrailArn,
+        graph,
+      });
+
+      // Staging-stack-specific grants
+      domainEventsTopic.grantPublish(coreApiRole);
+      eventsQueue.grantConsumeMessages(coreApiRole);
+
+      cdk.Tags.of(coreApiRole).add('Environment', environment);
+      cdk.Tags.of(coreApiRole).add('Component', 'IAM');
+
+      this.coreApiRole = coreApiRole;
+    }
 
     // ============================================================
     // Outputs
@@ -352,11 +269,13 @@ export class StagingResourcesStack extends cdk.Stack {
       exportName: `mosaic-${environment}-backup-bucket`,
     });
 
-    new cdk.CfnOutput(this, 'StagingCoreApiRoleArn', {
-      value: this.coreApiRole.roleArn,
-      description: 'IRSA role ARN for staging core-api',
-      exportName: `mosaic-${environment}-core-api-role-arn`,
-    });
+    if (this.coreApiRole) {
+      new cdk.CfnOutput(this, 'StagingCoreApiRoleArn', {
+        value: this.coreApiRole.roleArn,
+        description: 'IRSA role ARN for staging core-api',
+        exportName: `mosaic-${environment}-core-api-role-arn`,
+      });
+    }
 
     new cdk.CfnOutput(this, 'StagingSessionSecretArn', {
       value: this.sessionSecret.secretArn,
