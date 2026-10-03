@@ -4,13 +4,13 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 
 - [ ] 1.1 In `mosaic-stories/gitops`, set `GRAPH_AUGMENTATION_ENABLED=false` in the prod and staging core-api env. Wait for ArgoCD sync and confirm with `kubectl exec … env` that the pods have the flag.
 - [x] 1.2 Remove the `mosaic-neptune-data-plane-resource-arn` import and the `neptune-db:*` statements from `MosaicLifeStack` and `MosaicStagingResourcesStack`. Put them behind a `-c graph=neptune` context flag for the EKS return path. `cdk diff` should show only those IAM changes. **Merge only after 1.1 is live**: merging runs `cdk deploy --all`.
-- [ ] 1.3 **[ops]** After the 1.2 deploy:
+- [ ] 1.3 **[ops]** After the 1.2 deploy. Progress: snapshot `mosaic-neptune-final-2026-10` was taken on 2026-10-03. The destroy waits for PR 1 to merge. Deleting the Neptune secrets moves to 13.3, so External Secrets doesn't error while EKS is still running:
   - take a manual Neptune cluster snapshot `mosaic-neptune-final-2026-10`;
   - disable deletion protection;
   - `cdk destroy MosaicNeptuneDatabaseStack`;
   - delete the `mosaic/{prod,staging}/neptune/connection` secrets.
-- [ ] 1.4 **[ops]** Disable EKS control-plane logging (`aws eks update-cluster-config --logging …enabled=false`) and set 7-day retention on `/aws/eks/mosaiclife-eks/cluster`.
-- [ ] 1.5 **[ops]** Delete `s3://mosaic-life-observability/metricsmimir/`. Create the AWS Budget ($100/month actual, $120/month forecast; email `project.hewitt@gmail.com`).
+- [ ] 1.4 **[ops]** (**owner to run**; the auto-mode check blocked it as logging/audit tampering) Disable EKS control-plane logging (`aws eks update-cluster-config --logging …enabled=false`) and set 7-day retention on `/aws/eks/mosaiclife-eks/cluster`.
+- [ ] 1.5 **[ops]** Delete `s3://mosaic-life-observability/metricsmimir/` (**owner to run**; the auto-mode check blocked it; the bucket lifecycle expires it around Nov 2026 anyway). ~~Create the AWS Budget~~ Done 2026-10-03: `mosaic-monthly`, $100/month, alerts on actual over 100% and forecast over 120%.
 - [ ] 1.6 Gate: `cdk synth` passes. The prod site still works (log in, open a legacy, start an AI chat). The Neptune stack is gone and the snapshot exists.
 
 ## 2. Bedrock model-alias catalog in core-api (PR)
@@ -50,7 +50,7 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 - [x] 4.1 Make the NAT gateway count a context parameter (`natGateways`, default 2 for now). Add a free S3 gateway endpoint on the private and public route tables.
 - [x] 4.2 Add the GitHub OIDC role `github-actions-ecs-deploy` with the permissions from design D10. Fix the `cdk-deploy` role's stack allow-list (`MosaicAuroraDatabaseStack`, plus the new `MosaicRdsStack` and `MosaicEcsRuntimeStack-*`).
 - [x] 4.3 Pass the EKS OIDC issuer as context only when `runtime=eks`. Stop requiring it for synth.
-- [ ] 4.4 Gate: `cdk diff` shows only the endpoint and the IAM additions, then `cdk deploy`. Confirm EKS workloads are unaffected (pods Ready, site up).
+- [ ] 4.4 (**owner to deploy**; the auto-mode check blocked `cdk deploy` as a blind apply. The diff was re-verified on 2026-10-03: 4 adds and 1 policy change, no replacements.) Gate: `cdk diff` shows only the endpoint and the IAM additions, then `cdk deploy`. Confirm EKS workloads are unaffected (pods Ready, site up).
 
 ## 5. Shared IAM permissions and runtime env config (PR)
 
@@ -106,7 +106,7 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 
 ## 8. Observability construct (PR)
 
-- [x] 8.1 Add the SNS topic `mosaic-{env}-alerts` with an email subscription to `project.hewitt@gmail.com`, and the 9 prod alarms from design D9 (none for staging).
+- [x] 8.1 Add the SNS topic `mosaic-{env}-alerts` with an email subscription to the address in SSM `/mosaiclife/lean/alarm-email` (never committed; the repo is public), and the 9 prod alarms from design D9 (none for staging).
 - [x] 8.2 Add the `AppErrorCount` log metric filter, the `mosaic-prod` dashboard (ALB requests, 5xx, latency p95, ECS CPU and memory, RDS CPU, connections, storage, app errors), and saved Logs Insights queries ("request by id", "errors last 1h").
 - [ ] 8.3 Gate: `cdk synth`. After deploying (group 11), use `aws cloudwatch set-alarm-state` on one alarm to confirm the email arrives.
 
@@ -133,6 +133,11 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 
 ## 11. [ops] Saturday: stand up and validate staging on ECS
 
+- [ ] 11.0 Seed the SSM parameters the stacks read at deploy time:
+  - `/mosaiclife/prod/image-tag` and `/mosaiclife/staging/image-tag`: the current `prod-<sha>` and `staging-<sha>` tags in ECR;
+  - `/mosaiclife/lean/alarm-email`: the owner's address.
+
+  Note: staging is **not running on EKS today** (no ArgoCD app, empty `mosaic-staging` namespace), so the staging cutover has no live traffic to protect.
 - [ ] 11.1 Deploy the infra repo foundation (group 4). Then deploy `MosaicRdsStack` with `-c leanRuntime=true -c dbCopy=true`. Run `rds-bootstrap.sql` as `mosaic_admin` (see the script header), passing generated passwords for `mosaic_prod` and `mosaic_staging`.
 - [ ] 11.2 Copy staging **before** touching its secret. db-copy reads its source from `mosaic/staging/rds/credentials`, which still points at Aurora at this point. Run `mosaic-staging-db-copy` on cluster `mosaic-db-copy` (security group `mosaic-db-clients`, public subnets, `assignPublicIp=ENABLED`) and record the row counts and `vector` versions it reports. Only then:
   - rewrite `mosaic/staging/rds/credentials` to point at RDS (host, `mosaic_staging` user and password, dbname `core_staging`, plus a `url` key `postgresql+psycopg://…/core_staging?sslmode=require`);

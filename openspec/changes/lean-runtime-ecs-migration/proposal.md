@@ -102,7 +102,7 @@ Assumed (no decision needed): staging keeps its existing hostnames, `stage.mosai
 Also answered by the owner on 2026-10-03 (second round). All open questions are resolved and the change is approved for apply:
 1. **Design options.** D2: the ALB routes `/api` straight to core-api. D3: CI registers task definitions and CDK reads the image tag from SSM. D4: the model-alias catalog lives in core-api. All approved.
 2. **Staging auto-stop.** Stop 2 h after the last deploy or start, with a nightly 03:00 UTC backstop. Approved.
-3. **Alarm and budget recipient.** `project.hewitt@gmail.com`.
+3. **Alarm and budget recipient.** The owner's personal address. It is kept out of this public repo and seeded into SSM `/mosaiclife/lean/alarm-email`.
 4. **Budget.** $100/month actual, $120/month forecast. Approved.
 5. **Snapshot retention.** Keep the final Aurora and Neptune snapshots for 90 days, then delete them.
 6. **Maintenance window.** No maintenance page. A brief 503 during the ~30-minute cutover is acceptable.

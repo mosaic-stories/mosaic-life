@@ -319,7 +319,7 @@ nginx can no longer reach core-api by a cluster DNS name.
 None. All were resolved on 2026-10-03 (see `proposal.md` → Open Questions). Applied values:
 - D2, D3 and D4 approved as recommended.
 - Staging auto-stop is 2 h after the last deploy or start, plus a nightly 03:00 UTC stop.
-- Alarm and budget email goes to `project.hewitt@gmail.com`.
+- Alarm and budget email goes to the owner's address. It is read at deploy time from SSM `/mosaiclife/lean/alarm-email` and never committed, because this repo is public.
 - Budget alerts at $100 actual / $120 forecast.
 - Final snapshots are kept for 90 days.
 - No maintenance page during cutover.
