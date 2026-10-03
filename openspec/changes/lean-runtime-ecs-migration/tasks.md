@@ -2,7 +2,7 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 
 ## 1. Quick wins and Neptune retirement (PR, plus gitops commit)
 
-- [ ] 1.1 In `mosaic-stories/gitops`, set `GRAPH_AUGMENTATION_ENABLED=false` in the prod and staging core-api env. Wait for ArgoCD sync and confirm with `kubectl exec … env` that the pods have the flag.
+- [x] 1.1 In `mosaic-stories/gitops`, set `GRAPH_AUGMENTATION_ENABLED=false` in the prod and staging core-api env. Wait for ArgoCD sync and confirm with `kubectl exec … env` that the pods have the flag.
 - [x] 1.2 Remove the `mosaic-neptune-data-plane-resource-arn` import and the `neptune-db:*` statements from `MosaicLifeStack` and `MosaicStagingResourcesStack`. Put them behind a `-c graph=neptune` context flag for the EKS return path. `cdk diff` should show only those IAM changes. **Merge only after 1.1 is live**: merging runs `cdk deploy --all`.
 - [ ] 1.3 **[ops]** After the 1.2 deploy. Progress: snapshot `mosaic-neptune-final-2026-10` was taken on 2026-10-03. The destroy waits for PR 1 to merge. Deleting the Neptune secrets moves to 13.3, so External Secrets doesn't error while EKS is still running:
   - take a manual Neptune cluster snapshot `mosaic-neptune-final-2026-10`;
@@ -84,25 +84,25 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 
 ## 7. ECS runtime stack: compute and edge (PR)
 
-- [ ] 7.1 Add `MosaicEcsRuntimeStack-{env}`, gated behind `leanRuntime=true` like 6.1:
+- [x] 7.1 Add `MosaicEcsRuntimeStack-{env}`, gated behind `leanRuntime=true` like 6.1:
   - ECS cluster `mosaic` (shared), cluster capacity providers FARGATE and FARGATE_SPOT;
   - task and execution roles using the `core-api-permissions` construct;
   - log groups with 30-day retention for prod and 7-day for staging;
   - container image tag from SSM `/mosaiclife/{env}/image-tag`.
-- [ ] 7.2 Task definitions and services, per design D1:
+- [x] 7.2 Task definitions and services, per design D1:
   - core-api: 0.5 vCPU / 1 GB on FARGATE;
   - web: FARGATE_SPOT;
   - public subnets with `assignPublicIp`, `stopTimeout: 120`, circuit breaker with rollback, ECS Exec;
   - a `migrate` task definition with command override `alembic upgrade head`;
   - staging `desiredCount: 0`, with drift ignored.
-- [ ] 7.3 ALB, shared across environments, in 2 public subnets:
+- [x] 7.3 ALB, shared across environments, in 2 public subnets:
   - idle timeout 3600 s, existing ACM cert, HTTP→HTTPS redirect;
   - HSTS listener attribute, or the core-api middleware fallback (design D2 / risk list);
   - access logs to `s3://mosaic-life-observability/alb/access/shared`;
   - host and path rules per D2;
   - target groups with 120 s deregistration delay and `/healthz` checks.
-- [ ] 7.4 Route53 alias records behind a `-c manageDns=true` flag, so they can be enabled at cutover after the external-dns records are removed.
-- [ ] 7.5 Gate: `cdk synth` and `cdk diff`, reviewed. `cfn-lint` / `cdk-nag` has no high findings.
+- [x] 7.4 Route53 alias records behind a `-c manageDns=true` flag, so they can be enabled at cutover after the external-dns records are removed.
+- [x] 7.5 (Done 2026-10-03: `cfn-lint` is clean on the RDS and ECS shared, prod and staging templates. `cdk-nag` was not run.) Gate: `cdk synth` and `cdk diff`, reviewed. `cfn-lint` / `cdk-nag` has no high findings.
 
 ## 8. Observability construct (PR)
 
@@ -124,7 +124,7 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 
 ## 10. Staging on/off workflows and docs (PR)
 
-- [ ] 10.1 Add `.github/workflows/staging-up.yml` (desiredCount 1 plus a one-time auto-stop schedule 2 h later) and `staging-down.yml` (desiredCount 0). Add the nightly 03:00 UTC backstop EventBridge Scheduler rule and its role to the staging runtime stack.
+- [x] 10.1 Add `.github/workflows/staging-up.yml` (desiredCount 1 plus a one-time auto-stop schedule 2 h later) and `staging-down.yml` (desiredCount 0). Add the nightly 03:00 UTC backstop EventBridge Scheduler rule and its role to the staging runtime stack.
 - [ ] 10.2 Write `infra/EKS-RETURN.md` (design "Return-to-EKS path") and `infra/LEAN-RUNTIME.md`:
   - architecture diagram, deploy flow, staging up/down;
   - ECS Exec usage and running backfill scripts with `aws ecs run-task`;
@@ -142,7 +142,7 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 - [ ] 11.2 Copy staging **before** touching its secret. db-copy reads its source from `mosaic/staging/rds/credentials`, which still points at Aurora at this point. Run `mosaic-staging-db-copy` on cluster `mosaic-db-copy` (security group `mosaic-db-clients`, public subnets, `assignPublicIp=ENABLED`) and record the row counts and `vector` versions it reports. Only then:
   - rewrite `mosaic/staging/rds/credentials` to point at RDS (host, `mosaic_staging` user and password, dbname `core_staging`, plus a `url` key `postgresql+psycopg://…/core_staging?sslmode=require`);
   - create `mosaic/staging/google-oauth` as a copy of the prod OAuth client secret.
-- [ ] 11.3 Scale external-dns to 0. Delete the `stage.*` and `stage-api.*` records and their external-dns TXT records. Deploy `MosaicEcsRuntimeStack-staging` with `manageDns=true`. Run the release workflow for `develop`.
+- [ ] 11.3 Scale external-dns to 0. Delete the `stage.*` and `stage-api.*` records and their external-dns TXT records. Deploy `MosaicRdsStack`, `MosaicEcsRuntimeStack-shared` and `MosaicEcsRuntimeStack-staging` with `-c leanRuntime=true -c manageDns=staging`. Run the release workflow for `develop`.
 - [ ] 11.4 Run the staging smoke tests and record the result of each:
   - Google login;
   - legacy and story create/edit;
@@ -153,6 +153,7 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
   - a guardrail intervention prompt;
   - an email send;
   - HSTS on `stage-api.*` responses.
+- [ ] 11.4a Non-root containers. Group 7 runs the containers as the image default (root) with a read-only root filesystem, because Fargate has no `fsGroup` to make the ephemeral volumes writable for uid 1000. On staging, try `user: "1000"` on core-api and web. If the volume permissions block it, chown the writable paths to uid 1000 in the Dockerfiles. Fargate bind mounts copy the image directory contents into the volume. Record the outcome. Target: parity with Helm's `runAsUser: 1000`.
 - [ ] 11.5 Prerender spike (design D7). Run the sidecar on Fargate without `SYS_ADMIN` and decide keep or drop. Record the result and update `runtime-env` accordingly.
 - [ ] 11.6 Rollback drill: deploy a deliberately unhealthy image and confirm the circuit breaker restores the prior revision. Run `staging-down`, confirm the 503, run `staging-up`, confirm it serves again.
 - [ ] 11.7 Dry-run the prod copy into a scratch database `core_copytest`. Record the duration and row counts, then drop the scratch database.
@@ -161,9 +162,9 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 
 - [ ] 12.1 Announce the window (no maintenance page; a brief 503 is accepted). Run `kubectl scale deploy/core-api -n mosaic-prod --replicas=0` and confirm no writes (Aurora `xact_commit` is flat).
 - [ ] 12.2 Run `db-copy` for prod `core`, verify that the row counts match, and update `mosaic/prod/rds/credentials` to point at RDS.
-- [ ] 12.3 Deploy `MosaicEcsRuntimeStack-prod` with `manageDns=false`. Run the migrate task (expect no-op) and confirm the services are healthy via the new ALB DNS name, sending a `Host` header.
-- [ ] 12.4 Delete the external-dns prod records and TXT records. Redeploy with `manageDns=true` for apex, frontend, api and backend. Confirm with `dig` that they resolve to the new ALB.
-- [ ] 12.5 Flip `leanRuntime` to `true` in `cdk.json` so CI deploys keep the new stacks. Repeat the 11.4 smoke tests on prod. Set the repo variable `DEPLOY_TARGET=ecs`. Push a trivial commit to `main` and confirm the release workflow deploys it.
+- [ ] 12.3 Deploy `MosaicEcsRuntimeStack-prod` with `-c leanRuntime=true -c manageDns=staging` (prod DNS not yet managed). Run the migrate task (expect no-op) and confirm the services are healthy via the new ALB DNS name, sending a `Host` header.
+- [ ] 12.4 Delete the external-dns prod records and TXT records. Redeploy with `-c leanRuntime=true -c manageDns=prod,staging` for apex, frontend, api and backend. Confirm with `dig` that they resolve to the new ALB.
+- [ ] 12.5 Set `"leanRuntime": true` and `"manageDns": "prod,staging"` in `cdk.json` so CI's `cdk deploy --all` keeps the new stacks and DNS records. Repeat the 11.4 smoke tests on prod. Set the repo variable `DEPLOY_TARGET=ecs`. Push a trivial commit to `main` and confirm the release workflow deploys it.
 - [ ] 12.6 Keep the rollback ready for 48 h: add the EKS node security group to the RDS security group, and keep the rollback steps from design.md "Rollback during the soak" at hand.
 
 ## 13. [ops] Decommission after a 48 h soak, then finalize the docs (PR)

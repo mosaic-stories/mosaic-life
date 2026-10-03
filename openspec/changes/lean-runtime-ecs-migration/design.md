@@ -84,7 +84,7 @@ nginx can no longer reach core-api by a cluster DNS name.
 - `api.mosaiclife.me` and `backend.mosaiclife.me` also forward to core-api.
 - Everything else goes to web.
 - This matches how `api.mosaiclife.me` already reaches core-api today, with no nginx hop.
-- HSTS for bypassed responses comes from the ALB listener's response-header attribute `routing.http.response.strict_transport_security.header_value`. If that attribute proves unusable, the fallback is a tiny core-api middleware that adds the same header. See `specs/frontend-security-headers`.
+- HSTS for bypassed responses comes from the ALB listener's response-header attribute (confirmed supported and present in the synthesized listener) `routing.http.response.strict_transport_security.header_value`. If that attribute proves unusable, the fallback is a tiny core-api middleware that adds the same header. See `specs/frontend-security-headers`.
 - The proxy blocks stay in nginx so the EKS layout keeps working. They are only reached when the ALB doesn't intercept the path.
 
 **Option B: ECS Service Connect.** nginx keeps proxying to `core-api:8080` through an Envoy sidecar plus a Cloud Map namespace. This preserves today's path exactly, but adds about 100–200 MB of sidecar memory per task and another moving part.
