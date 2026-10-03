@@ -27,6 +27,19 @@ const leanRuntime = ctxBool(app.node.tryGetContext('leanRuntime'), false);
 // `dbCopy` (default false, only with leanRuntime): temporary Aurora -> RDS db-copy task definitions.
 const dbCopy = ctxBool(app.node.tryGetContext('dbCopy'), false);
 
+// `manageDns` (default none, only with leanRuntime): comma-separated env names whose Route53 alias
+// records CDK creates, e.g. `-c manageDns=staging` or `-c manageDns=prod,staging`. Enable only after
+// the external-dns records for those hostnames have been deleted.
+const manageDns = new Set(
+  String(app.node.tryGetContext('manageDns') ?? '')
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean),
+);
+for (const v of manageDns) {
+  if (v !== 'prod' && v !== 'staging') throw new Error(`manageDns: unknown environment '${v}' (use prod and/or staging)`);
+}
+
 // Environment configuration
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT || '033691785857',
@@ -141,6 +154,7 @@ if (leanRuntime) {
       env,
       environment,
       vpc: appStack.vpc,
+      manageDns: manageDns.has(environment),
     });
     envStack.addDependency(rdsStack);
     envStack.addDependency(ecsShared);
