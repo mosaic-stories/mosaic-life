@@ -12,6 +12,7 @@ import { AIChatGuardrail } from './guardrail-construct';
 export interface StagingResourcesStackProps extends cdk.StackProps {
   vpc: ec2.IVpc;
   domainName: string;
+  graph?: string; // Graph backend; 'neptune' adds Neptune IAM grants (imports Neptune stack export)
 }
 
 /**
@@ -35,9 +36,8 @@ export class StagingResourcesStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: StagingResourcesStackProps) {
     super(scope, id, props);
 
-    const { domainName } = props;
+    const { domainName, graph } = props;
     const environment = 'staging';
-    const neptuneDataPlaneResourceArn = cdk.Fn.importValue('mosaic-neptune-data-plane-resource-arn');
 
     // ============================================================
     // S3 Buckets for Staging
@@ -303,32 +303,36 @@ export class StagingResourcesStack extends cdk.Stack {
     const guardrailVersion = aiGuardrail.guardrailVersion;
 
     // Grant Neptune graph database access for graph-augmented RAG
-    this.coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowNeptuneConnect',
-        effect: iam.Effect.ALLOW,
-        actions: ['neptune-db:connect'],
-        resources: [neptuneDataPlaneResourceArn],
-      })
-    );
-    this.coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowNeptuneOpenCypherQueries',
-        effect: iam.Effect.ALLOW,
-        actions: [
-          'neptune-db:ReadDataViaQuery',
-          'neptune-db:WriteDataViaQuery',
-          'neptune-db:DeleteDataViaQuery',
-          'neptune-db:GetQueryStatus',
-        ],
-        resources: [neptuneDataPlaneResourceArn],
-        conditions: {
-          StringEquals: {
-            'neptune-db:QueryLanguage': 'OpenCypher',
+    // Only wired when `-c graph=neptune`; default has no dependency on the Neptune stack.
+    if (graph === 'neptune') {
+      const neptuneDataPlaneResourceArn = cdk.Fn.importValue('mosaic-neptune-data-plane-resource-arn');
+      this.coreApiRole.addToPolicy(
+        new iam.PolicyStatement({
+          sid: 'AllowNeptuneConnect',
+          effect: iam.Effect.ALLOW,
+          actions: ['neptune-db:connect'],
+          resources: [neptuneDataPlaneResourceArn],
+        })
+      );
+      this.coreApiRole.addToPolicy(
+        new iam.PolicyStatement({
+          sid: 'AllowNeptuneOpenCypherQueries',
+          effect: iam.Effect.ALLOW,
+          actions: [
+            'neptune-db:ReadDataViaQuery',
+            'neptune-db:WriteDataViaQuery',
+            'neptune-db:DeleteDataViaQuery',
+            'neptune-db:GetQueryStatus',
+          ],
+          resources: [neptuneDataPlaneResourceArn],
+          conditions: {
+            StringEquals: {
+              'neptune-db:QueryLanguage': 'OpenCypher',
+            },
           },
-        },
-      })
-    );
+        })
+      );
+    }
 
     cdk.Tags.of(this.coreApiRole).add('Environment', environment);
     cdk.Tags.of(this.coreApiRole).add('Component', 'IAM');

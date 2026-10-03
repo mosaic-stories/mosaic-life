@@ -11,6 +11,10 @@ import { AlbAccessLogsStack } from '../lib/alb-access-logs-stack';
 
 const app = new cdk.App();
 
+// Graph backend context flag. Only `-c graph=neptune` wires Neptune IAM grants
+// (and the cross-stack import of the Neptune export). Default: no Neptune coupling.
+const graph: string | undefined = app.node.tryGetContext('graph');
+
 // Environment configuration
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT || '033691785857',
@@ -40,6 +44,7 @@ const appStack = new MosaicLifeStack(app, 'MosaicLifeStack', {
     existingEcrRepos: true,
     existingS3Buckets: true,
     environment: prodEnvironment,
+    graph,
     tags: {
       Project: 'MosaicLife',
       Environment: prodEnvironment,
@@ -71,6 +76,7 @@ new StagingResourcesStack(app, 'MosaicStagingResourcesStack', {
   env,
   vpc: appStack.vpc,
   domainName,
+  graph,
 });
 
 // LiteLLM Shared Stack - IRSA role for the shared aiservices deployment
