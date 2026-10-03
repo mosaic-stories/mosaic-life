@@ -34,6 +34,10 @@ spec:
         env:
         - name: PRERENDER_HOST
           value: {{ .Values.web.prerender.host | quote }}
+        # nginx resolves upstreams at request time with its own resolver, which
+        # ignores resolv.conf search domains, so use the fully-qualified service name.
+        - name: CORE_API_UPSTREAM
+          value: {{ printf "%s.%s.svc.cluster.local:%v" .Values.coreApi.name .Release.Namespace .Values.coreApi.service.port | quote }}
         livenessProbe:
           httpGet:
             path: /
