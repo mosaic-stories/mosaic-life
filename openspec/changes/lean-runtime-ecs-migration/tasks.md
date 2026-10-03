@@ -4,7 +4,7 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 
 - [x] 1.1 In `mosaic-stories/gitops`, set `GRAPH_AUGMENTATION_ENABLED=false` in the prod and staging core-api env. Wait for ArgoCD sync and confirm with `kubectl exec … env` that the pods have the flag.
 - [x] 1.2 Remove the `mosaic-neptune-data-plane-resource-arn` import and the `neptune-db:*` statements from `MosaicLifeStack` and `MosaicStagingResourcesStack`. Put them behind a `-c graph=neptune` context flag for the EKS return path. `cdk diff` should show only those IAM changes. **Merge only after 1.1 is live**: merging runs `cdk deploy --all`.
-- [ ] 1.3 **[ops]** After the 1.2 deploy. Progress: snapshot `mosaic-neptune-final-2026-10` was taken on 2026-10-03. The destroy waits for PR 1 to merge. Deleting the Neptune secrets moves to 13.3, so External Secrets doesn't error while EKS is still running:
+- [ ] 1.3 **[ops]** After the 1.2 deploy. Branch 1 also keeps the Neptune stack out of the app unless `-c graph=neptune` is set, so CI can't recreate it. Destroy it with `cdk destroy -c graph=neptune MosaicNeptuneDatabaseStack`. Progress: snapshot `mosaic-neptune-final-2026-10` was taken on 2026-10-03. The destroy waits for PR 1 to merge. Deleting the Neptune secrets moves to 13.3, so External Secrets doesn't error while EKS is still running:
   - take a manual Neptune cluster snapshot `mosaic-neptune-final-2026-10`;
   - disable deletion protection;
   - `cdk destroy MosaicNeptuneDatabaseStack`;
@@ -125,11 +125,11 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 ## 10. Staging on/off workflows and docs (PR)
 
 - [x] 10.1 Add `.github/workflows/staging-up.yml` (desiredCount 1 plus a one-time auto-stop schedule 2 h later) and `staging-down.yml` (desiredCount 0). Add the nightly 03:00 UTC backstop EventBridge Scheduler rule and its role to the staging runtime stack.
-- [ ] 10.2 Write `infra/EKS-RETURN.md` (design "Return-to-EKS path") and `infra/LEAN-RUNTIME.md`:
+- [x] 10.2 Write `infra/EKS-RETURN.md` (design "Return-to-EKS path") and `infra/LEAN-RUNTIME.md`:
   - architecture diagram, deploy flow, staging up/down;
   - ECS Exec usage and running backfill scripts with `aws ecs run-task`;
   - log queries, alarm runbook, cutover runbook and rollback.
-- [ ] 10.3 Gate: `actionlint` passes. A docs link check passes.
+- [x] 10.3 Gate: `actionlint` passes. A docs link check passes.
 
 ## 11. [ops] Saturday: stand up and validate staging on ECS
 
@@ -138,11 +138,12 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
   - `/mosaiclife/lean/alarm-email`: the owner's address.
 
   Note: staging is **not running on EKS today** (no ArgoCD app, empty `mosaic-staging` namespace), so the staging cutover has no live traffic to protect.
+- [ ] 11.0a **Flags are not sticky.** Every manual lean deploy must repeat the full set: `-c leanRuntime=true -c dbCopy=true -c manageDns=<envs>`. Leaving out `manageDns` or `dbCopy` removes those resources. See `infra/LEAN-RUNTIME.md`.
 - [ ] 11.1 Deploy the infra repo foundation (group 4). Then deploy `MosaicRdsStack` with `-c leanRuntime=true -c dbCopy=true`. Run `rds-bootstrap.sql` as `mosaic_admin` (see the script header), passing generated passwords for `mosaic_prod` and `mosaic_staging`.
 - [ ] 11.2 Copy staging **before** touching its secret. db-copy reads its source from `mosaic/staging/rds/credentials`, which still points at Aurora at this point. Run `mosaic-staging-db-copy` on cluster `mosaic-db-copy` (security group `mosaic-db-clients`, public subnets, `assignPublicIp=ENABLED`) and record the row counts and `vector` versions it reports. Only then:
   - rewrite `mosaic/staging/rds/credentials` to point at RDS (host, `mosaic_staging` user and password, dbname `core_staging`, plus a `url` key `postgresql+psycopg://…/core_staging?sslmode=require`);
   - create `mosaic/staging/google-oauth` as a copy of the prod OAuth client secret.
-- [ ] 11.3 Scale external-dns to 0. Delete the `stage.*` and `stage-api.*` records and their external-dns TXT records. Deploy `MosaicRdsStack`, `MosaicEcsRuntimeStack-shared` and `MosaicEcsRuntimeStack-staging` with `-c leanRuntime=true -c manageDns=staging`. Run the release workflow for `develop`.
+- [ ] 11.3 Pause ArgoCD self-heal on the `external-dns` app (`argocd app set external-dns --sync-policy none`), then scale external-dns to 0. Delete the `stage.*` and `stage-api.*` records and their external-dns TXT records. Deploy `MosaicRdsStack`, `MosaicEcsRuntimeStack-shared` and `MosaicEcsRuntimeStack-staging` with `-c leanRuntime=true -c manageDns=staging`. Run the release workflow for `develop`.
 - [ ] 11.4 Run the staging smoke tests and record the result of each:
   - Google login;
   - legacy and story create/edit;
@@ -169,10 +170,10 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 
 ## 13. [ops] Decommission after a 48 h soak, then finalize the docs (PR)
 
-- [ ] 13.1 Take the final Aurora snapshot `mosaic-prod-aurora-final-2026-10`, disable deletion protection, and destroy `MosaicAuroraDatabaseStack` and `MosaicLiteLLMSharedStack`.
+- [ ] 13.1 Take the final Aurora snapshot `mosaic-prod-aurora-final-2026-10`, disable deletion protection, and destroy `MosaicAuroraDatabaseStack` and `MosaicLiteLLMSharedStack`. In the same PR set `"legacyData": false` in `cdk.json`, so CI never recreates them.
 - [ ] 13.2 Delete the k8s ingresses (the controller removes the old ALB), then run `just delete-cluster`. Set `eksRoles` to `false` in `cdk.json` and redeploy the app stacks. Redeploy the foundation with `natGateways=0`. Confirm that no NAT gateways or extra EIPs remain.
-- [ ] 13.3 Remove the leftovers: the Karpenter SQS queue and EventBridge rules, SNS/SQS events topics and queues, the Cognito pool, stale secrets, the redundant ACM cert, the pre-Aurora RDS snapshots, the `eso-validation-*` secrets, and the db-copy security group's ingress on Aurora.
-- [ ] 13.4 Update `CLAUDE.md` (architecture, deploy, ops rules), `docs/architecture/MVP-SIMPLIFIED-ARCHITECTURE.md` (with the cost table) and `infra/DEPLOYMENT.md`. Add an ADR for "Lean ECS runtime with EKS return path". Add a dormant notice to the README of `mosaic-stories/gitops`.
+- [ ] 13.3 Remove the leftovers. The SNS/SQS events topic and queue belong to `MosaicLifeStack` (CDK), so remove them in code rather than out of band: the Karpenter SQS queue and EventBridge rules, SNS/SQS events topics and queues, the Cognito pool, stale secrets, the redundant ACM cert, the pre-Aurora RDS snapshots, the `eso-validation-*` secrets, and the db-copy security group's ingress on Aurora.
+- [ ] 13.4 Move the hard-coded EKS OIDC id (`D491975E…`, in 5 app stacks) into CDK context, or remove those IRSA trusts once `eksRoles=false`. Update `CLAUDE.md` (architecture, deploy, ops rules), `docs/architecture/MVP-SIMPLIFIED-ARCHITECTURE.md` (with the cost table) and `infra/DEPLOYMENT.md`. Add an ADR for "Lean ECS runtime with EKS return path". Add a dormant notice to the README of `mosaic-stories/gitops`.
 - [ ] 13.5 Add a calendar reminder or a scheduled cleanup to delete the `mosaic-neptune-final-2026-10` and `mosaic-prod-aurora-final-2026-10` snapshots 90 days after they were taken.
 - [ ] 13.6 Gate: `just validate-all` and `cdk synth` (both `runtime` modes) pass.
 

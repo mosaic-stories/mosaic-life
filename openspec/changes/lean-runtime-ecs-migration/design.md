@@ -231,7 +231,7 @@ nginx can no longer reach core-api by a cluster DNS name.
 1. Create the cluster from `infrastructure/infra/eksctl/cluster.yaml` at a supported version.
 2. Redeploy the foundation with `-c natGateways=1`.
 3. Install the add-ons and ArgoCD.
-4. Deploy app stacks with `-c eksRoles=true`. This creates IRSA roles with the new OIDC id, now passed as context instead of hard-coded.
+4. Deploy app stacks with `-c eksRoles=true`. The OIDC id is still hard-coded in 5 app stacks today. Task 13.4 moves it to context; until then, edit it for the new cluster.
 5. Set the gitops image tag to the current SSM tag. Env values come from the shared `infra/config/runtime-env/{env}.yaml` that CDK also reads.
 6. Allow the EKS node security group on the RDS security group. The database stays as it is.
 7. Scale ECS to 0 and remove the CDK DNS records, letting external-dns take ownership. Flip.
