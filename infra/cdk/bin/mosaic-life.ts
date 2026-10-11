@@ -9,6 +9,8 @@ import { NeptuneDatabaseStack } from '../lib/neptune-database-stack';
 import { LiteLLMSharedStack } from '../lib/litellm-shared-stack';
 import { AlbAccessLogsStack } from '../lib/alb-access-logs-stack';
 import { MosaicRdsStack } from '../lib/rds-stack';
+import { EcsSharedStack } from '../lib/ecs-shared-stack';
+import { EcsEnvStack } from '../lib/ecs-env-stack';
 
 const app = new cdk.App();
 
@@ -123,12 +125,26 @@ new AlbAccessLogsStack(app, 'MosaicAlbAccessLogsStack', {
 // Lean runtime stacks: only synthesised/deployed with `-c leanRuntime=true` because merges
 // run `cdk deploy --all` (see design D3).
 if (leanRuntime) {
-  new MosaicRdsStack(app, 'MosaicRdsStack', {
+  const rdsStack = new MosaicRdsStack(app, 'MosaicRdsStack', {
     env,
     vpc: appStack.vpc,
     dbCopy,
     auroraSecurityGroupId: process.env.AURORA_SG_ID || 'sg-011c0b125f85d0d54',
   });
+
+  // Shared ECS cluster + ALB, then one runtime stack per environment. Stacks are decoupled via
+  // SSM parameters (/mosaiclife/lean/{rds,ecs}/*); the explicit dependencies only order deploys.
+  const ecsShared = new EcsSharedStack(app, 'MosaicEcsRuntimeStack-shared', { env, vpc: appStack.vpc });
+  ecsShared.addDependency(rdsStack);
+  for (const environment of ['prod', 'staging'] as const) {
+    const envStack = new EcsEnvStack(app, `MosaicEcsRuntimeStack-${environment}`, {
+      env,
+      environment,
+      vpc: appStack.vpc,
+    });
+    envStack.addDependency(rdsStack);
+    envStack.addDependency(ecsShared);
+  }
 }
 
 app.synth();
