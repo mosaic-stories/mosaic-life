@@ -5,13 +5,17 @@ import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as route53Targets from 'aws-cdk-lib/aws-route53-targets';
+import * as scheduler from 'aws-cdk-lib/aws-scheduler';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { Construct } from 'constructs';
 import { loadRuntimeEnv } from './config/runtime-env';
 import { grantCoreApiPermissions } from './constructs/core-api-permissions';
-import { ECS_SSM_PREFIX, publicSubnets } from './ecs-shared-stack';
+import { LeanObservability } from './constructs/lean-observability';
+import { ECS_CLUSTER_NAME, ECS_SSM_PREFIX, publicSubnets } from './ecs-shared-stack';
 
 export type RuntimeEnvironment = 'prod' | 'staging';
 
@@ -19,17 +23,24 @@ export interface EcsEnvStackProps extends cdk.StackProps {
   /** Named `environment` because `env` is taken by StackProps (account/region). */
   environment: RuntimeEnvironment;
   vpc: ec2.IVpc;
+  /** Create the Route53 alias records (only after external-dns's records are removed). Default false. */
+  manageDns?: boolean;
 }
+
+const HOSTED_ZONE_ID = 'Z039487930F6987CJO4W9';
+const ZONE_NAME = 'mosaiclife.me';
 
 /** Listener-rule hosts per environment. Priorities: prod 100-199, staging 200-299. */
 const ROUTING = {
   prod: {
     basePriority: 100,
+    dnsNames: ['mosaiclife.me', 'frontend.mosaiclife.me', 'api.mosaiclife.me', 'backend.mosaiclife.me'],
     appHosts: ['mosaiclife.me', 'frontend.mosaiclife.me'],
     apiHosts: ['api.mosaiclife.me', 'backend.mosaiclife.me'],
   },
   staging: {
     basePriority: 200,
+    dnsNames: ['stage.mosaiclife.me', 'stage-api.mosaiclife.me'],
     appHosts: ['stage.mosaiclife.me'],
     apiHosts: ['stage-api.mosaiclife.me'],
   },
@@ -79,6 +90,12 @@ export class EcsEnvStack extends cdk.Stack {
     const listener = elbv2.ApplicationListener.fromApplicationListenerAttributes(this, 'HttpsListener', {
       listenerArn: ssmValue(`${ECS_SSM_PREFIX}/https-listener-arn`),
       securityGroup: albSg,
+    });
+    const alb = elbv2.ApplicationLoadBalancer.fromApplicationLoadBalancerAttributes(this, 'Alb', {
+      loadBalancerArn: ssmValue(`${ECS_SSM_PREFIX}/alb-arn`),
+      loadBalancerDnsName: ssmValue(`${ECS_SSM_PREFIX}/alb-dns-name`),
+      loadBalancerCanonicalHostedZoneId: ssmValue(`${ECS_SSM_PREFIX}/alb-hosted-zone-id`),
+      securityGroupId: ssmValue(`${ECS_SSM_PREFIX}/alb-sg-id`),
     });
     const dbClientsSg = ec2.SecurityGroup.fromSecurityGroupId(
       this,
@@ -198,6 +215,8 @@ export class EcsEnvStack extends cdk.Stack {
       }
       return td;
     };
+    // ECS Exec's SSM agent writes under these paths, which a read-only root filesystem would block.
+    const execMounts = { 'ssm-lib': '/var/lib/amazon', 'ssm-log': '/var/log/amazon' };
     // NOTE: containers run as the image default user (no `user` override). Helm forces uid 1000 via
     // fsGroup; ECS has no fsGroup, so root-owned ephemeral volumes would be unwritable for uid 1000.
     // The root filesystem stays read-only; only the mounted volumes are writable.
@@ -209,7 +228,7 @@ export class EcsEnvStack extends cdk.Stack {
       environment: coreEnv,
       secrets,
       port: true,
-      mounts: { tmp: '/tmp' },
+      mounts: { tmp: '/tmp', ...execMounts },
     });
     const webTaskDef = addTask('WebTaskDef', `mosaic-${envName}-web`, 256, 512, webTaskRole, {
       name: 'web',
@@ -218,7 +237,13 @@ export class EcsEnvStack extends cdk.Stack {
       streamPrefix: 'web',
       environment: cfg.web.env,
       port: true,
-      mounts: { tmp: '/tmp', 'nginx-cache': '/var/cache/nginx', 'nginx-run': '/var/run', 'nginx-conf': '/etc/nginx/conf.d' },
+      mounts: {
+        tmp: '/tmp',
+        'nginx-cache': '/var/cache/nginx',
+        'nginx-run': '/var/run',
+        'nginx-conf': '/etc/nginx/conf.d',
+        ...execMounts,
+      },
     });
     // Run by the release workflow with `aws ecs run-task` (container name matches core-api: ecs-deploy.sh reads its exit code).
     addTask('MigrateTaskDef', `mosaic-${envName}-migrate`, 256, 512, coreApiTaskRole, {
@@ -295,5 +320,75 @@ export class EcsEnvStack extends cdk.Stack {
     rule('CoreApiAppPathsRule', 0, [appHosts, elbv2.ListenerCondition.pathPatterns(CORE_API_PATHS)], this.coreApiTargetGroup);
     rule('CoreApiHostsRule', 10, [elbv2.ListenerCondition.hostHeaders([...routing.apiHosts])], this.coreApiTargetGroup);
     rule('WebHostsRule', 90, [appHosts], this.webTargetGroup);
+
+    // --- DNS (cutover step: enable with -c manageDns=<env>[,<env>] after external-dns records are gone) ---
+    if (props.manageDns) {
+      const zone = route53.HostedZone.fromHostedZoneAttributes(this, 'Zone', {
+        hostedZoneId: HOSTED_ZONE_ID,
+        zoneName: ZONE_NAME,
+      });
+      routing.dnsNames.forEach((name, i) => {
+        new route53.ARecord(this, `Alias${i}`, {
+          zone,
+          recordName: name,
+          target: route53.RecordTarget.fromAlias(new route53Targets.LoadBalancerTarget(alb)),
+        });
+      });
+    }
+
+    // --- Observability (design D9) ---------------------------------------------
+    new LeanObservability(this, 'Observability', {
+      env: envName,
+      // The operator seeds /mosaiclife/lean/alarm-email (String) before the first prod deploy; the
+      // address is deliberately not in this public repo. Staging has no alarms, so it is unused there.
+      alarmEmail: isProd ? ssmValue('/mosaiclife/lean/alarm-email') : 'unused@example.invalid',
+      enableAlarms: isProd,
+      loadBalancer: alb,
+      coreApiTargetGroup: this.coreApiTargetGroup,
+      webTargetGroup: this.webTargetGroup,
+      coreApiService: { clusterName: this.clusterName, serviceName: this.coreApiService.serviceName },
+      webService: { clusterName: this.clusterName, serviceName: this.webService.serviceName },
+      dbInstanceIdentifier: 'mosaic-lean-db',
+      coreApiLogGroup: this.coreApiLogGroup,
+      webLogGroup: this.webLogGroup,
+    });
+
+    if (!isProd) this.addNightlyStopBackstop();
+  }
+
+  /**
+   * Staging backstop (design D6, task 10.1): stop both services nightly at 03:00 UTC. The one-time
+   * auto-stop schedules created by the staging workflows live in the same group
+   * (`staging-autostop.sh` assumes group `mosaic-staging` and this role's name).
+   */
+  private addNightlyStopBackstop(): void {
+    const groupName = 'mosaic-staging';
+    const group = new scheduler.CfnScheduleGroup(this, 'ScheduleGroup', { name: groupName });
+    const role = new iam.Role(this, 'SchedulerRole', {
+      roleName: 'mosaic-staging-ecs-scheduler',
+      assumedBy: new iam.ServicePrincipal('scheduler.amazonaws.com'),
+    });
+    const services = [this.coreApiService, this.webService];
+    role.addToPolicy(
+      new iam.PolicyStatement({
+        actions: ['ecs:UpdateService'],
+        resources: services.map((s) => s.serviceArn),
+      }),
+    );
+    for (const svc of ['core-api', 'web']) {
+      const schedule = new scheduler.CfnSchedule(this, `NightlyStop-${svc}`, {
+        name: `staging-nightly-stop-${svc}`,
+        groupName,
+        scheduleExpression: 'cron(0 3 * * ? *)',
+        scheduleExpressionTimezone: 'UTC',
+        flexibleTimeWindow: { mode: 'OFF' },
+        target: {
+          arn: 'arn:aws:scheduler:::aws-sdk:ecs:updateService',
+          roleArn: role.roleArn,
+          input: JSON.stringify({ Cluster: ECS_CLUSTER_NAME, Service: `mosaic-staging-${svc}`, DesiredCount: 0 }),
+        },
+      });
+      schedule.addDependency(group);
+    }
   }
 }

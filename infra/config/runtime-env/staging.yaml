@@ -42,6 +42,6 @@ secrets:
   DB_URL: { secret: mosaic/staging/rds/credentials, key: url }
   SESSION_SECRET_KEY: { secret: mosaic/staging/session/secret-key, key: secret-key }
   INTERNAL_API_TOKEN: { secret: mosaic/staging/internal-api/token, key: token }
-  # Staging has no google-oauth secret of its own; the live chart falls back to prod's.
-  GOOGLE_CLIENT_ID: { secret: mosaic/prod/google-oauth, key: client-id }
-  GOOGLE_CLIENT_SECRET: { secret: mosaic/prod/google-oauth, key: client-secret }
+  # Staging reads only mosaic/staging/*. Ops creates this secret as a copy of the prod OAuth client (task 11.2).
+  GOOGLE_CLIENT_ID: { secret: mosaic/staging/google-oauth, key: client-id }
+  GOOGLE_CLIENT_SECRET: { secret: mosaic/staging/google-oauth, key: client-secret }
