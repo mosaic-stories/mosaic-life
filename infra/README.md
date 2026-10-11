@@ -133,6 +133,13 @@ just dev-down            # Stop local environment
 just dev-logs            # View local logs
 ```
 
+## Lean runtime (ECS)
+
+Production and staging run on ECS/Fargate with a single small RDS instance instead of EKS (change `lean-runtime-ecs-migration`).
+
+- [LEAN-RUNTIME.md](LEAN-RUNTIME.md): architecture, CDK stacks and context flags, release flow, staging on/off, operating runbooks, database, cutover.
+- [EKS-RETURN.md](EKS-RETURN.md): how to move back to EKS.
+
 ## 🔧 Configuration
 
 ### Existing Resources (Hardcoded)
