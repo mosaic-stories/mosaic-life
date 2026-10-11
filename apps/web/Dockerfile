@@ -15,8 +15,14 @@ COPY --from=build /app/dist /usr/share/nginx/html
 # substituting environment variables into the nginx config. See https://hub.docker.com/_/nginx
 COPY nginx.conf /etc/nginx/templates/default.conf.template
 
-# Default prerender host for Docker Compose (can be overridden via env var)
-ENV PRERENDER_HOST=prerender:3000
+# Runtime nginx configuration (substituted into the config template at startup).
+# Defaults preserve the existing Docker Compose / Kubernetes behavior.
+#   PRERENDER_HOST    - prerender service host:port; set empty to disable bot routing
+#   NGINX_RESOLVER    - DNS resolver for runtime upstream lookups (ECS VPC: 169.254.169.253)
+#   CORE_API_UPSTREAM - core-api host:port for /api/, /healthz, /readyz, sitemap, robots
+ENV PRERENDER_HOST=prerender:3000 \
+    NGINX_RESOLVER=kube-dns.kube-system.svc.cluster.local \
+    CORE_API_UPSTREAM=core-api:8080
 
 EXPOSE 8080
 

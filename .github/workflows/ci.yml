@@ -280,6 +280,32 @@ jobs:
           echo "Contract tests placeholder - add OpenAPI spec"
         continue-on-error: true
 
+  helm-template:
+    name: Helm - Template
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.4
+
+      - name: helm template (default values)
+        run: helm template mosaic-life infra/helm/mosaic-life --namespace mosaic-prod > /dev/null
+
+      - name: helm template (staging values)
+        run: |
+          helm template mosaic-life infra/helm/mosaic-life --namespace mosaic-staging \
+            --values infra/helm/mosaic-life/values.yaml \
+            --values infra/helm/mosaic-life/values-staging.yaml > /dev/null
+
+      - name: helm template (preview values)
+        run: |
+          helm template mosaic-life infra/helm/mosaic-life --namespace mosaic-preview \
+            --values infra/helm/mosaic-life/values.yaml \
+            --values infra/helm/mosaic-life/values-preview.yaml > /dev/null
+
   # Status check - all must pass
   ci-status:
     name: CI Status Check
@@ -291,6 +317,7 @@ jobs:
       - backend-lint
       - backend-test
       - security-scan
+      - helm-template
     if: always()
     steps:
       - name: Check CI status
