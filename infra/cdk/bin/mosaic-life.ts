@@ -8,6 +8,7 @@ import { StagingResourcesStack } from '../lib/staging-resources-stack';
 import { NeptuneDatabaseStack } from '../lib/neptune-database-stack';
 import { LiteLLMSharedStack } from '../lib/litellm-shared-stack';
 import { AlbAccessLogsStack } from '../lib/alb-access-logs-stack';
+import { MosaicRdsStack } from '../lib/rds-stack';
 
 const app = new cdk.App();
 
@@ -17,9 +18,12 @@ const graph: string | undefined = app.node.tryGetContext('graph');
 
 // `eksRoles` (default true, see cdk.json): create the EKS IRSA core-api roles. Merges auto-deploy
 // (`cdk deploy --all`), so the live roles stay until the EKS runtime is decommissioned.
-// `leanRuntime` (default false): reserved for the ECS/RDS runtime stacks (added in later changes).
+// `leanRuntime` (default false): adds the ECS/RDS runtime stacks (MosaicRdsStack, ...).
 const ctxBool = (v: unknown, dflt: boolean): boolean => (v === undefined ? dflt : v === true || v === 'true');
 const eksRoles = ctxBool(app.node.tryGetContext('eksRoles'), true);
+const leanRuntime = ctxBool(app.node.tryGetContext('leanRuntime'), false);
+// `dbCopy` (default false, only with leanRuntime): temporary Aurora -> RDS db-copy task definitions.
+const dbCopy = ctxBool(app.node.tryGetContext('dbCopy'), false);
 
 // Environment configuration
 const env = {
@@ -115,5 +119,16 @@ new AlbAccessLogsStack(app, 'MosaicAlbAccessLogsStack', {
   logsPrefix: 'alb/access/shared',
   projectionStartDate: '2026/03/01',
 });
+
+// Lean runtime stacks: only synthesised/deployed with `-c leanRuntime=true` because merges
+// run `cdk deploy --all` (see design D3).
+if (leanRuntime) {
+  new MosaicRdsStack(app, 'MosaicRdsStack', {
+    env,
+    vpc: appStack.vpc,
+    dbCopy,
+    auroraSecurityGroupId: process.env.AURORA_SG_ID || 'sg-011c0b125f85d0d54',
+  });
+}
 
 app.synth();
