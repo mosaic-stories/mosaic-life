@@ -12,6 +12,7 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as sqs from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import { AIChatGuardrail } from './guardrail-construct';
+import { grantCoreApiPermissions } from './constructs/core-api-permissions';
 
 export interface MosaicLifeStackProps extends cdk.StackProps {
   config: {
@@ -22,6 +23,7 @@ export interface MosaicLifeStackProps extends cdk.StackProps {
     existingUserPoolId?: string; // Optional: import existing Cognito User Pool
     existingEcrRepos?: boolean; // If true, import existing ECR repositories
     existingS3Buckets?: boolean; // If true, import existing S3 buckets
+    eksRoles?: boolean; // Create the EKS IRSA core-api role (default true until decommission)
     graph?: string; // Graph backend; 'neptune' adds Neptune IAM grants (imports Neptune stack export)
     tags: { [key: string]: string };
   };
@@ -40,6 +42,7 @@ export class MosaicLifeStack extends cdk.Stack {
     super(scope, id, props);
 
     const { domainName, hostedZoneId, environment, vpcId, existingUserPoolId, existingEcrRepos, existingS3Buckets, graph } = props.config;
+    const eksRoles = props.config.eksRoles ?? true;
 
     // ============================================================
     // VPC for EKS
@@ -499,133 +502,60 @@ export class MosaicLifeStack extends cdk.Stack {
     );
 
     // ============================================================
-    // IAM Roles for EKS IRSA
-    // ============================================================
-
-    const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
-    const oidcProviderArn = `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
-    const oidcProviderUrl = `oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
-
-    // Role for core-api to access S3, Secrets Manager, SQS/SNS
-    // Allows both the main environment namespace and preview-* namespaces
-    const coreApiRole = new iam.Role(this, 'CoreApiRole', {
-      roleName: `mosaic-${environment}-core-api-role`,
-      assumedBy: new iam.FederatedPrincipal(
-        oidcProviderArn,
-        {
-          StringEquals: {
-            [`${oidcProviderUrl}:aud`]: 'sts.amazonaws.com',
-          },
-          StringLike: {
-            [`${oidcProviderUrl}:sub`]: [
-              `system:serviceaccount:mosaic-${environment}:core-api`,
-              'system:serviceaccount:preview-*:core-api',
-            ],
-          },
-        },
-        'sts:AssumeRoleWithWebIdentity'
-      ),
-      description: 'IAM role for core-api service in EKS (includes preview environments)',
-    });
-
-    // Grant permissions to core-api role
-    this.mediaBucket.grantReadWrite(coreApiRole);
-    backupBucket.grantReadWrite(coreApiRole);
-    cognitoSecret.grantRead(coreApiRole);
-    domainEventsTopic.grantPublish(coreApiRole);
-    eventsQueue.grantConsumeMessages(coreApiRole);
-
-    // Grant Bedrock access for AI chat feature
-    // Cross-region inference (us.* model IDs) may route to any US region
-    coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowBedrockInvoke',
-        effect: iam.Effect.ALLOW,
-        actions: [
-          'bedrock:InvokeModel',
-          'bedrock:InvokeModelWithResponseStream',
-        ],
-        resources: [
-          // Allow access to Claude foundation models in all US regions
-          // Cross-region inference may route to any of these
-          'arn:aws:bedrock:us-east-1::foundation-model/anthropic.*',
-          'arn:aws:bedrock:us-east-2::foundation-model/anthropic.*',
-          'arn:aws:bedrock:us-west-2::foundation-model/anthropic.*',
-          // Allow cross-region inference profiles
-          `arn:aws:bedrock:us-east-1:${this.account}:inference-profile/us.anthropic.*`,
-          `arn:aws:bedrock:us-east-2:${this.account}:inference-profile/us.anthropic.*`,
-          `arn:aws:bedrock:us-west-2:${this.account}:inference-profile/us.anthropic.*`,
-          // Allow access to Amazon Titan Embeddings for AI memory/RAG
-          'arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0',
-          'arn:aws:bedrock:us-east-2::foundation-model/amazon.titan-embed-text-v2:0',
-          'arn:aws:bedrock:us-west-2::foundation-model/amazon.titan-embed-text-v2:0',
-        ],
-      })
-    );
-
-    // Grant AWS Marketplace permissions required by newer Bedrock models (e.g. Claude Haiku 4.5+)
-    // These models require a marketplace agreement before first use; the IAM role must be
-    // authorised to read and complete that subscription handshake.
-    coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowBedrockMarketplaceSubscription',
-        effect: iam.Effect.ALLOW,
-        actions: [
-          'aws-marketplace:ViewSubscriptions',
-          'aws-marketplace:Subscribe',
-          'aws-marketplace:Unsubscribe',
-        ],
-        resources: ['*'],
-      })
-    );
-
-    // ============================================================
     // Bedrock Guardrail for AI Chat
     // ============================================================
     const aiGuardrail = new AIChatGuardrail(this, 'AIChatGuardrail', {
       environment,
     });
 
-    // Grant permission to apply guardrail
-    coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowBedrockGuardrail',
-        effect: iam.Effect.ALLOW,
-        actions: ['bedrock:ApplyGuardrail'],
-        resources: [aiGuardrail.guardrailArn],
-      })
-    );
+    // ============================================================
+    // IAM Roles for EKS IRSA
+    // Kept while the EKS runtime is live; `-c eksRoles=false` drops it (defaults to true).
+    // ============================================================
+    if (eksRoles) {
+      const clusterId = 'D491975E1999961E7BBAAE1A77332FBA';
+      const oidcProviderArn = `arn:aws:iam::${this.account}:oidc-provider/oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
+      const oidcProviderUrl = `oidc.eks.${this.region}.amazonaws.com/id/${clusterId}`;
 
-    // Grant Neptune graph database access for graph-augmented RAG
-    // Only wired when `-c graph=neptune`; default has no dependency on the Neptune stack.
-    if (graph === 'neptune') {
-      const neptuneDataPlaneResourceArn = cdk.Fn.importValue('mosaic-neptune-data-plane-resource-arn');
-      coreApiRole.addToPolicy(
-        new iam.PolicyStatement({
-          sid: 'AllowNeptuneConnect',
-          effect: iam.Effect.ALLOW,
-          actions: ['neptune-db:connect'],
-          resources: [neptuneDataPlaneResourceArn],
-        })
-      );
-      coreApiRole.addToPolicy(
-        new iam.PolicyStatement({
-          sid: 'AllowNeptuneOpenCypherQueries',
-          effect: iam.Effect.ALLOW,
-          actions: [
-            'neptune-db:ReadDataViaQuery',
-            'neptune-db:WriteDataViaQuery',
-            'neptune-db:DeleteDataViaQuery',
-            'neptune-db:GetQueryStatus',
-          ],
-          resources: [neptuneDataPlaneResourceArn],
-          conditions: {
+      // Role for core-api to access S3, Secrets Manager, SQS/SNS
+      // Allows both the main environment namespace and preview-* namespaces
+      const coreApiRole = new iam.Role(this, 'CoreApiRole', {
+        roleName: `mosaic-${environment}-core-api-role`,
+        assumedBy: new iam.FederatedPrincipal(
+          oidcProviderArn,
+          {
             StringEquals: {
-              'neptune-db:QueryLanguage': 'OpenCypher',
+              [`${oidcProviderUrl}:aud`]: 'sts.amazonaws.com',
+            },
+            StringLike: {
+              [`${oidcProviderUrl}:sub`]: [
+                `system:serviceaccount:mosaic-${environment}:core-api`,
+                'system:serviceaccount:preview-*:core-api',
+              ],
             },
           },
-        })
-      );
+          'sts:AssumeRoleWithWebIdentity'
+        ),
+        description: 'IAM role for core-api service in EKS (includes preview environments)',
+      });
+
+      // Shared permissions: S3, Bedrock, guardrail, SES, (Neptune when graph=neptune).
+      // The live prod role has no Secrets Manager wildcard grant, so it is not added here.
+      grantCoreApiPermissions(coreApiRole, {
+        environment,
+        account: this.account,
+        region: this.region,
+        mediaBucket: this.mediaBucket,
+        backupBucket,
+        guardrailArn: aiGuardrail.guardrailArn,
+        graph,
+        includeSecretsRead: false,
+      });
+
+      // Prod-stack-specific grants
+      cognitoSecret.grantRead(coreApiRole);
+      domainEventsTopic.grantPublish(coreApiRole);
+      eventsQueue.grantConsumeMessages(coreApiRole);
     }
 
     // ============================================================
