@@ -11,6 +11,10 @@ import { AlbAccessLogsStack } from '../lib/alb-access-logs-stack';
 
 const app = new cdk.App();
 
+// Graph backend context flag. Only `-c graph=neptune` wires Neptune IAM grants
+// (and the cross-stack import of the Neptune export). Default: no Neptune coupling.
+const graph: string | undefined = app.node.tryGetContext('graph');
+
 // Environment configuration
 const env = {
   account: process.env.CDK_DEFAULT_ACCOUNT || '033691785857',
@@ -40,6 +44,7 @@ const appStack = new MosaicLifeStack(app, 'MosaicLifeStack', {
     existingEcrRepos: true,
     existingS3Buckets: true,
     environment: prodEnvironment,
+    graph,
     tags: {
       Project: 'MosaicLife',
       Environment: prodEnvironment,
@@ -49,34 +54,48 @@ const appStack = new MosaicLifeStack(app, 'MosaicLifeStack', {
   },
 });
 
+// Legacy data stacks (Aurora + LiteLLM) stay in the app until decommission. CI runs
+// `cdk deploy --all`, so once they are destroyed they must be left out of the app
+// (`-c legacyData=false`, or `"legacyData": false` in cdk.json) or the next merge
+// would recreate them. Leaving a stack out of the app never deletes it.
+const legacyData = app.node.tryGetContext('legacyData') !== false && app.node.tryGetContext('legacyData') !== 'false';
+
 // Aurora Database Stack - migrated from RDS PostgreSQL for AGE extension support
 // Originally restored from snapshot 'mosaic-pre-aurora-migration'; now the primary database.
-new AuroraDatabaseStack(app, 'MosaicAuroraDatabaseStack', {
-  env,
-  vpc: appStack.vpc,
-  environment: prodEnvironment,
-  snapshotIdentifier: 'arn:aws:rds:us-east-1:033691785857:snapshot:mosaic-pre-aurora-migration',
-});
+if (legacyData) {
+  new AuroraDatabaseStack(app, 'MosaicAuroraDatabaseStack', {
+    env,
+    vpc: appStack.vpc,
+    environment: prodEnvironment,
+    snapshotIdentifier: 'arn:aws:rds:us-east-1:033691785857:snapshot:mosaic-pre-aurora-migration',
+  });
+}
 
 // Neptune Graph Database Stack — single shared cluster for all environments
-// Data isolation via prefix-label strategy (see design doc)
-new NeptuneDatabaseStack(app, 'MosaicNeptuneDatabaseStack', {
-  env,
-  vpc: appStack.vpc,
-  environments: [prodEnvironment, 'staging'],
-});
+// Data isolation via prefix-label strategy (see design doc). Only part of the app with
+// `-c graph=neptune`; otherwise CI deploys would recreate it after retirement.
+if (graph === 'neptune') {
+  new NeptuneDatabaseStack(app, 'MosaicNeptuneDatabaseStack', {
+    env,
+    vpc: appStack.vpc,
+    environments: [prodEnvironment, 'staging'],
+  });
+}
 
 // Staging Resources Stack - S3 buckets, IAM roles, secrets for staging
 new StagingResourcesStack(app, 'MosaicStagingResourcesStack', {
   env,
   vpc: appStack.vpc,
   domainName,
+  graph,
 });
 
 // LiteLLM Shared Stack - IRSA role for the shared aiservices deployment
-new LiteLLMSharedStack(app, 'MosaicLiteLLMSharedStack', {
-  env,
-});
+if (legacyData) {
+  new LiteLLMSharedStack(app, 'MosaicLiteLLMSharedStack', {
+    env,
+  });
+}
 
 // ALB Access Logs Stack - Athena/Glue resources for querying ALB logs
 new AlbAccessLogsStack(app, 'MosaicAlbAccessLogsStack', {
