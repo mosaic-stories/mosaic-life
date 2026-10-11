@@ -176,21 +176,21 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
 
       - name: Install uv
         run: pip install uv
 
+      # Install from uv.lock so CI tests the same dependency versions as local dev.
+      # An unlocked `uv pip install -e ".[dev]"` drifted to SQLAlchemy 2.1, which no
+      # longer pulls in greenlet by default.
       - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
+        run: uv sync --frozen --all-extras
 
       - name: Run pytest
         env:
           DB_URL: postgresql://postgres:postgres@localhost:5432/test_core
           ENVIRONMENT: test
-        run: |
-          pip install pytest pytest-asyncio pytest-cov
-          pytest --cov=app --cov-report=xml --cov-report=term
+        run: uv run pytest --cov=app --cov-report=xml --cov-report=term
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
