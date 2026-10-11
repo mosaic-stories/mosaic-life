@@ -1,0 +1,35 @@
+name: Staging Down
+
+# Dispatch from `develop` or `main` only: the github-actions-ecs-deploy role's
+# OIDC trust matches only those branch refs (no GitHub `environment:` key).
+on:
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  down:
+    name: Scale staging down
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    concurrency:
+      group: ecs-deploy-staging
+      cancel-in-progress: false
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-ecs-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Delete pending auto-stop schedules
+        run: .github/scripts/staging-autostop.sh delete
+
+      - name: Scale services to 0
+        run: .github/scripts/ecs-scale.sh 0

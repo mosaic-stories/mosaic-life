@@ -216,7 +216,7 @@ jobs:
     name: Update Image Tags in GitOps Repo
     runs-on: ubuntu-latest
     needs: [build-web, build-core-api, sign-images]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    if: (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && vars.DEPLOY_TARGET != 'ecs'
     concurrency:
       group: gitops-update-${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
       cancel-in-progress: false
@@ -305,3 +305,38 @@ jobs:
 
           echo "GitOps push failed after 3 attempts"
           exit 1
+
+  deploy-ecs:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+    needs: [build-web, build-core-api, sign-images]
+    # No GitHub `environment:` key here: the deploy role's OIDC trust matches
+    # only the subjects repo:mosaic-stories/mosaic-life:ref:refs/heads/{main,develop}.
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') &&
+      vars.DEPLOY_TARGET == 'ecs'
+    permissions:
+      id-token: write
+      contents: read
+    concurrency:
+      group: ecs-deploy-${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+      cancel-in-progress: false
+    env:
+      ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::033691785857:role/github-actions-ecs-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          # Same tag the build produced: {prod|staging}-<sha7>
+          .github/scripts/ecs-deploy.sh "${ENVIRONMENT}" "${ENVIRONMENT}-${COMMIT_SHA:0:7}"
