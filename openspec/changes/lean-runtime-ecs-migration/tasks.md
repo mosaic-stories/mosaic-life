@@ -1,4 +1,4 @@
-Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked **[infra repo]** land in `mosaic-stories/infrastructure`. Groups marked **[ops]** are runbook steps rather than PRs; record what was observed in each checkbox. Every PR group can merge without changing production behaviour. Production only changes in groups 11–13.
+Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked **[infra repo]** land in `mosaic-stories/infrastructure`. Groups marked **[ops]** are runbook steps rather than PRs; record what was observed in each checkbox. Groups 2–10 can merge without changing production behaviour. Group 1 is pre-cutover production work: it disables graph augmentation, destroys Neptune and changes EKS logging on the live system. The cutover itself is groups 11–13.
 
 ## 1. Quick wins and Neptune retirement (PR, plus gitops commit)
 
@@ -7,7 +7,7 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 - [ ] 1.3 **[ops]** After the 1.2 deploy. Branch 1 also keeps the Neptune stack out of the app unless `-c graph=neptune` is set, so CI can't recreate it. Destroy it with `cdk destroy -c graph=neptune MosaicNeptuneDatabaseStack`. Progress: snapshot `mosaic-neptune-final-2026-10` was taken on 2026-10-03. The destroy waits for PR 1 to merge. Deleting the Neptune secrets moves to 13.3, so External Secrets doesn't error while EKS is still running:
   - take a manual Neptune cluster snapshot `mosaic-neptune-final-2026-10`;
   - disable deletion protection;
-  - `cdk destroy MosaicNeptuneDatabaseStack`;
+  - `cdk destroy -c graph=neptune MosaicNeptuneDatabaseStack`;
   - delete the `mosaic/{prod,staging}/neptune/connection` secrets.
 - [ ] 1.4 **[ops]** (**owner to run**; the auto-mode check blocked it as logging/audit tampering) Disable EKS control-plane logging (`aws eks update-cluster-config --logging …enabled=false`) and set 7-day retention on `/aws/eks/mosaiclife-eks/cluster`.
 - [ ] 1.5 **[ops]** Delete `s3://mosaic-life-observability/metricsmimir/` (**owner to run**; the auto-mode check blocked it; the bucket lifecycle expires it around Nov 2026 anyway). ~~Create the AWS Budget~~ Done 2026-10-03: `mosaic-monthly`, $100/month, alerts on actual over 100% and forecast over 120%.
@@ -76,7 +76,7 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
   - security group allowing 5432 only from the ECS task and db-copy task security groups.
 - [x] 6.2 Add `infra/scripts/rds-bootstrap.sql`:
   - `CREATE DATABASE core`, `core_staging`;
-  - roles `mosaic_prod` and `mosaic_staging` with `CONNECT` only on their own database;
+  - roles `mosaic_prod` and `mosaic_staging` with `CONNECT` only on their own database, and `USAGE, CREATE` on the `public` schema of that database only (needed by `pg_restore --role`);
   - `REVOKE CONNECT … FROM PUBLIC`;
   - `CREATE EXTENSION vector` in each database.
 - [x] 6.3 Add the `db-copy` one-off task definition (`postgres:16-alpine`, a `pg_dump -Fc | pg_restore --no-owner --role=<app role>` script, row-count report per table) and its security group, with temporary ingress on Aurora's security group.
@@ -115,16 +115,16 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 - [x] 9.1 Extend `.github/workflows/build-push.yml` with a `deploy-ecs` job per environment (`develop`→staging, `main`→prod) using the `github-actions-ecs-deploy` role. The job:
   1. clones the current task definitions with the new image and registers them;
   2. runs the migrate task and waits, failing the job on a non-zero exit;
-  3. updates core-api then web and waits for stability;
+  3. updates core-api then web and waits for stability, then checks that each service's PRIMARY deployment uses the newly registered task definition revision (a rollback by the circuit breaker also makes the wait succeed) and fails the job otherwise;
   4. writes the SSM image tag;
-  5. for staging, sets `desiredCount=1` and creates the one-time auto-stop schedule.
+  5. for staging, sets `desiredCount=1` and resets the single `mosaic-staging-auto-stop` schedule (`UpdateSchedule`, falling back to `CreateSchedule`).
 - [x] 9.1a Deploy jobs must not use a GitHub `environment:`. The `github-actions-ecs-deploy` trust policy matches only `ref:refs/heads/{main,develop}` subjects.
 - [x] 9.2 Put the existing gitops tag-bump step behind a repo variable `DEPLOY_TARGET` (`ecs` | `eks`). The default stays `eks` until cutover.
 - [ ] 9.3 Gate: `actionlint` passes. Run the workflow via `workflow_dispatch` against staging once the stacks exist (group 11).
 
 ## 10. Staging on/off workflows and docs (PR)
 
-- [x] 10.1 Add `.github/workflows/staging-up.yml` (desiredCount 1 plus a one-time auto-stop schedule 2 h later) and `staging-down.yml` (desiredCount 0). Add the nightly 03:00 UTC backstop EventBridge Scheduler rule and its role to the staging runtime stack.
+- [x] 10.1 Add `.github/workflows/staging-up.yml` (desiredCount 1 plus a reset of the single auto-stop schedule to 2 h later) and `staging-down.yml` (desiredCount 0). Add the nightly 03:00 UTC backstop EventBridge Scheduler rule and its role to the staging runtime stack.
 - [x] 10.2 Write `infra/EKS-RETURN.md` (design "Return-to-EKS path") and `infra/LEAN-RUNTIME.md`:
   - architecture diagram, deploy flow, staging up/down;
   - ECS Exec usage and running backfill scripts with `aws ecs run-task`;
@@ -143,7 +143,7 @@ Groups 1–10 are each one PR under 400 LOC, in dependency order. Groups marked 
 - [ ] 11.2 Copy staging **before** touching its secret. db-copy reads its source from `mosaic/staging/rds/credentials`, which still points at Aurora at this point. Run `mosaic-staging-db-copy` on cluster `mosaic-db-copy` (security group `mosaic-db-clients`, public subnets, `assignPublicIp=ENABLED`) and record the row counts and `vector` versions it reports. Only then:
   - rewrite `mosaic/staging/rds/credentials` to point at RDS (host, `mosaic_staging` user and password, dbname `core_staging`, plus a `url` key `postgresql+psycopg://…/core_staging?sslmode=require`);
   - create `mosaic/staging/google-oauth` as a copy of the prod OAuth client secret.
-- [ ] 11.3 Pause ArgoCD self-heal on the `external-dns` app (`argocd app set external-dns --sync-policy none`), then scale external-dns to 0. Delete the `stage.*` and `stage-api.*` records and their external-dns TXT records. Deploy `MosaicRdsStack`, `MosaicEcsRuntimeStack-shared` and `MosaicEcsRuntimeStack-staging` with `-c leanRuntime=true -c manageDns=staging`. Run the release workflow for `develop`.
+- [ ] 11.3 Pause ArgoCD self-heal on the `external-dns` app (`argocd app set external-dns --sync-policy none`), then scale external-dns to 0. Delete the `stage.*` and `stage-api.*` records and their external-dns TXT records. Deploy `MosaicRdsStack`, `MosaicEcsRuntimeStack-shared` and `MosaicEcsRuntimeStack-staging` with `-c leanRuntime=true -c dbCopy=true -c manageDns=staging` (keep `dbCopy=true` until the prod copy in 12.2 is done, since 11.7 and 12.2 need the copy task). Run the release workflow for `develop`.
 - [ ] 11.4 Run the staging smoke tests and record the result of each:
   - Google login;
   - legacy and story create/edit;

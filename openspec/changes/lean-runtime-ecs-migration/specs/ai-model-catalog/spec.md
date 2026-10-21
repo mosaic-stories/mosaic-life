@@ -24,7 +24,7 @@ Both catalogs SHALL define the same alias names, and they SHALL be kept in sync 
 - **WHEN** core-api runs with `AI_LLM_PROVIDER=bedrock` and a feature requests completions with the alias `claude-sonnet-4-6`
 - **THEN** the request reaches Bedrock using the model ID `claude-sonnet-4-6` maps to in the catalog, and the response streams normally
 
-#### Scenario: Unknown or empty model ID falls back to the default
+#### Scenario: Empty model ID falls back to the default; unrecognised ID passes through
 - **WHEN** core-api in direct-Bedrock mode receives an empty model ID, or one that is neither a catalog alias nor a raw Bedrock ID
 - **THEN** an empty model ID resolves to the alias in `DEFAULT_CHAT_MODEL_ID`, and an unrecognised ID is passed to Bedrock unchanged so Bedrock's own error surfaces (logged with the requested ID)
 

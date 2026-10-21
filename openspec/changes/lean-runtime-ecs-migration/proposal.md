@@ -132,7 +132,7 @@ Also answered by the owner on 2026-10-03 (second round). All open questions are 
   - `ci.yml` adds a `helm template` check.
 - **core-api:**
   - Bedrock model-alias catalog;
-  - empty or unknown model ID falls back to `DEFAULT_CHAT_MODEL_ID`;
+  - an empty model ID falls back to `DEFAULT_CHAT_MODEL_ID`; an unknown ID is passed through unchanged;
   - Titan model ID corrected;
   - `RUN_MIGRATIONS_ON_START` flag in `scripts/start.sh`.
 - **web:** `nginx.conf` resolver and upstream hosts become environment-driven (`NGINX_RESOLVER`, `CORE_API_UPSTREAM`, `PRERENDER_HOST`).

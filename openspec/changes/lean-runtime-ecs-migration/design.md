@@ -99,7 +99,7 @@ nginx can no longer reach core-api by a cluster DNS name.
   1. Build and push.
   2. `aws ecs register-task-definition`, cloned from the current revision with only the image changed.
   3. `aws ecs run-task` with the migration command override (`alembic upgrade head`). Wait and check the exit code; stop on failure.
-  4. `aws ecs update-service` for core-api, then web, and wait for stability. The circuit breaker handles rollback.
+  4. `aws ecs update-service` for core-api, then web, and wait for stability. The circuit breaker handles rollback, but a stable wait also succeeds after a rollback, so the job then verifies that each service's PRIMARY deployment uses the newly registered task definition revision and fails otherwise.
   5. Write the new tag to SSM.
 
 **Constraint found during apply: merging a CDK change deploys it.** `.github/workflows/cdk-deploy.yml` runs `cdk deploy --all` on any push to `main` or `develop` that touches `infra/cdk/**`. The `environment` context isn't read by the CDK code, so every merge deploys every stack. Consequences:
@@ -125,7 +125,7 @@ nginx can no longer reach core-api by a cluster DNS name.
 
 - 20 GB gp3, storage autoscaling up to 50 GB, encrypted, 7-day PITR, deletion protection, Performance Insights off.
 - Parameter group carries over `statement_timeout=30000` and `idle_in_transaction_session_timeout=300000`.
-- One instance, two databases: `core` (prod) and `core_staging`. Separate login roles, `mosaic_prod` and `mosaic_staging`, each with `CONNECT` on its own database only and `REVOKE CONNECT … FROM PUBLIC`. Staging therefore cannot touch prod data.
+- One instance, two databases: `core` (prod) and `core_staging`. Separate login roles, `mosaic_prod` and `mosaic_staging`, each with `CONNECT` on its own database only and `REVOKE CONNECT … FROM PUBLIC`, plus `USAGE, CREATE` on the `public` schema of its own database only (PG16 no longer lets ordinary roles create objects there, and `pg_restore --role` needs it). Staging therefore cannot touch prod data.
 - The master credentials are a CDK-generated secret, `mosaic/shared/rds-lean/master` (user `mosaic_admin`). RDS is pinned to the three private subnet IDs read from the foundation's SSM parameters, so removing NAT, which re-tags those subnets as isolated, can't replace the DB subnet group.
 - App credentials stay in the **existing secret names** `mosaic/{prod,staging}/rds/credentials`, updated in place with host, port, username, password, dbname and a new `url` key. ECS injects `DB_URL` from `<secret>:url::`. The EKS ExternalSecret template keeps working from the other keys, which keeps the return path open.
 - Sizing headroom is ~100 max connections, more than enough for core-api's pool across 2 tasks during a deploy. If memory pressure appears, scale to db.t4g.small (~$24).
@@ -135,7 +135,7 @@ nginx can no longer reach core-api by a cluster DNS name.
 - Staging services default to `desiredCount: 0`. CDK ignores `desiredCount` drift after creation.
 - Push to `develop` → the release workflow deploys to staging (steps 1–5) and sets `desiredCount=1`.
 - `staging-up.yml` (manual) sets `desiredCount=1` with the current task definition. `staging-down.yml` (manual) sets it to 0.
-- Auto-stop: the up and deploy paths create a one-time EventBridge Scheduler schedule, `at(now + N h)`, that calls `ecs:UpdateService desiredCount=0` and deletes itself after completion. A nightly recurring schedule is the backstop.
+- Auto-stop: one fixed-name one-time EventBridge Scheduler schedule, `mosaic-staging-auto-stop`, with `at(now + N h)`, that calls `ecs:UpdateService desiredCount=0` and deletes itself after completion (`ActionAfterCompletion=DELETE`). Each up or deploy path calls `UpdateSchedule` to move the time, and falls back to `CreateSchedule` on `ResourceNotFoundException`, so there is never more than one pending stop and each start resets the 2 h window. A nightly recurring schedule is the backstop.
 - While asleep, the ALB returns 503 for `stage.*`, because the target group has no targets.
 
 ### D7. Prerender: keep it only if it is free to keep
@@ -205,7 +205,7 @@ nginx can no longer reach core-api by a cluster DNS name.
   - `ecs:RegisterTaskDefinition|DescribeTaskDefinition|RunTask|DescribeTasks|UpdateService|DescribeServices`;
   - `iam:PassRole` on the task and execution roles;
   - `ssm:PutParameter` on `/mosaiclife/*/image-tag`;
-  - `scheduler:CreateSchedule` with `iam:PassRole` for the scheduler role.
+  - `scheduler:CreateSchedule|UpdateSchedule` on the `mosaic-staging-auto-stop` schedule, with `iam:PassRole` for the scheduler role.
 - Role naming convention, used by the deploy role's `iam:PassRole` scope `role/mosaic-*-ecs-*`:
 
   | Role | Name |
@@ -247,7 +247,7 @@ nginx can no longer reach core-api by a cluster DNS name.
 ## Risks / Trade-offs
 
 - **[Single task per service, so a crash or Spot reclaim means minutes of downtime]** → Accepted per owner tolerance. ECS replaces tasks automatically, and the unhealthy-host alarms notify.
-- **[Tasks with public IPs]** → No inbound except from the ALB security group. No SSH (ECS Exec over SSM only). Images keep running as a non-root user with a read-only root filesystem, as in Helm.
+- **[Tasks with public IPs]** → No inbound except from the ALB security group. No SSH (ECS Exec over SSM only). Containers use a read-only root filesystem as in Helm. Non-root operation (uid 1000, as in Helm) is not yet in place, because group 7 runs the image default user. It is a staging gate (task 11.4a) that must pass before production.
 - **[Direct Bedrock behaviour differs subtly from LiteLLM: streaming chunking, error shapes, guardrail application]** → The Bedrock adapter already exists and handles guardrails natively. Before cutover, staging smoke tests must cover chat SSE, story evolution SSE, an embeddings write followed by a similarity search, and a guardrail intervention.
 - **[Lost in-process background work on deploy]** → `stopTimeout` and the 120 s deregistration delay let most `BackgroundTasks` finish. This matches today's behaviour on pod termination.
 - **[Single-AZ RDS]** → 7-day PITR plus a final-snapshot policy. Moving to Multi-AZ is a one-flag change in the Ready tier.
