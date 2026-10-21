@@ -22,6 +22,7 @@ export interface MosaicLifeStackProps extends cdk.StackProps {
     existingUserPoolId?: string; // Optional: import existing Cognito User Pool
     existingEcrRepos?: boolean; // If true, import existing ECR repositories
     existingS3Buckets?: boolean; // If true, import existing S3 buckets
+    graph?: string; // Graph backend; 'neptune' adds Neptune IAM grants (imports Neptune stack export)
     tags: { [key: string]: string };
   };
 }
@@ -38,8 +39,7 @@ export class MosaicLifeStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: MosaicLifeStackProps) {
     super(scope, id, props);
 
-    const { domainName, hostedZoneId, environment, vpcId, existingUserPoolId, existingEcrRepos, existingS3Buckets } = props.config;
-    const neptuneDataPlaneResourceArn = cdk.Fn.importValue('mosaic-neptune-data-plane-resource-arn');
+    const { domainName, hostedZoneId, environment, vpcId, existingUserPoolId, existingEcrRepos, existingS3Buckets, graph } = props.config;
 
     // ============================================================
     // VPC for EKS
@@ -597,32 +597,36 @@ export class MosaicLifeStack extends cdk.Stack {
     );
 
     // Grant Neptune graph database access for graph-augmented RAG
-    coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowNeptuneConnect',
-        effect: iam.Effect.ALLOW,
-        actions: ['neptune-db:connect'],
-        resources: [neptuneDataPlaneResourceArn],
-      })
-    );
-    coreApiRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AllowNeptuneOpenCypherQueries',
-        effect: iam.Effect.ALLOW,
-        actions: [
-          'neptune-db:ReadDataViaQuery',
-          'neptune-db:WriteDataViaQuery',
-          'neptune-db:DeleteDataViaQuery',
-          'neptune-db:GetQueryStatus',
-        ],
-        resources: [neptuneDataPlaneResourceArn],
-        conditions: {
-          StringEquals: {
-            'neptune-db:QueryLanguage': 'OpenCypher',
+    // Only wired when `-c graph=neptune`; default has no dependency on the Neptune stack.
+    if (graph === 'neptune') {
+      const neptuneDataPlaneResourceArn = cdk.Fn.importValue('mosaic-neptune-data-plane-resource-arn');
+      coreApiRole.addToPolicy(
+        new iam.PolicyStatement({
+          sid: 'AllowNeptuneConnect',
+          effect: iam.Effect.ALLOW,
+          actions: ['neptune-db:connect'],
+          resources: [neptuneDataPlaneResourceArn],
+        })
+      );
+      coreApiRole.addToPolicy(
+        new iam.PolicyStatement({
+          sid: 'AllowNeptuneOpenCypherQueries',
+          effect: iam.Effect.ALLOW,
+          actions: [
+            'neptune-db:ReadDataViaQuery',
+            'neptune-db:WriteDataViaQuery',
+            'neptune-db:DeleteDataViaQuery',
+            'neptune-db:GetQueryStatus',
+          ],
+          resources: [neptuneDataPlaneResourceArn],
+          conditions: {
+            StringEquals: {
+              'neptune-db:QueryLanguage': 'OpenCypher',
+            },
           },
-        },
-      })
-    );
+        })
+      );
+    }
 
     // ============================================================
     // Outputs
